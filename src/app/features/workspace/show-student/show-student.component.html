@@ -1,0 +1,1706 @@
+<div class="page-container">
+  <!-- Toast Notification Alert (if present) -->
+  @if (workspaceService.toast(); as toast) {
+    <div
+      class="toast-notification"
+      [class.toast-notification--success]="toast.type === 'success'"
+      [class.toast-notification--info]="toast.type === 'info'"
+      [class.toast-notification--error]="toast.type === 'error'"
+    >
+      <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+      <span>{{ toast.message }}</span>
+    </div>
+  }
+
+  <!-- Page Header -->
+  <div class="show-head">
+    <div>
+      <h1 class="page-title">{{ activeTab() === 'active' ? t().activeStudentsTitle : t().workspaceHistory }}</h1>
+      <p class="page-subtitle">{{ activeTab() === 'active' ? t().activeStudentsSubtitle : t().workspaceHistory }}</p>
+    </div>
+
+    <!-- Top Right Controls -->
+    <div class="head-controls">
+      <button type="button" class="btn-export-data" (click)="exportStudentsToCSV()" [title]="t().exportDisplayedToCSV">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="export-icon">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        <span>{{ t().exportDisplayedResults }}</span>
+      </button>
+
+      <app-primary-button (clicked)="openCheckInModal()">
+        <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span>{{ t().newStudentCheckInBtn }}</span>
+      </app-primary-button>
+    </div>
+  </div>
+
+  <!-- 4 Stat Metric Cards Grid -->
+  <div class="metrics-grid">
+    <!-- Card 1: Inside Right Now -->
+    <app-metric-card
+      [title]="t().insideRightNow"
+      [value]="insideCount()"
+      color="yellow"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+      </svg>
+    </app-metric-card>
+
+    <!-- Card 2: Avg. Session -->
+    <app-metric-card
+      [title]="t().avgSessionTitle"
+      [value]="avgSession()"
+      color="blue"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+      </svg>
+    </app-metric-card>
+
+    <!-- Card 3: Today's Check-ins -->
+    <app-metric-card
+      [title]="t().todayCheckinsTitle"
+      [value]="todayCheckins()"
+      color="green"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+        <polyline points="10 17 15 12 10 7"/>
+        <line x1="15" y1="12" x2="3" y2="12"/>
+      </svg>
+    </app-metric-card>
+
+    <!-- Card 4: Checkouts Today -->
+    <app-metric-card
+      [title]="t().checkoutsTodayTitle"
+      [value]="checkoutsToday()"
+      color="purple"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+    </app-metric-card>
+  </div>
+
+  <!-- Students Data Table Container -->
+  <div class="table-container-card">
+    <!-- Tab Controls & Filter Header -->
+    <div class="table-top-bar">
+      <!-- Tabs -->
+      <div class="table-tabs">
+        <button
+          type="button"
+          class="tab-btn"
+          [class.tab-btn--active]="activeTab() === 'active'"
+          (click)="setTab('active')"
+        >
+          <span>{{ t().activeStudentsTitle }}</span>
+          <span class="tab-badge tab-badge--yellow">{{ insideCount() }}</span>
+        </button>
+        <button
+          type="button"
+          class="tab-btn"
+          [class.tab-btn--active]="activeTab() === 'history'"
+          (click)="setTab('history')"
+        >
+          <span>{{ t().workspaceHistory }}</span>
+          <span class="tab-badge tab-badge--gray">{{ workspaceService.historyStudents().length }}</span>
+        </button>
+      </div>
+
+      <!-- Search & Filter Controls -->
+      <div class="table-actions-bar">
+        @if (activeTab() !== 'all') {
+          <app-date-filter-dropdown
+            [selectedOption]="selectedDateOption()"
+            [customDate]="customDateValue()"
+            (optionChange)="setDateOption($event)"
+            (customDateChange)="onCustomDateSelect($event)"
+          ></app-date-filter-dropdown>
+        }
+
+        <div class="inner-search-box">
+          <app-search-box
+            [placeholder]="t().searchStudents"
+            [value]="searchQuery()"
+            (valueChange)="searchQuery.set($event)"
+          ></app-search-box>
+        </div>
+      </div>
+    </div>
+
+    @if (activeTab() === 'all') {
+      <!-- 1. ALL REGISTERED STUDENTS DIRECTORY TABLE -->
+      <div class="table-responsive">
+        <table class="students-table directory-table">
+          <thead>
+            <tr>
+              <th class="th-student">{{ t().studentName }}</th>
+              <th class="th-contact">{{ t().contactInfo || 'بيانات التواصل' }}</th>
+              <th class="th-faculty">{{ t().collegeAndFaculty || 'الكلية والجامعة' }}</th>
+              <th class="th-package">{{ t().packageAndPlan || 'الاشتراك والباقة' }}</th>
+              <th class="th-visits">{{ t().visitsAndActivity || 'النشاط والزيارات' }}</th>
+              <th class="th-status">{{ t().status }}</th>
+              <th class="th-actions">{{ t().actionsColumn }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (student of paginatedDirectoryStudents(); track student.id) {
+              <tr [class.row--menu-open]="activeActionMenuId() === student.id">
+                <!-- Student Meta -->
+                <td class="cell-student-td">
+                  <div class="student-cell-content">
+                    <div class="student-avatar-wrap">
+                      <img [src]="getStudentAvatar(student)" (error)="onAvatarError($event, student.name)" [alt]="student.name" class="student-avatar" />
+                      @if (student.currentStatus === 'active') {
+                        <span class="live-dot-indicator" [title]="t().statusActive"></span>
+                      }
+                    </div>
+                    <div class="student-meta">
+                      <strong class="student-name">{{ formatName(student.name) }}</strong>
+                    </div>
+                  </div>
+                </td>
+
+                <!-- Contact Details (Phone + WhatsApp + Email) -->
+                <td class="cell-contact">
+                  <div class="contact-pill-list">
+                    @if (student.phone) {
+                      <a [href]="'tel:' + student.phone" class="contact-link contact-link--phone" [title]="student.phone">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="contact-icon">
+                          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                        </svg>
+                        <span>{{ student.phone }}</span>
+                      </a>
+                    }
+                    @if (student.whatsapp) {
+                      <a [href]="'https://wa.me/' + student.whatsapp.replace('+', '').replace(/[^0-9]/g, '')" target="_blank" rel="noopener" class="contact-link contact-link--whatsapp" title="WhatsApp Chat">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="contact-icon">
+                          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                        </svg>
+                        <span>{{ isArabic() ? 'واتساب' : 'WhatsApp' }}</span>
+                      </a>
+                    }
+                    @if (student.email) {
+                      <span class="contact-link contact-link--email" [title]="student.email">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="contact-icon">
+                          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                          <polyline points="22,6 12,13 2,6"/>
+                        </svg>
+                        <span>{{ student.email }}</span>
+                      </span>
+                    }
+                  </div>
+                </td>
+
+                <!-- Faculty & College -->
+                <td class="cell-faculty">
+                  <div class="faculty-badge-box">
+                    <span class="faculty-badge">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="faculty-icon">
+                        <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+                        <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+                      </svg>
+                      <span>{{ student.faculty || student.college || 'عام' }}</span>
+                    </span>
+                    @if (student.college && student.college !== student.faculty && student.college !== 'عام') {
+                      <span class="college-subname">{{ student.college }}</span>
+                    }
+                  </div>
+                </td>
+
+                <!-- Package & Plan -->
+                <td class="cell-package">
+                  @if (student.packageInfo?.hasPackage) {
+                    <div class="package-pill-wrap">
+                      <span class="badge-package-active">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="pkg-icon">
+                          <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                        </svg>
+                        <span>{{ isArabic() ? (student.packageInfo?.packageNameAr || student.packageInfo?.packageName) : (student.packageInfo?.packageNameEn || student.packageInfo?.packageName) }}</span>
+                      </span>
+                      <span class="package-hours-remaining">
+                        {{ student.packageInfo?.remainingHours }} {{ t().hrsBadge }} {{ isArabic() ? 'متبقية' : 'left' }}
+                      </span>
+                    </div>
+                  } @else {
+                    <span class="badge-pay-as-you-go">
+                      {{ isArabic() ? 'دفع بالساعة' : 'Pay As You Go' }}
+                    </span>
+                  }
+                </td>
+
+                <!-- Visits & Activity -->
+                <td class="cell-visits">
+                  <div class="visits-info-box">
+                    <strong class="visits-count">{{ student.totalVisits || 0 }} {{ isArabic() ? 'زيارات' : 'visits' }}</strong>
+                    @if (student.lastVisitDate) {
+                      <span class="last-visit-date">{{ isArabic() ? 'آخر زيارة: ' : 'Last: ' }}{{ student.lastVisitDate }}</span>
+                    }
+                  </div>
+                </td>
+
+                <!-- Current Status -->
+                <td class="cell-status">
+                  @if (student.currentStatus === 'active') {
+                    <span class="badge-status badge-status--active">
+                      <span class="status-dot"></span>
+                      <span>{{ t().statusActive }}</span>
+                    </span>
+                  } @else if (student.currentStatus === 'blocked') {
+                    <span class="badge-status badge-status--blocked">
+                      <span class="status-dot"></span>
+                      <span>{{ t().statusBlocked }}</span>
+                    </span>
+                  } @else {
+                    <span class="badge-status badge-status--left">
+                      <span class="status-dot"></span>
+                      <span>{{ t().statusOffline || 'غير متواجد' }}</span>
+                    </span>
+                  }
+                </td>
+
+                <!-- Actions -->
+                <td class="cell-actions-td">
+                  <div class="actions-wrapper">
+                    @if (student.currentStatus === 'active' && student.activeSession) {
+                      <button
+                        type="button"
+                        class="btn-checkout"
+                        (click)="openCheckoutModal(student.activeSession)"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                          <polyline points="16 17 21 12 16 7"/>
+                          <line x1="21" y1="12" x2="9" y2="12"/>
+                        </svg>
+                        <span>{{ t().checkOutBtn }}</span>
+                      </button>
+                    } @else if (student.currentStatus !== 'blocked') {
+                      <button
+                        type="button"
+                        class="btn-quick-checkin"
+                        (click)="quickCheckInFromDirectory(student)"
+                        [title]="t().quickCheckIn || 'تسجيل دخول'"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                          <line x1="12" y1="5" x2="12" y2="19"></line>
+                          <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        <span>{{ t().quickCheckIn || 'تشيك إن' }}</span>
+                      </button>
+                    }
+
+                    <!-- 3 Dots Options Button -->
+                    <div class="action-menu-wrapper" [class.action-menu-wrapper--open]="activeActionMenuId() === student.id">
+                      <button
+                        type="button"
+                        class="btn-more-options"
+                        [class.btn-more-options--active]="activeActionMenuId() === student.id"
+                        title="Options"
+                        (click)="toggleActionMenu(student.id, $event)"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <circle cx="12" cy="12" r="1"/>
+                          <circle cx="19" cy="12" r="1"/>
+                          <circle cx="5" cy="12" r="1"/>
+                        </svg>
+                      </button>
+
+                      @if (activeActionMenuId() === student.id) {
+                        <div class="menu-backdrop" (click)="closeActionMenu()"></div>
+                        <div class="action-dropdown-card">
+                          <button type="button" class="action-menu-btn" (click)="openEditDirectoryStudent(student)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                            <span>{{ t().editText }}</span>
+                          </button>
+
+                          <button type="button" class="action-menu-btn action-menu-btn--danger" (click)="deleteDirectoryStudent(student)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+                              <polyline points="3 6 5 6 21 6"/>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                            </svg>
+                            <span style="color: #ef4444;">{{ t().deleteText }}</span>
+                          </button>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="7" class="cell-empty">
+                  {{ t().noStudentsFound }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <!-- 2. ACTIVE & HISTORY SESSIONS TABLE -->
+      <div class="table-responsive">
+        <table class="students-table">
+          <thead>
+            <tr>
+              <th class="th-student">{{ t().studentName }}</th>
+              <th class="th-time">{{ t().checkIn }}</th>
+              <th class="th-duration">{{ t().duration }}</th>
+              <th class="th-status">{{ t().status }}</th>
+              <th class="th-cost">{{ t().costColumn }}</th>
+              <th class="th-catering">{{ t().cateringColumn }}</th>
+              <th class="th-actions">{{ t().actionsColumn }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (student of paginatedStudents(); track student.id; let idx = $index; let totalCount = $count) {
+              <tr [class.row--menu-open]="activeActionMenuId() === student.id">
+                <!-- Student Info (Avatar + Name + Phone + Faculty) -->
+                <td class="cell-student-td">
+                  <div class="student-cell-content">
+                    <div class="student-avatar-wrap">
+                      <img [src]="getStudentAvatar(student)" (error)="onAvatarError($event, student.name)" [alt]="student.name" class="student-avatar" />
+                      @if (student.status === 'active') {
+                        <span class="live-dot-indicator" [title]="t().statusActive"></span>
+                      }
+                    </div>
+                    <div class="student-meta">
+                      <strong class="student-name">{{ formatName(student.name) }}</strong>
+                      <div class="student-submeta">
+                        @if (student.phone) {
+                          <span class="student-sub-phone">{{ student.phone }}</span>
+                        }
+                        @if (student.faculty || student.college) {
+                          <span class="student-sub-faculty">{{ student.faculty || student.college }}</span>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </td>
+
+                <!-- Check-In Time -->
+                <td class="cell-time">{{ formatTime(student.checkInTime) }}</td>
+
+                <!-- Duration (Live Incrementing Timer) -->
+                <td class="cell-duration">
+                  <strong>{{ getLiveStudentDuration(student) }}</strong>
+                </td>
+
+                <!-- State / Status Column: Active vs Left vs Blocked -->
+                <td class="cell-status">
+                  @if (student.status === 'active') {
+                    <span class="badge-status badge-status--active">
+                      <span class="status-dot"></span>
+                      <span>{{ t().statusActive }}</span>
+                    </span>
+                  } @else if (student.status === 'blocked') {
+                    <span class="badge-status badge-status--blocked">
+                      <span class="status-dot"></span>
+                      <span>{{ t().statusBlocked }}</span>
+                    </span>
+                  } @else {
+                    <span class="badge-status badge-status--left">
+                      <span class="status-dot"></span>
+                      <span>{{ t().statusLeft }}</span>
+                    </span>
+                  }
+                </td>
+
+                <!-- Cost (Calculated or Final Total including Catering + Printing) -->
+                <td class="cell-cost">
+                  @let costInfo = getStudentCostBreakdown(student);
+                  <div class="cost-cell-content">
+                    <strong class="cost-number">{{ costInfo.totalCost.toFixed(2) }} {{ t().egp }}</strong>
+
+                    @if (costInfo.isPackage) {
+                      <span class="cost-badge cost-badge--package" [title]="isArabic() ? 'مغطاة بالباقة' : 'Package Covered'">
+                        <span>{{ isArabic() ? 'باقة' : 'Package' }}</span>
+                        @if (costInfo.cateringCost > 0 || costInfo.printingCost > 0) {
+                          <span class="cost-badge-extra">+{{ (costInfo.cateringCost + costInfo.printingCost).toFixed(2) }}</span>
+                        }
+                      </span>
+                    } @else if (costInfo.cateringCost > 0 || costInfo.printingCost > 0) {
+                      <div class="cost-breakdown-hints">
+                        @if (costInfo.cateringCost > 0) {
+                          <span class="cost-hint-tag cost-hint-tag--catering" [title]="isArabic() ? 'إجمالي الكاترنج' : 'Catering Orders'">
+                            +{{ costInfo.cateringCost.toFixed(2) }} {{ isArabic() ? 'كاترنج' : 'canteen' }}
+                          </span>
+                        }
+                        @if (costInfo.printingCost > 0) {
+                          <span class="cost-hint-tag cost-hint-tag--printing" [title]="isArabic() ? 'خدمات الطباعة' : 'Printing'">
+                            +{{ costInfo.printingCost.toFixed(2) }} {{ isArabic() ? 'طباعة' : 'print' }}
+                          </span>
+                        }
+                      </div>
+                    }
+                  </div>
+                </td>
+
+                <!-- Catering Action (Opens Catering Modal for active student) -->
+                <td class="cell-catering">
+                  @if (student.status === 'active') {
+                    <button type="button" class="btn-catering-add" (click)="openStudentCateringModal(student)">
+                      {{ t().addBtn }}
+                    </button>
+                  } @else {
+                    <span class="catering-dash">-</span>
+                  }
+                </td>
+
+                <!-- Row Actions -->
+                <td class="cell-actions-td">
+                  <div class="actions-wrapper">
+                    @if (student.status === 'active') {
+                      <!-- Pop-up Checkout Modal Trigger -->
+                      <button
+                        type="button"
+                        class="btn-checkout"
+                        (click)="openCheckoutModal(student)"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                          <polyline points="16 17 21 12 16 7"/>
+                          <line x1="21" y1="12" x2="9" y2="12"/>
+                        </svg>
+                        <span>{{ t().checkOutBtn }}</span>
+                      </button>
+                    } @else if (student.status === 'blocked') {
+                      <button
+                        type="button"
+                        class="btn-table-unblock"
+                        (click)="onUnblockStudent(student.id)"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                          <polyline points="22 4 12 14.01 9 11.01"/>
+                        </svg>
+                        <span>{{ t().unblockBtn }}</span>
+                      </button>
+                    } @else {
+                      <span class="badge-checked-out">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        <span>{{ t().checkedOutStatus }}</span>
+                      </span>
+                    }
+
+                    <!-- 3 Dots Options Button -->
+                    <div class="action-menu-wrapper" [class.action-menu-wrapper--open]="activeActionMenuId() === student.id">
+                      <button
+                        type="button"
+                        class="btn-more-options"
+                        [class.btn-more-options--active]="activeActionMenuId() === student.id"
+                        title="Options"
+                        (click)="toggleActionMenu(student.id, $event)"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <circle cx="12" cy="12" r="1"/>
+                          <circle cx="19" cy="12" r="1"/>
+                          <circle cx="5" cy="12" r="1"/>
+                        </svg>
+                      </button>
+
+                      <!-- Popup Action Menu with Edit, Block/Unblock, Delete -->
+                      @if (activeActionMenuId() === student.id) {
+                        <div class="menu-backdrop" (click)="closeActionMenu()"></div>
+                        <div class="action-dropdown-card">
+                          <button type="button" class="action-menu-btn" (click)="openEditModal(student)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                            <span>{{ t().editText }}</span>
+                          </button>
+
+                          @if (student.status === 'blocked') {
+                            <button type="button" class="action-menu-btn action-menu-btn--success" (click)="onUnblockStudent(student.id)">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                <polyline points="22 4 12 14.01 9 11.01"/>
+                              </svg>
+                              <span>{{ t().unblockBtn }}</span>
+                            </button>
+                          } @else {
+                            <button type="button" class="action-menu-btn action-menu-btn--warning" (click)="openBlockModal(student)">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                              </svg>
+                              <span>{{ t().blockStudentBtn }}</span>
+                            </button>
+                          }
+
+                          <button type="button" class="action-menu-btn action-menu-btn--danger" (click)="openDeleteModal(student)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+                              <polyline points="3 6 5 6 21 6"/>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                            </svg>
+                            <span style="color: #ef4444;">{{ t().deleteSession }}</span>
+                          </button>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="7" class="cell-empty">
+                  {{ t().noStudentsFound }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <!-- Table Footer / Functional Pagination -->
+    <div class="table-footer">
+      <div class="footer-left-group" style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+        <span class="pagination-info">
+          {{ t().showingLabel }} {{ startIndex() }} {{ t().toLabel }} {{ endIndex() }} {{ t().ofLabel }} {{ currentListLength() }} {{ activeTab() === 'all' ? (t().allStudentsDirectory || 'طلاب') : (activeTab() === 'active' ? t().activeStudentsCountLabel : t().historyStudentsCountLabel) }}
+        </span>
+
+        <div class="page-size-selector" style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 0.80rem; color: var(--text-dim); font-weight: 600;">{{ t().perPageLabel }}</span>
+          <div style="min-width: 68px;">
+            <app-custom-select
+              [options]="pageSizeOptionsList()"
+              [selectedValue]="pageSizeStr()"
+              size="sm"
+              placement="top"
+              (valueChange)="setPageSize($event)"
+            ></app-custom-select>
+          </div>
+        </div>
+      </div>
+
+      <div class="pagination-controls">
+        <button
+          type="button"
+          class="btn-page-nav"
+          [disabled]="currentPage() <= 1"
+          (click)="prevPage()"
+          title="Previous Page"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="page-nav-icon" style="width: 15px; height: 15px;">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+
+        @for (page of pagesArray(); track page) {
+          <button
+            type="button"
+            class="btn-page-num"
+            [class.btn-page-num--active]="currentPage() === page"
+            (click)="goToPage(page)"
+          >
+            {{ page }}
+          </button>
+        }
+
+        <button
+          type="button"
+          class="btn-page-nav"
+          [disabled]="currentPage() >= totalPages()"
+          (click)="nextPage()"
+          title="Next Page"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="page-nav-icon" style="width: 15px; height: 15px;">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 1. POP-UP CHECKOUT MODAL (SHARED REUSABLE COMPONENT)                      -->
+  <!-- ========================================================================= -->
+  @if (studentToCheckout() && studentCheckoutData(); as coData) {
+    <app-checkout-modal
+      [data]="coData"
+      (close)="closeCheckoutModal()"
+      (paymentMethodChange)="coPaymentMethod.set($event)"
+      (amountReceivedChange)="coAmountReceived.set($event)"
+      (discountChange)="setDiscountPercent($event)"
+      (couponSubmit)="applyCouponCode($event)"
+      (editRate)="openEditBaseCostModal()"
+      (addCatering)="openAddCateringModal()"
+      (removeCatering)="removeCateringItem($event)"
+      (processPayment)="finalizeCheckout()"
+    ></app-checkout-modal>
+  }
+
+  <!-- SUBMODAL: Edit Base Cost inside Checkout -->
+  @if (isEditBaseCostOpen()) {
+    <div class="modal-overlay modal-overlay--nested" (click)="closeEditBaseCostModal()">
+      <div class="modal-card modal-card--sm" (click)="$event.stopPropagation()">
+        <div class="modal-head">
+          <h3 class="modal-title">{{ isArabic() ? 'تعديل تكلفة الجلسة' : 'Edit Session Cost' }}</h3>
+          <button type="button" class="modal-close-btn" (click)="closeEditBaseCostModal()">×</button>
+        </div>
+        <div class="modal-form-body">
+          <div class="modal-field-group">
+            <label class="modal-label">{{ isArabic() ? 'التكلفة الإجمالية للجلسة (ج.م)' : 'Total Session Cost (EGP)' }}</label>
+            <input
+              type="number"
+              min="0"
+              step="5"
+              class="modal-input"
+              [value]="editBaseCostInput()"
+              (input)="editBaseCostInput.set(+$any($event.target).value)"
+            />
+          </div>
+          <div class="modal-actions-footer">
+            <button type="button" class="modal-btn-cancel" (click)="closeEditBaseCostModal()">{{ t().cancel }}</button>
+            <button type="button" class="modal-btn-save" (click)="saveCustomBaseCost()">{{ t().saveChanges }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- SUBMODAL: Add Catering Product inside Checkout -->
+  @if (isAddCateringOpen()) {
+    <div class="modal-overlay modal-overlay--nested" (click)="closeAddCateringModal()">
+      <div class="modal-card modal-card--sm" (click)="$event.stopPropagation()">
+        <div class="modal-head">
+          <h3 class="modal-title">{{ t().addItemBtn }}</h3>
+          <button type="button" class="modal-close-btn" (click)="closeAddCateringModal()">×</button>
+        </div>
+        <div class="modal-form-body">
+          <div class="modal-field-group">
+            <label class="modal-label">{{ t().productName }}</label>
+            <input
+              type="text"
+              class="modal-input"
+              [placeholder]="t().freshOrangeJuicePlaceholder"
+              [value]="newCateringName()"
+              (input)="newCateringName.set($any($event.target).value)"
+            />
+          </div>
+          <div class="modal-field-group">
+            <label class="modal-label">{{ t().price }}</label>
+            <input
+              type="number"
+              min="1"
+              class="modal-input"
+              [value]="newCateringPrice()"
+              (input)="newCateringPrice.set(+$any($event.target).value)"
+            />
+          </div>
+          <div class="modal-actions-footer">
+            <button type="button" class="modal-btn-cancel" (click)="closeAddCateringModal()">{{ t().cancel }}</button>
+            <button type="button" class="modal-btn-save" (click)="confirmAddCateringItem()">{{ t().saveChanges }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ========================================================================= -->
+  <!-- 2. POP-UP CHECK-IN (ADD STUDENT) MODAL                                    -->
+  <!-- ========================================================================= -->
+  @if (isCheckInModalOpen()) {
+    <div class="modal-overlay">
+      <div class="modal-card modal-card--checkin" (click)="$event.stopPropagation()">
+        <!-- Modal Head -->
+        <div class="modal-head">
+          <div class="modal-head-info">
+            <h3 class="modal-title">
+              {{ ciIsEditMode() ? t().editStudentTitle : t().checkInStudent }}
+            </h3>
+            <p class="modal-subtitle">
+              {{ ciIsEditMode() ? t().editStudentSubtitle : t().checkInStudentDesc }}
+            </p>
+          </div>
+          <button type="button" class="modal-close-btn" (click)="closeCheckInModal()" title="Close">×</button>
+        </div>
+
+        <!-- Form Body -->
+        <form (submit)="submitCheckIn(); $event.preventDefault()" class="modal-form-checkin">
+          <div class="modal-checkin-scroll-body">
+            <div class="modal-checkin-grid">
+              <!-- Left Column: Student Details, Date & Time, Billing & Extras -->
+              <div class="modal-checkin-main-col">
+                <!-- Card 1: Student Information -->
+                <div class="modal-section-card modal-section-card--accent">
+                  <div class="form-section-head" style="justify-content: space-between;">
+                    <h4 class="section-heading">{{ t().studentInformation }}</h4>
+                    @if (ciExistingStudentFound()) {
+                      <span class="returning-student-badge">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="badge-icon">
+                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                        <span>{{ t().existingStudentDetected }}</span>
+                      </span>
+                    }
+                  </div>
+
+                  <!-- Student Search Field with Dropdown Autocomplete -->
+                  <div class="search-field-wrap">
+                    <label class="modal-label">{{ t().quickStudentSearch }}</label>
+                    <div class="search-input-box modal-search-box">
+                      <input
+                        type="text"
+                        class="modal-input modal-search-input"
+                        [placeholder]="t().quickStudentSearchPlaceholder"
+                        [value]="ciSearchQuery()"
+                        (input)="ciOnSearchInput($any($event.target).value)"
+                        (focus)="ciIsSearchDropdownOpen.set(true)"
+                        (blur)="ciOnSearchBlur()"
+                      />
+                      @if (ciSearchQuery()) {
+                        <button type="button" class="btn-clear-student" (click)="ciClearSelectedStudent()" title="Clear">
+                          &times;
+                        </button>
+                      }
+                      <svg class="search-box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                      </svg>
+                    </div>
+
+                    <!-- Autocomplete Dropdown -->
+                    @if (ciIsSearchDropdownOpen() && ciSearchQuery().trim().length > 0 && ciStudentSuggestions().length > 0) {
+                      <div class="student-dropdown-menu">
+                        @for (item of ciStudentSuggestions(); track item.profile.phone || item.profile.id) {
+                          <div class="student-dropdown-item" (click)="ciSelectStudentItem(item)">
+                            <div class="item-avatar-circle">
+                              {{ (item.profile.name ? item.profile.name.charAt(0) : 'S').toUpperCase() }}
+                            </div>
+                            <div class="dropdown-item-col">
+                              <div class="dropdown-item-top">
+                                <strong class="dropdown-item-name">{{ item.profile.name }}</strong>
+                                @if (item.hasActivePackage) {
+                                  <span class="pill-active-pkg">
+                                    ✓ {{ t().activePackageBadge }}
+                                  </span>
+                                } @else {
+                                  <span class="pill-inactive-pkg">
+                                    {{ t().standardSessionBadge }}
+                                  </span>
+                                }
+                              </div>
+                              <span class="dropdown-item-sub">{{ item.profile.faculty || item.profile.college || t().general }} • {{ item.profile.phone }}</span>
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+
+                  <div class="modal-fields-grid">
+                    <div class="modal-field-group">
+                      <label class="modal-label" [class.modal-label--error]="ciNameError()">{{ t().studentName }} *</label>
+                      <input
+                        type="text"
+                        class="modal-input"
+                        [class.modal-input--error]="ciNameError()"
+                        [placeholder]="t().namePlaceholderExample"
+                        [value]="ciName()"
+                        (input)="onNameInput($any($event.target).value)"
+                        required
+                      />
+                      @if (ciNameError(); as err) {
+                        <span class="field-error-msg">{{ err }}</span>
+                      }
+                    </div>
+
+                    <div class="modal-field-group">
+                      <label class="modal-label" [class.modal-label--error]="ciPhoneError()">{{ t().phone }} *</label>
+                      <input
+                        type="tel"
+                        class="modal-input"
+                        [class.modal-input--error]="ciPhoneError()"
+                        placeholder="01XXXXXXXXX"
+                        maxlength="11"
+                        minlength="11"
+                        [value]="ciPhone()"
+                        (input)="onPhoneInput($any($event.target).value)"
+                        required
+                      />
+                      @if (ciPhoneError(); as err) {
+                        <span class="field-error-msg">{{ err }}</span>
+                      }
+                    </div>
+
+                    <div class="modal-field-group">
+                      <label class="modal-label">{{ t().email }}</label>
+                      <input
+                        type="email"
+                        class="modal-input"
+                        placeholder="student@example.com"
+                        [value]="ciEmail()"
+                        (input)="onEmailInput($any($event.target).value)"
+                      />
+                    </div>
+
+                    <div class="modal-field-group">
+                      <label class="modal-label">{{ t().whatsapp }}</label>
+                      <input
+                        type="tel"
+                        class="modal-input"
+                        [placeholder]="t().whatsapp"
+                        [value]="ciWhatsapp()"
+                        (input)="ciWhatsapp.set($any($event.target).value)"
+                      />
+                    </div>
+
+                    <div class="modal-field-group">
+                      <label class="modal-label">{{ t().college }}</label>
+                      <input
+                        type="text"
+                        class="modal-input"
+                        [placeholder]="t().college"
+                        [value]="ciCollege()"
+                        (input)="ciCollege.set($any($event.target).value)"
+                      />
+                    </div>
+
+                    <div class="modal-field-group">
+                      <label class="modal-label">{{ t().faculty }}</label>
+                      <input
+                        type="text"
+                        class="modal-input"
+                        [placeholder]="t().faculty"
+                        [value]="ciFaculty()"
+                        (input)="ciFaculty.set($any($event.target).value)"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Card 2: Date & Time (With Now Button & OPEN Toggle Button) -->
+                <div class="modal-section-card">
+                  <div class="form-section-head">
+                    <h4 class="section-heading">{{ t().dateTimeSection }}</h4>
+                  </div>
+
+                  <!-- Date Row (Full Width) -->
+                  <div class="modal-field-group" style="margin-bottom: 12px;">
+                    <label class="modal-label">{{ t().date }}</label>
+                    <div class="date-input-wrap">
+                      <svg class="date-box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                      </svg>
+                      <input
+                        #ciDatePickerEl
+                        type="date"
+                        class="modal-input modal-input--date"
+                        [min]="todayDate"
+                        [value]="ciDate()"
+                        (input)="ciDate.set($any($event.target).value)"
+                        (click)="ciDatePickerEl.showPicker()"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Start Time & End Time (2 Columns side-by-side) -->
+                  <div class="modal-grid-2">
+                    <!-- Start Time with Now button underneath -->
+                    <div class="modal-field-group">
+                      <label class="modal-label">{{ t().startTimeLabel }}</label>
+                      <div class="time-picker-box">
+                        <svg class="time-box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        <div class="time-digits">
+                          <input
+                            type="text"
+                            class="time-num-input"
+                            placeholder="02"
+                            maxlength="2"
+                            [value]="ciStartHour()"
+                            (input)="onCiStartHourInput($any($event.target).value)"
+                          />
+                          <span class="time-colon">:</span>
+                          <input
+                            type="text"
+                            class="time-num-input"
+                            placeholder="38"
+                            maxlength="2"
+                            [value]="ciStartMinute()"
+                            (input)="onCiStartMinuteInput($any($event.target).value)"
+                          />
+                        </div>
+                        <div class="period-toggle-pill">
+                          <button
+                            type="button"
+                            class="period-opt"
+                            [class.period-opt--active]="ciStartPeriod() === 'AM'"
+                            (click)="ciStartPeriod.set('AM'); syncCiTime();"
+                          >
+                            {{ t().amMarker }}
+                          </button>
+                          <button
+                            type="button"
+                            class="period-opt"
+                            [class.period-opt--active]="ciStartPeriod() === 'PM'"
+                            (click)="ciStartPeriod.set('PM'); syncCiTime();"
+                          >
+                            {{ t().pmMarker }}
+                          </button>
+                        </div>
+                      </div>
+                      <button type="button" class="btn-time-now" (click)="ciSetNowTime()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="now-icon">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        <span>{{ t().nowBtn }}</span>
+                      </button>
+                    </div>
+
+                    <!-- End Time with OPEN button underneath -->
+                    <div class="modal-field-group">
+                      <label class="modal-label">{{ t().expectedCheckout }}</label>
+                      <div
+                        class="time-picker-box"
+                        [class.time-picker-box--disabled]="isOpenSession()"
+                        [class.time-picker-box--invalid]="!isOpenSession() && !isTimeRangeValid() && ciTime() && ciExpectedCheckout()"
+                      >
+                        <svg class="time-box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        @if (isOpenSession()) {
+                          <div class="open-time-label-wrap">
+                            <span class="open-time-badge">{{ t().openTimeBadge }}</span>
+                          </div>
+                        } @else {
+                          <div class="time-digits">
+                            <input
+                              type="text"
+                              class="time-num-input"
+                              placeholder="05"
+                              maxlength="2"
+                              [value]="ciEndHour()"
+                              (input)="onCiEndHourInput($any($event.target).value)"
+                            />
+                            <span class="time-colon">:</span>
+                            <input
+                              type="text"
+                              class="time-num-input"
+                              placeholder="38"
+                              maxlength="2"
+                              [value]="ciEndMinute()"
+                              (input)="onCiEndMinuteInput($any($event.target).value)"
+                            />
+                          </div>
+                          <div class="period-toggle-pill">
+                            <button
+                              type="button"
+                              class="period-opt"
+                              [class.period-opt--active]="ciEndPeriod() === 'AM'"
+                              (click)="ciEndPeriod.set('AM'); syncCiExpectedCheckout();"
+                            >
+                              {{ t().amMarker }}
+                            </button>
+                            <button
+                              type="button"
+                              class="period-opt"
+                              [class.period-opt--active]="ciEndPeriod() === 'PM'"
+                              (click)="ciEndPeriod.set('PM'); syncCiExpectedCheckout();"
+                            >
+                              {{ t().pmMarker }}
+                            </button>
+                          </div>
+                        }
+                      </div>
+                      <button
+                        type="button"
+                        class="btn-time-now"
+                        [class.btn-time-now--muted]="!isOpenSession()"
+                        [class.btn-time-now--active]="isOpenSession()"
+                        (click)="toggleOpenSession()"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="now-icon">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        <span>{{ t().openSessionToggle }}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Time Range Error Notice -->
+                  @if (!isOpenSession() && !isTimeRangeValid() && ciTime() && ciExpectedCheckout()) {
+                    <div class="time-range-error" style="margin-top: 8px;">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="error-msg-icon">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                      </svg>
+                      <span>{{ t().invalidTimeRangeNotice }}</span>
+                    </div>
+                  }
+                </div>
+
+                <!-- Card 3: Package & Payment Option (Exact Classroom Structure & Design) -->
+                <div class="modal-section-card">
+                  <h3 class="section-card-title">{{ t().paymentMethodAndPackage }}</h3>
+
+                  <!-- Student Package Detection Card -->
+                  @if (matchedStudentPackage(); as pkg) {
+                    <div class="instructor-package-card">
+                      <div class="pkg-card-top">
+                        <div class="pkg-info">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="pkg-badge-icon" style="width: 16px; height: 16px; min-width: 16px; max-width: 16px; flex-shrink: 0;">
+                            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                          </svg>
+                          <strong class="pkg-name">{{ isArabic() ? (pkg.packageNameAr || pkg.packageNameEn) : (pkg.packageNameEn || pkg.packageNameAr) }}</strong>
+                        </div>
+                        <div class="pkg-hours-badge" [class.pkg-hours-badge--low]="pkg.remainingHours <= 3">
+                          <span class="pkg-hours-num">{{ pkg.remainingHours }}</span>
+                          <span class="pkg-hours-label">{{ t().hrsBadge }}</span>
+                        </div>
+                      </div>
+
+                      <!-- Payment Mode Selector -->
+                      <div class="payment-mode-toggle-grid">
+                        <button
+                          type="button"
+                          class="btn-mode-card"
+                          [class.btn-mode-card--active]="ciBilling() === 'package'"
+                          (click)="ciBilling.set('package'); ciPaymentMethod.set('package');"
+                          [disabled]="pkg.remainingHours <= 0"
+                        >
+                          <div class="mode-card-left">
+                            <div class="mode-card-radio">
+                              <div class="radio-inner" [class.radio-inner--active]="ciBilling() === 'package'"></div>
+                            </div>
+                            <strong class="mode-title">{{ t().deductFromHoursPackage }}</strong>
+                          </div>
+                          <span class="mode-cost-free">0.00 {{ t().currency }}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          class="btn-mode-card"
+                          [class.btn-mode-card--active]="ciBilling() === 'new-session'"
+                          (click)="ciBilling.set('new-session'); ciPaymentMethod.set('cash');"
+                        >
+                          <div class="mode-card-left">
+                            <div class="mode-card-radio">
+                              <div class="radio-inner" [class.radio-inner--active]="ciBilling() === 'new-session'"></div>
+                            </div>
+                            <strong class="mode-title">{{ t().payCashDirect }}</strong>
+                          </div>
+                          <span class="mode-cost-standard">{{ (ciPrice() * (ciDurationHours() || 1)).toFixed(2) }} {{ t().currency }}</span>
+                        </button>
+                      </div>
+                    </div>
+                  } @else {
+                    <div class="no-package-notice-card">
+                      <div class="notice-info">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="notice-icon" style="width: 16px; height: 16px; min-width: 16px; max-width: 16px; flex-shrink: 0;">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <line x1="12" y1="8" x2="12" y2="12"></line>
+                          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <span>{{ t().noActivePackageForStudent }}</span>
+                      </div>
+                      <span class="badge-standard-rate">{{ (ciPrice() * (ciDurationHours() || 1)).toFixed(2) }} {{ t().currency }}</span>
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <!-- Right Column (TOP RIGHT): SELECT ROOM AREA + Extra Services + Booking Summary -->
+              <div class="modal-checkin-side-col">
+                <!-- Card 4: SELECT ROOM AREA (Top Right) -->
+                <div class="modal-section-card">
+                  <div class="room-selector-header">
+                    <span class="modal-label" style="margin: 0; font-size: 0.82rem; font-weight: 800;">
+                      {{ t().selectRoomArea }}
+                    </span>
+                    <!-- Category Switcher Tabs (Shared & Silent Only) -->
+                    <div class="room-type-tabs">
+                      <button
+                        type="button"
+                        class="room-type-tab"
+                        [class.room-type-tab--active]="selectedRoomCategory() === 'shared'"
+                        (click)="selectRoomCategory('shared')"
+                      >
+                        {{ isArabic() ? 'شيرد سبيس' : 'Shared Space' }}
+                      </button>
+                      <button
+                        type="button"
+                        class="room-type-tab"
+                        [class.room-type-tab--active]="selectedRoomCategory() === 'silent'"
+                        (click)="selectRoomCategory('silent')"
+                      >
+                        {{ isArabic() ? 'سايلنت زون' : 'Silent Zone' }}
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Room Thumb Cards Grid -->
+                  <div class="room-select-grid">
+                    @for (r of availableRooms(); track r.id) {
+                      <div
+                        class="room-thumb-card"
+                        [class.room-thumb-card--active]="selectedRoomId() === r.id"
+                        (click)="selectRoom(r.id)"
+                      >
+                        <div class="room-thumb-media">
+                          <img [src]="r.imageUrl || '/images/rooms/room-workshop.jpg'" (error)="$any($event.target).src = '/images/rooms/room-workshop.jpg'" [alt]="r.name" class="room-thumb-img" loading="lazy" />
+                        </div>
+                        <div class="room-thumb-info">
+                          <strong class="room-thumb-name">{{ isArabic() ? r.name : (r.nameEn || r.name) }}</strong>
+                          <span class="room-thumb-capacity">
+                            @if (r.capacity) { MAX {{ r.capacity }} • }
+                            {{ isArabic() ? (r.type === 'Silent Zone' ? 'منطقة سايلنت' : 'شيرد سبيس') : r.type }}
+                          </span>
+                        </div>
+                      </div>
+                    } @empty {
+                      <div style="padding: 16px; text-align: center; color: var(--text-dim); font-size: 0.82rem; grid-column: 1 / -1;">
+                        {{ isArabic() ? 'مساحة العمل العامة (التسعير موحد)' : 'General Workspace (Unified Pricing)' }}
+                      </div>
+                    }
+                  </div>
+                </div>
+
+                <!-- Card 5: Extra Services & Amenities -->
+                <div class="modal-section-card">
+                  <div class="form-section-head">
+                    <h4 class="section-heading">{{ t().extraServicesAndAmenities }}</h4>
+                  </div>
+
+                  <div class="extra-services-grid">
+                    <!-- Printing Counter -->
+                    <div class="modal-field-group">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <label class="modal-label" style="margin: 0;">{{ t().printingPagesLabel }}</label>
+                        <span style="font-size: 0.76rem; color: var(--text-dim);">
+                          1.50 {{ t().egpPerPage }}
+                          @if (ciPrinting() > 0) {
+                            <strong style="color: var(--yellow); margin: 0 4px;">({{ ciPrintingCost().toFixed(2) }} {{ t().currency }})</strong>
+                          }
+                        </span>
+                      </div>
+                      <div class="counter-input-wrap">
+                        <button type="button" class="btn-counter" (click)="ciPrinting.set(ciPrinting() > 0 ? ciPrinting() - 1 : 0)">-</button>
+                        <input
+                          type="number"
+                          min="0"
+                          class="counter-val-input"
+                          [value]="ciPrinting()"
+                          (input)="ciPrinting.set(+$any($event.target).value)"
+                        />
+                        <button type="button" class="btn-counter" (click)="ciPrinting.set(ciPrinting() + 1)">+</button>
+                      </div>
+                    </div>
+
+                    <!-- Wallet Deposit -->
+                    <div class="modal-field-group">
+                      <label class="modal-label">{{ t().walletDepositLabel }} ({{ t().currency }})</label>
+                      <div class="counter-input-wrap">
+                        <button type="button" class="btn-counter" (click)="ciWallet.set(ciWallet() > 0 ? ciWallet() - 1 : 0)">-</button>
+                        <input
+                          type="number"
+                          min="0"
+                          step="10"
+                          class="counter-val-input"
+                          [value]="ciWallet()"
+                          (input)="ciWallet.set(+$any($event.target).value)"
+                        />
+                        <button type="button" class="btn-counter" (click)="ciWallet.set(ciWallet() + 10)">+</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- WiFi Voucher -->
+                  <div class="modal-field-group" style="margin-top: 10px;">
+                    <label class="modal-label">{{ t().wifiVoucher }}</label>
+                    <input
+                      type="text"
+                      class="modal-input"
+                      [placeholder]="t().wifiVoucherPlaceholder"
+                      [value]="ciWifi()"
+                      (input)="ciWifi.set($any($event.target).value)"
+                    />
+                  </div>
+                </div>
+
+                <!-- Card 6: Booking Summary -->
+                <div class="modal-section-card modal-summary-box">
+                  <div class="form-section-head">
+                    <h4 class="section-heading">{{ t().bookingSummaryHeading }}</h4>
+                  </div>
+
+                  <div class="summary-body">
+                    @if (selectedRoom(); as sRoom) {
+                      <div class="summary-item-row">
+                        <span class="summary-item-label">{{ t().selectedRoomLabel }}</span>
+                        <strong class="summary-item-val" style="color: #f5b921;">
+                          {{ isArabic() ? sRoom.name : (sRoom.nameEn || sRoom.name) }}
+                        </strong>
+                      </div>
+                    }
+
+                    <div class="summary-item-row">
+                      <span class="summary-item-label">{{ t().hourlyRateLabel }}</span>
+                      <strong class="summary-item-val">{{ ciPrice() }} {{ t().egpPerHourRate }}</strong>
+                    </div>
+
+                    <div class="summary-item-row">
+                      <span class="summary-item-label">{{ t().planTypeLabel }}</span>
+                      @if (ciBilling() === 'package') {
+                        <span class="pill-active-pkg">
+                          {{ t().packageDeductionLabel }}
+                        </span>
+                      } @else if (ciBilling() === 'coupon') {
+                        <span class="badge-promo-tag">
+                          % PROMO @if (ciCouponApplied()) { ({{ ciCouponDiscountPercent() }}%) }
+                        </span>
+                      } @else {
+                        <span class="pill-cash-badge">
+                          {{ t().standardSessionBadge }}
+                        </span>
+                      }
+                    </div>
+
+                    <div class="summary-item-row">
+                      <span class="summary-item-label">{{ t().estimatedDurationLabel }}</span>
+                      @if (isOpenSession()) {
+                        <strong class="summary-item-val" style="color: #f5b921;">{{ t().openEndedSessionLabel }}</strong>
+                      } @else {
+                        <strong class="summary-item-val">{{ ciDurationHours() }} {{ t().hoursUnit }}</strong>
+                      }
+                    </div>
+
+                    @if (ciPrinting() > 0) {
+                      <div class="summary-item-row">
+                        <span class="summary-item-label">{{ t().printingFeeLabel }} ({{ ciPrinting() }} {{ t().pagesUnit }})</span>
+                        <strong class="summary-item-val">{{ (ciPrinting() * 1.5).toFixed(2) }} {{ t().currency }}</strong>
+                      </div>
+                    }
+
+                    @if (ciWallet() > 0) {
+                      <div class="summary-item-row">
+                        <span class="summary-item-label">{{ t().walletDepositLabel }}</span>
+                        <strong class="summary-item-val">+{{ ciWallet() }} {{ t().currency }}</strong>
+                      </div>
+                    }
+
+                    <div class="summary-line-divider"></div>
+
+                    <div class="summary-total-row">
+                      <span class="summary-total-title">{{ t().totalLabel }}</span>
+                      <strong class="summary-total-amount" [class.summary-total-amount--free]="ciBilling() === 'package'">
+                        @if (ciBilling() === 'package') {
+                          0.00 <span class="summary-currency">{{ t().currency }}</span>
+                        } @else {
+                          {{ (ciTotalCost() + (ciPrinting() * 1.5) + ciWallet()).toFixed(2) }} <span class="summary-currency">{{ t().currency }}</span>
+                        }
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal Actions Footer (Fixed at Bottom) -->
+          <div class="modal-actions-footer modal-checkin-fixed-footer">
+            <button type="button" class="modal-btn-cancel" (click)="closeCheckInModal()">
+              {{ t().cancel }}
+            </button>
+            <button
+              type="submit"
+              class="modal-btn-save"
+              [disabled]="!ciName().trim() || !ciPhone().trim() || ciPhone().trim().length < 11 || (!isOpenSession() && !isTimeRangeValid())"
+            >
+              @if (ciIsEditMode()) {
+                {{ t().saveChanges }}
+              } @else {
+                {{ t().confirmCheckIn }}
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- ========================================================================= -->
+  <!-- 3. BLOCK / BLACKLIST CONFIRMATION MODAL                                   -->
+  <!-- ========================================================================= -->
+  @if (studentToBlock(); as blockTarget) {
+    <div class="modal-backdrop" (click)="closeBlockModal()">
+      <div class="modal-dialog modal-dialog--sm modal-dialog--block" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div class="modal-header-info">
+            <h2 class="modal-title" style="color: var(--yellow);">{{ t().blockConfirmTitle }}</h2>
+            <p class="modal-subtitle">{{ blockTarget.name }} ({{ blockTarget.phone }})</p>
+          </div>
+          <button type="button" class="btn-close-circle" (click)="closeBlockModal()" title="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <div class="modal-single-body">
+          <div class="field-wrap">
+            <label class="field-label">{{ t().blockReasonLabel }}</label>
+            <textarea
+              class="modal-textarea"
+              rows="3"
+              [placeholder]="t().blockReasonPlaceholder"
+              [value]="blockReason()"
+              (input)="blockReason.set($any($event.target).value)"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeBlockModal()">
+            {{ t().cancel }}
+          </button>
+          <button type="button" class="btn btn-warning" (click)="confirmBlockStudent()">
+            {{ t().confirmBlockBtn }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ========================================================================= -->
+  <!-- 4. DELETE CONFIRMATION MODAL                                              -->
+  <!-- ========================================================================= -->
+  @if (studentToDelete(); as target) {
+    <div class="modal-backdrop" (click)="closeDeleteModal()">
+      <div class="modal-dialog modal-dialog--sm modal-dialog--delete" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div class="modal-header-info">
+            <h2 class="modal-title" style="color: var(--danger);">{{ t().confirmDeleteTitle }}</h2>
+            <p class="modal-subtitle">{{ target.name }} • ID: {{ target.id }}</p>
+          </div>
+          <button type="button" class="btn-close-circle" (click)="closeDeleteModal()" title="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <div class="modal-single-body">
+          <p class="modal-desc">{{ t().confirmDeleteDesc }}</p>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeDeleteModal()">
+            {{ t().cancel }}
+          </button>
+          <button type="button" class="btn btn-danger" (click)="confirmDelete()">
+            {{ t().deleteText }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ========================================================================= -->
+  <!-- 5. EDIT STUDENT MODAL                                                     -->
+  <!-- ========================================================================= -->
+  @if (studentToEdit(); as editTarget) {
+    <div class="modal-backdrop" (click)="closeEditModal()">
+      <div class="modal-dialog modal-dialog--wide" (click)="$event.stopPropagation()">
+        <!-- Modal Head -->
+        <div class="modal-header">
+          <div class="modal-header-info">
+            <h2 class="modal-title">{{ t().editStudent }}</h2>
+            <p class="modal-subtitle">ID: {{ editTarget.id }} • {{ editTarget.name }}</p>
+          </div>
+          <button type="button" class="btn-close-circle" (click)="closeEditModal()" title="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Modal Form Body -->
+        <form (submit)="saveEditStudent(); $event.preventDefault()">
+          <div class="modal-grid">
+            <div class="modal-col">
+              <div class="modal-section-card">
+                <div class="form-section-head">
+                  <h4 class="section-card-title">{{ t().studentInformation }}</h4>
+                </div>
+
+                <!-- Student Name -->
+                <div class="field-wrap">
+                  <label class="field-label">{{ t().studentName }}</label>
+                  <div class="input-container">
+                    <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                      <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    <input
+                      type="text"
+                      class="custom-input"
+                      [value]="editName()"
+                      (input)="editName.set($any($event.target).value)"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <!-- Phone & WhatsApp -->
+                <div class="row-grid-2">
+                  <div class="field-wrap">
+                    <label class="field-label">{{ t().phone }}</label>
+                    <div class="input-container">
+                      <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                      </svg>
+                      <input
+                        type="tel"
+                        class="custom-input"
+                        [value]="editPhone()"
+                        (input)="editPhone.set($any($event.target).value)"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="field-wrap">
+                    <label class="field-label">{{ t().whatsapp }}</label>
+                    <div class="input-container">
+                      <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                      </svg>
+                      <input
+                        type="tel"
+                        class="custom-input"
+                        [value]="editWhatsapp()"
+                        (input)="editWhatsapp.set($any($event.target).value)"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Email (Full Width) -->
+                <div class="field-wrap">
+                  <label class="field-label">{{ t().email }}</label>
+                  <div class="input-container">
+                    <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                      <polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                    <input
+                      type="email"
+                      class="custom-input"
+                      placeholder="student@example.com"
+                      [value]="editEmail()"
+                      (input)="editEmail.set($any($event.target).value)"
+                    />
+                  </div>
+                </div>
+
+                <!-- College & Faculty -->
+                <div class="row-grid-2">
+                  <div class="field-wrap">
+                    <label class="field-label">{{ t().college }}</label>
+                    <div class="input-container">
+                      <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+                        <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+                      </svg>
+                      <input
+                        type="text"
+                        class="custom-input"
+                        [value]="editCollege()"
+                        (input)="editCollege.set($any($event.target).value)"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="field-wrap">
+                    <label class="field-label">{{ t().faculty }}</label>
+                    <div class="input-container">
+                      <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                      </svg>
+                      <input
+                        type="text"
+                        class="custom-input"
+                        [value]="editFaculty()"
+                        (input)="editFaculty.set($any($event.target).value)"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-col">
+              <div class="modal-section-card">
+                <div class="form-section-head">
+                  <h4 class="section-card-title">{{ t().packageAndServicesDetails }}</h4>
+                </div>
+
+                <div class="field-wrap">
+                  <label class="field-label">{{ t().packages }}</label>
+                  <div class="input-container">
+                    <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                    </svg>
+                    <input
+                      type="text"
+                      class="custom-input"
+                      [value]="editPackage()"
+                      (input)="editPackage.set($any($event.target).value)"
+                    />
+                  </div>
+                </div>
+
+                <div class="row-grid-2">
+                  <div class="field-wrap">
+                    <label class="field-label">{{ t().printing }} ({{ t().papers }})</label>
+                    <div class="counter-input-wrap">
+                      <button type="button" class="btn-counter" (click)="editPrinting.set(editPrinting() > 0 ? editPrinting() - 1 : 0)">-</button>
+                      <input
+                        type="number"
+                        min="0"
+                        class="counter-val-input"
+                        [value]="editPrinting()"
+                        (input)="editPrinting.set(+$any($event.target).value)"
+                      />
+                      <button type="button" class="btn-counter" (click)="editPrinting.set(editPrinting() + 1)">+</button>
+                    </div>
+                  </div>
+
+                  <div class="field-wrap">
+                    <label class="field-label">{{ t().wallet }} ({{ t().egp }})</label>
+                    <div class="counter-input-wrap">
+                      <button type="button" class="btn-counter" (click)="editWallet.set(editWallet() > 0 ? editWallet() - 1 : 0)">-</button>
+                      <input
+                        type="number"
+                        min="0"
+                        step="10"
+                        class="counter-val-input"
+                        [value]="editWallet()"
+                        (input)="editWallet.set(+$any($event.target).value)"
+                      />
+                      <button type="button" class="btn-counter" (click)="editWallet.set(editWallet() + 10)">+</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal Footer Actions -->
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="closeEditModal()">
+              {{ t().cancel }}
+            </button>
+            <button type="submit" class="btn btn-primary">
+              {{ t().saveChanges }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- DIRECT NEW STUDENT REGISTRATION MODAL -->
+  @if (isRegisterModalOpen()) {
+    <div class="modal-backdrop" (click)="closeRegisterModal()">
+      <div class="modal-dialog modal-dialog--sm" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div class="modal-header__text">
+            <h2 class="modal-title">{{ t().registerStudentTitle || 'تسجيل طالب جديد في الدليل' }}</h2>
+            <p class="modal-subtitle">{{ t().registerStudentSubtitle || 'إضافة بيانات الطالب للدليل العام' }}</p>
+          </div>
+          <button type="button" class="btn-close-circle" (click)="closeRegisterModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <div class="modal-body-pad">
+          <div class="form-grid-2col">
+            <div class="modal-field-group">
+              <label class="modal-label">{{ t().studentName }} *</label>
+              <input type="text" class="modal-input" [ngModel]="regName()" (ngModelChange)="regName.set($event)" [placeholder]="t().studentName || 'اسم الطالب'" />
+            </div>
+
+            <div class="modal-field-group">
+              <label class="modal-label">{{ t().phone }} *</label>
+              <input type="tel" class="modal-input" [ngModel]="regPhone()" (ngModelChange)="regPhone.set($event)" [placeholder]="t().phone || '01xxxxxxxxx'" />
+            </div>
+
+            <div class="modal-field-group">
+              <label class="modal-label">{{ t().whatsapp }}</label>
+              <input type="tel" class="modal-input" [ngModel]="regWhatsapp()" (ngModelChange)="regWhatsapp.set($event)" [placeholder]="t().whatsapp || 'رقم الواتساب'" />
+            </div>
+
+            <div class="modal-field-group">
+              <label class="modal-label">{{ t().email }}</label>
+              <input type="email" class="modal-input" [ngModel]="regEmail()" (ngModelChange)="regEmail.set($event)" placeholder="student@example.com" />
+            </div>
+
+            <div class="modal-field-group">
+              <label class="modal-label">{{ t().collegeAndFaculty || 'الجامعة' }}</label>
+              <input type="text" class="modal-input" [ngModel]="regCollege()" (ngModelChange)="regCollege.set($event)" placeholder="مثال: جامعة القاهرة" />
+            </div>
+
+            <div class="modal-field-group">
+              <label class="modal-label">{{ t().faculty }}</label>
+              <input type="text" class="modal-input" [ngModel]="regFaculty()" (ngModelChange)="regFaculty.set($event)" placeholder="مثال: كلية الهندسة" />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeRegisterModal()">{{ t().cancel }}</button>
+          <button type="button" class="btn btn-primary" (click)="submitRegisterStudent()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span>{{ t().save }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

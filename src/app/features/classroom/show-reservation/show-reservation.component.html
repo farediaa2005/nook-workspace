@@ -1,0 +1,158 @@
+<div class="page-container reservation-detail-page">
+  <!-- Page Header -->
+  <div class="page-head">
+    <div>
+      <div class="back-nav-wrap">
+        <a routerLink="/classroom/reservation" class="btn-back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="back-icon">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+          <span>{{ t().reservations }}</span>
+        </a>
+      </div>
+      <h1 class="page-title">{{ t().reservationDetails }}</h1>
+      <p class="page-subtitle">
+        {{ selectedReservation()?.displayId || '' }} &bull; {{ selectedReservation()?.classroom || t().classroomLabel }}
+      </p>
+    </div>
+
+    <div class="head-actions">
+      @if (selectedReservation()?.status !== 'cancelled') {
+        <button type="button" class="btn btn--primary btn-action" (click)="onCheckout()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="action-icon">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="9 12 11 14 15 10"></polyline>
+          </svg>
+          <span>{{ t().checkOutBtn }}</span>
+        </button>
+      }
+      <button type="button" class="btn btn--ghost btn-action" (click)="onEdit()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="action-icon">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+        </svg>
+        <span>{{ t().edit }}</span>
+      </button>
+    </div>
+  </div>
+
+  @if (selectedReservation(); as res) {
+    <div class="reservation-grid">
+      <!-- Left Column: Instructor & Logistics -->
+      <div class="detail-column">
+        <!-- Instructor Card -->
+        <div class="card-box instructor-card">
+          <div class="instructor-header">
+            <div class="instructor-avatar-wrap">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </div>
+            <div class="instructor-info">
+              <span class="instructor-tag">{{ t().instructor }}</span>
+              <h2 class="instructor-name">{{ res.instructor || t().instructor }}</h2>
+              <p class="instructor-subtitle">{{ res.instructorTitle || res.activity || '' }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Logistics Card -->
+        <div class="card-box logistics-card">
+          <h3 class="card-title">{{ t().logistics }}</h3>
+
+          <div class="logistics-list">
+            <div class="logistics-row">
+              <div class="logistics-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 21h18M3 7v14M21 7v14M6 7V3h12v4M9 12v2"></path>
+                </svg>
+              </div>
+              <div class="logistics-content">
+                <span class="logistics-label">{{ t().assignedSpace }}</span>
+                <strong class="logistics-value">{{ res.classroom }}</strong>
+                <span class="logistics-sub">{{ t().capacity }}: {{ res.capacity || 24 }} {{ t().studentsCount }}</span>
+              </div>
+            </div>
+
+            <div class="logistics-row">
+              <div class="logistics-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </div>
+              <div class="logistics-content">
+                <span class="logistics-label">{{ t().reservationTimeSlot }}</span>
+                <strong class="logistics-value">{{ res.startTime }} - {{ res.endTime }}</strong>
+                <span class="logistics-sub">{{ res.fullDate }} ({{ res.durationHours || 2 }} {{ t().hrs }})</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Activity & Financial Breakdown -->
+      <div class="detail-column">
+        <!-- Activity Card -->
+        <div class="card-box activity-card">
+          <h3 class="card-title">{{ t().activity }}</h3>
+          <div class="activity-highlight">
+            <h2 class="activity-name">{{ res.activity }}</h2>
+            <span class="status-pill status-pill--{{ res.status }}">
+              @if (res.status === 'active') {
+                {{ isArabic() ? 'جارية حالياً' : 'Active' }}
+              } @else if (res.status === 'upcoming') {
+                {{ t().upcoming }}
+              } @else if (res.status === 'completed') {
+                {{ t().statusCompleted }}
+              } @else if (res.status === 'cancelled') {
+                {{ t().cancelled }}
+              }
+            </span>
+          </div>
+        </div>
+
+        <!-- Financial Breakdown Card -->
+        <div class="card-box financial-card">
+          <h3 class="card-title">{{ t().financialBreakdown }}</h3>
+
+          <div class="financial-lines">
+            <div class="financial-line">
+              <span class="line-label">{{ res.costBreakdown.baseRateLabel || t().baseRateLabel }}</span>
+              <strong class="line-val">{{ t().currency }} {{ res.costBreakdown.baseRate || res.cost }}</strong>
+            </div>
+
+            @if (res.costBreakdown.equipmentAddon > 0) {
+              <div class="financial-line">
+                <span class="line-label">{{ t().equipmentAddon }}</span>
+                <strong class="line-val">{{ t().currency }} {{ res.costBreakdown.equipmentAddon }}</strong>
+              </div>
+            }
+
+            @if (res.costBreakdown.earlyBirdDiscount > 0) {
+              <div class="financial-line discount-line">
+                <span class="line-label">{{ t().earlyBirdDiscount }}</span>
+                <strong class="line-val">-{{ t().currency }} {{ res.costBreakdown.earlyBirdDiscount }}</strong>
+              </div>
+            }
+
+            <div class="financial-divider"></div>
+
+            <div class="financial-line total-line">
+              <span class="line-label">{{ t().total }}</span>
+              <strong class="line-val total-val">{{ t().currency }} {{ res.cost }}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="card-box empty-state-box">
+      <p class="empty-text">{{ t().noData }}</p>
+      <a routerLink="/classroom/reservation" class="btn btn--primary">
+        {{ t().reservations }}
+      </a>
+    </div>
+  }
+</div>

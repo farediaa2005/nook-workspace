@@ -1,0 +1,49 @@
+<header class="header">
+  <div class="header__left">
+    <button class="icon-btn" id="menuToggle" (click)="toggleSidebar.emit()" aria-label="Toggle menu">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none">
+        <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+        <path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <input type="text" [placeholder]="t().search" />
+    </div>
+  </div>
+
+  <div class="header__right">
+    <!-- Language Toggle Button -->
+    <button class="lang-btn" (click)="toggleLanguage()" aria-label="Toggle language">
+      <span>{{ isArabic() ? 'EN' : 'ع' }}</span>
+    </button>
+
+    <!-- Theme Toggle -->
+    <button class="icon-btn theme-toggle-btn" (click)="toggleTheme()" aria-label="Toggle day/night">
+      @if (isDarkTheme()) {
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      } @else {
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+      }
+    </button>
+
+
+
+    <!-- User Profile -->
+    <div class="user">
+      <img [src]="userAvatar()" [alt]="userName()" class="avatar-img" />
+      <div class="user__meta">
+        <strong>{{ userName() }}</strong>
+        <small>{{ userRoleTitle() }}</small>
+      </div>
+    </div>
+  </div>
+</header>

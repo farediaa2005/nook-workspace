@@ -1,0 +1,226 @@
+:host {
+  display: contents;
+}
+
+/* Modal Backdrop */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Modal Card */
+.modal-card {
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 440px;
+  padding: 32px 24px 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-sizing: border-box;
+  animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Success Icon */
+.success-icon-wrapper {
+  margin-bottom: 16px;
+}
+
+.success-icon-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(62, 201, 138, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--success, #10b981);
+}
+
+.success-icon-circle svg {
+  width: 36px;
+  height: 36px;
+}
+
+/* Header Text */
+.modal-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text, #111827);
+  letter-spacing: -0.02em;
+}
+
+.modal-subtitle {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-dim, #6b7280);
+  line-height: 1.45;
+}
+
+.modal-subtitle strong {
+  color: var(--text, #111827);
+}
+
+/* Product Summary Card */
+.product-summary-card {
+  width: 100%;
+  background: var(--surface-2, #f9fafb);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  text-align: left;
+  box-sizing: border-box;
+  margin-bottom: 24px;
+}
+
+.modal-backdrop--rtl .product-summary-card {
+  text-align: right;
+}
+
+.product-icon-box {
+  width: 48px;
+  height: 48px;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.product-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-fallback-svg {
+  width: 24px;
+  height: 24px;
+  color: var(--text-dim, #9ca3af);
+}
+
+.product-summary-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+
+.product-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text, #111827);
+}
+
+.product-cat-barcode {
+  font-size: 0.78rem;
+  color: var(--text-dim, #6b7280);
+}
+
+.product-price {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text, #111827);
+  margin-top: 2px;
+}
+
+.product-stock {
+  font-size: 0.78rem;
+  color: var(--text-dim, #9ca3af);
+}
+
+/* Actions */
+.modal-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border, #e5e7eb);
+}
+
+.btn-text-link {
+  background: transparent;
+  border: none;
+  color: var(--text-dim, #6b7280);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-text-link:hover {
+  color: var(--text, #111827);
+  background: var(--surface-2, #f3f4f6);
+}
+
+.btn-view-inventory {
+  width: 100%;
+  height: 44px;
+  background: var(--yellow, #f5b921);
+  color: #1a1509;
+  border: none;
+  font-size: 0.92rem;
+  font-weight: 700;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(245, 185, 33, 0.25);
+  transition: all 0.15s ease;
+}
+
+.btn-view-inventory:hover {
+  background: var(--yellow-hover, #ffca3a);
+  box-shadow: 0 4px 12px rgba(245, 185, 33, 0.35);
+}
+
+/* RTL */
+.modal-backdrop--rtl {
+  direction: rtl;
+}

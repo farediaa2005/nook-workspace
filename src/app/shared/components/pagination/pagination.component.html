@@ -1,0 +1,32 @@
+<div class="pagination-controls">
+  <button
+    type="button"
+    class="btn-page-nav"
+    [disabled]="currentPage() <= 1"
+    (click)="prevPage()"
+    title="Previous"
+  >
+    ‹
+  </button>
+
+  @for (page of pagesArray(); track page) {
+    <button
+      type="button"
+      class="btn-page-num"
+      [class.btn-page-num--active]="currentPage() === page"
+      (click)="setPage(page)"
+    >
+      {{ page }}
+    </button>
+  }
+
+  <button
+    type="button"
+    class="btn-page-nav"
+    [disabled]="currentPage() >= totalPages()"
+    (click)="nextPage()"
+    title="Next"
+  >
+    ›
+  </button>
+</div>

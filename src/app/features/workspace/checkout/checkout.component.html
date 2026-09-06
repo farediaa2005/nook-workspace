@@ -1,0 +1,404 @@
+<div class="checkout-page-container">
+  <!-- Standard Page Header matching other pages -->
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">{{ t().checkout }}</h1>
+      <p class="page-subtitle">{{ t().checkoutDesc }}</p>
+    </div>
+
+    <a routerLink="/workspace/show-student" class="btn-cancel-checkout">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+      <span>{{ t().cancel }}</span>
+    </a>
+  </div>
+
+  <!-- Main 2-Column Grid -->
+  <div class="checkout-grid">
+    <!-- LEFT COLUMN -->
+    <div class="checkout-left-col">
+      <!-- Section 1: User Information -->
+      <div class="checkout-card">
+        <h2 class="card-section-title">{{ t().userInformation }}</h2>
+        <div class="info-grid-2x2">
+          <div class="info-item">
+            <span class="info-label">{{ t().studentName }}</span>
+            <strong class="info-value">{{ studentName() }}</strong>
+          </div>
+
+          <div class="info-item">
+            <span class="info-label">{{ t().faculty }}</span>
+            <strong class="info-value">{{ faculty() }}</strong>
+          </div>
+
+          <div class="info-item">
+            <span class="info-label">{{ t().phone }}</span>
+            <strong class="info-value">{{ phone() }}</strong>
+          </div>
+
+          <div class="info-item">
+            <span class="info-label">{{ t().emailLabel }}</span>
+            <strong class="info-value">{{ email() }}</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Session Details (All 3 metric cards identical normal styling) -->
+      <div class="checkout-card">
+        <h2 class="card-section-title">{{ t().sessionDetails }}</h2>
+        <div class="session-metrics-grid">
+          <!-- Metric 1: Check-in -->
+          <div class="session-metric-box">
+            <div class="metric-top">
+              <svg class="session-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                <polyline points="10 17 15 12 10 7" />
+                <line x1="15" y1="12" x2="3" y2="12" />
+              </svg>
+              <span class="metric-sublabel">{{ t().checkIn }}</span>
+            </div>
+            <strong class="metric-main-value">{{ checkInTime() }}</strong>
+          </div>
+
+          <!-- Metric 2: Checkout -->
+          <div class="session-metric-box">
+            <div class="metric-top">
+              <svg class="session-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              <span class="metric-sublabel">{{ t().checkout }}</span>
+            </div>
+            <strong class="metric-main-value">{{ checkoutTime() }}</strong>
+          </div>
+
+          <!-- Metric 3: Duration (Standard matching look) -->
+          <div class="session-metric-box">
+            <div class="metric-top">
+              <svg class="session-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              <span class="metric-sublabel">{{ t().duration }}</span>
+            </div>
+            <strong class="metric-main-value">{{ durationDisplay() }}</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3: Line Items -->
+      <div class="checkout-card">
+        <h2 class="card-section-title">{{ t().lineItems }}</h2>
+        <span class="category-divider-label">{{ t().billingDetails }}</span>
+
+        <!-- Workspace Base Cost Row -->
+        <div class="line-item-row">
+          <div class="item-meta">
+            <strong class="item-title">{{ t().workspaceBaseCost }}</strong>
+            <span class="item-calc">
+              {{ durationDisplay() }} @
+              <input type="number" min="0" class="rate-inline-input" [value]="hourlyRate()"
+                (input)="hourlyRate.set(+$any($event.target).value)" />
+              {{ t().ratePerHour }}
+            </span>
+          </div>
+          <strong class="item-price">{{ baseCost().toFixed(2) }} {{ t().egp }}</strong>
+        </div>
+
+        <!-- Printing Row -->
+        <div class="line-item-row">
+          <div class="item-meta flex-row-center">
+            <strong class="item-title">{{ t().printingLabel }}</strong>
+            <span class="item-calc">
+              <input type="number" min="0" class="rate-inline-input" [value]="printingPages()"
+                (input)="printingPages.set(+$any($event.target).value)" style="width: 55px;" />
+              {{ t().printingPagesRate }}
+            </span>
+          </div>
+          <strong class="item-price">{{ printingTotal().toFixed(2) }} {{ t().egp }}</strong>
+        </div>
+
+        <!-- WiFi Row -->
+        <div class="line-item-row">
+          <div class="item-meta flex-row-center">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" [checked]="hasWifi()" (change)="hasWifi.set($any($event.target).checked)" />
+              <strong class="item-title">{{ t().premiumWiFi }}</strong>
+            </label>
+          </div>
+          <strong class="item-price">{{ wifiCost().toFixed(2) }} {{ t().egp }}</strong>
+        </div>
+
+        <!-- Deposit Row (if any) -->
+        @if (depositAmount() > 0) {
+        <div class="line-item-row" style="background: rgba(16, 185, 129, 0.05); padding: 6px 10px; border-radius: 6px;">
+          <div class="item-meta flex-row-center">
+            <strong class="item-title" style="color: #10b981;">{{ t().paidDeposit }}</strong>
+          </div>
+          <strong class="item-price" style="color: #10b981;">-{{ depositAmount().toFixed(2) }} {{ t().egp }}</strong>
+        </div>
+        }
+
+        <!-- Discount Row -->
+        <div class="line-item-row">
+          <div class="item-meta flex-row-center">
+            <strong class="item-title">{{ t().discountReduction }}</strong>
+            <span class="discount-pill">
+              {{ discountMode() === 'percent' ? discountValue() + '%' : discountValue() + ' ' + t().egp }}
+            </span>
+            <button type="button" class="btn-action-link" (click)="openAddDiscount()">
+              {{ t().addDiscountBtn }}
+            </button>
+          </div>
+          <strong class="item-price item-price--discount">-{{ discountAmount().toFixed(2) }} {{ t().egp }}</strong>
+        </div>
+
+        <!-- Coupon Code Row -->
+        <div class="coupon-section">
+          <label class="coupon-label">{{ t().couponCode }}</label>
+          <div class="coupon-input-group">
+            <input type="text" class="coupon-input" [placeholder]="t().enterCouponPlaceholder" [value]="couponInput()"
+              (input)="couponInput.set($any($event.target).value)" />
+            <button type="button" class="btn-apply-coupon" (click)="applyCoupon()">
+              {{ t().applyBtn }}
+            </button>
+          </div>
+          @if (couponApplied()) {
+          <span class="coupon-applied-text">تم تطبيق الخصم: -{{ couponDiscount().toFixed(2) }} {{ t().egp }}</span>
+          }
+        </div>
+
+        <!-- Catering Section -->
+        <div class="catering-section">
+          <div class="catering-head">
+            <strong class="catering-title">{{ t().catering }}</strong>
+            <button type="button" class="btn-action-link" (click)="openAddItem()">
+              {{ t().addItemBtn }}
+            </button>
+          </div>
+
+          <div class="catering-list">
+            @for (item of cateringItems(); track item.id) {
+            <div class="catering-item-row">
+              <span class="catering-item-name">{{ item.name }}</span>
+              <div class="catering-item-right">
+                <span class="catering-item-price">{{ item.price.toFixed(2) }} {{ t().egp }}</span>
+                <button type="button" class="btn-remove-item" (click)="removeCateringItem(item.id)"
+                  title="حذف">&times;</button>
+              </div>
+            </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="checkout-right-col">
+      <!-- Section 1: Summary Card -->
+      <div class="checkout-card summary-card">
+        <div class="summary-row">
+          <span class="summary-label">{{ t().subtotalText }}</span>
+          <strong class="summary-val">{{ subtotal().toFixed(2) }} {{ t().egp }}</strong>
+        </div>
+
+        <div class="summary-row">
+          <span class="summary-label">{{ t().discountsApplied }}</span>
+          <strong class="summary-val summary-val--discount">-{{ totalDiscounts().toFixed(2) }} {{ t().egp }}</strong>
+        </div>
+
+        <div class="summary-divider"></div>
+
+        <div class="final-amount-wrap">
+          <span class="final-amount-label">{{ t().finalAmountText }}</span>
+          <strong class="final-amount-val">{{ finalAmount().toFixed(2) }} <span class="final-currency">{{ t().egp
+              }}</span></strong>
+        </div>
+      </div>
+
+      <!-- Section 2: Payment Method Card -->
+      <div class="checkout-card payment-card">
+        <h3 class="card-section-title card-section-title--sm">{{ t().paymentMethodText }}</h3>
+
+        <!-- Payment Methods 2x2 Grid -->
+        <div class="payment-methods-grid">
+          <!-- Cash -->
+          <button type="button" class="payment-method-card"
+            [class.payment-method-card--active]="selectedPaymentMethod() === 'cash'"
+            (click)="selectPaymentMethod('cash')">
+            <div class="pm-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="6" width="20" height="12" rx="2" />
+                <circle cx="12" cy="12" r="2" />
+                <path d="M6 12h.01M18 12h.01" />
+              </svg>
+            </div>
+            <span class="pm-label">{{ t().cashText }}</span>
+          </button>
+
+          <!-- Vodafone Cash -->
+          <button type="button" class="payment-method-card"
+            [class.payment-method-card--active]="selectedPaymentMethod() === 'vodafone'"
+            (click)="selectPaymentMethod('vodafone')">
+            <div class="pm-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+                <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+                <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
+              </svg>
+            </div>
+            <span class="pm-label">{{ t().vodafoneCashText }}</span>
+          </button>
+
+          <!-- Fawry -->
+          <button type="button" class="payment-method-card"
+            [class.payment-method-card--active]="selectedPaymentMethod() === 'fawry'"
+            (click)="selectPaymentMethod('fawry')">
+            <div class="pm-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+                <line x1="8" y1="7" x2="16" y2="7" />
+                <line x1="8" y1="11" x2="16" y2="11" />
+                <line x1="8" y1="15" x2="12" y2="15" />
+              </svg>
+            </div>
+            <span class="pm-label">{{ t().fawryText }}</span>
+          </button>
+
+          <!-- InstaPay -->
+          <button type="button" class="payment-method-card"
+            [class.payment-method-card--active]="selectedPaymentMethod() === 'instapay'"
+            (click)="selectPaymentMethod('instapay')">
+            <div class="pm-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 21h18" />
+                <path d="M3 10h18" />
+                <path d="M5 10v11" />
+                <path d="M19 10v11" />
+                <path d="M9 10v11" />
+                <path d="M15 10v11" />
+                <path d="m12 2 10 8H2Z" />
+              </svg>
+            </div>
+            <span class="pm-label">{{ t().instaPayText }}</span>
+          </button>
+
+          <!-- Student Package Deduction -->
+          <button type="button" class="payment-method-card"
+            [class.payment-method-card--active]="selectedPaymentMethod() === 'package'"
+            (click)="selectPaymentMethod('package')">
+            <div class="pm-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+                <path d="m3.3 7 8.7 5 8.7-5"/>
+                <path d="M12 22V12"/>
+              </svg>
+            </div>
+            <span class="pm-label">{{ t().studentPackageMethod }}</span>
+          </button>
+        </div>
+
+        <!-- Amount Received Field -->
+        <div class="amount-received-group">
+          <label class="amount-label">{{ t().amountReceivedText }}</label>
+          <div class="amount-input-box">
+            <input type="number" min="0" step="5" class="amount-field-input" [value]="amountReceived()"
+              (input)="amountReceived.set(+$any($event.target).value)" />
+            <span class="currency-symbol">{{ t().egp }}</span>
+          </div>
+        </div>
+
+        <!-- Change to Return or Partial Payment Reminder -->
+        @if (outstandingBalance() > 0) {
+        <div class="change-return-box" style="background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.3);">
+          <span class="change-label" style="color: #ef4444; font-weight: 700;">{{ t().partialPaymentDue }}</span>
+          <strong class="change-val" style="color: #ef4444;">{{ outstandingBalance().toFixed(2) }} {{ t().egp }}</strong>
+        </div>
+        } @else {
+        <div class="change-return-box">
+          <span class="change-label">{{ t().changeToReturnText }}</span>
+          <strong class="change-val">{{ changeToReturn().toFixed(2) }} {{ t().egp }}</strong>
+        </div>
+        }
+
+        <!-- Finalize Button -->
+        <button type="button" class="btn-finalize" (click)="finalizeAndClose()">
+          <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="9 12 12 15 16 10" />
+          </svg>
+          <span>{{ t().finalizeAndCloseBtn }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD / EDIT DISCOUNT MODAL -->
+  @if (showAddDiscountModal()) {
+  <div class="modal-overlay" (click)="showAddDiscountModal.set(false)">
+    <div class="modal-card modal-card--sm" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h3 class="modal-title">{{ t().applyDiscountTitle }}</h3>
+        <button type="button" class="modal-close-btn" (click)="showAddDiscountModal.set(false)">&times;</button>
+      </div>
+      <div class="modal-form-body">
+        <div class="modal-field-group">
+          <label class="modal-label">{{ t().discountTypeLabel }}</label>
+          <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+            <button type="button" class="modal-btn-cancel"
+              [style.background]="modalDiscountMode() === 'percent' ? 'var(--primary)' : 'transparent'"
+              [style.color]="modalDiscountMode() === 'percent' ? '#fff' : 'inherit'"
+              (click)="modalDiscountMode.set('percent')">
+              {{ t().percentageOption }}
+            </button>
+            <button type="button" class="modal-btn-cancel"
+              [style.background]="modalDiscountMode() === 'fixed' ? 'var(--primary)' : 'transparent'"
+              [style.color]="modalDiscountMode() === 'fixed' ? '#fff' : 'inherit'"
+              (click)="modalDiscountMode.set('fixed')">
+              {{ t().fixedAmountOption }}
+            </button>
+          </div>
+          <label class="modal-label">{{ modalDiscountMode() === 'percent' ? t().percentageValueLabel : t().discountAmountLabel }}</label>
+          <input type="number" min="0" [max]="modalDiscountMode() === 'percent' ? 100 : 10000" class="modal-input" [value]="newDiscountInput()"
+            (input)="newDiscountInput.set(+$any($event.target).value)" />
+        </div>
+        <div class="modal-actions-footer">
+          <button type="button" class="modal-btn-cancel" (click)="showAddDiscountModal.set(false)">{{ t().cancel }}</button>
+          <button type="button" class="modal-btn-save" (click)="saveDiscount()">{{ t().saveChanges }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- ADD CATERING ITEM MODAL -->
+  @if (showAddItemModal()) {
+  <div class="modal-overlay" (click)="showAddItemModal.set(false)">
+    <div class="modal-card modal-card--sm" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h3 class="modal-title">{{ t().addItemBtn }}</h3>
+        <button type="button" class="modal-close-btn" (click)="showAddItemModal.set(false)">&times;</button>
+      </div>
+      <div class="modal-form-body">
+        <div class="modal-field-group">
+          <label class="modal-label">اسم الطلب / المشروب</label>
+          <input type="text" class="modal-input" placeholder="مثال: لاتيه / شاي كرك" [value]="newItemName()"
+            (input)="newItemName.set($any($event.target).value)" />
+        </div>
+        <div class="modal-field-group" style="margin-top: 12px;">
+          <label class="modal-label">السعر (ج.م)</label>
+          <input type="number" min="0" step="5" class="modal-input" [value]="newItemPrice()"
+            (input)="newItemPrice.set(+$any($event.target).value)" />
+        </div>
+        <div class="modal-actions-footer">
+          <button type="button" class="modal-btn-cancel" (click)="showAddItemModal.set(false)">{{ t().cancel }}</button>
+          <button type="button" class="modal-btn-save" (click)="saveNewItem()">{{ t().addBtn }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  }
+</div>

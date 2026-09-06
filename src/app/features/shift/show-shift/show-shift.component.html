@@ -1,0 +1,279 @@
+<div class="page-container" [class.rtl]="isArabic()">
+  
+  <!-- Page Header -->
+  <header class="page-head">
+    <div class="header-left">
+      <a routerLink="/shift/history" class="btn-back">
+        <svg viewBox="0 0 24 24" fill="none" width="18" height="18" class="back-icon">
+          <polyline points="15 18 9 12 15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span>{{ t().backToHistoryBtn }}</span>
+      </a>
+      <div class="title-wrap">
+        <h1 class="page-title">{{ t().shiftDetailsTitle }}</h1>
+        <div class="shift-meta-pills">
+          @if (isShiftActive()) {
+            <span class="status-pill status-pill--active">
+              <span class="pulse-dot"></span>
+              {{ t().liveShift }}
+            </span>
+          } @else if (shiftStatus() === 'balanced') {
+            <span class="status-pill status-pill--balanced">
+              <svg viewBox="0 0 24 24" fill="none" width="12" height="12">
+                <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+              </svg>
+              {{ t().balancedStatusPill }}
+            </span>
+          } @else {
+            <span class="status-pill status-pill--disputed">
+              <svg viewBox="0 0 24 24" fill="none" width="12" height="12">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" stroke-width="2"/>
+              </svg>
+              {{ t().disputedStatusPill }}
+            </span>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Export Action Buttons -->
+    <div class="header-actions">
+      <button class="btn-export btn-export--excel" (click)="exportExcel()" title="Export CSV">
+        <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="7 10 12 15 17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>{{ t().exportExcelBtn }}</span>
+      </button>
+
+      <button class="btn-export btn-export--pdf" (click)="printReport()" title="Print">
+        <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="14 2 14 8 20 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>{{ t().exportPdfBtn }}</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Staff & Shift Timing Summary Card -->
+  <div class="metadata-banner">
+    <div class="meta-profile">
+      <img [src]="displayStaffAvatar()" alt="Avatar" class="profile-avatar" />
+      <div class="profile-info">
+        <span class="profile-role">{{ t().shiftStaffName }}</span>
+        <h3 class="profile-name">{{ displayStaffName() }}</h3>
+      </div>
+    </div>
+
+    <div class="meta-strip-items">
+      <div class="meta-strip-item">
+        <span class="item-label">{{ t().date }}</span>
+        <span class="item-val">{{ displayDate() }}</span>
+      </div>
+      <div class="meta-divider"></div>
+      <div class="meta-strip-item">
+        <span class="item-label">{{ t().shiftStartTime }}</span>
+        <span class="item-val">{{ displayStartTime() }}</span>
+      </div>
+      <div class="meta-divider"></div>
+      <div class="meta-strip-item">
+        <span class="item-label">{{ t().shiftEndTime }}</span>
+        <span class="item-val">{{ displayEndTime() }}</span>
+      </div>
+      <div class="meta-divider"></div>
+      <div class="meta-strip-item">
+        <span class="item-label">{{ t().varianceColumn }}</span>
+        <span class="item-val font-num" [class.text-positive]="varianceAmount() === 0" [class.text-negative]="varianceAmount() !== 0">
+          {{ varianceAmount() >= 0 ? '+' : '' }}{{ varianceAmount().toFixed(2) }} {{ currencyText() }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1. The 4 Payment Channels Section -->
+  <section class="section-container">
+    <div class="section-header">
+      <h2 class="section-heading">{{ t().paymentChannelsTitle }}</h2>
+      <span class="section-sub">{{ t().paymentChannelsSub }}</span>
+    </div>
+
+    <div class="channels-grid">
+      <!-- Cash Drawer -->
+      <div class="channel-card channel-card--cash">
+        <div class="card-accent-strip card-accent-strip--gold"></div>
+        <div class="card-top">
+          <div class="channel-meta">
+            <span class="channel-badge channel-badge--gold">{{ t().cashDrawerBadge }}</span>
+            <span class="channel-name">{{ t().cashTillName }}</span>
+          </div>
+          <div class="icon-wrap icon-wrap--gold">
+            <svg viewBox="0 0 24 24" fill="none">
+              <rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" stroke-width="1.8"/>
+              <circle cx="16" cy="12" r="1.5" fill="currentColor"/>
+            </svg>
+          </div>
+        </div>
+        <div class="channel-body">
+          <div class="channel-amount">
+            {{ expectedCash().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span>
+          </div>
+          <div class="channel-footnote">
+            <span>{{ t().startingFloatPrefix }}{{ openingCash().toFixed(2) }} {{ currencyText() }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vodafone Cash -->
+      <div class="channel-card channel-card--vodafone">
+        <div class="card-accent-strip card-accent-strip--red"></div>
+        <div class="card-top">
+          <div class="channel-meta">
+            <span class="channel-badge channel-badge--red">{{ t().eWalletBadge }}</span>
+            <span class="channel-name">{{ t().vodafoneCashName }}</span>
+          </div>
+          <div class="icon-wrap icon-wrap--red">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 2v20M8 8a6 6 0 0 1 8 0" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </div>
+        </div>
+        <div class="channel-body">
+          <div class="channel-amount">
+            {{ vodafoneTotal().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span>
+          </div>
+          <div class="channel-footnote">
+            <span>{{ t().collectedViaWallet }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- InstaPay -->
+      <div class="channel-card channel-card--instapay">
+        <div class="card-accent-strip card-accent-strip--purple"></div>
+        <div class="card-top">
+          <div class="channel-meta">
+            <span class="channel-badge channel-badge--purple">{{ t().instantTransferBadge }}</span>
+            <span class="channel-name">{{ t().instapayName }}</span>
+          </div>
+          <div class="icon-wrap icon-wrap--purple">
+            <svg viewBox="0 0 24 24" fill="none">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" stroke="currentColor" stroke-width="1.8"/>
+            </svg>
+          </div>
+        </div>
+        <div class="channel-body">
+          <div class="channel-amount">
+            {{ instapayTotal().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span>
+          </div>
+          <div class="channel-footnote">
+            <span>{{ t().instantBankTransfers }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fawry -->
+      <div class="channel-card channel-card--fawry">
+        <div class="card-accent-strip card-accent-strip--blue"></div>
+        <div class="card-top">
+          <div class="channel-meta">
+            <span class="channel-badge channel-badge--blue">{{ t().posMachineBadge }}</span>
+            <span class="channel-name">{{ t().fawryName }}</span>
+          </div>
+          <div class="icon-wrap icon-wrap--blue">
+            <svg viewBox="0 0 24 24" fill="none">
+              <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="1.8"/>
+              <line x1="2" y1="10" x2="22" y2="10" stroke="currentColor" stroke-width="1.8"/>
+            </svg>
+          </div>
+        </div>
+        <div class="channel-body">
+          <div class="channel-amount">
+            {{ fawryTotal().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span>
+          </div>
+          <div class="channel-footnote">
+            <span>{{ t().posPaymentsSub }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Revenues Breakdown & Reconciliation -->
+  <section class="section-container">
+    <div class="section-header">
+      <h2 class="section-heading">{{ t().categoryRevenuesTitle }}</h2>
+      <span class="section-sub">{{ t().categoryRevenuesSub }}</span>
+    </div>
+
+    <div class="breakdown-grid">
+      <div class="stat-card">
+        <span class="stat-category">{{ t().workspaceCategory }}</span>
+        <div class="stat-number font-num">{{ workspaceRevenue().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span></div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-category">{{ t().classroomsCategory }}</span>
+        <div class="stat-number font-num">{{ classroomRevenue().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span></div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-category">{{ t().packagesCategory }}</span>
+        <div class="stat-number font-num">{{ packageRevenue().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span></div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-category">{{ t().cateringCategory }}</span>
+        <div class="stat-number font-num">{{ cateringRevenue().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span></div>
+      </div>
+      <div class="stat-card stat-card--danger">
+        <span class="stat-category text-negative">{{ t().pettyExpensesCategory }}</span>
+        <div class="stat-number text-negative font-num">-{{ adminExpenses().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Transactions Ledger Table -->
+  <section class="section-container">
+    <div class="ledger-card">
+      <div class="ledger-header">
+        <h2 class="ledger-heading">{{ t().liveLedgerTitle }}</h2>
+        <span class="tx-count-pill">{{ transactions().length }} {{ t().recordedTransactionsCount }}</span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="ledger-table">
+          <thead>
+            <tr>
+              <th>{{ t().timeColumn }}</th>
+              <th>{{ t().descriptionColumn }}</th>
+              <th>{{ t().categoryColumn }}</th>
+              <th>{{ t().paymentChannelColumn }}</th>
+              <th class="text-end">{{ t().amountColumn }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (tx of transactions(); track tx.id) {
+              <tr>
+                <td class="cell-time"><span class="time-tag">{{ tx.timestamp }}</span></td>
+                <td class="cell-desc">{{ tx.details }}</td>
+                <td class="cell-cat"><span class="cat-pill cat-pill--{{ tx.type }}">{{ tx.type }}</span></td>
+                <td class="cell-payment"><span class="channel-pill">{{ tx.paymentMethod }}</span></td>
+                <td class="cell-amount text-end font-num" [class.text-positive]="tx.amount >= 0" [class.text-negative]="tx.amount < 0">
+                  {{ tx.amount >= 0 ? '+' : '' }}{{ tx.amount.toFixed(2) }} {{ currencyText() }}
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="5" class="text-center empty-cell">
+                  {{ t().noData }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</div>

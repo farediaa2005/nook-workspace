@@ -1,0 +1,42 @@
+.redirect-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 48px 24px;
+  gap: 14px;
+}
+
+.redirect-icon-wrap {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(245, 185, 33, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--yellow);
+}
+
+.redirect-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.redirect-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.redirect-desc {
+  color: var(--text-dim);
+  font-size: 0.92rem;
+  max-width: 400px;
+}
+
+.btn-action {
+  margin-top: 8px;
+  height: 42px;
+  padding: 0 24px;
+}

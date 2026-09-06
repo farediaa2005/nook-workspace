@@ -1,0 +1,1062 @@
+/* =========================================================================
+   NOOK — SHOW COLLEGES PAGE & COLLEGE GRAPH ANALYTICS STYLES
+   ========================================================================= */
+
+:host {
+  display: block;
+  width: 100%;
+}
+
+.page-container {
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* 1. Header & Title */
+.show-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.head-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.page-title {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.page-subtitle {
+  font-size: 0.90rem;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.head-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* View Switcher Tabs Toggle */
+.view-tabs-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 4px;
+  gap: 4px;
+  box-shadow: var(--shadow);
+}
+
+:host-context([data-theme="light"]) .view-tabs-toggle,
+[data-theme="light"] .view-tabs-toggle {
+  background: #ffffff;
+}
+
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+
+.tab-icon {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+}
+
+.tab-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tab-btn--active {
+  background: var(--yellow) !important;
+  color: #1c1810 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 12px rgba(245, 185, 33, 0.3);
+}
+
+/* Primary Button Container & Action */
+app-primary-button.colleges-add-btn,
+.colleges-add-btn {
+  flex-shrink: 0;
+}
+
+:host ::ng-deep .colleges-add-btn .btn-primary-action {
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+/* =========================================================================
+   COLLEGE GRAPH & ANALYTICS SECTION
+   ========================================================================= */
+
+/* 1. Date Filter Card */
+.analytics-filter-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: var(--shadow);
+}
+
+:host-context([data-theme="light"]) .analytics-filter-card,
+[data-theme="light"] .analytics-filter-card {
+  background: #ffffff;
+}
+
+.filter-header-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gold-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.filter-heading {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.preset-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.preset-pill {
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.80rem;
+  font-weight: 600;
+  background: var(--surface-2, rgba(255, 255, 255, 0.05));
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.preset-pill:hover {
+  border-color: var(--yellow);
+  color: var(--yellow);
+}
+
+.preset-pill--active {
+  background: rgba(245, 185, 33, 0.15) !important;
+  color: var(--yellow) !important;
+  border-color: var(--yellow) !important;
+  font-weight: 700;
+}
+
+.date-inputs-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.date-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 240px;
+}
+
+.date-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.custom-date-input {
+  flex: 1;
+  height: 40px;
+  padding: 0 14px;
+  background: var(--surface-2, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  outline: none;
+  transition: border-color 0.15s ease;
+  color-scheme: inherit;
+}
+
+.custom-date-input:focus {
+  border-color: var(--yellow);
+}
+
+.custom-date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: var(--calendar-picker-filter, invert(0.9) brightness(1.2));
+  opacity: var(--calendar-picker-opacity, 0.85);
+  border-radius: 6px;
+  padding: 2px;
+  transition: opacity 0.2s ease, transform 0.2s ease, filter 0.2s ease;
+}
+
+.custom-date-input::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+  transform: scale(1.15);
+}
+
+:host-context([data-theme="light"]) .custom-date-input::-webkit-calendar-picker-indicator,
+[data-theme="light"] .custom-date-input::-webkit-calendar-picker-indicator {
+  filter: invert(0.15) brightness(0.8) !important;
+  opacity: 0.75 !important;
+}
+
+:host-context([data-theme="dark"]) .custom-date-input::-webkit-calendar-picker-indicator,
+[data-theme="dark"] .custom-date-input::-webkit-calendar-picker-indicator {
+  filter: invert(0.9) brightness(1.2) !important;
+  opacity: 0.85 !important;
+}
+
+/* 2. Top Analytics Metrics Strip */
+.analytics-metrics-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.kpi-mini-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: var(--shadow);
+}
+
+:host-context([data-theme="light"]) .kpi-mini-card,
+[data-theme="light"] .kpi-mini-card {
+  background: #ffffff;
+}
+
+.kpi-mini-label {
+  font-size: 0.80rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.kpi-mini-val {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.kpi-mini-sub {
+  font-size: 0.76rem;
+  color: var(--text-dim);
+}
+
+/* 3. Main College Graph 2-Column Split Layout */
+.college-graph-layout {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 20px;
+  align-items: stretch;
+}
+
+/* Panels */
+.college-table-panel,
+.college-chart-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+:host-context([data-theme="light"]) .college-table-panel,
+:host-context([data-theme="light"]) .college-chart-panel,
+[data-theme="light"] .college-table-panel,
+[data-theme="light"] .college-chart-panel {
+  background: #ffffff;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+}
+
+.panel-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.panel-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.count-badge {
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(245, 185, 33, 0.15);
+  color: var(--yellow);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+/* Graph Table Styles */
+.graph-table-wrap {
+  width: 100%;
+  max-height: 480px;
+  overflow-y: auto;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.graph-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: start;
+}
+
+.graph-table th,
+.graph-table td {
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.graph-table th {
+  background: var(--surface-2, rgba(255, 255, 255, 0.04));
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.graph-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.graph-row:hover,
+.graph-row--hovered {
+  background: rgba(245, 185, 33, 0.08) !important;
+}
+
+.cell-no {
+  font-weight: 700;
+}
+
+.no-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.college-name-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.college-name-text {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.val-students {
+  font-weight: 700;
+  color: #3b82f6;
+}
+
+.val-hours {
+  font-weight: 700;
+  color: var(--yellow);
+}
+
+.val-total {
+  font-weight: 700;
+  color: #10b981;
+}
+
+.percentage-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 90px;
+}
+
+.pct-bar-bg {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+:host-context([data-theme="light"]) .pct-bar-bg,
+[data-theme="light"] .pct-bar-bg {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.pct-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.pct-text {
+  font-size: 0.82rem;
+  font-weight: 700;
+  min-width: 40px;
+  text-align: end;
+}
+
+.graph-total-row {
+  background: var(--surface-2, rgba(255, 255, 255, 0.05));
+  font-size: 0.88rem;
+}
+
+/* Pie Chart Container */
+.pie-chart-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  position: relative;
+  min-height: 420px;
+}
+
+.pie-svg {
+  width: 280px;
+  height: 280px;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.25));
+  overflow: visible;
+}
+
+.pie-slice-group {
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: 150px 150px;
+}
+
+.pie-slice--hovered {
+  transform: scale(1.04);
+}
+
+.pie-slice-path {
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.pie-slice-group:hover .pie-slice-path {
+  filter: brightness(1.15);
+}
+
+.slice-pct-label {
+  fill: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  pointer-events: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+/* Hover Detail Card */
+.chart-active-card {
+  width: 100%;
+  background: var(--surface-2, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 16px;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.active-card-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.active-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.active-color-badge {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+}
+
+.active-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.active-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.active-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.active-stat span {
+  font-size: 0.74rem;
+  color: var(--text-dim);
+}
+
+.active-stat strong {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.active-card-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* =========================================================================
+   TAB 2: DIRECTORY TABLE & SEARCH
+   ========================================================================= */
+
+.toolbar-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 18px;
+  box-shadow: var(--shadow);
+}
+
+:host-context([data-theme="light"]) .toolbar-card,
+[data-theme="light"] .toolbar-card {
+  background: #ffffff;
+  border-color: var(--border);
+  box-shadow: 0 1px 3px rgba(42, 37, 25, 0.07);
+}
+
+.toolbar-search {
+  flex: 1 1 320px;
+  max-width: 480px;
+}
+
+.toolbar-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: var(--surface-2, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.table-container-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+:host-context([data-theme="light"]) .table-container-card,
+[data-theme="light"] .table-container-card {
+  background: #ffffff;
+  border-color: var(--border);
+  box-shadow: 0 10px 30px rgba(42, 37, 25, 0.08);
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.custom-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 950px;
+  text-align: start;
+}
+
+.custom-table th,
+.custom-table td {
+  white-space: nowrap !important;
+  vertical-align: middle;
+  padding: 14px 18px;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.custom-table th {
+  background: var(--surface-2, rgba(255, 255, 255, 0.03));
+  font-size: 0.80rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.th-center,
+.cell-center {
+  text-align: center !important;
+}
+
+.cell-empty {
+  text-align: center;
+  padding: 40px 20px !important;
+  color: var(--text-dim);
+  font-size: 0.95rem;
+}
+
+.student-cell-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.college-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.college-icon-box svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+}
+
+.student-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.student-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.university-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(245, 185, 33, 0.15);
+  color: #f5b921;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.students-count-pill {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.campus-text {
+  font-size: 0.88rem;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.actions-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.btn-edit-direct,
+.btn-delete-direct {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.80rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-edit-direct {
+  color: #3b82f6;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.btn-edit-direct:hover {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: #3b82f6;
+}
+
+.btn-delete-direct {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.btn-delete-direct:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: #ef4444;
+}
+
+.btn-edit-direct svg,
+.btn-delete-direct svg {
+  width: 14px;
+  height: 14px;
+}
+
+.table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.pagination-info {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+/* College Modal Form */
+.college-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 0;
+}
+
+.form-error-banner {
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-group.full-width {
+  grid-column: span 2;
+}
+
+.field-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.custom-input,
+.custom-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--surface-2, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.88rem;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.custom-input:focus,
+.custom-textarea:focus {
+  border-color: #f5b921;
+}
+
+.modal-footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.btn-cancel {
+  padding: 9px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.delete-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 24px;
+  width: 100%;
+  max-width: 440px;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.delete-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.delete-subtitle {
+  font-size: 0.88rem;
+  color: var(--text-dim);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.delete-actions-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.btn-confirm-delete {
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.btn-confirm-delete:hover {
+  opacity: 0.9;
+}
+
+/* Responsive Media Queries */
+@media (max-width: 1200px) {
+  .college-graph-layout {
+    grid-template-columns: 1fr;
+  }
+  .analytics-metrics-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .page-container {
+    padding: 16px;
+  }
+  .show-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .head-controls-row {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .view-tabs-toggle {
+    width: 100%;
+    justify-content: center;
+  }
+  .tab-btn {
+    flex: 1;
+    justify-content: center;
+  }
+  .analytics-metrics-strip {
+    grid-template-columns: 1fr;
+  }
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .field-group.full-width {
+    grid-column: span 1;
+  }
+}

@@ -1,0 +1,401 @@
+<div class="page-container" [class.page-container--rtl]="isArabic()">
+  <!-- Page Header -->
+  <div class="page-head">
+    <div class="page-head__titles">
+      <h1 class="page-title">{{ t().showProducts }}</h1>
+      <p class="page-subtitle">{{ t().showProductsDesc }}</p>
+    </div>
+
+    <div class="page-head__actions">
+      <!-- Export Data Button -->
+      <button
+        type="button"
+        class="btn-export-products"
+        (click)="exportProductsToCSV()"
+        [title]="t().exportProductsCsvTitle"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="export-icon">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        <span>{{ t().exportData }}</span>
+      </button>
+
+      <button
+        type="button"
+        class="btn-pos-launch"
+        (click)="openPosModal()"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="pos-icon">
+          <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+          <circle cx="12" cy="12" r="2"></circle>
+          <path d="M6 12h.01M18 12h.01"></path>
+        </svg>
+        <span>{{ t().nookCanteen }}</span>
+      </button>
+
+      <app-primary-button
+        [text]="t().addProduct"
+        (clicked)="openAddModal()"
+      ></app-primary-button>
+    </div>
+  </div>
+
+  <!-- Filters Bar (Search Box + Category Dropdown) -->
+  <div class="filters-bar">
+    <div class="search-input-wrap">
+      <app-search-box
+        [placeholder]="t().searchProductPlaceholder"
+        [value]="searchQuery()"
+        (valueChange)="searchQuery.set($event)"
+      ></app-search-box>
+    </div>
+
+    <div class="category-select-wrap">
+      <app-custom-select
+        [options]="categoryOptions()"
+        [selectedValue]="selectedCategory()"
+        (valueChange)="selectedCategory.set($event)"
+      ></app-custom-select>
+    </div>
+  </div>
+
+  <!-- Standardized Table Container Card -->
+  <div class="table-container-card">
+    <div class="table-responsive">
+      <table class="standard-table">
+        <thead>
+          <tr>
+            <th class="th-product">{{ t().thProduct }}</th>
+            <th class="th-num">{{ t().thSellingPrice }}</th>
+            <th class="th-num">{{ t().thCostPrice }}</th>
+            <th class="th-num">{{ t().thStock }}</th>
+            <th class="th-num">{{ t().thSales }}</th>
+            <th class="th-num">{{ t().thRevenue }}</th>
+            <th class="th-center">{{ t().thExpiration }}</th>
+            <th class="th-center">{{ t().thStatus }}</th>
+            <th class="th-actions">{{ t().thActions }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (prod of filteredProducts(); track prod.id) {
+            <tr class="table-row">
+              <!-- Product Info -->
+              <td class="td-product">
+                <div class="product-info-cell">
+                  <div class="product-img-box">
+                    @if (prod.image) {
+                      <img [src]="prod.image" [alt]="prod.name" class="product-thumb-img" />
+                    } @else {
+                      <div class="product-img-fallback">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                          <polyline points="21 15 16 10 5 21"></polyline>
+                        </svg>
+                      </div>
+                    }
+                  </div>
+                  <div class="product-meta-text">
+                    <strong class="product-title">{{ isArabic() ? (prod.nameAr || prod.name) : prod.name }}</strong>
+                    <span class="product-cat-name">{{ isArabic() ? (prod.categoryAr || prod.category) : prod.category }}</span>
+                  </div>
+                </div>
+              </td>
+
+              <!-- Selling Price -->
+              <td class="td-num">
+                <strong class="price-text">{{ prod.sellingPrice.toFixed(2) }} {{ t().currency }}</strong>
+              </td>
+
+              <!-- Cost Price -->
+              <td class="td-num">
+                <span class="cost-text">{{ prod.costPrice.toFixed(2) }} {{ t().currency }}</span>
+              </td>
+
+              <!-- Stock -->
+              <td class="td-num">
+                <span class="stock-text" [class.stock-text--low]="prod.stock <= 10">{{ prod.stock }}</span>
+              </td>
+
+              <!-- Sales Count -->
+              <td class="td-num">
+                <span class="sales-count-pill">{{ prod.soldCount || 0 }} {{ t().unitsLabel }}</span>
+              </td>
+
+              <!-- Total Revenue -->
+              <td class="td-num">
+                <strong class="revenue-val">{{ (prod.totalRevenue || ((prod.soldCount || 0) * prod.sellingPrice)).toFixed(2) }} {{ t().currency }}</strong>
+              </td>
+
+              <!-- Expiration -->
+              <td class="td-center">
+                <span
+                  class="expiration-text"
+                  [class.expiration-text--expired]="prod.status === 'expired' || prod.isExpired"
+                  [class.expiration-text--soon]="prod.status === 'expiring_soon'"
+                >
+                  {{ formatDate(prod.expirationDate) }}
+                </span>
+              </td>
+
+              <!-- Status Badge -->
+              <td class="td-center">
+                <span
+                  class="status-badge"
+                  [class.status-badge--healthy]="prod.status === 'healthy'"
+                  [class.status-badge--low-stock]="prod.status === 'low_stock'"
+                  [class.status-badge--expiring-soon]="prod.status === 'expiring_soon'"
+                  [class.status-badge--expired]="prod.status === 'expired'"
+                >
+                  @if (prod.status === 'healthy') {
+                    {{ t().statusHealthy }}
+                  } @else if (prod.status === 'low_stock') {
+                    {{ t().statusLowStock }}
+                  } @else if (prod.status === 'expiring_soon') {
+                    {{ t().statusExpiringSoon }}
+                  } @else if (prod.status === 'expired') {
+                    {{ t().statusExpired }}
+                  }
+                </span>
+              </td>
+
+              <!-- Actions (Edit + Delete) -->
+              <td class="td-actions">
+                <div class="actions-group-inline">
+                  <button
+                    type="button"
+                    class="btn-action-edit"
+                    (click)="openEditModal(prod)"
+                    [title]="t().editProduct"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="btn-action-delete"
+                    (click)="deleteProduct(prod.id)"
+                    [title]="t().delete"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="9" class="empty-table-cell">
+                <div class="empty-state-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                  </svg>
+                  <p>{{ t().noProductsFound }}</p>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Table Footer / Pagination -->
+    <div class="table-footer-pagination">
+      <span class="pagination-info">
+        {{ t().showing }}1 {{ t().to }}{{ filteredProducts().length }} {{ t().of }}{{ allProducts().length }} {{ t().entries }}
+      </span>
+
+      <div class="pagination-buttons">
+        <button type="button" class="btn-page btn-page--disabled">{{ t().prev }}</button>
+        <button type="button" class="btn-page">{{ t().next }}</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 1: Add New Product -->
+  @if (isAddModalOpen()) {
+    <app-add-product-modal
+      (close)="closeAddModal()"
+      (productCreated)="onProductCreated($event)"
+    ></app-add-product-modal>
+  }
+
+  <!-- Modal 2: Product Added Success -->
+  @if (isSuccessModalOpen() && lastCreatedProduct()) {
+    <app-product-success-modal
+      [product]="lastCreatedProduct()!"
+      (addAnother)="onAddAnother()"
+      (viewInventory)="onViewInventory()"
+    ></app-product-success-modal>
+  }
+
+  <!-- Modal 3: POS Nook Canteen Terminal -->
+  @if (isPosModalOpen()) {
+    <app-catering-pos-modal
+      (close)="closePosModal()"
+    ></app-catering-pos-modal>
+  }
+
+  <!-- Modal 4: Edit Product Modal -->
+  @if (isEditModalOpen() && productToEdit()) {
+    <div class="modal-backdrop" (click)="closeEditModal()" [class.modal-backdrop--rtl]="isArabic()">
+      <div class="modal-card edit-product-dialog" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div class="header-titles-box">
+            <span class="header-category-tag">{{ t().nookCanteen }}</span>
+            <h2 class="modal-title">{{ t().editProductTitle }}</h2>
+          </div>
+          <button type="button" class="btn-close-circle" (click)="closeEditModal()" aria-label="Close" [title]="t().cancel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <form (submit)="saveEditProduct(); $event.preventDefault()" class="modal-form edit-product-form">
+          <div class="form-field-group">
+            <label class="form-label">
+              {{ t().productName }}
+              <span class="required-star" style="color: #ef4444;">*</span>
+            </label>
+            <input
+              type="text"
+              class="form-control-input"
+              [value]="editName()"
+              (input)="editName.set($any($event.target).value)"
+              required
+            />
+          </div>
+
+          <div class="two-cols-grid">
+            <div class="form-field-group">
+              <label class="form-label">
+                {{ t().sellingPriceLabel }} ({{ t().currency }})
+                <span class="required-star" style="color: #ef4444;">*</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                class="form-control-input font-bold"
+                [value]="editSellingPrice()"
+                (input)="editSellingPrice.set(+$any($event.target).value)"
+                required
+              />
+            </div>
+
+            <div class="form-field-group">
+              <label class="form-label">
+                {{ t().costPriceLabel }} ({{ t().currency }})
+                <span class="required-star" style="color: #ef4444;">*</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                class="form-control-input"
+                [value]="editCostPrice()"
+                (input)="editCostPrice.set(+$any($event.target).value)"
+                required
+              />
+            </div>
+          </div>
+
+          <!-- Price Warning Alert -->
+          @if (isEditSellingPriceBelowCost()) {
+            <div class="cost-warning-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="warn-svg">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+              <span>{{ t().priceBelowCostWarning }}</span>
+            </div>
+          }
+
+          <div class="two-cols-grid">
+            <div class="form-field-group">
+              <label class="form-label">
+                {{ t().stockQuantity }}
+                <span class="required-star" style="color: #ef4444;">*</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                class="form-control-input"
+                [value]="editStock()"
+                (input)="editStock.set(+$any($event.target).value)"
+                required
+              />
+            </div>
+
+            <div class="form-field-group">
+              <div class="label-with-action">
+                <label class="form-label">{{ t().expirationDateLabel }}</label>
+                <button
+                  type="button"
+                  class="btn-no-expiry-pill"
+                  [class.btn-no-expiry-pill--active]="editHasNoExpiration()"
+                  (click)="toggleEditNoExpiration()"
+                >
+                  {{ editHasNoExpiration() ? t().noExpirationChecked : t().noExpiration }}
+                </button>
+              </div>
+
+              <div
+                class="custom-date-box"
+                [class.custom-date-box--disabled]="editHasNoExpiration()"
+                (click)="openEditDatePicker(editNativeDateInput)"
+              >
+                <input
+                  #editNativeDateInput
+                  type="date"
+                  class="native-date-hidden"
+                  [min]="minExpirationDate"
+                  [disabled]="editHasNoExpiration()"
+                  [value]="editSelectedDateValue()"
+                  (input)="onEditDatePicked($any($event.target).value)"
+                />
+                <div class="custom-date-display">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="date-cal-icon">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  <span class="custom-date-text" [class.custom-date-text--placeholder]="!editSelectedDateValue()">
+                    {{ editHasNoExpiration()
+                      ? t().noExpirationDisplay
+                      : (editSelectedDateValue() ? editSelectedDateValue() : t().selectExpirationDate) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-cancel" (click)="closeEditModal()">
+              {{ t().cancel }}
+            </button>
+            <button type="submit" class="btn-submit-save" [disabled]="!editName().trim()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width: 16px; height: 16px;">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              <span>{{ t().saveChanges }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+</div>
+
+

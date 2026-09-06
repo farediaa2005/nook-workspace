@@ -1,0 +1,575 @@
+/* NOOK — Login page styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+}
+
+:host, body {
+  font-family: 'Poppins', 'Cairo', system-ui, sans-serif;
+  color: var(--text, #f3f4f6);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 20px 16px;
+  overflow-y: auto;
+  width: 100%;
+  background: #0a0a0b url('/images/login-bg-dark.jpg') center 40%/cover no-repeat fixed;
+}
+
+:host::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 11, 0.50);
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Theme Toggle Button (Top Right) */
+.theme-btn {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 10;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid rgba(245, 185, 33, 0.45);
+  background: rgba(22, 20, 16, 0.85);
+  color: #f5b921;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  transition: transform 0.15s ease, border-color 0.2s ease;
+}
+
+.theme-btn:hover {
+  transform: scale(1.08);
+  border-color: #f5b921;
+}
+
+.theme-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.wrap {
+  position: relative;
+  z-index: 5;
+  width: min(92vw, 440px);
+  padding: 24px 0;
+}
+
+/* Top Lamp Fixture */
+.lamp {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.lamp .shade {
+  width: 56px;
+  height: 22px;
+  border-radius: 0 0 60px 60px;
+  background: linear-gradient(#3a3020, #241b12);
+  transition: box-shadow 0.6s, background 0.6s;
+}
+
+.lamp .bulb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  margin-top: -6px;
+  background: #2a2419;
+  transition: background 0.6s ease, box-shadow 0.6s ease;
+}
+
+.lamp.on .shade {
+  background: linear-gradient(#5a4926, #3a2d16);
+  box-shadow: 0 4px 16px rgba(245, 185, 33, 0.35);
+}
+
+.lamp.on .bulb {
+  background: radial-gradient(circle at 50% 38%, #fff3d0, #ffcf5a);
+  box-shadow: 0 0 24px 8px rgba(245, 185, 33, 0.65), 0 0 54px 18px rgba(245, 185, 33, 0.35);
+}
+
+/* Card — Stays Fixed Dark Tone, Does NOT Light Up Entirely */
+.card {
+  position: relative;
+  overflow: hidden;
+  background: rgba(18, 17, 15, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(245, 185, 33, 0.22);
+  border-radius: 24px;
+  padding: 50px 34px 30px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+}
+
+.logo {
+  width: min(85%, 240px);
+  margin: 4px auto 14px;
+  display: block;
+  filter: drop-shadow(0 0 16px rgba(245, 185, 33, 0.25));
+}
+
+.logo-light { display: none; }
+.logo-dark { display: block; }
+
+:host-context([data-theme="light"]) .logo-dark,
+[data-theme="light"] .logo-dark {
+  display: none !important;
+}
+
+:host-context([data-theme="light"]) .logo-light,
+[data-theme="light"] .logo-light {
+  display: block !important;
+}
+
+.head {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.head p {
+  color: #9e988d;
+  font-size: 0.95rem;
+  margin-top: 0.3em;
+}
+
+.alert {
+  text-align: center;
+  color: #ef4444;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 8px 12px;
+  border-radius: 10px;
+}
+
+/* Form Fields */
+.field {
+  margin-bottom: 18px;
+}
+
+.field label {
+  display: block;
+  font-size: 0.84rem;
+  color: #9e988d;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.boxf {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.boxf .lead {
+  position: absolute;
+  left: 14px;
+  color: #6e675a;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  transition: color 0.3s ease;
+}
+
+.boxf svg.ico {
+  width: 18px;
+  height: 18px;
+}
+
+.field input {
+  width: 100%;
+  height: 48px;
+  background: #141311;
+  border: 1px solid #2d281f;
+  border-radius: 11px;
+  color: #f3f4f6;
+  font-size: 0.95rem;
+  font-family: inherit;
+  padding: 0 42px 0 42px;
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.field input::placeholder {
+  color: #5c564b;
+}
+
+/* ONLY the active / focused / filled input lights up */
+.field.active input,
+.field input:focus {
+  outline: none;
+  background: #181612;
+  border-color:  #ffc93d;
+  box-shadow: 0 0 14px rgba(245, 185, 33, 0.22);
+}
+
+.field.active .lead {
+  color:  #ffc93d;
+}
+
+.toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #6e675a;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  transition: color 0.2s ease;
+}
+
+.toggle:hover {
+  color: #f3f4f6;
+}
+
+.toggle svg {
+  width: 19px;
+  height: 19px;
+}
+
+.row {
+  display: flex;
+  justify-content: flex-end;
+  margin: -2px 0 20px;
+}
+
+.forgot {
+  color: #f5b921;
+  font-weight: 700;
+  font-size: 0.88rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.forgot:hover {
+  opacity: 0.85;
+  text-decoration: underline;
+}
+
+/* Submit Button */
+.enter {
+  width: 100%;
+  height: 50px;
+  border: none;
+  border-radius: 11px;
+  background: #f5b921;
+  color: #16130a;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  font-size: 0.94rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.2s ease, transform 0.08s ease, box-shadow 0.25s ease;
+}
+
+.enter:hover {
+  background:  #ffc93d;
+  box-shadow: 0 0 24px rgba(245, 185, 33, 0.42);
+}
+
+.enter:active {
+  transform: translateY(1px);
+}
+
+.enter:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.enter svg {
+  width: 18px;
+  height: 18px;
+  transition: transform 0.15s ease;
+}
+
+.enter:hover svg:not(.spinner) {
+  transform: translateX(3px);
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Divider */
+.divi {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #6e675a;
+  font-size: 0.82rem;
+  margin: 24px 0 18px;
+}
+
+.divi::before,
+.divi::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #2b261e;
+}
+
+/* Social Buttons */
+.sso {
+  display: flex;
+  gap: 12px;
+}
+
+.sso .ssobtn {
+  flex: 1;
+  height: 46px;
+  text-decoration: none;
+  background: #181714;
+  border: 1px solid #2d281f;
+  border-radius: 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: inherit;
+  font-weight: 600;
+  color: #ffffff;
+  font-size: 0.88rem;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.sso .ssobtn:hover {
+  background: #22201b;
+  border-color: #4a4130;
+}
+
+.sso svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* Footer Tagline */
+.foot {
+  text-align: center;
+  margin-top: 26px;
+}
+
+.foot .tag {
+  font-family: inherit;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-size: 0.76rem;
+  color: #d1cdc5;
+}
+
+.foot .tag em {
+  color: #f5b921;
+  font-style: normal;
+  font-weight: 700;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .wrap {
+    padding: 16px 0;
+  }
+  .card {
+    padding: 38px 20px 22px;
+    border-radius: 18px;
+  }
+  .logo {
+    width: 160px;
+  }
+  .theme-btn {
+    top: 16px;
+    right: 16px;
+    width: 38px;
+    height: 38px;
+  }
+}
+
+/* ============================================================
+   LIGHT THEME (Matching Screenshot Exactly)
+   ============================================================ */
+:host-context([data-theme="light"]),
+[data-theme="light"] :host {
+  background: #f2ede2 url('/images/login-bg-light.jpg') center 40%/cover no-repeat fixed;
+  color: #1a1a18;
+}
+
+:host-context([data-theme="light"])::before,
+[data-theme="light"] :host::before {
+  background: rgba(242, 237, 226, 0.40);
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+}
+
+:host-context([data-theme="light"]) .theme-btn,
+[data-theme="light"] .theme-btn {
+  background: #ffffff;
+  border-color: rgba(212, 160, 23, 0.4);
+  color: #d49200;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+/* Light Mode Lamp Matching Image 2 */
+:host-context([data-theme="light"]) .lamp .shade,
+[data-theme="light"] .lamp .shade {
+  background: #33291d;
+  box-shadow: none;
+}
+
+:host-context([data-theme="light"]) .lamp .bulb,
+[data-theme="light"] .lamp .bulb {
+  background: #c7baa0;
+  box-shadow: none;
+}
+
+:host-context([data-theme="light"]) .lamp.on .shade,
+[data-theme="light"] .lamp.on .shade {
+  background: #4a3b2c;
+  box-shadow: 0 4px 16px rgba(245, 185, 33, 0.35);
+}
+
+:host-context([data-theme="light"]) .lamp.on .bulb,
+[data-theme="light"] .lamp.on .bulb {
+  background: radial-gradient(circle at 50% 38%, #fff3d0, #ffcf5a);
+  box-shadow: 0 0 24px 8px rgba(245, 185, 33, 0.65), 0 0 54px 18px rgba(245, 185, 33, 0.35);
+}
+
+:host-context([data-theme="light"]) .card,
+[data-theme="light"] .card {
+  background: rgba(242, 237, 226, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.12), 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+:host-context([data-theme="light"]) .head p,
+[data-theme="light"] .head p {
+  color: #716c61;
+}
+
+:host-context([data-theme="light"]) .field label,
+[data-theme="light"] .field label {
+  color: #6e685c;
+}
+
+/* Inactive Input in Light Mode */
+:host-context([data-theme="light"]) .field input,
+[data-theme="light"] .field input {
+  background: #ede9df;
+  border: 1px solid #ded8cb;
+  color: #1a1a18;
+}
+
+:host-context([data-theme="light"]) .field input::placeholder,
+[data-theme="light"] .field input::placeholder {
+  color: #8c8678;
+}
+
+:host-context([data-theme="light"]) .field .lead,
+[data-theme="light"] .field .lead {
+  color: #8c8678;
+}
+
+:host-context([data-theme="light"]) .toggle,
+[data-theme="light"] .toggle {
+  color: #8c8678;
+}
+
+:host-context([data-theme="light"]) .toggle:hover,
+[data-theme="light"] .toggle:hover {
+  color: #1a1a18;
+}
+
+/* Active Focused Input in Light Mode */
+:host-context([data-theme="light"]) .field.active input,
+[data-theme="light"] .field.active input,
+:host-context([data-theme="light"]) .field input:focus,
+[data-theme="light"] .field input:focus {
+  background: #ffffff;
+  border-color: #f5b921;
+  box-shadow: 0 0 14px rgba(245, 185, 33, 0.25);
+}
+
+:host-context([data-theme="light"]) .field.active .lead,
+[data-theme="light"] .field.active .lead {
+  color: #d49200;
+}
+
+:host-context([data-theme="light"]) .forgot,
+[data-theme="light"] .forgot {
+  color: #d49200;
+}
+
+:host-context([data-theme="light"]) .divi,
+[data-theme="light"] .divi {
+  color: #8c8678;
+}
+
+:host-context([data-theme="light"]) .divi::before,
+[data-theme="light"] .divi::before,
+:host-context([data-theme="light"]) .divi::after,
+[data-theme="light"] .divi::after {
+  background: #ded8cb;
+}
+
+/* Social Buttons in Light Mode */
+:host-context([data-theme="light"]) .sso .ssobtn,
+[data-theme="light"] .sso .ssobtn {
+  background: #ffffff;
+  border: 1px solid #ded8cb;
+  color: #1a1917;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+:host-context([data-theme="light"]) .sso .ssobtn:hover,
+[data-theme="light"] .sso .ssobtn:hover {
+  background: #f7f5f0;
+  border-color: #c8c0b0;
+}
+
+:host-context([data-theme="light"]) .foot .tag,
+[data-theme="light"] .foot .tag {
+  color: #4a463e;
+}
+
+:host-context([data-theme="light"]) .foot .tag em,
+[data-theme="light"] .foot .tag em {
+  color: #d49200;
+}

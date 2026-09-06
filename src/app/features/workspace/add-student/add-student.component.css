@@ -1,0 +1,447 @@
+.checkin-form {
+  max-width: 820px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Card Container */
+.checkin-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px 28px;
+  box-shadow: var(--shadow);
+}
+
+:host-context([data-theme="light"]) .checkin-card,
+[data-theme="light"] .checkin-card {
+  background: #fbf8f1;
+  border-color: #ede5d8;
+}
+
+.section-heading {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 20px;
+}
+
+/* Grid Layouts */
+.field-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px 20px;
+}
+
+.field-group--full {
+  grid-column: 1 / -1;
+}
+
+.field-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 18px;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+:host-context([data-theme="light"]) .services-grid,
+[data-theme="light"] .services-grid {
+  background: #faf6ee;
+  border-color: #e0d6c4;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+}
+
+/* Input Fields */
+.field-input {
+  height: 44px;
+  padding: 0 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.92rem;
+  outline: none;
+  width: 100%;
+  transition: all 0.2s ease;
+}
+
+:host-context([data-theme="light"]) .field-input,
+[data-theme="light"] .field-input {
+  background: #ffffff;
+  border-color: #d9cebc;
+  color: #1a1815;
+}
+
+.field-input::placeholder {
+  color: var(--text-dim);
+}
+
+:host-context([data-theme="light"]) .field-input::placeholder,
+[data-theme="light"] .field-input::placeholder {
+  color: #8c8275;
+}
+
+.field-input:focus {
+  border-color: #f5b921;
+  box-shadow: 0 0 0 3px rgba(245, 185, 33, 0.2);
+}
+
+.picker-input {
+  cursor: pointer;
+}
+
+.picker-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0;
+  position: absolute;
+  right: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Select wrapper */
+.select-wrapper {
+  position: relative;
+}
+
+.field-select {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 36px;
+  padding-left: 14px;
+}
+
+:host-context([dir="rtl"]) .field-select,
+[dir="rtl"] .field-select {
+  padding-right: 14px;
+  padding-left: 36px;
+}
+
+/* Input with icon */
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-with-icon .field-input {
+  padding-right: 40px;
+  padding-left: 14px;
+}
+
+:host-context([dir="rtl"]) .input-with-icon .field-input,
+[dir="rtl"] .input-with-icon .field-input {
+  padding-right: 14px;
+  padding-left: 40px;
+}
+
+.input-icon {
+  position: absolute;
+  right: 14px;
+  width: 18px;
+  height: 18px;
+  stroke: var(--text-dim);
+  pointer-events: none;
+}
+
+:host-context([data-theme="light"]) .input-icon,
+[data-theme="light"] .input-icon {
+  stroke: #64748b;
+}
+
+:host-context([dir="rtl"]) .input-icon,
+[dir="rtl"] .input-icon {
+  right: auto;
+  left: 14px;
+}
+
+/* Counter Stepper */
+.counter-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px 6px;
+  transition: all 0.2s ease;
+}
+
+:host-context([data-theme="light"]) .counter-stepper,
+[data-theme="light"] .counter-stepper {
+  background: #ffffff;
+  border-color: #d9cebc;
+}
+
+.counter-stepper:focus-within {
+  border-color: #f5b921;
+  box-shadow: 0 0 0 3px rgba(245, 185, 33, 0.2);
+}
+
+.counter-btn {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.15rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+:host-context([data-theme="light"]) .counter-btn,
+[data-theme="light"] .counter-btn {
+  background: #f7f3ec;
+  border-color: #d9cebc;
+  color: #1a1815;
+}
+
+.counter-btn:hover {
+  background: #f5b921;
+  color: #16130a;
+  border-color: #f5b921;
+}
+
+.counter-btn:active {
+  transform: scale(0.92);
+}
+
+.counter-input-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.counter-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: center;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+:host-context([data-theme="light"]) .counter-input,
+[data-theme="light"] .counter-input {
+  color: #1a1815;
+}
+
+.counter-input::-webkit-outer-spin-button,
+.counter-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.counter-unit {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+:host-context([data-theme="light"]) .counter-unit,
+[data-theme="light"] .counter-unit {
+  color: #64748b;
+}
+
+[dir="rtl"] .counter-unit {
+  margin-left: 0;
+  margin-right: 4px;
+}
+
+/* Billing Option Cards */
+.billing-options-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.option-card {
+  background: var(--surface-2);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: all 0.2s ease;
+}
+
+:host-context([data-theme="light"]) .option-card,
+[data-theme="light"] .option-card {
+  background: #ffffff;
+  border-color: #d9cebc;
+}
+
+.option-card:hover {
+  border-color: #f5b921;
+}
+
+.option-card--active {
+  border-color: #f5b921 !important;
+  background: rgba(245, 185, 33, 0.1);
+  box-shadow: 0 0 0 1px #f5b921;
+}
+
+:host-context([data-theme="light"]) .option-card--active,
+[data-theme="light"] .option-card--active {
+  background: #fff8e8 !important;
+  border-color: #f5b921 !important;
+}
+
+.option-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+:host-context([data-theme="light"]) .option-title,
+[data-theme="light"] .option-title {
+  color: #1a1815;
+}
+
+.option-subtitle {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+:host-context([data-theme="light"]) .option-subtitle,
+[data-theme="light"] .option-subtitle {
+  color: #64748b;
+}
+
+/* Dynamic Billing Field */
+.dynamic-billing-field {
+  margin-top: 18px;
+  animation: fadeInField 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeInField {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.currency-tag {
+  position: absolute;
+  right: 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
+:host-context([dir="rtl"]) .currency-tag,
+[dir="rtl"] .currency-tag {
+  right: auto;
+  left: 14px;
+}
+
+/* Bottom Actions */
+.checkin-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.btn-cancel {
+  background: #f5efe3;
+  color: #2a251e;
+  border: 1px solid #ded7c8;
+  border-radius: 8px;
+  padding: 10px 24px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+:host-context([data-theme="dark"]) .btn-cancel,
+[data-theme="dark"] .btn-cancel {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: #ffffff;
+}
+
+.btn-cancel:hover {
+  background: #ede4d3;
+}
+
+.btn-confirm {
+  background: #f5b921;
+  color: #16130a;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 28px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(245, 185, 33, 0.25);
+  transition: all 0.15s ease;
+}
+
+.btn-confirm:hover {
+  background: #ffc93d;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 700px) {
+
+  .field-grid-2,
+  .field-grid-3,
+  .services-grid,
+  .billing-options-grid {
+    grid-template-columns: 1fr;
+  }
+}

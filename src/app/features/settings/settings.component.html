@@ -1,0 +1,663 @@
+<div class="page-container" [class.page-container--rtl]="isArabic()">
+  <!-- Page Header & Action Controls Row -->
+  <div class="show-head">
+    <app-page-header
+      [title]="t().systemSettingsTitle"
+      [subtitle]="t().systemSettingsSubtitle"
+    ></app-page-header>
+
+    <div class="head-controls-row">
+      @if (activeTab() === 'pricing') {
+        <app-primary-button
+          [text]="t().addPricingTierBtn"
+          (click)="openAddTierModal()"
+        ></app-primary-button>
+      } @else if (activeTab() === 'rooms') {
+        <app-primary-button
+          [text]="t().addRoomSpaceBtn"
+          (click)="openAddRoomModal()"
+        ></app-primary-button>
+      } @else {
+        <app-primary-button
+          [text]="t().addPackagePresetBtn"
+          (click)="openAddPackageModal()"
+        ></app-primary-button>
+      }
+    </div>
+  </div>
+
+  <!-- Settings Tabs Nav -->
+  <div class="settings-tabs-nav">
+    <button
+      type="button"
+      class="tab-btn"
+      [class.tab-btn--active]="activeTab() === 'pricing'"
+      (click)="setTab('pricing')"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+      </svg>
+      <span>{{ t().studentHourlyPricingTab }}</span>
+    </button>
+
+    <button
+      type="button"
+      class="tab-btn"
+      [class.tab-btn--active]="activeTab() === 'rooms'"
+      (click)="setTab('rooms')"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <path d="M9 3v18M15 3v18M3 9h18M3 15h18"/>
+      </svg>
+      <span>{{ t().classroomsZonesTab }}</span>
+    </button>
+
+    <button
+      type="button"
+      class="tab-btn"
+      [class.tab-btn--active]="activeTab() === 'packages'"
+      (click)="setTab('packages')"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+        <line x1="7" y1="7" x2="7.01" y2="7"/>
+      </svg>
+      <span>{{ t().quickPackagePresetsTab }}</span>
+    </button>
+
+    <button
+      type="button"
+      class="tab-btn"
+      [class.tab-btn--active]="activeTab() === 'roles'"
+      (click)="setTab('roles')"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      <span>{{ t().rolesAndPermissionsTab }}</span>
+    </button>
+  </div>
+
+  <!-- TAB 1: Student Tiered Hourly Pricing -->
+  @if (activeTab() === 'pricing') {
+    <div class="table-container-card">
+      <div class="table-responsive">
+        <table class="custom-table">
+          <thead>
+            <tr>
+              <th>{{ t().fromHoursHeader }}</th>
+              <th>{{ t().toHoursHeader }}</th>
+              <th>{{ t().duePriceHeader }}</th>
+              <th>{{ t().tierDescriptionHeader }}</th>
+              <th class="th-center">{{ t().actions }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (tier of pricingTiers(); track tier.id) {
+              <tr>
+                <td><strong class="hour-text">{{ tier.fromHours }} {{ t().hrs }}</strong></td>
+                <td><strong class="hour-text">{{ tier.toHours }} {{ t().hrs }}</strong></td>
+                <td>
+                  <span class="price-pill">
+                    {{ tier.priceEgp }} {{ t().currency }}
+                  </span>
+                </td>
+                <td>
+                  <span class="tier-label-text">{{ isArabic() ? (tier.labelAr || tier.labelEn) : tier.labelEn }}</span>
+                </td>
+                <td class="cell-center">
+                  <div class="actions-wrapper">
+                    <button type="button" class="btn-edit-direct" (click)="openEditTierModal(tier)" [title]="t().edit">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                      <span>{{ t().edit }}</span>
+                    </button>
+
+                    <button type="button" class="btn-delete-direct" (click)="deleteTier(tier.id)" [title]="t().delete">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="5" class="cell-empty">
+                  {{ t().noPricingTiersAdded }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- TAB 2: Classrooms & Zones Management -->
+  @if (activeTab() === 'rooms') {
+    <div class="rooms-grid">
+      @for (room of rooms(); track room.id) {
+        <div class="room-card" [class.room-card--disabled]="!room.isActive">
+          <div class="room-card-img-wrap">
+            <img [src]="getRoomImage(room.imageUrl, room.type)" (error)="onImageError($event, room.type)" [alt]="room.name" class="room-img" loading="lazy" />
+            <span class="room-type-tag">{{ room.type }}</span>
+            <button
+              type="button"
+              class="room-active-toggle"
+              [class.room-active-toggle--active]="room.isActive"
+              (click)="toggleRoomActive(room.id)"
+              [title]="t().status"
+            >
+              {{ room.isActive ? t().statusActiveText : t().statusDisabledText }}
+            </button>
+          </div>
+
+          <div class="room-card-body">
+            <h4 class="room-title">{{ isArabic() ? room.name : (room.nameEn || room.name) }}</h4>
+            <div class="room-meta-row">
+              <span class="meta-item">👥 {{ room.capacity }} {{ t().roomCapacityCap }}</span>
+              @if (room.type === 'Classroom') {
+                <span class="meta-item meta-item--price">💰 {{ room.hourlyPrice }} {{ t().egpPerHourShort }}</span>
+              } @else {
+                <span class="meta-item meta-item--workspace-price">⚡ {{ isArabic() ? 'تسعير الستيودنتس' : 'Student Pricing' }}</span>
+              }
+            </div>
+
+            <div class="room-card-actions">
+              <button type="button" class="btn-edit-direct" (click)="openEditRoomModal(room)">
+                <span>{{ t().edit }}</span>
+              </button>
+              <button type="button" class="btn-delete-direct" (click)="deleteRoom(room.id)">
+                <span>{{ t().delete }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      } @empty {
+        <div class="rooms-empty-card" style="grid-column: 1 / -1; text-align: center; padding: 48px 24px; background: var(--surface); border: 1px dashed var(--border); border-radius: 12px;">
+          <p style="color: var(--text-dim); margin-bottom: 16px; font-size: 0.95rem;">
+            {{ isArabic() ? 'لا توجد قاعات أو مساحات مضافة حالياً' : 'No rooms or spaces added yet' }}
+          </p>
+          <app-primary-button
+            [text]="t().addRoomSpaceBtn"
+            (click)="openAddRoomModal()"
+          ></app-primary-button>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- TAB 3: Quick Package Templates -->
+  @if (activeTab() === 'packages') {
+    <div class="table-container-card">
+      <!-- Sub-Filter Switcher for Package Types (Students vs Instructors) -->
+      <div class="pkg-subnav-bar">
+        <div class="pkg-subnav-pills">
+          <button
+            type="button"
+            class="pkg-subnav-pill"
+            [class.pkg-subnav-pill--active]="packageFilter() === 'all'"
+            (click)="packageFilter.set('all')"
+          >
+            <span>{{ t().allPackagesFilter }}</span>
+            <span class="pkg-pill-count">{{ packagePresets().length }}</span>
+          </button>
+          <button
+            type="button"
+            class="pkg-subnav-pill"
+            [class.pkg-subnav-pill--active]="packageFilter() === 'student'"
+            (click)="packageFilter.set('student')"
+          >
+            <span>🎓 {{ t().studentPackagesFilter }}</span>
+            <span class="pkg-pill-count">{{ studentPackageCount() }}</span>
+          </button>
+          <button
+            type="button"
+            class="pkg-subnav-pill"
+            [class.pkg-subnav-pill--active]="packageFilter() === 'instructor'"
+            (click)="packageFilter.set('instructor')"
+          >
+            <span>👨‍🏫 {{ t().instructorPackagesFilter }}</span>
+            <span class="pkg-pill-count">{{ instructorPackageCount() }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="custom-table">
+          <thead>
+            <tr>
+              <th>{{ t().packageName }}</th>
+              <th>{{ t().packageAudienceHeader }}</th>
+              <th>{{ t().packageHours }}</th>
+              <th>{{ t().price }}</th>
+              <th>{{ t().defaultValidity }}</th>
+              <th class="th-center">{{ t().actions }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (preset of filteredPackagePresets(); track preset.id) {
+              <tr>
+                <td><strong class="preset-title">{{ isArabic() ? (preset.nameAr || preset.nameEn) : preset.nameEn }}</strong></td>
+                <td>
+                  @if (preset.packageType === 'instructor') {
+                    <span class="package-target-badge package-target-badge--instructor">
+                      👨‍🏫 {{ t().instructorBadgeText }}
+                    </span>
+                  } @else {
+                    <span class="package-target-badge package-target-badge--student">
+                      🎓 {{ t().studentBadgeText }}
+                    </span>
+                  }
+                </td>
+                <td><span class="hour-pill">{{ preset.hours }} {{ t().hrs }}</span></td>
+                <td><span class="price-pill">{{ preset.price }} {{ t().currency }}</span></td>
+                <td><span class="validity-badge">{{ preset.validityDays }} {{ t().validityDays }}</span></td>
+                <td class="cell-center">
+                  <div class="actions-wrapper">
+                    <button type="button" class="btn-edit-direct" (click)="openEditPackageModal(preset)" [title]="t().edit">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                      <span>{{ t().edit }}</span>
+                    </button>
+
+                    <button type="button" class="btn-delete-direct" (click)="deletePackagePreset(preset.id)" [title]="t().delete">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="6" class="cell-empty">
+                  {{ t().noPackagePresetsAdded }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- Tab 4: Roles & Permissions Matrix (Item 40) -->
+  @if (activeTab() === 'roles') {
+    <div class="settings-content-card">
+      <div class="table-card-head" style="margin-bottom: 18px;">
+        <div>
+          <h2 class="table-card-title">{{ t().rolesMatrixTitle }}</h2>
+          <p class="table-card-subtitle">{{ t().rolesMatrixSubtitle }}</p>
+        </div>
+      </div>
+
+      <!-- Role summary badges (2 Roles: Admin & Receptionist) -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px;">
+        <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 16px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #f5b921;"></span>
+            <strong style="color: var(--text); font-size: 1rem;">{{ t().adminRoleBadge }}</strong>
+          </div>
+          <span style="font-size: 0.82rem; color: var(--text-dim); line-height: 1.5; display: block;">{{ t().adminRoleDesc }}</span>
+        </div>
+
+        <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 16px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #10b981;"></span>
+            <strong style="color: var(--text); font-size: 1rem;">{{ t().receptionistRoleBadge }}</strong>
+          </div>
+          <span style="font-size: 0.82rem; color: var(--text-dim); line-height: 1.5; display: block;">{{ t().receptionistRoleDesc }}</span>
+        </div>
+      </div>
+
+      <!-- Matrix Table -->
+      <div class="table-responsive">
+        <table class="settings-table">
+          <thead>
+            <tr>
+              <th style="min-width: 240px;">{{ t().moduleAndFeatureColumn }}</th>
+              <th class="th-center" style="width: 180px;">{{ t().adminRoleBadge }}</th>
+              <th class="th-center" style="width: 180px;">{{ t().receptionistRoleBadge }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (perm of rolesPermissions; track perm.moduleEn) {
+              <tr>
+                <td>
+                  <strong style="color: var(--text); font-size: 0.92rem; display: block;">{{ isArabic() ? perm.moduleAr : perm.moduleEn }}</strong>
+                  <span style="font-size: 0.78rem; color: var(--text-dim);">{{ isArabic() ? perm.descAr : perm.descEn }}</span>
+                </td>
+                <td class="cell-center">
+                  @if (perm.admin) {
+                    <span style="color: #10b981; font-weight: 800; font-size: 1.2rem;">&check;</span>
+                  } @else {
+                    <span style="color: var(--text-dim); opacity: 0.4; font-size: 1.2rem;">&times;</span>
+                  }
+                </td>
+                <td class="cell-center">
+                  @if (perm.receptionist) {
+                    <span style="color: #10b981; font-weight: 800; font-size: 1.2rem;">&check;</span>
+                  } @else {
+                    <span style="color: var(--text-dim); opacity: 0.4; font-size: 1.2rem;">&times;</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- Modal 1: Add / Edit Pricing Tier -->
+  <app-modal
+    [isOpen]="isTierModalOpen()"
+    [title]="tierModalMode() === 'add' ? t().addNewTierModalTitle : t().editTierModalTitle"
+    (close)="isTierModalOpen.set(false)"
+  >
+    <form (submit)="saveTier(); $event.preventDefault()" class="settings-modal-form">
+      @if (tierFormError(); as err) {
+        <div class="form-error-banner">{{ err }}</div>
+      }
+
+      <div class="form-grid">
+        <div class="field-group">
+          <label class="field-label">{{ t().fromHoursLabel }} *</label>
+          <input type="number" class="custom-input" [ngModel]="formFromHours()" (ngModelChange)="formFromHours.set($event)" name="formFromHours" />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">{{ t().toHoursLabel }} *</label>
+          <input type="number" class="custom-input" [ngModel]="formToHours()" (ngModelChange)="formToHours.set($event)" name="formToHours" />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">{{ t().priceDueLabel }} *</label>
+          <input type="number" class="custom-input" [ngModel]="formPriceEgp()" (ngModelChange)="formPriceEgp.set($event)" name="formPriceEgp" />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">{{ t().arabicLabelDesc }}</label>
+          <input type="text" class="custom-input" [placeholder]="t().tierLabelPlaceholder" [ngModel]="formTierLabelAr()" (ngModelChange)="formTierLabelAr.set($event)" name="formTierLabelAr" />
+        </div>
+      </div>
+
+      <div class="modal-footer-actions">
+        <button type="button" class="btn-cancel" (click)="isTierModalOpen.set(false)">{{ t().cancel }}</button>
+        <button type="submit" class="btn-save">{{ t().saveTierBtn }}</button>
+      </div>
+    </form>
+  </app-modal>
+
+  <!-- Modal 2: Add / Edit Room -->
+  <app-modal
+    [isOpen]="isRoomModalOpen()"
+    [title]="roomModalMode() === 'add' ? t().addNewRoomModalTitle : t().editRoomModalTitle"
+    (close)="isRoomModalOpen.set(false)"
+  >
+    <form (submit)="saveRoom(); $event.preventDefault()" class="settings-modal-form">
+      @if (roomFormError(); as err) {
+        <div class="form-error-banner">{{ err }}</div>
+      }
+
+      <div class="form-grid">
+        <div class="field-group">
+          <label class="field-label">{{ t().roomName }} *</label>
+          <input type="text" maxlength="50" class="custom-input" [ngModel]="formRoomName()" (ngModelChange)="formRoomName.set($event)" name="formRoomName" />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">{{ t().spaceTypeLabel }} *</label>
+          <app-custom-select
+            [options]="roomTypeOptions()"
+            [selectedValue]="formRoomType()"
+            [fullWidth]="true"
+            (valueChange)="onRoomTypeChange($event)"
+          ></app-custom-select>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">{{ t().capacityStudentsLabel }} *</label>
+          <input type="number" min="1" step="1" class="custom-input" [ngModel]="formRoomCapacity()" (ngModelChange)="formRoomCapacity.set($event)" name="formRoomCapacity" />
+        </div>
+
+        @if (formRoomType() === 'Classroom') {
+          <div class="field-group">
+            <label class="field-label">{{ t().hourlyRateLabel }} *</label>
+            <input type="number" min="0" step="1" class="custom-input" [ngModel]="formRoomPrice()" (ngModelChange)="formRoomPrice.set($event)" name="formRoomPrice" />
+          </div>
+        } @else {
+          <div class="field-group workspace-pricing-callout">
+            <label class="field-label">{{ isArabic() ? 'نظام التسعير' : 'Pricing System' }}</label>
+            <div class="workspace-pricing-info">
+              <span class="workspace-pricing-icon">⚡</span>
+              <div class="workspace-pricing-text">
+                <strong>{{ isArabic() ? 'تسعير ساعات الستيودنتس' : 'Student Workspace Pricing' }}</strong>
+                <p>{{ isArabic() ? 'يتبع تسعير ساعات الستيودنتس الموحد في الورك سبيس.' : 'Follows the unified Student Workspace pricing tiers.' }}</p>
+              </div>
+            </div>
+          </div>
+        }
+
+        <div class="field-group full-width">
+          <label class="field-label">{{ t().roomImageUploadLabel }}</label>
+          <div class="room-upload-box">
+            @if (formRoomImage()) {
+              <div class="room-img-preview-card">
+                <img [src]="formRoomImage()" alt="Room preview" class="room-preview-thumb" />
+                <button type="button" class="btn-remove-room-img" (click)="removeRoomImage()" [title]="t().removeImage">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </div>
+            } @else {
+              <label class="room-upload-dropzone">
+                <input
+                  type="file"
+                  accept="image/*"
+                  class="room-file-input-hidden"
+                  (change)="onRoomImageFileChange($event)"
+                />
+                <div class="room-dropzone-content">
+                  <div class="room-camera-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                      <circle cx="12" cy="13" r="4"></circle>
+                    </svg>
+                  </div>
+                  <span class="room-upload-title">{{ t().clickToUploadRoomImage }}</span>
+                  <span class="room-upload-hint">{{ t().roomImageFileFormatHint }}</span>
+                </div>
+              </label>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer-actions">
+        <button type="button" class="btn-cancel" (click)="isRoomModalOpen.set(false)">{{ t().cancel }}</button>
+        <button type="submit" class="btn-save">{{ t().saveRoomBtn }}</button>
+      </div>
+    </form>
+  </app-modal>
+
+  <!-- Modal 3: Add / Edit Package Preset -->
+  <app-modal
+    [isOpen]="isPackageModalOpen()"
+    [title]="packageModalMode() === 'add' ? t().addNewPackagePresetModalTitle : t().editPackagePresetModalTitle"
+    (close)="isPackageModalOpen.set(false)"
+  >
+    <form (submit)="savePackagePreset(); $event.preventDefault()" class="settings-modal-form">
+      @if (packageFormError(); as err) {
+        <div class="form-error-banner">{{ err }}</div>
+      }
+
+      <div class="pkg-modal-layout">
+        <!-- 1. Audience Switcher Cards -->
+        <div class="field-group full-width">
+          <label class="field-label">{{ t().packageTargetLabel }} *</label>
+          <div class="pkg-audience-switcher">
+            <button
+              type="button"
+              class="aud-switch-card"
+              [class.aud-switch-card--active]="formPkgType() === 'student'"
+              (click)="formPkgType.set('student')"
+            >
+              <div class="aud-card-icon aud-card-icon--student">🎓</div>
+              <div class="aud-card-content">
+                <span class="aud-card-title">{{ isArabic() ? 'طلاب ورك سبيس' : 'Workspace Students' }}</span>
+                <span class="aud-card-desc">{{ isArabic() ? 'مساحات العمل والمذاكرة المشتركة' : 'Desks & Silent/Shared Spaces' }}</span>
+              </div>
+              <div class="aud-card-radio">
+                <div class="aud-radio-dot"></div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              class="aud-switch-card"
+              [class.aud-switch-card--active]="formPkgType() === 'instructor'"
+              (click)="formPkgType.set('instructor')"
+            >
+              <div class="aud-card-icon aud-card-icon--instructor">👨‍🏫</div>
+              <div class="aud-card-content">
+                <span class="aud-card-title">{{ isArabic() ? 'مدربين كلاس روم' : 'Classroom Instructors' }}</span>
+                <span class="aud-card-desc">{{ isArabic() ? 'قاعات المحاضرات والورش التدريبية' : 'Lecture Rooms & Training Halls' }}</span>
+              </div>
+              <div class="aud-card-radio">
+                <div class="aud-radio-dot"></div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. Hours & Price Metrics Row (Perfect Symmetric Balance) -->
+        <div class="pkg-balanced-row">
+          <!-- Col 1: Hours -->
+          <div class="pkg-balanced-col">
+            <div class="field-label-row">
+              <label class="field-label">{{ t().packageHoursLabel }} *</label>
+              <span class="field-hint-badge">{{ t().hrs }}</span>
+            </div>
+            <input
+              type="number"
+              min="1"
+              class="custom-input"
+              [ngModel]="formPkgHours()"
+              (ngModelChange)="formPkgHours.set(+$event)"
+              name="formPkgHours"
+            />
+            <div class="chips-flex-bar">
+              @for (h of [10, 20, 30, 50, 100]; track h) {
+                <button
+                  type="button"
+                  class="btn-compact-chip"
+                  [class.btn-compact-chip--active]="formPkgHours() === h"
+                  (click)="formPkgHours.set(h)"
+                >
+                  {{ h }}{{ t().hrs }}
+                </button>
+              }
+            </div>
+          </div>
+
+          <!-- Col 2: Price & Rate -->
+          <div class="pkg-balanced-col">
+            <div class="field-label-row">
+              <label class="field-label">{{ t().packagePrice }} *</label>
+              <span class="field-hint-badge">{{ t().currency }}</span>
+            </div>
+            <input
+              type="number"
+              min="0"
+              class="custom-input"
+              [ngModel]="formPkgPrice()"
+              (ngModelChange)="formPkgPrice.set(+$event)"
+              name="formPkgPrice"
+            />
+            <div class="rate-badge-pill">
+              <span class="rate-badge-icon">⚡</span>
+              <span class="rate-badge-text">
+                {{ isArabic() ? 'معدل الساعة:' : 'Rate:' }}
+                <strong>{{ modalHourlyRate() }}</strong> {{ t().egpPerHourShort }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Validity Selection -->
+        <div class="field-group full-width">
+          <label class="field-label">{{ t().defaultValidity }} *</label>
+          <div class="validity-chips-bar">
+            @for (val of [15, 30, 60, 90, 180]; track val) {
+              <button
+                type="button"
+                class="btn-val-chip"
+                [class.btn-val-chip--active]="formPkgValiditySelection() === val.toString()"
+                (click)="onPkgValidityChange(val.toString())"
+              >
+                {{ val }} {{ t().validityDays }}
+              </button>
+            }
+            <button
+              type="button"
+              class="btn-val-chip"
+              [class.btn-val-chip--active]="formPkgValiditySelection() === 'custom'"
+              (click)="onPkgValidityChange('custom')"
+            >
+              ⚙️ {{ t().customOptionLabel }}
+            </button>
+          </div>
+
+          @if (formPkgValiditySelection() === 'custom') {
+            <div class="custom-days-inline-row">
+              <span class="custom-days-inline-label">{{ t().customValidityDaysLabel }}:</span>
+              <div class="inline-input-wrap">
+                <input
+                  type="number"
+                  min="1"
+                  class="custom-input custom-input--compact"
+                  [placeholder]="t().customDaysPlaceholder"
+                  [ngModel]="customValidityDays()"
+                  (ngModelChange)="onCustomValidityDaysChange(+$event)"
+                  name="customValidityDays"
+                />
+                <span class="inline-input-affix">{{ t().validityDays }}</span>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- 4. Package Label / Description -->
+        <div class="field-group full-width">
+          <label class="field-label">{{ t().arabicLabelDesc }}</label>
+          <input
+            type="text"
+            class="custom-input"
+            [placeholder]="t().packagePresetPlaceholder"
+            [ngModel]="formPkgNameAr()"
+            (ngModelChange)="formPkgNameAr.set($event)"
+            name="formPkgNameAr"
+          />
+        </div>
+      </div>
+
+      <div class="modal-footer-actions">
+        <button type="button" class="btn-cancel" (click)="isPackageModalOpen.set(false)">{{ t().cancel }}</button>
+        <button type="submit" class="btn-save">{{ t().savePackagePresetBtn }}</button>
+      </div>
+    </form>
+  </app-modal>
+</div>

@@ -1,0 +1,67 @@
+:host {
+  display: inline-block;
+}
+
+:host([fullWidth="true"]) {
+  display: block;
+  width: 100%;
+}
+
+.btn-primary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 20px;
+  background: #f5b921;
+  color: #16130a;
+  border: none;
+  border-radius: 12px;
+  font-family: var(--font-display, 'Quicksand', 'Cairo', sans-serif);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(245, 185, 33, 0.35);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.btn-primary-action--full {
+  width: 100%;
+}
+
+.btn-primary-action:hover {
+  background: #ffc93d;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(245, 185, 33, 0.45);
+}
+
+.btn-primary-action:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 8px rgba(245, 185, 33, 0.3);
+}
+
+.btn-icon-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:host ::ng-deep .btn-icon-slot svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+}
+
+.btn-text-label {
+  display: inline-block;
+}
+
+@media (max-width: 768px) {
+  :host, .btn-primary-action {
+    width: 100%;
+  }
+}

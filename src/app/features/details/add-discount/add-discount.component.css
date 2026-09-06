@@ -1,0 +1,603 @@
+/* =========================================================================
+   NOOK — ADD / MANAGE DISCOUNTS PAGE STYLES
+   ========================================================================= */
+
+.page-container {
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* Head Header & Controls Row */
+.show-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.head-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+/* Search Box Container & Input Dimensions */
+app-search-box.discounts-search-box,
+.discounts-search-box {
+  width: 320px;
+  min-width: 280px;
+  max-width: 360px;
+  flex-shrink: 0;
+}
+
+:host ::ng-deep .discounts-search-box .search-input {
+  height: 44px;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+}
+
+/* Primary Button Container & Action Dimensions */
+app-primary-button.discounts-add-btn,
+.discounts-add-btn {
+  flex-shrink: 0;
+}
+
+:host ::ng-deep .discounts-add-btn .btn-primary-action {
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+/* 3 KPI Metric Cards Grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+/* Table Container Card */
+.table-container-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.custom-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 950px;
+  text-align: start;
+}
+
+.custom-table th,
+.custom-table td {
+  white-space: nowrap !important;
+  vertical-align: middle;
+  padding: 14px 18px;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.custom-table th {
+  background: var(--surface-2, rgba(255, 255, 255, 0.03));
+  font-size: 0.80rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+:host-context([dir="rtl"]) .custom-table th,
+[dir="rtl"] .custom-table th {
+  text-align: right;
+}
+
+.th-center,
+.cell-center {
+  text-align: center !important;
+}
+
+.cell-empty {
+  text-align: center;
+  padding: 40px 20px !important;
+  color: var(--text-dim);
+  font-size: 0.95rem;
+}
+
+/* Promo Code Pill & Copy Button */
+.code-badge-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.code-pill {
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(245, 185, 33, 0.15);
+  color: #f5b921;
+  font-family: monospace, inherit;
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 1px;
+  border: 1px dashed rgba(245, 185, 33, 0.4);
+}
+
+.btn-copy-code {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-2, rgba(255, 255, 255, 0.04));
+  color: var(--text-dim);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.btn-copy-code:hover {
+  background: rgba(245, 185, 33, 0.15);
+  color: #f5b921;
+  border-color: #f5b921;
+}
+
+.btn-copy-code svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+}
+
+/* Title & Description */
+.discount-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* Discount Value Pill */
+.value-pill {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: rgba(34, 197, 94, 0.14);
+  color: #22c55e;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.value-pill--fixed {
+  background: rgba(59, 130, 246, 0.14);
+  color: #3b82f6;
+}
+
+.scope-text {
+  font-size: 0.88rem;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.validity-dates {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+
+.date-sep {
+  opacity: 0.5;
+}
+
+/* Usage Progress Bar */
+.usage-progress-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100px;
+  margin: 0 auto;
+}
+
+.usage-count-text {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.progress-bar-bg {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #f5b921;
+  transition: width 0.3s ease;
+}
+
+/* Interactive Status Toggle Badge */
+.badge-status-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.80rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.badge-status--active {
+  background: rgba(34, 197, 94, 0.14);
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.2);
+}
+.badge-status--active .status-dot { background: #22c55e; }
+
+.badge-status--expired {
+  background: rgba(239, 68, 68, 0.14);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.2);
+}
+.badge-status--expired .status-dot { background: #ef4444; }
+
+.badge-status--disabled {
+  background: rgba(148, 163, 184, 0.15);
+  color: #64748b;
+  border-color: rgba(148, 163, 184, 0.2);
+}
+.badge-status--disabled .status-dot { background: #64748b; }
+
+.badge-status-btn:hover {
+  transform: scale(1.03);
+}
+
+/* Direct Action Buttons (Edit & Delete) */
+.actions-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.btn-edit-direct,
+.btn-delete-direct {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.80rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-edit-direct {
+  color: #3b82f6;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.btn-edit-direct:hover {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: #3b82f6;
+}
+
+.btn-delete-direct {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.btn-delete-direct:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: #ef4444;
+}
+
+.btn-edit-direct svg,
+.btn-delete-direct svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Table Footer Pagination */
+.table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 12px;
+  position: relative;
+  z-index: 10;
+  pointer-events: auto !important;
+}
+
+.pagination-info {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+/* Discount Modal Form */
+.discount-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 0;
+}
+
+.form-error-banner {
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-group.full-width {
+  grid-column: span 2;
+}
+
+.field-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.code-generator-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.code-input-styled {
+  font-family: monospace, inherit;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 1px;
+  color: #f5b921;
+}
+
+.btn-generate-code {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(245, 185, 33, 0.4);
+  background: rgba(245, 185, 33, 0.12);
+  color: #f5b921;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.btn-generate-code:hover {
+  background: rgba(245, 185, 33, 0.22);
+}
+
+.custom-input,
+.custom-select {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--surface-2, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.88rem;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.custom-input:focus,
+.custom-select:focus {
+  border-color: #f5b921;
+}
+
+.custom-select option {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.modal-footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.btn-cancel {
+  padding: 9px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+
+/* Delete Confirmation Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.delete-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 24px;
+  width: 100%;
+  max-width: 440px;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.delete-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.delete-subtitle {
+  font-size: 0.88rem;
+  color: var(--text-dim);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.delete-actions-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.btn-confirm-delete {
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.btn-confirm-delete:hover {
+  opacity: 0.9;
+}
+
+/* Responsive Media Queries */
+@media (max-width: 1024px) {
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .page-container {
+    padding: 16px;
+  }
+  .show-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .head-controls-row {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  app-search-box.discounts-search-box,
+  .discounts-search-box {
+    width: 100%;
+    max-width: 100%;
+    min-width: 100%;
+  }
+  app-primary-button.discounts-add-btn,
+  .discounts-add-btn {
+    width: 100%;
+  }
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .field-group.full-width {
+    grid-column: span 1;
+  }
+}

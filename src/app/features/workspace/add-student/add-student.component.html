@@ -1,0 +1,181 @@
+<div class="page-container">
+  <!-- Page Header at the start of the page -->
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">{{ t().addStudent }}</h1>
+      <p class="page-subtitle">{{ t().addStudentDesc }}</p>
+    </div>
+  </div>
+
+  <!-- Centered Form Cards -->
+  <form (submit)="onConfirmCheckIn()" class="checkin-form">
+    <!-- Section 1: Student Information -->
+    <div class="checkin-card">
+      <h2 class="section-heading">{{ t().studentInformation }}</h2>
+
+      <div class="field-grid-2">
+        <div class="field-group">
+          <label class="field-label">{{ t().studentName }}</label>
+          <input type="text" class="field-input" placeholder="Full Name" [value]="studentName()"
+            (input)="studentName.set($any($event.target).value)" required />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">{{ t().phone }}</label>
+          <input type="tel" class="field-input" placeholder="010XXXXXXXX" [value]="phone()"
+            (input)="phone.set($any($event.target).value)" />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">{{ t().emailLabel }}</label>
+          <input type="email" class="field-input" placeholder="student@example.com" [value]="email()"
+            (input)="email.set($any($event.target).value)" />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">{{ t().whatsapp }}</label>
+          <input type="tel" class="field-input" [placeholder]="t().sameAsPhone" [value]="whatsapp()"
+            (input)="whatsapp.set($any($event.target).value)" />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">{{ t().college }}</label>
+          <input type="text" class="field-input" placeholder="e.g. Cairo University" [value]="college()"
+            (input)="college.set($any($event.target).value)" />
+        </div>
+
+        <div class="field-group field-group--full">
+          <label class="field-label">{{ t().faculty }}</label>
+          <input type="text" class="field-input" placeholder="e.g. Computer Science" [value]="faculty()"
+            (input)="faculty.set($any($event.target).value)" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: Session & Billing -->
+    <div class="checkin-card">
+      <h2 class="section-heading">{{ t().sessionAndBilling }}</h2>
+
+      <!-- Time Fields Grid -->
+      <div class="field-grid-3">
+        <!-- Date Picker with Interactive Calendar Icon -->
+        <div class="field-group">
+          <label class="field-label">{{ t().date }}</label>
+          <div class="input-with-icon" (click)="openPicker(datePicker)">
+            <input #datePicker type="date" class="field-input picker-input" [min]="todayDate" [value]="selectedDate()"
+              (input)="selectedDate.set($any($event.target).value)" />
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+          </div>
+        </div>
+
+        <!-- Check-in Time Picker with Clock Icon -->
+        <div class="field-group">
+          <label class="field-label">{{ t().checkIn }}</label>
+          <div class="input-with-icon" (click)="openPicker(checkinTimePicker)">
+            <input #checkinTimePicker type="time" class="field-input picker-input" [value]="checkInTime()"
+              (input)="checkInTime.set($any($event.target).value)" />
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+        </div>
+
+        <!-- Expected Checkout Time Picker with Clock Icon -->
+        <div class="field-group">
+          <label class="field-label">{{ t().expectedCheckout }}</label>
+          <div class="input-with-icon" (click)="openPicker(checkoutTimePicker)">
+            <input #checkoutTimePicker type="time" class="field-input picker-input" [value]="expectedCheckout()"
+              (input)="expectedCheckout.set($any($event.target).value)" />
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Extra Services & Add-ons: Printing, Wallet, WiFi -->
+      <div class="services-grid">
+        <!-- Printing Counter -->
+        <div class="field-group">
+          <label class="field-label">{{ t().printing }}</label>
+          <div class="counter-stepper">
+            <button type="button" class="counter-btn" (click)="decrementPrinting()" title="Decrease">−</button>
+            <div class="counter-input-wrap">
+              <input type="number" min="0" class="counter-input" [value]="printingCount()"
+                (input)="onPrintingInput($event)" />
+              <span class="counter-unit">{{ t().papers }}</span>
+            </div>
+            <button type="button" class="counter-btn" (click)="incrementPrinting()" title="Increase">+</button>
+          </div>
+        </div>
+
+        <!-- Wallet Stepper -->
+        <div class="field-group">
+          <label class="field-label">{{ t().wallet }}</label>
+          <div class="counter-stepper">
+            <button type="button" class="counter-btn" (click)="decrementWallet(20)" title="Decrease">−</button>
+            <div class="counter-input-wrap">
+              <input type="number" min="0" step="10" class="counter-input" [value]="walletAmount()"
+                (input)="onWalletInput($event)" />
+              <span class="counter-unit">{{ t().egp }}</span>
+            </div>
+            <button type="button" class="counter-btn" (click)="incrementWallet(20)" title="Increase">+</button>
+          </div>
+        </div>
+
+        <!-- WiFi Field -->
+        <div class="field-group">
+          <label class="field-label">{{ t().wifi }}</label>
+          <div class="input-with-icon">
+            <input type="text" class="field-input" placeholder="WiFi" [value]="wifiCode()"
+              (input)="wifiCode.set($any($event.target).value)" />
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+              <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+              <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+              <line x1="12" y1="20" x2="12.01" y2="20" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Selectable Billing Option Cards -->
+      <div class="billing-options-grid">
+        <div class="option-card" [class.option-card--active]="selectedBilling() === 'new-session'"
+          (click)="selectBilling('new-session')">
+          <strong class="option-title">{{ t().newSession }}</strong>
+          <span class="option-subtitle">{{ t().standardHourlyRate }}</span>
+        </div>
+
+        <div class="option-card" [class.option-card--active]="selectedBilling() === 'package'"
+          (click)="selectBilling('package')">
+          <strong class="option-title">{{ t().usePackage }}</strong>
+          <span class="option-subtitle">{{ t().deductFromHours }}</span>
+        </div>
+
+        <div class="option-card" [class.option-card--active]="selectedBilling() === 'coupon'"
+          (click)="selectBilling('coupon')">
+          <strong class="option-title">{{ t().coupon }}</strong>
+          <span class="option-subtitle">{{ t().applyDiscountCode }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Actions -->
+    <div class="checkin-actions">
+      <button type="button" routerLink="/workspace/show-student" class="btn-cancel">
+        {{ t().cancel }}
+      </button>
+      <button type="submit" class="btn-confirm">
+        {{ t().confirmCheckIn }}
+      </button>
+    </div>
+  </form>
+</div>

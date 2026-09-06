@@ -1,0 +1,508 @@
+<div class="active-shift-container" [class.rtl]="isArabic()">
+  
+  @if (!hasActiveShift()) {
+    <div class="empty-shift-wrapper">
+      <div class="empty-shift-card">
+        <div class="empty-shift-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" class="empty-shift-svg">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/>
+            <polyline points="12 6 12 12 16 14" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+        </div>
+        <h2 class="empty-shift-title">{{ t().noActiveShiftTitle }}</h2>
+        <p class="empty-shift-desc">{{ t().noActiveShiftDesc }}</p>
+        <div class="empty-shift-actions">
+          <a routerLink="/shift/add-shift" class="btn-start-shift">
+            <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
+              <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>{{ t().startNewShiftBtn }}</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <!-- Top Header Section -->
+    <header class="page-header">
+    <div class="header-main">
+      <div class="title-row">
+        <h1 class="page-title">{{ t().activeShift }}</h1>
+        <div class="live-status-pill">
+          <span class="live-pulse">
+            <span class="live-dot"></span>
+            <span class="live-ring"></span>
+          </span>
+          <span class="live-text">{{ t().liveShift }}</span>
+        </div>
+      </div>
+      
+      <!-- Meta Information Strip -->
+      <div class="meta-strip">
+        <div class="meta-item staff-item">
+          <img [src]="staffAvatar()" alt="Staff Avatar" class="meta-avatar" />
+          <div class="meta-details">
+            <span class="meta-label">{{ t().staffLabel }}</span>
+            <span class="meta-value">{{ staffName() }}</span>
+          </div>
+        </div>
+
+        <div class="meta-divider"></div>
+
+        <div class="meta-item">
+          <div class="meta-icon-box">
+            <svg viewBox="0 0 24 24" fill="none" class="meta-icon">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+              <polyline points="12 6 12 12 16 14" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="meta-details">
+            <span class="meta-label">{{ t().startedAt }}</span>
+            <span class="meta-value">{{ shiftStartTime() }}</span>
+          </div>
+        </div>
+
+        <div class="meta-divider"></div>
+
+        <div class="meta-item">
+          <div class="meta-icon-box">
+            <svg viewBox="0 0 24 24" fill="none" class="meta-icon">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+              <polyline points="12 6 12 14 10" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="meta-details">
+            <span class="meta-label">{{ t().durationLabel }}</span>
+            <span class="meta-value">{{ formatDuration(shiftDuration()) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Header Actions CTA -->
+    <div class="header-actions">
+      <button class="btn-close-shift" (click)="openCloseShiftModal()">
+        <svg viewBox="0 0 24 24" fill="none" class="btn-icon">
+          <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span>{{ t().closeShiftBtn }}</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- 1. The 4 Payment & Financial Balance Channels Section -->
+  <section class="section-container">
+    <div class="section-header">
+      <div class="section-title-wrap">
+        <h2 class="section-heading">{{ t().paymentChannelsTitle }}</h2>
+        <span class="section-sub">{{ t().paymentChannelsSub }}</span>
+      </div>
+    </div>
+
+    <div class="channels-grid">
+      
+      <!-- Channel 1: Cash Drawer (الدرج النقدي) -->
+      <div class="channel-card channel-card--cash">
+        <div class="card-accent-strip card-accent-strip--gold"></div>
+        <div class="card-top">
+          <div class="channel-meta">
+            <span class="channel-badge channel-badge--gold">{{ t().cashDrawerBadge }}</span>
+            <span class="channel-name">{{ t().cashTillName }}</span>
+          </div>
+          <div class="icon-wrap icon-wrap--gold">
+            <svg viewBox="0 0 24 24" fill="none">
+              <rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" stroke-width="1.8"/>
+              <circle cx="16" cy="12" r="1.5" fill="currentColor"/>
+            </svg>
+          </div>
+        </div>
+        <div class="channel-body">
+          <div class="channel-amount">
+            {{ expectedCash().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span>
+          </div>
+          <div class="channel-footnote" style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <svg viewBox="0 0 24 24" fill="none" width="13" height="13" class="footnote-icon">
+                <rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                <circle cx="12" cy="12" r="2" fill="currentColor"/>
+              </svg>
+              <span>{{ t().startingFloatPrefix }}{{ openingCash().toFixed(2) }} {{ currencyText() }}</span>
+            </div>
+            @if (adminFund() > 0) {
+              <div style="display: flex; align-items: center; gap: 6px; color: #3b82f6; font-size: 0.78rem; font-weight: 600;">
+                <span>🛡️ {{ t().adminFundLabel }} {{ adminFund().toFixed(2) }} {{ currencyText() }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Channel 2: Vodafone Cash (فودافون كاش) -->
+      <div class="channel-card channel-card--vodafone">
+        <div class="card-accent-strip card-accent-strip--red"></div>
+        <div class="card-top">
+          <div class="channel-meta">
+            <span class="channel-badge channel-badge--red">{{ t().eWalletBadge }}</span>
+            <span class="channel-name">{{ t().vodafoneCashName }}</span>
+          </div>
+          <div class="icon-wrap icon-wrap--red">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 2v20M8 8a6 6 0 0 1 8 0M5 5a10 10 0 0 1 14 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+        <div class="channel-body">
+          <div class="channel-amount">
+            {{ vodafoneTotal().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span>
+          </div>
+          <div class="channel-footnote" style="display: flex; gap: 8px; justify-content: space-between; width: 100%; font-size: 0.78rem; font-weight: 600;">
+            <span style="color: #10b981;">↓ {{ t().insideFlow }}: +{{ vodafoneInside().toFixed(2) }}</span>
+            <span style="color: #ef4444;">↑ {{ t().outsideFlow }}: -{{ vodafoneOutside().toFixed(2) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Channel 3: InstaPay (إنستاباي) -->
+      <div class="channel-card channel-card--instapay">
+        <div class="card-accent-strip card-accent-strip--purple"></div>
+        <div class="card-top">
+          <div class="channel-meta">
+            <span class="channel-badge channel-badge--purple">{{ t().instantTransferBadge }}</span>
+            <span class="channel-name">{{ t().instapayName }}</span>
+          </div>
+          <div class="icon-wrap icon-wrap--purple">
+            <svg viewBox="0 0 24 24" fill="none">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+        <div class="channel-body">
+          <div class="channel-amount">
+            {{ instapayTotal().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span>
+          </div>
+          <div class="channel-footnote" style="display: flex; gap: 8px; justify-content: space-between; width: 100%; font-size: 0.78rem; font-weight: 600;">
+            <span style="color: #10b981;">↓ {{ t().insideFlow }}: +{{ instapayInside().toFixed(2) }}</span>
+            <span style="color: #ef4444;">↑ {{ t().outsideFlow }}: -{{ instapayOutside().toFixed(2) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Channel 4: Fawry (فوري) -->
+      <div class="channel-card channel-card--fawry">
+        <div class="card-accent-strip card-accent-strip--blue"></div>
+        <div class="card-top">
+          <div class="channel-meta">
+            <span class="channel-badge channel-badge--blue">{{ t().posMachineBadge }}</span>
+            <span class="channel-name">{{ t().fawryName }}</span>
+          </div>
+          <div class="icon-wrap icon-wrap--blue">
+            <svg viewBox="0 0 24 24" fill="none">
+              <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="1.8"/>
+              <line x1="2" y1="10" x2="22" y2="10" stroke="currentColor" stroke-width="1.8"/>
+              <line x1="6" y1="15" x2="6.01" y2="15" stroke="currentColor" stroke-width="2.5"/>
+              <line x1="10" y1="15" x2="14" y2="15" stroke="currentColor" stroke-width="1.8"/>
+            </svg>
+          </div>
+        </div>
+        <div class="channel-body">
+          <div class="channel-amount">
+            {{ fawryTotal().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span>
+          </div>
+          <div class="channel-footnote">
+            <span>{{ t().posPaymentsSub }}</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 2. Operational Revenue Categories & Expenses -->
+  <section class="section-container">
+    <div class="section-header">
+      <div class="section-title-wrap">
+        <h2 class="section-heading">{{ t().categoryRevenuesTitle }}</h2>
+        <span class="section-sub">{{ t().categoryRevenuesSub }}</span>
+      </div>
+    </div>
+
+    <div class="breakdown-grid">
+      
+      <!-- Card: Workspace Revenue -->
+      <div class="stat-card">
+        <div class="card-top">
+          <span class="stat-category">{{ t().workspaceCategory }}</span>
+          <div class="icon-wrap icon-wrap--blue">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="1.8"/>
+              <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="1.8"/>
+            </svg>
+          </div>
+        </div>
+        <div class="stat-body">
+          <div class="stat-number">
+            {{ workspaceCash().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span>
+          </div>
+          <div class="stat-footnote">
+            <span>{{ t().workspaceCategorySub }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Classroom Revenue -->
+      <div class="stat-card">
+        <div class="card-top">
+          <span class="stat-category">{{ t().classroomsCategory }}</span>
+          <div class="icon-wrap icon-wrap--indigo">
+            <svg viewBox="0 0 24 24" fill="none">
+              <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/>
+              <line x1="8" y1="21" x2="16" y2="21" stroke="currentColor" stroke-width="1.8"/>
+              <line x1="12" y1="17" x2="12" y2="21" stroke="currentColor" stroke-width="1.8"/>
+            </svg>
+          </div>
+        </div>
+        <div class="stat-body">
+          <div class="stat-number">
+            {{ classroomCash().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span>
+          </div>
+          <div class="stat-footnote">
+            <span>{{ t().classroomsCategorySub }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Package Revenue -->
+      <div class="stat-card">
+        <div class="card-top">
+          <span class="stat-category">{{ t().packagesCategory }}</span>
+          <div class="icon-wrap icon-wrap--green">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="1.8"/>
+            </svg>
+          </div>
+        </div>
+        <div class="stat-body">
+          <div class="stat-number">
+            {{ packageCash().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span>
+          </div>
+          <div class="stat-footnote">
+            <span>{{ t().packagesCategorySub }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Catering Revenue -->
+      <div class="stat-card">
+        <div class="card-top">
+          <span class="stat-category">{{ t().cateringCategory }}</span>
+          <div class="icon-wrap icon-wrap--amber">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M18 8h1a4 4 0 0 1 0 8h-1" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" stroke="currentColor" stroke-width="1.8"/>
+            </svg>
+          </div>
+        </div>
+        <div class="stat-body">
+          <div class="stat-number">
+            {{ cateringCash().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span>
+          </div>
+          <div class="stat-footnote">
+            <span>{{ t().cateringCategorySub }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Other Income -->
+      <div class="stat-card">
+        <div class="card-top">
+          <span class="stat-category">{{ t().otherIncomeCategory }}</span>
+          <div class="icon-wrap icon-wrap--purple">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" stroke="currentColor" stroke-width="1.8"/>
+              <circle cx="7" cy="7" r="1.5" fill="currentColor"/>
+            </svg>
+          </div>
+        </div>
+        <div class="stat-body">
+          <div class="stat-number stat-number--muted">
+            {{ otherIncome().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span>
+          </div>
+          <div class="stat-footnote">
+            <span>{{ t().otherIncomeCategorySub }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Admin Expenses (Petty Cash Outflow) -->
+      <div class="stat-card stat-card--danger">
+        <div class="card-accent-strip card-accent-strip--red"></div>
+        <div class="card-top">
+          <span class="stat-category text-negative">{{ t().pettyExpensesCategory }}</span>
+          <div class="icon-wrap icon-wrap--red">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1z" stroke="currentColor" stroke-width="1.8"/>
+            </svg>
+          </div>
+        </div>
+        <div class="stat-body">
+          <div class="stat-number text-negative">
+            -{{ adminExpenses().toFixed(2) }} <span class="currency-label text-negative">{{ currencyText() }}</span>
+          </div>
+          <div class="stat-footnote text-negative">
+            <span>{{ t().pettyExpensesSub }}</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 3. Transaction Ledger Section -->
+  <section class="section-container">
+    <div class="ledger-card">
+      <div class="ledger-header">
+        <div class="ledger-title-wrap">
+          <h2 class="ledger-heading">{{ t().liveLedgerTitle }}</h2>
+          <span class="tx-count-pill">{{ filteredTransactions().length }} {{ t().recordedTransactionsCount }}</span>
+        </div>
+        <div class="ledger-filter-wrap" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <div class="ledger-search-box" style="display: flex; align-items: center; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 0 10px; gap: 6px; min-width: 200px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 15px; height: 15px; color: var(--text-dim);">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              type="text"
+              [placeholder]="t().searchTransactionsPlaceholder"
+              [ngModel]="searchQuery()"
+              (ngModelChange)="searchQuery.set($event)"
+              style="background: transparent; border: none; outline: none; color: var(--text); padding: 7px 0; font-size: 0.84rem; width: 100%;"
+            />
+          </div>
+          <div style="min-width: 170px;">
+            <app-custom-select
+              [options]="paymentFilterOptions()"
+              [selectedValue]="selectedPaymentFilter()"
+              size="sm"
+              (valueChange)="selectedPaymentFilter.set($event)"
+            ></app-custom-select>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="ledger-table">
+          <thead>
+            <tr>
+              <th>{{ t().timeColumn }}</th>
+              <th>{{ t().descriptionColumn }}</th>
+              <th>{{ t().categoryColumn }}</th>
+              <th>{{ t().paymentChannelColumn }}</th>
+              <th class="text-end">{{ t().amountColumn }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (tx of filteredTransactions(); track tx.id) {
+              <tr>
+                <!-- Time -->
+                <td class="cell-time">
+                  <span class="time-tag">{{ tx.timestamp }}</span>
+                </td>
+                
+                <!-- Description -->
+                <td class="cell-desc">
+                  <div class="desc-content">
+                    <span class="desc-text">{{ tx.details }}</span>
+                    <span class="desc-id">{{ tx.id }}</span>
+                  </div>
+                </td>
+                
+                <!-- Category Badge -->
+                <td class="cell-cat">
+                  <span class="cat-pill cat-pill--{{ tx.type }}">
+                    @if (tx.type === 'workspace') {
+                      <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2"/></svg>
+                      <span>{{ t().workspace }}</span>
+                    } @else if (tx.type === 'expense') {
+                      <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1z" stroke="currentColor" stroke-width="2"/></svg>
+                      <span>{{ t().pettyExpensesCategory }}</span>
+                    } @else if (tx.type === 'classroom') {
+                      <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="2"/></svg>
+                      <span>{{ t().classroomsCategory }}</span>
+                    } @else if (tx.type === 'package') {
+                      <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="2"/></svg>
+                      <span>{{ t().packages }}</span>
+                    } @else if (tx.type === 'vodafone_in' || tx.type === 'vodafone_out') {
+                      <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M12 2v20M8 8a6 6 0 0 1 8 0" stroke="currentColor" stroke-width="2"/></svg>
+                      <span>{{ t().vodafoneCashName }}</span>
+                    } @else {
+                      <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" stroke-width="2"/></svg>
+                      <span>{{ t().systemCategory }}</span>
+                    }
+                  </span>
+                </td>
+
+                <!-- Payment Method Channel Tag -->
+                <td class="cell-payment">
+                  <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <span class="channel-pill channel-pill--{{ tx.paymentMethod }}">
+                      @if (tx.paymentMethod === 'vodafone') {
+                        <span class="channel-dot channel-dot--red"></span>
+                        {{ t().vodafoneCashName }}
+                      } @else if (tx.paymentMethod === 'instapay') {
+                        <span class="channel-dot channel-dot--purple"></span>
+                        {{ t().instapayName }}
+                      } @else if (tx.paymentMethod === 'fawry') {
+                        <span class="channel-dot channel-dot--blue"></span>
+                        {{ t().fawryName }}
+                      } @else if (tx.paymentMethod === 'cash') {
+                        <span class="channel-dot channel-dot--gold"></span>
+                        {{ t().cashTillName }}
+                      } @else if (tx.paymentMethod === 'petty_cash') {
+                        <span class="channel-dot channel-dot--red"></span>
+                        {{ t().pettyCashMethod }}
+                      } @else {
+                        -
+                      }
+                    </span>
+                    @if (tx.flowDirection === 'inside' || tx.type === 'vodafone_in' || tx.type === 'instapay_in' || tx.type === 'fawry_in' || (!tx.flowDirection && tx.amount > 0 && tx.type !== 'expense')) {
+                      <span class="flow-pill flow-pill--in" style="font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700;">
+                        {{ t().insideFlowFull }}
+                      </span>
+                    } @else if (tx.flowDirection === 'outside' || tx.type === 'vodafone_out' || tx.type === 'instapay_out' || tx.type === 'fawry_out' || tx.type === 'expense' || tx.amount < 0) {
+                      <span class="flow-pill flow-pill--out" style="font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; background: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 700;">
+                        {{ t().outsideFlowFull }}
+                      </span>
+                    }
+                  </div>
+                </td>
+
+                <!-- Amount in EGP -->
+                <td class="cell-amount text-end" [class.text-positive]="tx.amount >= 0" [class.text-negative]="tx.amount < 0">
+                  {{ tx.amount >= 0 ? '+' : '' }}{{ tx.amount.toFixed(2) }} {{ currencyText() }}
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="5" style="text-align: center; padding: 32px; color: var(--text-dim);">
+                  {{ t().noTransactionsForChannel }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- End of Shift Balance Modal -->
+  @if (showCloseModal()) {
+    <app-end-of-shift-modal
+      (cancelled)="closeModal()"
+      (closed)="onShiftClosed()"
+    ></app-end-of-shift-modal>
+  }
+  }
+</div>
+

@@ -1,0 +1,402 @@
+<div class="page-container">
+  <!-- Page Header & Top Controls Toolbar -->
+  <div class="show-head">
+    <app-page-header
+      [title]="t().discountsAndPromoCodes"
+      [subtitle]="t().discountsPageSubtitle"
+    ></app-page-header>
+
+    <div class="head-controls-row">
+      <!-- Search Box -->
+      <app-search-box
+        class="discounts-search-box"
+        [placeholder]="t().searchDiscountsPlaceholder"
+        [value]="searchQuery()"
+        (valueChange)="onSearchChange($event)"
+      ></app-search-box>
+
+      <!-- Create Promo Code Primary CTA -->
+      <app-primary-button
+        class="discounts-add-btn"
+        [text]="t().createPromoCodeBtn"
+        (clicked)="openAddModal()"
+      ></app-primary-button>
+    </div>
+  </div>
+
+  <!-- 3 Summary Metric Cards Grid -->
+  <div class="metrics-grid">
+    <!-- Card 1: Active Promo Codes -->
+    <app-metric-card
+      [title]="t().activePromoCodes"
+      [value]="activePromoCodesCount()"
+      color="yellow"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+        <line x1="7" y1="7" x2="7.01" y2="7"/>
+      </svg>
+    </app-metric-card>
+
+    <!-- Card 2: Total Times Used -->
+    <app-metric-card
+      [title]="t().totalTimesUsed"
+      [value]="totalTimesUsedCount()"
+      color="blue"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="9" cy="21" r="1"/>
+        <circle cx="20" cy="21" r="1"/>
+        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+      </svg>
+    </app-metric-card>
+
+    <!-- Card 3: Total Discount Value Saved -->
+    <app-metric-card
+      [title]="t().totalDiscountValue"
+      [value]="totalDiscountValueCount() + ' ' + t().currency"
+      color="green"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="2" y="6" width="20" height="12" rx="2"/>
+        <circle cx="12" cy="12" r="2"/>
+        <path d="M6 12h.01M18 12h.01"/>
+      </svg>
+    </app-metric-card>
+  </div>
+
+  <!-- Data Table Container Card -->
+  <div class="table-container-card">
+    <div class="table-responsive">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th>{{ t().promoCode }}</th>
+            <th>{{ t().titleDescription }}</th>
+            <th class="th-center">{{ t().discountValue }}</th>
+            <th>{{ t().applicableOn }}</th>
+            <th>{{ t().validityPeriod }}</th>
+            <th class="th-center">{{ t().usageLimitTh }}</th>
+            <th class="th-center">{{ t().status }}</th>
+            <th class="th-center">{{ t().actions }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (d of paginatedDiscounts(); track d.id) {
+            <tr>
+              <!-- Promo Code Badge & Copy -->
+              <td class="cell-student-td">
+                <div class="code-badge-wrap">
+                  <span class="code-pill">{{ d.code }}</span>
+                  <button
+                    type="button"
+                    class="btn-copy-code"
+                    (click)="copyCode(d.code)"
+                    [title]="t().copyCode"
+                  >
+                    @if (copiedCode() === d.code) {
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    } @else {
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                      </svg>
+                    }
+                  </button>
+                </div>
+              </td>
+
+              <!-- Title / Description -->
+              <td>
+                <span class="discount-title">
+                  {{ isArabic() ? d.title : (d.titleEn || d.title) }}
+                </span>
+              </td>
+
+              <!-- Value (% or EGP) -->
+              <td class="cell-center">
+                <span class="value-pill" [class.value-pill--fixed]="d.type === 'fixed'">
+                  @if (d.type === 'percentage') {
+                    {{ d.value }}% {{ t().discountOffBadge }}
+                  } @else {
+                    {{ d.value }} {{ t().currency }} {{ t().discountOffBadge }}
+                  }
+                </span>
+              </td>
+
+              <!-- Scope -->
+              <td>
+                <span class="scope-text">
+                  {{ getScopeLabel(d.scope) }}
+                </span>
+              </td>
+
+              <!-- Validity Period -->
+              <td>
+                <div class="validity-dates">
+                  <span>{{ d.startDate }}</span>
+                  <span class="date-sep">←</span>
+                  <span>{{ d.expiryDate }}</span>
+                </div>
+              </td>
+
+              <!-- Usage Progress -->
+              <td class="cell-center">
+                <div class="usage-progress-wrap">
+                  <span class="usage-count-text">{{ d.usageCount }} / {{ d.usageLimit }}</span>
+                  <div class="progress-bar-bg">
+                    <div
+                      class="progress-bar-fill"
+                      [style.width.%]="(d.usageCount / d.usageLimit) * 100"
+                    ></div>
+                  </div>
+                </div>
+              </td>
+
+              <!-- Status Toggle Badge -->
+              <td class="cell-center">
+                <button
+                  type="button"
+                  class="badge-status-btn"
+                  [class.badge-status--active]="d.status === 'active'"
+                  [class.badge-status--expired]="d.status === 'expired'"
+                  [class.badge-status--disabled]="d.status === 'disabled'"
+                  (click)="toggleStatus(d)"
+                  [title]="t().status"
+                >
+                  <span class="status-dot"></span>
+                  <span>
+                    @if (d.status === 'active') {
+                      {{ t().active }}
+                    } @else if (d.status === 'expired') {
+                      {{ t().statusExpired }}
+                    } @else {
+                      {{ t().statusDisabled }}
+                    }
+                  </span>
+                </button>
+              </td>
+
+              <!-- Actions (Copy, Edit, Delete) -->
+              <td class="cell-center">
+                <div class="actions-wrapper" style="justify-content: center; gap: 6px;">
+                  <button
+                    type="button"
+                    class="btn-edit-direct"
+                    (click)="openEditModal(d)"
+                    [title]="t().edit"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                    <span>{{ t().edit }}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="btn-delete-direct"
+                    (click)="openDeleteModal(d)"
+                    [title]="t().delete"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                    <span>{{ t().delete }}</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="8" class="cell-empty">
+                {{ t().noData }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Table Pagination Footer -->
+    <div class="table-footer">
+      <span class="pagination-info">
+        {{ t().showing }} {{ startIndex() }} {{ t().to }} {{ endIndex() }} {{ t().of }} {{ filteredDiscounts().length }} {{ t().entries }}
+      </span>
+
+      <app-pagination
+        [currentPage]="currentPage()"
+        [totalPages]="totalPages()"
+        (pageChange)="setPage($event)"
+      ></app-pagination>
+    </div>
+  </div>
+
+  <!-- Create / Edit Promo Code Modal -->
+  <app-modal
+    [isOpen]="isModalOpen()"
+    [title]="getModalTitle()"
+    (close)="closeModal()"
+  >
+    <form (submit)="saveDiscount(); $event.preventDefault()" class="discount-modal-form">
+      @if (formError(); as err) {
+        <div class="form-error-banner">
+          {{ err }}
+        </div>
+      }
+
+      <div class="form-grid">
+        <!-- Promo Code Input & Generate Button -->
+        <div class="field-group full-width">
+          <label class="field-label">{{ t().promoCode }} *</label>
+          <div class="code-generator-input-wrap">
+            <input
+              type="text"
+              class="custom-input code-input-styled"
+              [placeholder]="isArabic() ? 'مثال: SUMMER25' : 'e.g. SUMMER25'"
+              [ngModel]="formCode()"
+              (ngModelChange)="formCode.set($event)"
+              name="formCode"
+            />
+            <button type="button" class="btn-generate-code" (click)="generateRandomCode()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+              </svg>
+              <span>{{ t().autoGenerate }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Discount Title -->
+        <div class="field-group full-width">
+          <label class="field-label">{{ t().titleDescription }} *</label>
+          <input
+            type="text"
+            class="custom-input"
+            [placeholder]="isArabic() ? 'مثال: خصم الطلاب لفترة الصيف' : 'e.g. Summer Student Special Offer'"
+            [ngModel]="formTitle()"
+            (ngModelChange)="formTitle.set($event)"
+            name="formTitle"
+          />
+        </div>
+
+        <!-- Discount Type -->
+        <div class="field-group">
+          <label class="field-label">{{ t().discountType }}</label>
+          <app-custom-select
+            [options]="typeOptions()"
+            [selectedValue]="formType()"
+            [fullWidth]="true"
+            (valueChange)="formType.set($any($event))"
+          ></app-custom-select>
+        </div>
+
+        <!-- Discount Value -->
+        <div class="field-group">
+          <label class="field-label">{{ t().discountValue }} *</label>
+          <input
+            type="number"
+            class="custom-input"
+            [placeholder]="formType() === 'percentage' ? '25' : '50'"
+            [ngModel]="formValue()"
+            (ngModelChange)="formValue.set($event)"
+            name="formValue"
+          />
+        </div>
+
+        <!-- Applicable Scope -->
+        <div class="field-group">
+          <label class="field-label">{{ t().applicableOn }}</label>
+          <app-custom-select
+            [options]="scopeOptions()"
+            [selectedValue]="formScope()"
+            [fullWidth]="true"
+            (valueChange)="formScope.set($any($event))"
+          ></app-custom-select>
+        </div>
+
+        <!-- Usage Limit -->
+        <div class="field-group">
+          <label class="field-label">{{ t().usageLimitTh }}</label>
+          <input
+            type="number"
+            class="custom-input"
+            placeholder="100"
+            [ngModel]="formUsageLimit()"
+            (ngModelChange)="formUsageLimit.set($event)"
+            name="formUsageLimit"
+          />
+        </div>
+
+        <!-- Start Date -->
+        <div class="field-group">
+          <label class="field-label">{{ t().startDate }}</label>
+          <input
+            type="date"
+            class="custom-input"
+            [min]="todayDate"
+            [ngModel]="formStartDate()"
+            (ngModelChange)="formStartDate.set($event)"
+            name="formStartDate"
+          />
+        </div>
+
+        <!-- Expiration Date -->
+        <div class="field-group">
+          <label class="field-label">{{ t().expirationDate }} *</label>
+          <input
+            type="date"
+            class="custom-input"
+            [min]="todayDate"
+            [ngModel]="formExpiryDate()"
+            (ngModelChange)="formExpiryDate.set($event)"
+            name="formExpiryDate"
+          />
+        </div>
+      </div>
+
+      <div class="modal-footer-actions">
+        <button type="button" class="btn-cancel" (click)="closeModal()">
+          {{ t().cancel }}
+        </button>
+
+        <app-primary-button
+          [text]="t().saveCode"
+          type="submit"
+        ></app-primary-button>
+      </div>
+    </form>
+  </app-modal>
+
+  <!-- Delete Confirmation Modal -->
+  @if (isDeleteModalOpen() && discountToDelete(); as delD) {
+    <div class="modal-overlay" (click)="closeDeleteModal()">
+      <div class="delete-card" (click)="$event.stopPropagation()">
+        <div class="delete-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" style="width: 32px; height: 32px;">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+        </div>
+
+        <h3 class="delete-title">{{ t().confirmDeleteDiscountTitle }}</h3>
+        <p class="delete-subtitle">
+          {{ t().confirmDeleteDiscountDesc }} ("{{ delD.code }}")
+        </p>
+
+        <div class="delete-actions-footer">
+          <button type="button" class="btn-cancel" (click)="closeDeleteModal()">
+            {{ t().cancel }}
+          </button>
+          <button type="button" class="btn-confirm-delete" (click)="confirmDelete()">
+            {{ t().deleteCodeBtn }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

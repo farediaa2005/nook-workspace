@@ -1,0 +1,282 @@
+<div class="modal-overlay" (click)="onCancel()">
+  <div class="modal-card" [class.rtl]="isArabic()" (click)="$event.stopPropagation()">
+    
+    <!-- Modal Header -->
+    <div class="modal-header">
+      <div>
+        <h2 class="modal-title">{{ t().reconciliationTitle }}</h2>
+        <p class="modal-subtitle">{{ t().reconciliationSubtitle }}</p>
+      </div>
+      <button class="btn-close" (click)="onCancel()" title="Close">
+        <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+          <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- 2-Column Reconciliation Grid -->
+    <div class="modal-grid">
+      
+      <!-- Column 1: Financial Summary (النظام والمتوقع) -->
+      <div class="summary-box">
+        <h3 class="section-title">
+          <svg viewBox="0 0 24 24" fill="none" class="title-icon">
+            <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/>
+            <line x1="2" y1="10" x2="22" y2="10" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+          <span>{{ t().financialSummaryTitle }}</span>
+        </h3>
+
+        <div class="breakdown-list">
+          <!-- Opening Cash -->
+          <div class="breakdown-item">
+            <span class="item-label">{{ t().openingCashLabel }}</span>
+            <span class="item-value font-num">{{ openingCash().toFixed(2) }} {{ currencyText() }}</span>
+          </div>
+
+          @if (adminFund() > 0) {
+            <div class="breakdown-item" style="color: #3b82f6;">
+              <span class="item-label">🛡️ {{ t().adminFundLabel }}</span>
+              <span class="item-value font-num">{{ adminFund().toFixed(2) }} {{ currencyText() }}</span>
+            </div>
+          }
+
+          <!-- POS Receipts -->
+          <div class="breakdown-item">
+            <div class="label-with-badge">
+              <span class="item-label">{{ t().posReceiptsLabel }}</span>
+              <span class="pos-badge">{{ t().posBadgeText }}</span>
+            </div>
+            <span class="item-value font-num text-positive">+{{ posReceipts().toFixed(2) }} {{ currencyText() }}</span>
+          </div>
+
+          <!-- Petty Cash Expenses -->
+          <div class="breakdown-item">
+            <span class="item-label">{{ t().pettyCashOutLabel }}</span>
+            <span class="item-value font-num text-negative">-{{ adminExpenses().toFixed(2) }} {{ currencyText() }}</span>
+          </div>
+
+          <!-- Vodafone Cash Balance -->
+          <div class="breakdown-item digital-channel-row">
+            <div class="channel-label-group">
+              <span class="channel-indicator channel-indicator--red"></span>
+              <div style="display: flex; flex-direction: column;">
+                <span class="item-label">{{ t().vodafoneBalanceLabel }}</span>
+                <span style="font-size: 0.72rem; color: var(--text-dim);">
+                  {{ t().insideFlow }}: +{{ vodafoneInside().toFixed(2) }} | {{ t().outsideFlow }}: -{{ vodafoneOutside().toFixed(2) }}
+                </span>
+              </div>
+            </div>
+            <span class="item-value font-num">{{ vodafoneTotal().toFixed(2) }} {{ currencyText() }}</span>
+          </div>
+
+          <!-- InstaPay Balance -->
+          <div class="breakdown-item digital-channel-row">
+            <div class="channel-label-group">
+              <span class="channel-indicator channel-indicator--purple"></span>
+              <span class="item-label">{{ t().instapayBalanceLabel }}</span>
+            </div>
+            <span class="item-value font-num">{{ instapayTotal().toFixed(2) }} {{ currencyText() }}</span>
+          </div>
+
+          <!-- Fawry Balance -->
+          <div class="breakdown-item digital-channel-row">
+            <div class="channel-label-group">
+              <span class="channel-indicator channel-indicator--blue"></span>
+              <span class="item-label">{{ t().fawryBalanceLabel }}</span>
+            </div>
+            <span class="item-value font-num">{{ fawryTotal().toFixed(2) }} {{ currencyText() }}</span>
+          </div>
+        </div>
+
+        <!-- Expected Cash Highlight Banner -->
+        <div class="expected-cash-banner">
+          <span class="expected-label">{{ t().expectedDrawerCashLabel }}</span>
+          <span class="expected-amount font-num text-gold">{{ expectedCash().toFixed(2) }} {{ currencyText() }}</span>
+        </div>
+
+        <div class="notice-card">
+          <svg viewBox="0 0 24 24" fill="none" class="notice-icon">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+            <line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="2"/>
+            <line x1="12" y1="16" x2="12.01" y2="16" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          <p class="notice-text">{{ t().countNoticeText }}</p>
+        </div>
+      </div>
+
+      <!-- Column 2: Declare Actual Amounts (الإقرار الفعلي) -->
+      <div class="declare-box">
+        <div class="box-accent-bar"></div>
+        
+        <h3 class="section-title">
+          <svg viewBox="0 0 24 24" fill="none" class="title-icon text-gold">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+          <span>{{ t().declareTotalsTitle }}</span>
+        </h3>
+
+        <!-- Actual Drawer Cash Input -->
+        <div class="form-field">
+          <div class="label-row">
+            <label class="form-label">{{ t().actualCashLabel }} *</label>
+            @if (cashVariance() !== null) {
+              <span class="variance-mini-tag" 
+                    [class.text-positive]="cashVariance() === 0" 
+                    [class.text-surplus]="(cashVariance() || 0) > 0" 
+                    [class.text-negative]="(cashVariance() || 0) < 0">
+                {{ (cashVariance() || 0) >= 0 ? '+' : '' }}{{ (cashVariance() || 0).toFixed(2) }} {{ currencyText() }}
+              </span>
+            }
+          </div>
+          <div class="amount-input-box">
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              [ngModel]="actualCashInput()"
+              (ngModelChange)="actualCashInput.set($event)"
+              placeholder="0.00"
+              class="amount-input"
+              autofocus
+            />
+            <span class="currency-tag">{{ currencyText() }}</span>
+          </div>
+          <span class="field-hint">{{ t().actualCashHint }}</span>
+        </div>
+
+        <!-- Digital Channels Quick Reconciliation Inputs -->
+        <div class="digital-reconcile-section">
+          <span class="digital-section-label">{{ t().digitalChannelsActualBalances }}</span>
+          
+          <div class="digital-inputs-grid">
+            <!-- Vodafone Cash Input -->
+            <div class="digital-field">
+              <label class="digital-label text-red">
+                <span class="channel-indicator channel-indicator--red"></span>
+                {{ t().vodafoneCashName }}
+              </label>
+              <div class="digital-input-wrap">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  [ngModel]="actualVodafoneInput()"
+                  (ngModelChange)="actualVodafoneInput.set($event)"
+                  class="digital-input"
+                />
+                <span class="digital-curr">{{ currencyText() }}</span>
+              </div>
+            </div>
+
+            <!-- InstaPay Input -->
+            <div class="digital-field">
+              <label class="digital-label text-purple">
+                <span class="channel-indicator channel-indicator--purple"></span>
+                {{ t().instapayName }}
+              </label>
+              <div class="digital-input-wrap">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  [ngModel]="actualInstaPayInput()"
+                  (ngModelChange)="actualInstaPayInput.set($event)"
+                  class="digital-input"
+                />
+                <span class="digital-curr">{{ currencyText() }}</span>
+              </div>
+            </div>
+
+            <!-- Fawry Input -->
+            <div class="digital-field">
+              <label class="digital-label text-blue">
+                <span class="channel-indicator channel-indicator--blue"></span>
+                {{ t().fawryName }}
+              </label>
+              <div class="digital-input-wrap">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  [ngModel]="actualFawryInput()"
+                  (ngModelChange)="actualFawryInput.set($event)"
+                  class="digital-input"
+                />
+                <span class="digital-curr">{{ currencyText() }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Variance Status Card -->
+        <div class="variance-card" 
+             [class.balanced]="isBalanced()" 
+             [class.surplus]="isSurplus()" 
+             [class.shortage]="isShortage()">
+          <span class="variance-label">{{ t().varianceStatusLabel }}</span>
+
+          @if (actualCash() === null) {
+            <div class="variance-status-pending">
+              <span class="status-heading">{{ t().pendingInputText }}</span>
+              <span class="status-sub">{{ t().pendingInputSub }}</span>
+            </div>
+          } @else if (isBalanced()) {
+            <div class="variance-status-balanced">
+              <span class="status-heading text-positive">
+                <svg viewBox="0 0 24 24" fill="none" width="16" height="16" class="status-svg">
+                  <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                {{ t().balancedStatusText }} (0.00 {{ currencyText() }})
+              </span>
+              <span class="status-sub">{{ t().balancedStatusSub }}</span>
+            </div>
+          } @else if (isSurplus()) {
+            <div class="variance-status-surplus">
+              <span class="status-heading text-surplus">
+                <svg viewBox="0 0 24 24" fill="none" width="16" height="16" class="status-svg">
+                  <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                  <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+                {{ t().discrepancyText }}+{{ (totalVariance() || 0).toFixed(2) }} {{ currencyText() }}
+              </span>
+              <span class="status-sub">{{ t().surplusDetected }}</span>
+            </div>
+          } @else {
+            <div class="variance-status-shortage">
+              <span class="status-heading text-negative">
+                <svg viewBox="0 0 24 24" fill="none" width="16" height="16" class="status-svg">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                  <line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="2"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16" stroke="currentColor" stroke-width="2"/>
+                </svg>
+                {{ t().discrepancyText }}{{ (totalVariance() || 0).toFixed(2) }} {{ currencyText() }}
+              </span>
+              <span class="status-sub">{{ t().shortageDetected }}</span>
+            </div>
+          }
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="modal-actions">
+          <button class="btn-cancel" (click)="onCancel()">{{ t().cancelBtn }}</button>
+          <button
+            class="btn-confirm"
+            [disabled]="actualCash() === null || (actualCash() || 0) < 0 || isSubmitting()"
+            (click)="onConfirm()"
+          >
+            <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
+              <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>{{ t().confirmCloseShiftBtn }}</span>
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+</div>

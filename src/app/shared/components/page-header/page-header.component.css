@@ -1,0 +1,13 @@
+.page-header {
+  margin-bottom: 1.5rem;
+}
+.page-header h2 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text) !important;
+  letter-spacing: -0.02em;
+}
+.page-header p {
+  color: var(--text-dim) !important;
+  font-size: 0.875rem;
+}

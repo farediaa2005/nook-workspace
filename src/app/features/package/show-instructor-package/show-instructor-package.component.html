@@ -1,0 +1,1128 @@
+<div class="page-container">
+  <!-- Toast Notification Alert (if present) -->
+  @if (packageService.toast(); as toast) {
+    <div
+      class="toast-notification"
+      [class.toast-notification--success]="toast.type === 'success'"
+      [class.toast-notification--info]="toast.type === 'info'"
+      [class.toast-notification--error]="toast.type === 'error'"
+    >
+      <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+      <span>{{ toast.message }}</span>
+    </div>
+  }
+
+  <!-- Page Header -->
+  <div class="show-head">
+    <div class="head-title-wrap">
+      <h1 class="page-title">{{ t().instructorPackagesTitle }}</h1>
+      <p class="page-subtitle">{{ t().instructorPackagesSubtitle }}</p>
+    </div>
+
+    <!-- Top Right Controls -->
+    <div class="head-controls">
+      <!-- Search Input (Centralized) -->
+      <div class="top-search-box">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input
+          type="text"
+          class="top-search-input"
+          [placeholder]="t().searchInstructorPackagePlaceholder"
+          [value]="searchQuery()"
+          (input)="searchQuery.set($any($event.target).value); currentPage.set(1)"
+        />
+      </div>
+
+      <!-- Status Dropdown Filter -->
+      <div class="date-filter-wrapper">
+        <div class="date-filter-dropdown" (click)="toggleStatusDropdown()">
+          <svg class="date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+          </svg>
+          <span>{{ getStatusLabel(selectedStatus()) }}</span>
+          <svg class="chevron-icon" [class.chevron-icon--rotated]="isStatusDropdownOpen()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </div>
+
+        @if (isStatusDropdownOpen()) {
+          <div class="menu-backdrop" (click)="closeStatusDropdown()"></div>
+          <div class="date-menu-card">
+            <button type="button" class="date-menu-item" [class.date-menu-item--active]="selectedStatus() === 'all'" (click)="setStatus('all')">
+              {{ t().allPackages }}
+            </button>
+            <button type="button" class="date-menu-item" [class.date-menu-item--active]="selectedStatus() === 'active'" (click)="setStatus('active')">
+              {{ t().activePasses }}
+            </button>
+            <button type="button" class="date-menu-item" [class.date-menu-item--active]="selectedStatus() === 'near_expiry'" (click)="setStatus('near_expiry')">
+              {{ t().nearExpiryPasses }}
+            </button>
+            <button type="button" class="date-menu-item" [class.date-menu-item--active]="selectedStatus() === 'exhausted'" (click)="setStatus('exhausted')">
+              {{ t().exhaustedPasses }}
+            </button>
+            <button type="button" class="date-menu-item" [class.date-menu-item--active]="selectedStatus() === 'expired'" (click)="setStatus('expired')">
+              {{ t().expiredPasses }}
+            </button>
+          </div>
+        }
+      </div>
+
+      <!-- Quick Sell CTA -->
+      <button type="button" class="btn-new-checkin" (click)="openSellModal()">
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        <span>{{ t().sellInstructorPackage }}</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 4 Summary Metric Cards Grid -->
+  <div class="metrics-grid">
+    <!-- Card 1: Active Passes -->
+    <div class="metric-card metric-card--yellow">
+      <div class="metric-head">
+        <div class="metric-value">{{ packageService.instructorActiveCount() }}</div>
+        <div class="metric-icon-box icon-box--yellow kpi-icon-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+      </div>
+      <div class="metric-label">{{ t().activeInstructorPacks }}</div>
+    </div>
+
+    <!-- Card 2: Total Remaining Hours -->
+    <div class="metric-card metric-card--green">
+      <div class="metric-head">
+        <div class="metric-value">{{ packageService.instructorRemainingHours() }}<small style="font-size: 0.95rem; font-weight: 600; margin-inline-start: 4px;">{{ t().hrs }}</small></div>
+        <div class="metric-icon-box icon-box--green kpi-icon-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+      </div>
+      <div class="metric-label">{{ t().totalRemainingBalance }}</div>
+    </div>
+
+    <!-- Card 3: Near Expiry / Low Balance -->
+    <div class="metric-card metric-card--red">
+      <div class="metric-head">
+        <div class="metric-value">{{ packageService.instructorExpiringSoonCount() }}</div>
+        <div class="metric-icon-box icon-box--red kpi-icon-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+      </div>
+      <div class="metric-label">{{ t().expiringSoonLow }}</div>
+    </div>
+
+    <!-- Card 4: Total Revenue -->
+    <div class="metric-card metric-card--blue">
+      <div class="metric-head">
+        <div class="metric-value">{{ packageService.instructorRevenue() }}<small style="font-size: 0.95rem; font-weight: 600; margin-inline-start: 4px;">{{ t().egp }}</small></div>
+        <div class="metric-icon-box icon-box--blue kpi-icon-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="6" width="20" height="12" rx="2"/>
+            <circle cx="12" cy="12" r="2"/>
+            <path d="M6 12h.01M18 12h.01"/>
+          </svg>
+        </div>
+      </div>
+      <div class="metric-label">{{ t().instructorPackagesValue }}</div>
+    </div>
+  </div>
+
+  <!-- Data Table Container Card -->
+  <div class="table-container-card">
+    <!-- Table Responsive Wrap -->
+    <div class="table-responsive">
+      <table class="students-table">
+        <thead>
+          <tr>
+            <th class="th-student">{{ t().instructorOrEntity }}</th>
+            <th class="th-center">{{ t().allocatedHours }}</th>
+            <th class="th-center">{{ t().usedHours }}</th>
+            <th class="th-center">{{ t().remainingHours }}</th>
+            <th class="th-center">{{ t().costCost }}</th>
+            <th class="th-center">{{ t().expiryDate }}</th>
+            <th class="th-center">{{ t().status }}</th>
+            <th class="th-center">{{ t().actionsColumn }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (pkg of paginatedPackages(); track pkg.id) {
+            <tr>
+              <!-- Instructor / Corporate Info -->
+              <td class="cell-student-td">
+                <div class="student-cell-content">
+                  <div class="member-avatar-box">
+                    {{ (isArabic() ? pkg.memberNameAr : pkg.memberNameEn).charAt(0) }}
+                  </div>
+                  <div class="student-meta">
+                    <div class="name-with-group">
+                      <strong class="student-name">{{ isArabic() ? pkg.memberNameAr : pkg.memberNameEn }}</strong>
+                      @if (pkg.members && pkg.members.length > 1) {
+                        <span class="group-count-badge" title="Group Pass: {{ pkg.members.length }} entities">
+                          +{{ pkg.members.length - 1 }} {{ t().groupStudentsCount }}
+                        </span>
+                      }
+                    </div>
+                    <span class="student-faculty">{{ isArabic() ? pkg.memberSubAr : pkg.memberSubEn }}</span>
+                    <span class="student-phone">{{ pkg.memberPhone }}</span>
+                  </div>
+                </div>
+              </td>
+
+              <!-- Allocated Hours -->
+              <td class="cell-center">
+                <span class="nowrap-text">{{ pkg.allocatedHours }} {{ t().hrs }}</span>
+              </td>
+
+              <!-- Used Hours -->
+              <td class="cell-center">
+                <span class="used-hours-val nowrap-text">{{ pkg.usedHours }} {{ t().hrs }}</span>
+              </td>
+
+              <!-- Remaining Hours Pill -->
+              <td class="cell-center">
+                <span
+                  class="remaining-pill nowrap-text"
+                  [class.remaining-pill--low]="pkg.remainingHours <= 5 && pkg.remainingHours > 0"
+                  [class.remaining-pill--zero]="pkg.remainingHours === 0"
+                  [class.remaining-pill--good]="pkg.remainingHours > 5"
+                >
+                  {{ pkg.remainingHours }} {{ t().hrs }}
+                </span>
+              </td>
+
+              <!-- Cost & Payment Method -->
+              <td class="cell-center">
+                <div class="cost-stack">
+                  <strong class="cost-number nowrap-text">{{ pkg.cost }} {{ t().egp }}</strong>
+                  <span class="pay-method-badge pay-method-badge--{{ pkg.paymentMethod }}">{{ pkg.paymentMethod }}</span>
+                </div>
+              </td>
+
+              <!-- Expiry Date -->
+              <td class="cell-center">
+                <span class="date-text nowrap-text">{{ pkg.expiryDate }}</span>
+              </td>
+
+              <!-- Status Badge -->
+              <td class="cell-center">
+                @if (pkg.status === 'active') {
+                  <span class="badge-status badge-status--active nowrap-text">
+                    <span class="status-dot"></span>
+                    <span>{{ t().statusActivePass }}</span>
+                  </span>
+                } @else if (pkg.status === 'near_expiry') {
+                  <span class="badge-status badge-status--near-expiry nowrap-text">
+                    <span class="status-dot"></span>
+                    <span>{{ t().statusNearExpiryPass }}</span>
+                  </span>
+                } @else if (pkg.status === 'exhausted') {
+                  <span class="badge-status badge-status--exhausted nowrap-text">
+                    <span class="status-dot"></span>
+                    <span>{{ t().statusExhaustedPass }}</span>
+                  </span>
+                } @else {
+                  <span class="badge-status badge-status--expired nowrap-text">
+                    <span class="status-dot"></span>
+                    <span>{{ t().statusExpiredPass }}</span>
+                  </span>
+                }
+              </td>
+
+              <!-- Row Actions: Details & Direct Delete Button -->
+              <td class="cell-center">
+                <div class="actions-wrapper" style="justify-content: center; gap: 8px;">
+                  <!-- Details Drawer Trigger -->
+                  <button
+                    type="button"
+                    class="btn-checkout"
+                    (click)="openDrawer(pkg)"
+                    [title]="t().viewDetailsAndHistory"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                    </svg>
+                    <span>{{ t().details }}</span>
+                  </button>
+
+                  <!-- Edit Package Button -->
+                  <button
+                    type="button"
+                    class="btn-checkout"
+                    style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.25);"
+                    (click)="openEditModal(pkg)"
+                    [title]="t().edit"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                    <span>{{ t().edit }}</span>
+                  </button>
+
+                  <!-- Direct Delete Button -->
+                  <button
+                    type="button"
+                    class="btn-delete-direct"
+                    (click)="openDeleteModal(pkg)"
+                    [title]="t().deletePackageAction"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                    <span>{{ t().delete }}</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="8" class="cell-empty">
+                {{ t().noInstructorPackagesFound }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Table Pagination Footer -->
+    <div class="table-footer">
+      <span class="pagination-info">
+        {{ t().showingText }} {{ startIndex() }} {{ t().toText }} {{ endIndex() }} {{ t().ofText }} {{ filteredPackages().length }} {{ t().showingPackagesSummary }}
+      </span>
+
+      <div class="pagination-controls">
+        <button
+          type="button"
+          class="btn-page-nav"
+          [disabled]="currentPage() <= 1"
+          (click)="prevPage()"
+          title="Previous Page"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="page-nav-icon">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+
+        @for (page of pagesArray(); track page) {
+          <button
+            type="button"
+            class="btn-page-num"
+            [class.btn-page-num--active]="currentPage() === page"
+            (click)="goToPage(page)"
+          >
+            {{ page }}
+          </button>
+        }
+
+        <button
+          type="button"
+          class="btn-page-nav"
+          [disabled]="currentPage() >= totalPages()"
+          (click)="nextPage()"
+          title="Next Page"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="page-nav-icon">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 1. SELL INSTRUCTOR PACKAGE MODAL                                          -->
+  <!-- ========================================================================= -->
+  @if (isSellModalOpen()) {
+    <div class="modal-overlay nook-sell-modal-overlay" (click)="closeSellModal()">
+      <div class="modal-card modal-card--2col nook-2col-active" (click)="$event.stopPropagation()">
+        <!-- Modal Head -->
+        <div class="modal-head">
+          <div class="modal-head-info">
+            <h3 class="modal-title">{{ t().sellInstructorPackageTitle }}</h3>
+            <p class="modal-subtitle">{{ t().sellInstructorPackageSubtitle }}</p>
+          </div>
+          <button type="button" class="modal-close-circle" (click)="closeSellModal()" title="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <!-- 2-Column Form Body -->
+        <form (submit)="confirmSellPackage(); $event.preventDefault()" class="modal-form-body">
+          <div class="modal-2col-grid">
+            <!-- Col 1: Member Selection & Validity -->
+            <div class="modal-col">
+              <!-- Card 01: Member Lookup & Multi-Instructor Selection -->
+              <div class="modal-section-card">
+                <div class="form-section-head">
+                  <span class="section-tag">01</span>
+                  <h4 class="section-heading">{{ t().instructorDataSection }}</h4>
+                </div>
+
+                <div class="field-wrap">
+                  <label class="field-label">{{ t().searchInstructorLabel }} *</label>
+                  <div class="member-autocomplete-wrap">
+                    <div class="input-container">
+                      <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                      </svg>
+                      <input
+                        type="text"
+                        class="custom-input"
+                        [placeholder]="t().searchInstructorInputPlaceholder"
+                        [ngModel]="memberSearchQuery()"
+                        (ngModelChange)="memberSearchQuery.set($event); isMemberDropdownOpen.set(true)"
+                        (focus)="isMemberDropdownOpen.set(true)"
+                        name="memberSearchQuery"
+                      />
+                    </div>
+
+                    <!-- Autocomplete Results Dropdown -->
+                    @if (isMemberDropdownOpen() && instructorMemberOptions().length > 0) {
+                      <div class="autocomplete-dropdown-card">
+                        @for (member of instructorMemberOptions(); track member.id) {
+                          <div class="autocomplete-item" (click)="addMember(member)">
+                            <div class="ac-item-left">
+                              <div class="member-avatar-box">
+                                {{ (isArabic() ? member.nameAr : member.nameEn).charAt(0) }}
+                              </div>
+                              <div class="autocomplete-meta">
+                                <strong class="ac-name">{{ isArabic() ? member.nameAr : member.nameEn }}</strong>
+                                <span class="ac-sub">{{ isArabic() ? member.subAr : member.subEn }} • {{ member.phone }}</span>
+                              </div>
+                            </div>
+                            <span class="btn-add-member-badge">+ {{ t().addMemberBadge }}</span>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+
+                  <!-- Selected Instructor Chips -->
+                  @if (selectedMembers().length > 0) {
+                    <div class="selected-chips-row">
+                      @for (mem of selectedMembers(); track mem.id) {
+                        <div class="selected-member-chip">
+                          <span class="chip-avatar-circle">{{ (isArabic() ? mem.nameAr : mem.nameEn).charAt(0) }}</span>
+                          <span class="chip-name-text">{{ isArabic() ? mem.nameAr : mem.nameEn }}</span>
+                          <span class="chip-phone-text">({{ mem.phone }})</span>
+                          <button type="button" class="btn-remove-chip" (click)="removeMember(mem.id)" title="Remove">&times;</button>
+                        </div>
+                      }
+                    </div>
+                  }
+
+                  @if (sellMemberError(); as err) {
+                    <div class="modal-error-banner">
+                      <span>⚠️ {{ err }}</span>
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <!-- Card 02: Activation & Validity -->
+              <div class="modal-section-card modal-section-card--expand">
+                <div class="form-section-head">
+                  <span class="section-tag">02</span>
+                  <h4 class="section-heading">{{ t().dateAndValiditySection }}</h4>
+                </div>
+
+                <!-- Validity Duration Mini-Cards Grid -->
+                <div class="validity-cards-grid">
+                  @for (preset of validityPresets(); track preset.id) {
+                    <div
+                      class="validity-select-card"
+                      [class.validity-select-card--active]="validityOption() === preset.days"
+                      (click)="selectValidityOption(preset)"
+                    >
+                      <span class="val-card-title">{{ isArabic() ? preset.labelAr : preset.labelEn }}</span>
+                    </div>
+                  }
+                </div>
+
+                <!-- Start Date & Expiry Date Inputs -->
+                <div class="row-grid-2">
+                  <div class="field-wrap">
+                    <label class="field-label">{{ t().packageStartDate }}</label>
+                    <div class="input-container">
+                      <input
+                        type="date"
+                        class="custom-input"
+                        [min]="todayDate()"
+                        [ngModel]="sellStartDate()"
+                        (ngModelChange)="onStartDateChange($event)"
+                        name="sellStartDate"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="field-wrap">
+                    <div class="label-with-calc">
+                      <label class="field-label">{{ t().packageExpiryDate }}</label>
+                      <span class="calc-days-tag">{{ sellValidityDays() }} {{ t().packageValidityDays }}</span>
+                    </div>
+                    <div class="input-container">
+                      <input
+                        type="date"
+                        class="custom-input"
+                        [min]="todayDate()"
+                        [ngModel]="sellExpiryDate()"
+                        (ngModelChange)="onExpiryDateChange($event)"
+                        name="sellExpiryDate"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Notes Textarea -->
+                <div class="field-wrap notes-field-wrap">
+                  <label class="field-label">{{ t().notes }}</label>
+                  <textarea
+                    class="custom-textarea custom-textarea--expand"
+                    rows="3"
+                    [placeholder]="t().packageNotesPlaceholder"
+                    [ngModel]="sellNotes()"
+                    (ngModelChange)="sellNotes.set($event)"
+                    name="sellNotes"
+                  ></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Col 2: Package Selection & Payment Summary -->
+            <div class="modal-col">
+              <!-- Card 03: Select Package Tier Cards -->
+              <div class="modal-section-card">
+                <div class="section-card-header">
+                  <div class="form-section-head">
+                    <span class="section-tag">03</span>
+                    <h4 class="section-heading">{{ t().selectHoursPackage }}</h4>
+                  </div>
+                  <span class="section-badge-pill">{{ dynamicPackagePresets().length }} {{ t().optionsCount }}</span>
+                </div>
+
+                <div class="package-cards-grid">
+                  @for (pkg of dynamicPackagePresets(); track pkg.id) {
+                    <div
+                      class="package-select-card"
+                      [class.package-select-card--active]="selectedPackageId() === pkg.id"
+                      (click)="selectPackage(pkg)"
+                    >
+                      <div class="pkg-card-top">
+                        <span class="pkg-tier-tag">{{ isArabic() ? pkg.badgeAr : pkg.badgeEn }}</span>
+                        <div class="pkg-radio-indicator">
+                          <div class="pkg-radio-inner"></div>
+                        </div>
+                      </div>
+
+                      <h5 class="pkg-card-title">{{ isArabic() ? pkg.nameAr : pkg.nameEn }}</h5>
+
+                      <div class="pkg-card-metric">
+                        <span class="pkg-hours-num">{{ pkg.id === 'custom' ? customHours() : pkg.hours }}</span>
+                        <span class="pkg-hours-label">{{ t().hrs }}</span>
+                      </div>
+
+                      <div class="pkg-card-footer">
+                        <span class="pkg-rate-note">{{ pkg.id === 'custom' ? customHourlyRate() : pkg.rate }} {{ t().egpPerHour }}</span>
+                        <span class="pkg-card-price">{{ pkg.id === 'custom' ? (customHours() * customHourlyRate()) : pkg.price }} {{ t().egp }}</span>
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                <!-- Custom Hours & Rate Inputs (When Custom Selected) -->
+                @if (selectedPackageId() === 'custom') {
+                  <div class="custom-pkg-config-box">
+                    <div class="row-grid-2">
+                      <div class="field-wrap">
+                        <label class="field-label">{{ t().customPackageHours }}</label>
+                        <div class="input-container">
+                          <input
+                            type="number"
+                            min="1"
+                            class="custom-input"
+                            [ngModel]="customHours()"
+                            (ngModelChange)="customHours.set(+$event)"
+                            name="customHours"
+                          />
+                        </div>
+                      </div>
+                      <div class="field-wrap">
+                        <label class="field-label">{{ t().customPackageRate }}</label>
+                        <div class="input-container">
+                          <input
+                            type="number"
+                            min="1"
+                            class="custom-input"
+                            [ngModel]="customHourlyRate()"
+                            (ngModelChange)="customHourlyRate.set(+$event)"
+                            name="customHourlyRate"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+
+              <!-- Card 04: PACKAGE SUMMARY & PAYMENT -->
+              <div class="modal-section-card summary-card">
+                <div class="form-section-head">
+                  <span class="section-tag">04</span>
+                  <h4 class="section-heading">{{ t().packageSummaryAndPayment }}</h4>
+                </div>
+
+                <!-- Summary Breakdown -->
+                <div class="summary-breakdown">
+                  <div class="summary-row">
+                    <span class="s-label">{{ t().selectedPackageLabel }}</span>
+                    <strong class="s-val">{{ effectivePackageName() }}</strong>
+                  </div>
+
+                  @if (selectedMembers().length > 1) {
+                    <div class="summary-row">
+                      <span class="s-label">{{ t().instructorsCountLabel }}</span>
+                      <strong class="s-val">{{ selectedMembers().length }} {{ t().groupStudentsCount }}</strong>
+                    </div>
+                  }
+
+                  <div class="summary-row">
+                    <span class="s-label">{{ t().hoursQuota }}</span>
+                    <strong class="s-val">{{ effectiveHours() }} {{ t().hrs }}</strong>
+                  </div>
+
+                  <div class="summary-row">
+                    <span class="s-label">{{ t().effectiveRatePerHour }}</span>
+                    <span class="s-val">{{ effectiveRate() }} {{ t().egpPerHour }}</span>
+                  </div>
+
+                  @if (discountAmount() > 0) {
+                    <div class="summary-row summary-row--discount">
+                      <span class="s-label">{{ t().discountApplied }}</span>
+                      <span class="s-val text-green">- {{ discountAmount() }} {{ t().egp }}</span>
+                    </div>
+                  }
+
+                  <div class="summary-divider"></div>
+
+                  <!-- Bold Total Row -->
+                  <div class="summary-row summary-row--total">
+                    <span class="s-total-label">{{ t().totalDueRequired }}</span>
+                    <span class="s-total-val">{{ finalTotal() }} <small>{{ t().egp }}</small></span>
+                  </div>
+                </div>
+
+                <!-- Expandable Discount Code Field -->
+                <div class="discount-accordion-wrap">
+                  <button type="button" class="btn-toggle-discount" (click)="isDiscountOpen.set(!isDiscountOpen())">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="discount-icon">
+                      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                      <line x1="7" y1="7" x2="7.01" y2="7"/>
+                    </svg>
+                    <span>{{ isDiscountOpen() ? t().hideDiscount : t().addDiscountCoupon }}</span>
+                  </button>
+
+                  @if (isDiscountOpen()) {
+                    <div class="discount-form-box">
+                      <div class="coupon-input-group">
+                        <input
+                          type="text"
+                          class="custom-input coupon-input"
+                          [placeholder]="t().enterCouponCodePlaceholder"
+                          [ngModel]="couponCode()"
+                          (ngModelChange)="couponCode.set($event)"
+                          name="couponCode"
+                        />
+                        <button type="button" class="btn-apply-coupon" (click)="applyCoupon()">
+                          {{ t().applyBtn }}
+                        </button>
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                <!-- 2x2 Payment Method Cards Grid -->
+                <div class="payment-method-section">
+                  <label class="field-label">{{ t().paymentMethodLabel }}</label>
+                  <div class="payment-methods-grid">
+                    <!-- Cash -->
+                    <div
+                      class="payment-option-card"
+                      [class.payment-option-card--active]="sellPaymentMethod() === 'cash'"
+                      (click)="sellPaymentMethod.set('cash')"
+                    >
+                      <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M6 12h.01M18 12h.01"></path>
+                      </svg>
+                      <span class="pay-name">{{ t().cashPayment }}</span>
+                    </div>
+
+                    <!-- Vodafone Cash -->
+                    <div
+                      class="payment-option-card"
+                      [class.payment-option-card--active]="sellPaymentMethod() === 'vodafone'"
+                      (click)="sellPaymentMethod.set('vodafone')"
+                    >
+                      <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                        <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                      </svg>
+                      <span class="pay-name">{{ t().vodafonePayment }}</span>
+                    </div>
+
+                    <!-- InstaPay -->
+                    <div
+                      class="payment-option-card"
+                      [class.payment-option-card--active]="sellPaymentMethod() === 'instapay'"
+                      (click)="sellPaymentMethod.set('instapay')"
+                    >
+                      <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                      </svg>
+                      <span class="pay-name">{{ t().instapayPayment }}</span>
+                    </div>
+
+                    <!-- Fawry -->
+                    <div
+                      class="payment-option-card"
+                      [class.payment-option-card--active]="sellPaymentMethod() === 'fawry'"
+                      (click)="sellPaymentMethod.set('fawry')"
+                    >
+                      <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+                        <line x1="8" y1="7" x2="16" y2="7" />
+                        <line x1="8" y1="11" x2="16" y2="11" />
+                      </svg>
+                      <span class="pay-name">{{ t().fawryPayment }}</span>
+                    </div>
+                  </div>
+
+                  <!-- Cash Received & Change Calculations (When Cash Selected) -->
+                  @if (sellPaymentMethod() === 'cash') {
+                    <div class="cash-calc-block">
+                      <div class="field-wrap">
+                        <label class="field-label">{{ t().amountReceivedLabel }}</label>
+                        <div class="input-container">
+                          <input
+                            type="number"
+                            step="0.5"
+                            class="custom-input"
+                            [placeholder]="t().amountReceivedPlaceholder"
+                            [value]="amountReceived() !== null ? amountReceived() : ''"
+                            (input)="onAmountReceivedInput($any($event.target).value)"
+                          />
+                        </div>
+                      </div>
+
+                      @if (isCashShort()) {
+                        <div class="cash-short-alert">
+                          <span>⚠️ {{ t().cashShortAlert }}</span>
+                        </div>
+                      }
+
+                      <div class="change-due-box">
+                        <span class="change-label">{{ t().changeDueCustomer }}</span>
+                        <strong class="change-amount">{{ changeDue() }} {{ t().egp }}</strong>
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="modal-card-actions">
+                  <button type="button" class="btn-modal-cancel" (click)="closeSellModal()">
+                    {{ t().cancel }}
+                  </button>
+                  <button type="submit" class="btn-modal-confirm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-check-icon">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    <span>{{ t().confirmAndCompleteSale }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- ========================================================================= -->
+  <!-- 2. DETAILS & CONSUMPTION DRAWER                                           -->
+  <!-- ========================================================================= -->
+  @if (selectedPackageForDrawer(); as pkg) {
+    <div class="drawer-backdrop show" (click)="closeDrawer()"></div>
+    <aside class="consumption-drawer show" (click)="$event.stopPropagation()">
+      <!-- Drawer Header -->
+      <div class="drawer-head">
+        <div class="drawer-title-wrap">
+          <span class="drawer-tag">{{ pkg.type === 'student' ? t().studentPassTag : t().instructorPassTag }}</span>
+          <h2 class="drawer-title">{{ isArabic() ? pkg.packageNameAr : pkg.packageNameEn }}</h2>
+          <span class="drawer-member-sub">{{ isArabic() ? pkg.memberNameAr : pkg.memberNameEn }} • {{ pkg.memberPhone }}</span>
+        </div>
+        <button type="button" class="drawer-close-btn" (click)="closeDrawer()" title="Close">&times;</button>
+      </div>
+
+      <!-- Drawer Content Body -->
+      <div class="drawer-body">
+        <!-- Group Members List (if multi-member) -->
+        @if (pkg.members && pkg.members.length > 1) {
+          <div class="drawer-group-members-card">
+            <h4 class="drawer-subheading" style="margin-bottom: 8px;">
+              {{ t().enrolledGroupMembers }} ({{ pkg.members.length }})
+            </h4>
+            <div class="drawer-members-list">
+              @for (m of pkg.members; track m.id) {
+                <div class="drawer-member-row">
+                  <div class="member-avatar-box" style="width: 28px; height: 28px; font-size: 0.78rem;">
+                    {{ (isArabic() ? m.nameAr : m.nameEn).charAt(0) }}
+                  </div>
+                  <div class="d-mem-meta">
+                    <strong>{{ isArabic() ? m.nameAr : m.nameEn }}</strong>
+                    <span>{{ m.phone }}</span>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- 1. Live Remaining Balance Progress Box -->
+        <div class="consumption-meter-card">
+          <div class="meter-head">
+            <span class="meter-label">{{ t().remainingBalanceRate }}</span>
+            <strong class="meter-percent">{{ getConsumptionPercentage(pkg) }}%</strong>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="meter-progress-track">
+            <div
+              class="meter-progress-fill"
+              [class.meter-progress-fill--low]="getConsumptionPercentage(pkg) <= 20"
+              [style.width.%]="getConsumptionPercentage(pkg)"
+            ></div>
+          </div>
+
+          <div class="meter-stats-row">
+            <div class="m-stat">
+              <span class="m-sub">{{ t().consumedLabel }}</span>
+              <strong class="m-val">{{ pkg.usedHours }} {{ t().hrs }}</strong>
+            </div>
+            <div class="m-stat">
+              <span class="m-sub">{{ t().remainingLabel }}</span>
+              <strong class="m-val m-val--highlight">{{ pkg.remainingHours }} {{ t().hrs }}</strong>
+            </div>
+            <div class="m-stat">
+              <span class="m-sub">{{ t().totalLabel }}</span>
+              <strong class="m-val">{{ pkg.allocatedHours }} {{ t().hrs }}</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Package Specifications Cards -->
+        <div class="drawer-spec-grid">
+          <div class="spec-box">
+            <span class="spec-label">{{ t().costPaid }}</span>
+            <strong class="spec-val">{{ pkg.cost }} {{ t().egp }}</strong>
+          </div>
+          <div class="spec-box">
+            <span class="spec-label">{{ t().paymentMethodLabel }}</span>
+            <strong class="spec-val">{{ pkg.paymentMethod }}</strong>
+          </div>
+          <div class="spec-box">
+            <span class="spec-label">{{ t().purchasedDate }}</span>
+            <strong class="spec-val">{{ pkg.purchaseDate }}</strong>
+          </div>
+          <div class="spec-box">
+            <span class="spec-label">{{ t().effectiveRatePerHour }}</span>
+            <strong class="spec-val">{{ pkg.hourlyRate }} {{ t().egpPerHour }}</strong>
+          </div>
+        </div>
+
+        <!-- 3. Editable Section: Expiry Date & Notes -->
+        <div class="drawer-edit-section">
+          <div class="section-toggle-head">
+            <h4 class="drawer-subheading">{{ t().expiryAndNotesSettings }}</h4>
+            <button type="button" class="btn-lock-toggle" (click)="toggleDrawerLock()">
+              @if (isDrawerFormLocked()) {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <span>{{ t().unlockEdit }}</span>
+              } @else {
+                <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" style="width: 14px; height: 14px;">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+                </svg>
+                <span>{{ t().lockEdit }}</span>
+              }
+            </button>
+          </div>
+
+          <div class="drawer-field-group">
+            <label class="drawer-field-label">{{ t().expiryDate }}</label>
+            <div class="input-container">
+              <input
+                type="date"
+                class="custom-input drawer-input"
+                [min]="todayDate()"
+                [disabled]="isDrawerFormLocked()"
+                [value]="drawerExpiryDate()"
+                (input)="drawerExpiryDate.set($any($event.target).value)"
+              />
+            </div>
+          </div>
+
+          <div class="drawer-field-group" style="margin-top: 10px;">
+            <label class="drawer-field-label">{{ t().notes }}</label>
+            <textarea
+              class="custom-textarea drawer-textarea"
+              rows="3"
+              [placeholder]="t().packageNotesPlaceholder"
+              [disabled]="isDrawerFormLocked()"
+              [value]="drawerNotes()"
+              (input)="drawerNotes.set($any($event.target).value)"
+            ></textarea>
+          </div>
+
+          @if (!isDrawerFormLocked()) {
+            <button type="button" class="btn-save-drawer" (click)="saveDrawerModifications()">
+              {{ t().savePackageModifications }}
+            </button>
+          }
+        </div>
+
+        <!-- 4. Usage History & Deductions Timeline -->
+        <div class="drawer-history-section">
+          <div class="history-head-row">
+            <div>
+              <h4 class="drawer-subheading">{{ t().usageSessionsLog }}</h4>
+              <span class="history-count">({{ pkg.history.length }} {{ t().registeredSessionsCount }})</span>
+            </div>
+
+            <!-- Deduct Hours Button -->
+            <button
+              type="button"
+              class="btn-deduct-hours"
+              [disabled]="pkg.remainingHours <= 0"
+              (click)="openRecordUsageModal()"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="8" y1="12" x2="16" y2="12"/>
+              </svg>
+              <span>{{ t().deductHoursBtn }}</span>
+            </button>
+          </div>
+
+          <!-- History Timeline Cards -->
+          <div class="history-timeline">
+            @for (item of pkg.history; track item.id) {
+              <div class="history-card">
+                <div class="hist-card-left">
+                  <div class="hist-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"/>
+                      <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                  </div>
+                  <div class="hist-meta">
+                    <strong class="hist-title">{{ isArabic() ? item.sessionAr : item.sessionEn }}</strong>
+                    <span class="hist-sub">{{ item.date }} • {{ item.roomOrDesk || 'Classroom Hall' }}</span>
+                  </div>
+                </div>
+
+                <div class="hist-duration-badge">
+                  -{{ item.duration }} {{ t().hrs }}
+                </div>
+              </div>
+            } @empty {
+              <div class="history-empty">
+                {{ t().noUsageSessionsYet }}
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Drawer Actions Footer -->
+      <div class="drawer-footer">
+        <button type="button" class="btn-drawer-delete" (click)="openDeleteModal(pkg)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
+          <span>{{ t().deletePackageAction }}</span>
+        </button>
+
+        <button type="button" class="btn-drawer-close" (click)="closeDrawer()">
+          {{ t().closeBtn }}
+        </button>
+      </div>
+    </aside>
+  }
+
+  <!-- ========================================================================= -->
+  <!-- 3. SUB-MODAL: DEDUCT HOURS & RECORD SESSION                                -->
+  <!-- ========================================================================= -->
+  @if (isRecordUsageModalOpen()) {
+    <div class="modal-overlay modal-overlay--nested" (click)="closeRecordUsageModal()">
+      <div class="modal-card modal-card--sm" (click)="$event.stopPropagation()">
+        <div class="modal-head">
+          <div class="modal-head-info">
+            <h3 class="modal-title">{{ t().deductSessionTitle }}</h3>
+            <p class="modal-subtitle">{{ t().deductSessionSubtitle }}</p>
+          </div>
+          <button type="button" class="modal-close-btn" (click)="closeRecordUsageModal()">&times;</button>
+        </div>
+
+        <form (submit)="confirmRecordUsage(); $event.preventDefault()" class="modal-form-body">
+          <div class="modal-field-group">
+            <label class="modal-label">{{ t().sessionTitleLabel }} *</label>
+            <input
+              type="text"
+              class="modal-input"
+              [value]="usageSessionTitle()"
+              (input)="usageSessionTitle.set($any($event.target).value)"
+              required
+            />
+          </div>
+
+          <div class="modal-grid-2" style="margin-top: 12px;">
+            <div class="modal-field-group">
+              <label class="modal-label">{{ t().hoursToDeductLabel }} *</label>
+              <input
+                type="number"
+                min="0.5"
+                step="0.5"
+                class="modal-input"
+                [value]="usageHoursToDeduct()"
+                (input)="usageHoursToDeduct.set(+$any($event.target).value)"
+                required
+              />
+            </div>
+
+            <div class="modal-field-group">
+              <label class="modal-label">{{ t().deskLocationLabel }}</label>
+              <input
+                type="text"
+                class="modal-input"
+                [value]="usageLocation()"
+                (input)="usageLocation.set($any($event.target).value)"
+              />
+            </div>
+          </div>
+
+          <div class="modal-actions-footer" style="margin-top: 18px;">
+            <button type="button" class="modal-btn-cancel" (click)="closeRecordUsageModal()">{{ t().cancel }}</button>
+            <button type="submit" class="modal-btn-save">{{ t().confirmDeductionBtn }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- ========================================================================= -->
+  <!-- 4. DELETE CONFIRMATION MODAL                                              -->
+  <!-- ========================================================================= -->
+  @if (packageToDelete(); as delPkg) {
+    <div class="modal-overlay modal-overlay--nested" (click)="closeDeleteModal()">
+      <div class="modal-card modal-card--delete" (click)="$event.stopPropagation()">
+        <div class="modal-delete-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" style="width: 32px; height: 32px;">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+        </div>
+
+        <h3 class="modal-title" style="margin-top: 12px;">{{ t().confirmDeleteInstructorPackageTitle }}</h3>
+        <p class="modal-subtitle" style="margin-top: 6px;">
+          {{ isArabic() ? 'هل أنت متأكد من رغبتك في حذف باقة ' + ((delPkg.memberNameAr && delPkg.memberNameAr !== '-') ? ('المحاضر "' + delPkg.memberNameAr + '"') : ('"' + (delPkg.packageNameAr || delPkg.packageNameEn || 'الباقة') + '"')) + ' نهائياً؟' : 'Are you sure you want to permanently delete package for ' + ((delPkg.memberNameEn && delPkg.memberNameEn !== '-') ? ('"' + delPkg.memberNameEn + '"') : ('"' + (delPkg.packageNameEn || delPkg.packageNameAr || 'this package') + '"')) + '?' }}
+        </p>
+
+        <div class="modal-actions-footer" style="margin-top: 24px; justify-content: center; gap: 12px;">
+          <button type="button" class="modal-btn-cancel" (click)="closeDeleteModal()">{{ t().cancel }}</button>
+          <button type="button" class="modal-btn-delete" (click)="confirmDelete()">{{ t().yesDeletePackage }}</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Modal: Edit Package Modal (Item 29) -->
+  @if (isEditModalOpen() && editingPackage()) {
+  <div class="modal-overlay" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 16px;" (click)="closeEditModal()">
+    <div class="modal-dialog-box" style="background: var(--surface); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 480px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.3);" (click)="$event.stopPropagation()">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--text);">
+          {{ t().editInstructorPackageTitle }}
+        </h3>
+        <button type="button" (click)="closeEditModal()" style="background: transparent; border: none; font-size: 1.5rem; color: var(--text-dim); cursor: pointer;">&times;</button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div>
+          <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-dim); margin-bottom: 6px;">{{ t().packageName }}</label>
+          <input type="text" [ngModel]="editPackageName()" (ngModelChange)="editPackageName.set($event)" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);" />
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-dim); margin-bottom: 6px;">{{ t().totalHoursLabel }}</label>
+            <input type="number" min="1" [ngModel]="editAllocatedHours()" (ngModelChange)="editAllocatedHours.set(+$event)" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);" />
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-dim); margin-bottom: 6px;">{{ t().totalCostLabel }}</label>
+            <input type="number" min="0" [ngModel]="editCost()" (ngModelChange)="editCost.set(+$event)" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);" />
+          </div>
+        </div>
+
+        <div>
+          <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-dim); margin-bottom: 6px;">{{ t().expiryDateLabel }}</label>
+          <input type="date" [ngModel]="editExpiryDate()" (ngModelChange)="editExpiryDate.set($event)" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);" />
+        </div>
+
+        <div>
+          <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-dim); margin-bottom: 6px;">{{ t().notesLabel }}</label>
+          <input type="text" [ngModel]="editNotes()" (ngModelChange)="editNotes.set($event)" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);" />
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px;">
+        <button type="button" (click)="closeEditModal()" style="padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text); font-weight: 600; cursor: pointer;">{{ t().cancel }}</button>
+        <button type="button" (click)="saveEditedPackage()" style="padding: 10px 22px; border-radius: 8px; border: none; background: var(--primary); color: #fff; font-weight: 700; cursor: pointer;">{{ t().save }}</button>
+      </div>
+    </div>
+  </div>
+  }
+</div>

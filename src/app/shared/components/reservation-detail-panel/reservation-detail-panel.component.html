@@ -1,0 +1,154 @@
+@if (isOpen()) {
+  <div class="panel-backdrop" (click)="onClose()">
+    <aside class="side-panel" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+      <!-- Panel Header -->
+      <header class="panel-header">
+        <div class="panel-title-area">
+          <h2 class="panel-title">{{ t().reservationDetails }}</h2>
+          <span class="status-badge status-badge--confirmed">
+            {{ t().confirmed }}
+          </span>
+        </div>
+        <button type="button" class="close-btn" (click)="onClose()" aria-label="Close panel">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </header>
+
+      <!-- Panel Body -->
+      <div class="panel-body">
+        @if (reservation(); as res) {
+          <!-- Card 1: Instructor Card -->
+          <div class="detail-card instructor-card">
+            <div class="instructor-avatar-wrap">
+              <div class="instructor-avatar-fallback">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </div>
+            </div>
+            <div class="instructor-info">
+              <h3 class="instructor-name">{{ res.instructor || t().instructor }}</h3>
+              <p class="instructor-subtitle">{{ res.instructorTitle || res.activity || '' }}</p>
+            </div>
+          </div>
+
+          <!-- Card 2: Logistics Card -->
+          <div class="detail-card">
+            <span class="card-section-label">{{ t().logistics }}</span>
+
+            <div class="logistics-item">
+              <div class="logistics-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 21h18M3 7v14M21 7v14M6 7V3h12v4M9 12v2"></path>
+                </svg>
+              </div>
+              <div class="logistics-text">
+                <div class="logistics-primary">{{ res.classroom }}</div>
+                <div class="logistics-secondary">
+                  {{ t().capacity }}: {{ res.capacity || 24 }} {{ t().studentsCount }}
+                </div>
+              </div>
+            </div>
+
+            <div class="logistics-item">
+              <div class="logistics-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </div>
+              <div class="logistics-text">
+                <div class="logistics-primary">{{ res.fullDate }}</div>
+                <div class="logistics-secondary">
+                  {{ res.startTime }} - {{ res.endTime }} ({{ res.durationHours || 2 }} {{ t().hrs }})
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: Activity Card -->
+          <div class="detail-card">
+            <span class="card-section-label">{{ t().activity }}</span>
+            <div class="activity-title">{{ res.activity }}</div>
+            <div class="activity-location">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+              </svg>
+              <span>{{ res.classroom }}</span>
+            </div>
+          </div>
+
+          <!-- Card 4: Cost Breakdown -->
+          <div class="detail-card cost-card">
+            <h4 class="cost-heading">{{ t().costBreakdown }}</h4>
+
+            <div class="cost-rows">
+              <div class="cost-row">
+                <span class="cost-label">{{ res.costBreakdown.baseRateLabel || t().baseRateLabel }}</span>
+                @if (res.cost === 0 || (res.costBreakdown.total === 0 && res.costBreakdown.baseRate === 0)) {
+                  <span class="cost-val" style="color: var(--success); font-weight: 700;">
+                    {{ t().deductedFromPackage }}
+                  </span>
+                } @else {
+                  <span class="cost-val">EGP {{ (res.costBreakdown.baseRate || res.cost) | number:'1.2-2' }}</span>
+                }
+              </div>
+
+              @if (res.costBreakdown.equipmentAddon > 0) {
+                <div class="cost-row">
+                  <span class="cost-label">{{ t().equipmentAddon }}</span>
+                  <span class="cost-val">EGP {{ res.costBreakdown.equipmentAddon | number:'1.2-2' }}</span>
+                </div>
+              }
+
+              @if (res.costBreakdown.earlyBirdDiscount > 0) {
+                <div class="cost-row cost-row--discount">
+                  <span class="cost-label">{{ t().earlyBirdDiscount }}</span>
+                  <span class="cost-val">-EGP {{ res.costBreakdown.earlyBirdDiscount | number:'1.2-2' }}</span>
+                </div>
+              }
+            </div>
+
+            <div class="cost-total-divider"></div>
+
+            <div class="cost-row cost-row--total">
+              <span class="total-label">{{ t().total }}</span>
+              @if (res.cost === 0 || res.costBreakdown.total === 0) {
+                <span class="total-val" style="color: var(--success);">
+                  EGP 0.00 ({{ t().packageActiveBadge }})
+                </span>
+              } @else {
+                <span class="total-val">EGP {{ (res.costBreakdown.total || res.cost) | number:'1.2-2' }}</span>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Panel Footer Actions -->
+      <footer class="panel-footer">
+        <button type="button" class="panel-btn panel-btn--edit" (click)="onEdit()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+          <span>{{ t().edit }}</span>
+        </button>
+
+        <button type="button" class="panel-btn panel-btn--checkout" (click)="onCheckout()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+          <span>{{ t().checkOutBtn }}</span>
+        </button>
+      </footer>
+    </aside>
+  </div>
+}

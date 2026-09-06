@@ -1,0 +1,191 @@
+:host {
+  display: inline-block;
+  max-width: 100%;
+}
+
+.date-filter-wrapper {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.date-filter-dropdown {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  height: 40px;
+  padding: 0 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: all 0.15s ease;
+  user-select: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.date-filter-dropdown:hover,
+.date-filter-dropdown--active {
+  border-color: #f5b921;
+  background: var(--surface-2);
+}
+
+.date-icon {
+  width: 16px;
+  height: 16px;
+  stroke: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.date-display-text {
+  white-space: nowrap;
+  font-size: 0.86rem;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.chevron-icon {
+  width: 14px;
+  height: 14px;
+  stroke: var(--text-dim);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.chevron-icon--rotated {
+  transform: rotate(180deg);
+}
+
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+}
+
+.date-menu-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 100;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px;
+  min-width: 210px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: fadeInMenu 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[dir="rtl"] .date-menu-card {
+  right: auto;
+  left: 0;
+}
+
+@keyframes fadeInMenu {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.date-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 9px 12px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  font-family: inherit;
+}
+
+[dir="rtl"] .date-menu-item {
+  text-align: right;
+}
+
+.date-menu-item:hover {
+  background: var(--surface-2);
+  color: #f5b921;
+}
+
+.date-menu-item--active {
+  background: rgba(245, 185, 33, 0.12);
+  color: #f5b921;
+  font-weight: 700;
+}
+
+.date-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.date-custom-picker {
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.custom-date-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-align: left;
+}
+
+[dir="rtl"] .custom-date-label {
+  text-align: right;
+}
+
+.custom-date-input {
+  width: 100%;
+  height: 34px;
+  padding: 0 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+
+.custom-date-input:focus {
+  border-color: #f5b921;
+}
+
+@media (max-width: 768px) {
+  :host, .date-filter-wrapper, .date-filter-dropdown {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .date-menu-card {
+    width: 100%;
+    left: 0;
+    right: 0;
+  }
+}

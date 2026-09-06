@@ -1,0 +1,466 @@
+<div class="page-container">
+  <!-- Page Header & Top Controls Row -->
+  <div class="show-head">
+    <app-page-header
+      [title]="t().blacklistPageTitle"
+      [subtitle]="t().blacklistPageSubtitle"
+    ></app-page-header>
+
+    <div class="head-controls-row">
+      <!-- Search Box -->
+      <app-search-box
+        class="blacklist-search-box"
+        [placeholder]="t().searchBlacklistPlaceholder"
+        [value]="searchQuery()"
+        (valueChange)="onSearchChange($event)"
+      ></app-search-box>
+
+      <!-- Block User Primary Action CTA -->
+      <app-primary-button
+        class="blacklist-add-btn"
+        [text]="t().addBlockBtn"
+        (clicked)="openBlockModal()"
+      ></app-primary-button>
+    </div>
+  </div>
+
+  <!-- 3 Summary Metric Cards Grid -->
+  <div class="metrics-grid">
+    <!-- Card 1: Total Blocked -->
+    <app-metric-card
+      [title]="t().activeBannedCount"
+      [value]="totalBlockedCount()"
+      color="red"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+      </svg>
+    </app-metric-card>
+
+    <!-- Card 2: Blocked This Month -->
+    <app-metric-card
+      [title]="t().tempRestrictionsCount"
+      [value]="blockedThisMonthCount()"
+      color="yellow"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+        <line x1="12" y1="14" x2="12.01" y2="14"/>
+        <line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+    </app-metric-card>
+
+    <!-- Card 3: Resolved / Unblocked -->
+    <app-metric-card
+      [title]="t().resolvedCasesCount"
+      [value]="resolvedCount()"
+      color="green"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+    </app-metric-card>
+  </div>
+
+  <!-- Blacklist Data Table Container Card -->
+  <div class="table-container-card">
+    <div class="table-responsive">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th>{{ t().memberLabel }}</th>
+            <th>{{ t().college }}</th>
+            <th>{{ t().violationReason }}</th>
+            <th>{{ t().blockDate }}</th>
+            <th class="th-center">{{ t().blockType }}</th>
+            <th class="th-center">{{ t().status }}</th>
+            <th class="th-center">{{ t().actions }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (record of paginatedBlacklist(); track record.id) {
+            <tr>
+              <!-- Student Info & Block Avatar -->
+              <td class="cell-student-td">
+                <div class="student-cell-content">
+                  <div class="block-avatar-box" [class.block-avatar-box--resolved]="record.status === 'resolved'">
+                    @if (record.status === 'blocked') {
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                      </svg>
+                    } @else {
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                      </svg>
+                    }
+                  </div>
+                  <div class="student-meta">
+                    <strong class="student-name">{{ record.name }}</strong>
+                    <span class="student-phone">{{ record.phone }}</span>
+                  </div>
+                </div>
+              </td>
+
+              <!-- Faculty / College -->
+              <td>
+                <span class="faculty-text">
+                  {{ record.faculty || record.college || t().general }}
+                </span>
+              </td>
+
+              <!-- Reason for Block -->
+              <td>
+                <span class="reason-pill" [title]="record.reason">
+                  {{ record.reason }}
+                </span>
+              </td>
+
+              <!-- Blocked Date -->
+              <td>
+                <span class="date-text">{{ record.blockedDate }}</span>
+              </td>
+
+              <!-- Severity (Temporary vs Permanent) -->
+              <td class="cell-center">
+                @if (record.severity === 'permanent') {
+                  <span class="severity-badge severity-badge--permanent">
+                    {{ t().permanent }}
+                  </span>
+                } @else {
+                  <span class="severity-badge severity-badge--temporary">
+                    {{ t().temporary }}
+                  </span>
+                }
+              </td>
+
+              <!-- Status Badge -->
+              <td class="cell-center">
+                @if (record.status === 'blocked') {
+                  <span class="badge-status badge-status--blocked">
+                    <span class="status-dot"></span>
+                    <span>{{ t().bannedStatus }}</span>
+                  </span>
+                } @else {
+                  <span class="badge-status badge-status--resolved">
+                    <span class="status-dot"></span>
+                    <span>{{ t().resolvedStatus }}</span>
+                  </span>
+                }
+              </td>
+
+              <!-- Actions (Unblock & Details) -->
+              <td class="cell-center">
+                <div class="actions-wrapper" style="justify-content: center; gap: 8px;">
+                  @if (record.status === 'blocked') {
+                    <button
+                      type="button"
+                      class="btn-unblock-direct"
+                      (click)="openUnblockModal(record)"
+                      [title]="t().unblockAction"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                      </svg>
+                      <span>{{ t().unblockAction }}</span>
+                    </button>
+                  }
+
+                  <button
+                    type="button"
+                    class="btn-details-direct"
+                    (click)="openDetailsModal(record)"
+                    [title]="t().view"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"/>
+                      <line x1="12" y1="16" x2="12" y2="12"/>
+                      <line x1="12" y1="8" x2="12.01" y2="8"/>
+                    </svg>
+                    <span>{{ t().view }}</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7" class="cell-empty-wrap">
+                <div class="empty-state-box">
+                  <div class="empty-icon-circle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                      <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                  </div>
+                  <h4 class="empty-title">{{ t().noBlacklistFound }}</h4>
+                  <p class="empty-subtitle">
+                    {{ t().noData }}
+                  </p>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Table Pagination Footer -->
+    <div class="table-footer">
+      <span class="pagination-info">
+        {{ t().showing }} {{ startIndex() }} {{ t().to }} {{ endIndex() }} {{ t().of }} {{ filteredBlacklist().length }} {{ t().entries }}
+      </span>
+
+      <app-pagination
+        [currentPage]="currentPage()"
+        [totalPages]="totalPages()"
+        (pageChange)="setPage($event)"
+      ></app-pagination>
+    </div>
+  </div>
+
+  <!-- Add Block Modal -->
+  <app-modal
+    [isOpen]="isBlockModalOpen()"
+    [title]="t().addBlacklistModalTitle"
+    (close)="closeBlockModal()"
+  >
+    <form (submit)="saveBlock(); $event.preventDefault()" class="blacklist-modal-form">
+      @if (formError(); as err) {
+        <div class="form-error-banner">
+          {{ err }}
+        </div>
+      }
+
+      <div class="form-grid">
+        <!-- Searchable Auto-Suggest Dropdown for Registered Students + Instructors -->
+        <div class="field-group full-width auto-suggest-container" (click)="$event.stopPropagation()">
+          <label class="field-label">{{ t().searchMemberOrEnter }}</label>
+          <div class="search-input-wrapper">
+            <svg class="search-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+              type="text"
+              class="custom-input auto-suggest-input"
+              [placeholder]="t().searchMemberOrEnter"
+              [ngModel]="memberSearchQuery()"
+              (ngModelChange)="onMemberSearchChange($event)"
+              (focus)="openMemberSuggestions()"
+              (click)="$event.stopPropagation()"
+              name="memberSearchQuery"
+            />
+          </div>
+
+          <!-- Floating Suggestions Dropdown Overlay -->
+          @if (isSuggestionsOpen()) {
+            <div class="suggestions-overlay-card" (click)="$event.stopPropagation()">
+              <div class="suggestions-scroll-container">
+                @for (m of filteredRegisteredMembers(); track m.id) {
+                  <div class="suggestion-item-card" (click)="selectMember(m)">
+                    <div class="member-avatar-box" [class.member-avatar-box--instructor]="m.type === 'instructor'">
+                      {{ m.avatarInitial }}
+                    </div>
+                    <div class="member-info-col">
+                      <div class="member-title-row">
+                        <strong class="member-name">{{ m.name }}</strong>
+                        <span class="member-type-badge" [class.member-type-badge--instructor]="m.type === 'instructor'">
+                          {{ m.typeAr }}
+                        </span>
+                      </div>
+                      <span class="member-subtext">{{ m.faculty }} • {{ m.phone }}</span>
+                    </div>
+                    <button type="button" class="btn-select-chip">
+                      + {{ t().selectBtn }}
+                    </button>
+                  </div>
+                } @empty {
+                  <div class="empty-suggestion">
+                    <span>{{ t().noData }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Student Name -->
+        <div class="field-group">
+          <label class="field-label">{{ t().studentName }} *</label>
+          <input
+            type="text"
+            class="custom-input"
+            [placeholder]="isArabic() ? 'مثال: أحمد سعيد' : 'e.g. Ahmed Said'"
+            [ngModel]="formName()"
+            (ngModelChange)="formName.set($event)"
+            name="formName"
+          />
+        </div>
+
+        <!-- Phone Number -->
+        <div class="field-group">
+          <label class="field-label">{{ t().phone }} *</label>
+          <input
+            type="text"
+            class="custom-input"
+            [placeholder]="'01012345678'"
+            [ngModel]="formPhone()"
+            (ngModelChange)="formPhone.set($event)"
+            name="formPhone"
+          />
+        </div>
+
+        <!-- Faculty / College -->
+        <div class="field-group">
+          <label class="field-label">{{ t().college }}</label>
+          <input
+            type="text"
+            class="custom-input"
+            [placeholder]="isArabic() ? 'مثال: هندسة - جامعة القاهرة' : 'e.g. Engineering - Cairo Univ'"
+            [ngModel]="formFaculty()"
+            (ngModelChange)="formFaculty.set($event)"
+            name="formFaculty"
+          />
+        </div>
+
+        <!-- Severity Level -->
+        <div class="field-group">
+          <label class="field-label">{{ t().selectSeverity }}</label>
+          <app-custom-select
+            [options]="severityOptions()"
+            [selectedValue]="formSeverity()"
+            [fullWidth]="true"
+            (valueChange)="formSeverity.set($any($event))"
+          ></app-custom-select>
+        </div>
+
+        <!-- Reason for Blocking -->
+        <div class="field-group full-width">
+          <label class="field-label">{{ t().violationReason }} *</label>
+          <textarea
+            class="custom-textarea"
+            rows="3"
+            [placeholder]="t().violationDetailsPlaceholder"
+            [ngModel]="formReason()"
+            (ngModelChange)="formReason.set($event)"
+            name="formReason"
+          ></textarea>
+        </div>
+
+        <!-- Additional Notes -->
+        <div class="field-group full-width">
+          <label class="field-label">{{ t().adminNotesOptional }}</label>
+          <input
+            type="text"
+            class="custom-input"
+            [placeholder]="isArabic() ? 'ملاحظات المتابعة أو شروط إلغاء الحظر...' : 'Follow-up notes or unblock conditions...'"
+            [ngModel]="formNotes()"
+            (ngModelChange)="formNotes.set($event)"
+            name="formNotes"
+          />
+        </div>
+      </div>
+
+      <div class="modal-footer-actions">
+        <button type="button" class="btn-cancel" (click)="closeBlockModal()">
+          {{ t().cancel }}
+        </button>
+
+        <button type="submit" class="btn-confirm-block-action">
+          {{ t().confirmBlockActionBtn }}
+        </button>
+      </div>
+    </form>
+  </app-modal>
+
+  <!-- Unblock Confirmation Dialog Modal -->
+  @if (isUnblockModalOpen() && recordToUnblock(); as rec) {
+    <div class="modal-overlay" (click)="closeUnblockModal()">
+      <div class="unblock-dialog-card" (click)="$event.stopPropagation()">
+        <div class="unblock-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" style="width: 32px; height: 32px;">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+        </div>
+
+        <h3 class="unblock-dialog-title">{{ t().confirmUnblockTitle }}</h3>
+        <p class="unblock-dialog-subtitle">
+          {{ t().confirmUnblockDesc }} ("{{ rec.name }}")
+        </p>
+
+        <div class="unblock-dialog-footer">
+          <button type="button" class="btn-cancel" (click)="closeUnblockModal()">
+            {{ t().cancel }}
+          </button>
+          <button type="button" class="btn-confirm-unblock" (click)="confirmUnblock()">
+            {{ t().yesUnblockBtn }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Record Details Modal -->
+  <app-modal
+    [isOpen]="isDetailsModalOpen()"
+    [title]="t().membersInfo"
+    (close)="closeDetailsModal()"
+  >
+    @if (recordDetails(); as det) {
+      <div class="details-modal-content">
+        <div class="details-head-wrap">
+          <div class="details-avatar">
+            {{ det.name.charAt(0) }}
+          </div>
+          <div>
+            <h4 class="details-name">{{ det.name }}</h4>
+            <span class="details-phone">{{ det.phone }}</span>
+          </div>
+        </div>
+
+        <div class="details-grid">
+          <div class="details-item">
+            <span class="details-label">{{ t().college }}:</span>
+            <strong class="details-val">{{ det.faculty || 'General' }}</strong>
+          </div>
+
+          <div class="details-item">
+            <span class="details-label">{{ t().blockDate }}:</span>
+            <strong class="details-val">{{ det.blockedDate }}</strong>
+          </div>
+
+          <div class="details-item">
+            <span class="details-label">{{ t().blockType }}:</span>
+            <strong class="details-val">{{ det.severity === 'permanent' ? t().permanent : t().temporary }}</strong>
+          </div>
+
+          <div class="details-item full-width">
+            <span class="details-label">{{ t().violationReason }}:</span>
+            <p class="details-text-box">{{ det.reason }}</p>
+          </div>
+
+          @if (det.notes) {
+            <div class="details-item full-width">
+              <span class="details-label">{{ t().notes }}:</span>
+              <p class="details-text-box details-text-box--notes">{{ det.notes }}</p>
+            </div>
+          }
+        </div>
+
+        <div class="modal-footer-actions">
+          <button type="button" class="btn-cancel" (click)="closeDetailsModal()">
+            {{ t().cancel }}
+          </button>
+        </div>
+      </div>
+    }
+  </app-modal>
+</div>

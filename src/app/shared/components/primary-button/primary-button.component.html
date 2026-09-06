@@ -1,0 +1,11 @@
+<button
+  [type]="type()"
+  class="btn-primary-action"
+  [class.btn-primary-action--full]="fullWidth()"
+  (click)="onClick($event)"
+>
+  <span class="btn-icon-slot">
+    <ng-content select="[icon]"></ng-content>
+  </span>
+  <span class="btn-text-label">{{ text() }}<ng-content></ng-content></span>
+</button>

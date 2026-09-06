@@ -1,0 +1,1314 @@
+<div class="page-container">
+  <!-- Page Header -->
+  <div class="page-head">
+    <div class="header-text">
+      <h1 class="page-title">{{ t().classroomLiveBoard }}</h1>
+      <p class="page-subtitle">{{ t().classroomLiveBoardDesc }}</p>
+    </div>
+
+    <app-primary-button (clicked)="openBookingModal()">
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+      <span>{{ t().newClassroomBooking }}</span>
+    </app-primary-button>
+  </div>
+
+  <!-- Filters Bar -->
+  <div class="filters-bar">
+    <div class="search-input-wrap">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <input type="text" class="search-input" [placeholder]="t().searchClassrooms" [ngModel]="searchQuery()"
+        (ngModelChange)="searchQuery.set($event)" />
+    </div>
+
+    <!-- Status Dropdown (Custom like Student) -->
+    <app-custom-select [options]="statusOptions()" [selectedValue]="selectedStatus()"
+      (valueChange)="selectedStatus.set($any($event))"></app-custom-select>
+
+    <!-- Date Dropdown Filter Component (Custom like Student) -->
+    <app-date-filter-dropdown [selectedOption]="selectedDateOption()" [customDate]="customDateValue()"
+      (optionChange)="selectedDateOption.set($event)"
+      (customDateChange)="customDateValue.set($event)"></app-date-filter-dropdown>
+  </div>
+
+  <!-- Classroom Cards Grid -->
+  <div class="cards-grid">
+    @for (card of filteredCards(); track card.id) {
+    @if (card.status !== 'available') {
+    <!-- Active / Scheduled Room Card with Room Color Accent -->
+    <div class="room-card card-active card-theme--{{ card.colorTheme || 'blue' }}"
+      [style.--card-accent]="card.accentColor || '#2563eb'">
+      <!-- Room Image -->
+      <div class="room-card__media">
+        <img [src]="getRoomImage(card.image)" (error)="onImageError($event)" [alt]="card.name" class="room-img" loading="lazy" />
+
+        <!-- Timing Alert Overlay on Image -->
+        @if (card.timeAlertStatus && card.timeAlertStatus !== 'normal') {
+        <div class="room-media-alert room-media-alert--{{ card.timeAlertStatus }}">
+          @if (card.timeAlertStatus === 'ending_soon') {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="alert-icon-mini">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          } @else if (card.timeAlertStatus === 'ended_grace') {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="alert-icon-mini">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          } @else if (card.timeAlertStatus === 'overtime_charged') {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="alert-icon-mini">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          }
+          <span>{{ card.timeAlertMessage }}</span>
+        </div>
+        }
+      </div>
+
+      <div class="room-card__content">
+        <!-- Title & Status -->
+        <div class="room-card__header">
+          <h3 class="room-name">{{ formatRoom(card.name) }}</h3>
+          @if (card.status === 'active') {
+          <span class="status-pill status-pill--active">
+            <span class="dot"></span>
+            {{ isArabic() ? 'مشغولة حالياً' : 'In Session' }}
+          </span>
+          } @else if (card.status === 'scheduled') {
+          <span class="status-pill status-pill--scheduled">
+            <span class="dot"></span>
+            {{ t().statusScheduled }}
+          </span>
+          } @else {
+          <span class="status-pill status-pill--completed">
+            <span class="dot"></span>
+            {{ t().statusCompleted }}
+          </span>
+          }
+        </div>
+
+        <!-- Activity / Subject -->
+        <p class="room-activity">{{ formatActivity(card.activity) }}</p>
+
+        <!-- Metadata Details -->
+        <div class="room-meta-group">
+          <!-- Instructor -->
+          <div class="meta-row">
+            <div class="meta-icon-wrap">
+              <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </div>
+            <div class="meta-info">
+              <span class="meta-label">{{ t().instructor }}</span>
+              <span class="meta-value">{{ formatName(card.instructor) }}</span>
+            </div>
+          </div>
+
+          <!-- Time & Duration -->
+          <div class="meta-row">
+            <div class="meta-icon-wrap">
+              <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+            </div>
+            <div class="meta-info">
+              <span class="meta-label">{{ t().startedAt }} {{ formatTime(card.startTime) }}</span>
+              <span class="meta-value">{{ formatDuration(card.elapsed) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Financial Metrics (2 Individual Rounded Boxes) -->
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <span class="metric-label">{{ t().rental }}</span>
+            @if (card.paymentMode === 'package') {
+              <div style="display: flex; align-items: center; gap: 4px;">
+                <span class="badge-pkg-deducted" style="padding: 2px 6px; font-size: 0.72rem;">{{ t().packageActiveBadge }}</span>
+                <strong class="metric-val" style="color: var(--success); font-size: 0.88rem;">0.00 {{ t().currency }}</strong>
+              </div>
+            } @else {
+              <strong class="metric-val">{{ (card.rental && card.rental > 0 ? card.rental : ((card.durationHours || 1) * (card.hourlyRate || 40))).toFixed(2) }} {{ t().currency }}</strong>
+            }
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">{{ t().catering }}</span>
+            <strong class="metric-val" [class.metric-val--dim]="card.catering === undefined">
+              {{ card.catering !== undefined ? (card.catering.toFixed(2) + ' ' + t().currency) : '--' }}
+            </strong>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="card-actions">
+          <button type="button" class="action-btn action-btn--ghost" (click)="openEditBookingModal(card)">
+            {{ t().edit }}
+          </button>
+          <button type="button" class="action-btn action-btn--ghost" (click)="onAddCatering(card)">
+            {{ t().addCatering }}
+          </button>
+          <button type="button" class="action-btn action-btn--checkout" (click)="openCheckoutModal(card)">
+            {{ t().checkOutBtn }}
+          </button>
+        </div>
+      </div>
+    </div>
+    } @else {
+    <!-- Available / Empty Room Card -->
+    <div class="room-card card-empty">
+      <div class="empty-state-wrap">
+        <div class="empty-icon-wrap">
+          <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path
+              d="M3 21h18M3 7v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7M3 7l9-4 9 4M10 21v-8a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v8">
+            </path>
+          </svg>
+        </div>
+        <p class="empty-text">{{ t().roomEmptyTitle }}</p>
+        <button type="button" class="btn-book-room" (click)="openBookingModal(card.name)">
+          {{ t().bookRoom }}
+        </button>
+      </div>
+    </div>
+    }
+    } @empty {
+    <div class="empty-state-box">
+      <p class="empty-text">{{ t().emptyStateNoClassrooms }}</p>
+    </div>
+    }
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL 1: ADD / EDIT BOOKING MODAL
+     ============================================================ -->
+@if (isBookingModalOpen()) {
+<div class="modal-backdrop" (click)="closeBookingModal()">
+  <div class="modal-dialog modal-dialog--wide" (click)="$event.stopPropagation()">
+    <!-- Modal Header -->
+    <div class="modal-header">
+      <div class="modal-header__text">
+        <h2 class="modal-title">
+          {{ editingCardId() ? (t().edit + ' ' + t().classrooms) : t().newClassroomBooking }}
+        </h2>
+        <p class="modal-subtitle">{{ t().configureBookingDetails }}</p>
+      </div>
+      <button type="button" class="btn-close-circle" (click)="closeBookingModal()" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Modal Body (2 Columns) -->
+    <div class="modal-grid">
+      <!-- LEFT COLUMN: Core Details & Rates -->
+      <div class="modal-col">
+        <!-- Section 1: Core Details -->
+        <div class="modal-section-card">
+          <h3 class="section-card-title">{{ t().coreDetails }}</h3>
+
+          <!-- Instructor with Autocomplete Dropdown -->
+          <div class="field-wrap instructor-autocomplete-wrap" style="position: relative;">
+            <label class="field-label">{{ t().instructor }}</label>
+            <div class="input-container">
+              <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input
+                type="text"
+                class="custom-input"
+                [placeholder]="t().instructorPlaceholder"
+                [ngModel]="bookingInstructor()"
+                (focus)="isInstructorDropdownOpen.set(true)"
+                (input)="onInstructorInput($event); isInstructorDropdownOpen.set(true)"
+              />
+              @if (bookingInstructor()) {
+                <button type="button" class="input-clear-btn" (click)="clearBookingInstructor()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                  </svg>
+                </button>
+              }
+            </div>
+
+            <!-- Autocomplete Dropdown List -->
+            @if (isInstructorDropdownOpen() && instructorOptions().length > 0) {
+              <div class="instructor-dropdown-list">
+                @for (member of instructorOptions(); track member.id) {
+                  <div class="instructor-dropdown-item" (click)="selectInstructor(member)">
+                    <div class="instructor-avatar-pill" [class.student-avatar-pill]="member.type === 'student'">
+                      {{ (isArabic() ? member.nameAr : member.nameEn).charAt(0) }}
+                    </div>
+                    <div class="instructor-item-meta">
+                      <div class="instructor-item-header">
+                        <strong class="instructor-item-name">{{ isArabic() ? member.nameAr : member.nameEn }}</strong>
+                        @if (member.type === 'student') {
+                          <span class="badge-role-tag badge-role--student">
+                            {{ isArabic() ? 'طالب' : 'Student' }}
+                          </span>
+                        } @else {
+                          <span class="badge-role-tag badge-role--instructor">
+                            {{ isArabic() ? 'إنستراكتور' : 'Instructor' }}
+                          </span>
+                        }
+                        @if (hasInstructorActivePackage(member)) {
+                          <span class="badge-instructor-pkg">
+                            <span class="status-dot"></span>
+                            {{ t().packageActiveBadge }}
+                          </span>
+                        }
+                      </div>
+                      <span class="instructor-item-sub">{{ isArabic() ? member.subAr : member.subEn }} • {{ member.phone }}</span>
+                    </div>
+                    <span class="btn-select-instructor-pill">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 12px; height: 12px;">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                      {{ t().selectBtn }}
+                    </span>
+                  </div>
+                }
+              </div>
+            }
+
+            @if (bookingInstructor() && !isInstructorValid()) {
+              <span class="field-error-msg">{{ t().errorInstructor }}</span>
+            }
+          </div>
+
+          <!-- Activity / Subject -->
+          <div class="field-wrap">
+            <label class="field-label">{{ t().activitySubject }}</label>
+            <div class="input-container">
+              <input type="text" class="custom-input" [placeholder]="t().activityPlaceholder" [ngModel]="bookingActivity()"
+                (input)="onActivityInput($event)" />
+            </div>
+            @if (bookingActivity() && !isActivityValid()) {
+              <span class="field-error-msg">{{ t().errorActivity }}</span>
+            }
+          </div>
+
+          <!-- Phone & Email -->
+          <div class="row-grid-2">
+            <div class="field-wrap">
+              <label class="field-label">{{ t().phoneNumber }}</label>
+              <div class="input-container">
+                <input type="tel" class="custom-input" [placeholder]="t().phonePlaceholder" [ngModel]="bookingPhone()"
+                  (input)="onPhoneInput($event)" />
+              </div>
+              @if (bookingPhone() && !isPhoneValid()) {
+                <span class="field-error-msg">{{ t().errorPhone }}</span>
+              }
+            </div>
+            <div class="field-wrap">
+              <label class="field-label">{{ t().emailAddress }}</label>
+              <div class="input-container">
+                <input type="email" class="custom-input" [placeholder]="t().emailPlaceholder" [ngModel]="bookingEmail()"
+                  (input)="onEmailInput($event)" />
+              </div>
+              @if (bookingEmail() && !isEmailValid()) {
+                <span class="field-error-msg">{{ t().errorEmail }}</span>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Timing & Schedule -->
+        <div class="modal-section-card">
+          <h3 class="section-card-title">{{ t().ratesAndTiming }}</h3>
+
+          <!-- Booking Date -->
+          <div class="field-wrap">
+            <label class="field-label">{{ t().bookingDate }}</label>
+            <div class="input-container date-input-container" (click)="bookingDatePicker.showPicker()">
+              <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <input #bookingDatePicker type="date" class="custom-input custom-input--date" [min]="todayDate()"
+                [ngModel]="bookingDate()" (ngModelChange)="bookingDate.set($event)"
+                (click)="bookingDatePicker.showPicker()" />
+            </div>
+          </div>
+
+          <!-- Start & End Time -->
+          <div class="row-grid-2">
+            <!-- Start Time -->
+            <div class="field-wrap">
+              <label class="field-label">{{ t().startTime }}</label>
+              <div class="time-picker-box"
+                [class.time-picker-box--invalid]="!isTimeRangeValid() && bookingStartTime() && bookingEndTime()">
+                <svg class="time-box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <div class="time-digits">
+                  <input type="text" class="time-num-input" placeholder="02" maxlength="2" [ngModel]="startHour()"
+                    (ngModelChange)="startHour.set($event)" />
+                  <span class="time-colon">:</span>
+                  <input type="text" class="time-num-input" placeholder="00" maxlength="2" [ngModel]="startMinute()"
+                    (ngModelChange)="startMinute.set($event)" />
+                </div>
+                <div class="period-toggle-pill">
+                  <button type="button" class="period-opt" [class.period-opt--active]="startPeriod() === 'AM'"
+                    (click)="startPeriod.set('AM')">
+                    AM
+                  </button>
+                  <button type="button" class="period-opt" [class.period-opt--active]="startPeriod() === 'PM'"
+                    (click)="startPeriod.set('PM')">
+                    PM
+                  </button>
+                </div>
+              </div>
+              <button type="button" class="btn-time-now" (click)="setStartTimeToNow()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="now-icon">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span>{{ t().now }}</span>
+              </button>
+            </div>
+
+            <!-- End Time -->
+            <div class="field-wrap">
+              <label class="field-label">{{ t().endTime }}</label>
+              <div class="time-picker-box"
+                [class.time-picker-box--invalid]="!isTimeRangeValid() && bookingStartTime() && bookingEndTime()">
+                <svg class="time-box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <div class="time-digits">
+                  <input type="text" class="time-num-input" placeholder="05" maxlength="2" [ngModel]="endHour()"
+                    (ngModelChange)="endHour.set($event)" />
+                  <span class="time-colon">:</span>
+                  <input type="text" class="time-num-input" placeholder="00" maxlength="2" [ngModel]="endMinute()"
+                    (ngModelChange)="endMinute.set($event)" />
+                </div>
+                <div class="period-toggle-pill">
+                  <button type="button" class="period-opt" [class.period-opt--active]="endPeriod() === 'AM'"
+                    (click)="endPeriod.set('AM')">
+                    AM
+                  </button>
+                  <button type="button" class="period-opt" [class.period-opt--active]="endPeriod() === 'PM'"
+                    (click)="endPeriod.set('PM')">
+                    PM
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          @if (!isTimeRangeValid() && bookingStartTime() && bookingEndTime()) {
+          <div class="time-range-error">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="error-msg-icon">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span>{{ t().invalidTimeRange }}</span>
+          </div>
+          } @else if (isTimeRangeValid() && crossesMidnight()) {
+          <div class="time-range-note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="error-msg-icon"
+              style="color: var(--yellow);">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span>{{ t().timeAlertCrossMidnight }}</span>
+          </div>
+          }
+
+          @if (isTimeRangeValid() && hasBookingOverlap()) {
+          <div class="time-range-error" style="margin-top: 8px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="error-msg-icon">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span>{{ t().timeAlertOverlap }}</span>
+          </div>
+          }
+        </div>
+
+        <!-- Section 3: Package & Payment Option -->
+        <div class="modal-section-card">
+          <h3 class="section-card-title">{{ t().selectPackageOrCash }}</h3>
+
+          <!-- Instructor Package Detection Card -->
+          @if (matchedInstructorPackage(); as pkg) {
+            <div class="instructor-package-card">
+              <div class="pkg-card-top">
+                <div class="pkg-info">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="pkg-badge-icon">
+                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                  </svg>
+                  <strong class="pkg-name">{{ isArabic() ? pkg.packageNameAr : pkg.packageNameEn }}</strong>
+                </div>
+                <div class="pkg-hours-badge" [class.pkg-hours-badge--low]="pkg.remainingHours <= 3">
+                  <span class="pkg-hours-num">{{ pkg.remainingHours }}</span>
+                  <span class="pkg-hours-label">{{ t().hrs }}</span>
+                </div>
+              </div>
+
+              <!-- Payment Mode Selector -->
+              <div class="payment-mode-toggle-grid">
+                <button
+                  type="button"
+                  class="btn-mode-card"
+                  [class.btn-mode-card--active]="bookingPaymentMode() === 'package'"
+                  (click)="bookingPaymentMode.set('package')"
+                  [disabled]="pkg.remainingHours <= 0"
+                >
+                  <div class="mode-card-left">
+                    <div class="mode-card-radio">
+                      <div class="radio-inner" [class.radio-inner--active]="bookingPaymentMode() === 'package'"></div>
+                    </div>
+                    <strong class="mode-title">{{ t().deductFromPackage }}</strong>
+                  </div>
+                  <span class="mode-cost-free">0.00 {{ t().currency }}</span>
+                </button>
+
+                <button
+                  type="button"
+                  class="btn-mode-card"
+                  [class.btn-mode-card--active]="bookingPaymentMode() === 'cash'"
+                  (click)="bookingPaymentMode.set('cash')"
+                >
+                  <div class="mode-card-left">
+                    <div class="mode-card-radio">
+                      <div class="radio-inner" [class.radio-inner--active]="bookingPaymentMode() === 'cash'"></div>
+                    </div>
+                    <strong class="mode-title">{{ t().payCashDirect }}</strong>
+                  </div>
+                  <span class="mode-cost-standard">{{ (bookingHourlyRate() * (bookingDurationHours() || 1)).toFixed(2) }} {{ t().currency }}</span>
+                </button>
+              </div>
+            </div>
+          } @else {
+            <div class="no-package-notice-card">
+              <div class="notice-info">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="notice-icon">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <span>{{ t().noActivePackage }}</span>
+              </div>
+              <span class="badge-standard-rate">{{ (bookingHourlyRate() * (bookingDurationHours() || 1)).toFixed(2) }} {{ t().currency }}</span>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: Logistics & Summary -->
+      <div class="modal-col">
+        <!-- Logistics -->
+        <div class="modal-section-card">
+          <div class="room-selector-header">
+            <label class="field-label">{{ t().room }}</label>
+            <span class="badge-confirmed">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="check-icon">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              {{ t().availabilityConfirmed }}
+            </span>
+          </div>
+
+          <div class="room-select-grid">
+            @for (r of selectableRooms(); track r.id) {
+            <div class="room-thumb-card" [class.room-thumb-card--active]="selectedRoomId() === r.id"
+              (click)="selectRoom(r.id)">
+              <div class="room-thumb-media">
+                <img [src]="getRoomImage(r.image)" (error)="onImageError($event)" [alt]="r.name" class="room-thumb-img" loading="lazy" />
+              </div>
+              <div class="room-thumb-info">
+                <strong class="room-thumb-name">{{ isArabic() ? (r.nameAr || r.name) : (r.nameEn || r.name) }}</strong>
+                <span class="room-thumb-capacity">MAX {{ r.maxCapacity }}</span>
+              </div>
+            </div>
+            }
+          </div>
+        </div>
+
+        <!-- Booking Summary -->
+        <div class="modal-section-card summary-section-card">
+          <h3 class="summary-heading">{{ t().bookingSummary }}</h3>
+
+          @if (bookingPaymentMode() === 'package' && matchedInstructorPackage()) {
+            <!-- Package Mode Summary -->
+            <div class="summary-lines">
+              <div class="summary-line">
+                <span class="summary-label">{{ t().selectPackageOrCash }}</span>
+                <span class="badge-pkg-deducted">{{ t().deductedFromPackage }}</span>
+              </div>
+              <div class="summary-line">
+                <span class="summary-label">{{ t().duration }}</span>
+                <strong class="summary-value">{{ bookingDurationHours() }} {{ t().hrs }}</strong>
+              </div>
+            </div>
+
+            <!-- Total Row -->
+            <div class="total-row" style="margin-top: 8px;">
+              <span class="total-label">{{ t().total }}</span>
+              <span class="total-amount" style="color: var(--success);">0.00 {{ t().currency }}</span>
+            </div>
+          } @else {
+            <!-- Cash / Standard Mode Summary -->
+            <div class="summary-lines">
+              <div class="summary-line">
+                <div class="summary-label-with-action">
+                  <span class="summary-label">{{ t().hourlyRate }}</span>
+                  @if (!isEditingBookingRate()) {
+                  <button type="button" class="btn-summary-edit" (click)="startEditingBookingRate()"
+                    [title]="t().editHourlyRateTooltip">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tiny-summary-icon">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                    <span>{{ t().edit }}</span>
+                  </button>
+                  }
+                </div>
+                @if (!isEditingBookingRate()) {
+                <strong class="summary-value">{{ bookingHourlyRate() }} {{ t().currency }}/{{ t().hrs }}</strong>
+                } @else {
+                <div class="summary-rate-edit-box">
+                  <input type="number" min="0" step="5" class="summary-rate-input" [ngModel]="tempBookingRate()"
+                    (ngModelChange)="tempBookingRate.set(+$event)"
+                    (keydown.enter)="$event.preventDefault(); saveBookingRate()"
+                    (keydown.escape)="isEditingBookingRate.set(false)" (blur)="saveBookingRate()" autofocus />
+                  <button type="button" class="btn-save-mini" (click)="saveBookingRate()" [title]="t().save">✓</button>
+                </div>
+                }
+              </div>
+
+              <div class="summary-line">
+                <span class="summary-label">{{ t().duration }}</span>
+                <strong class="summary-value">{{ bookingDurationHours() }} {{ t().hrs }}</strong>
+              </div>
+
+              <div class="summary-line">
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <span class="summary-label">{{ t().fullHallRental }}</span>
+                  <span style="font-size: 0.72rem; color: var(--text-dim);">
+                    {{ t().fullHallRentalDesc }}
+                  </span>
+                </div>
+                <strong class="summary-value">{{ bookingRoomRentalTotal().toFixed(2) }} {{ t().currency }}</strong>
+              </div>
+
+              <div class="summary-divider"></div>
+
+              <div class="summary-line subtotal-line">
+                <span class="summary-label">{{ t().subtotal }}</span>
+                <strong class="summary-value">{{ bookingSubtotal().toFixed(2) }} {{ t().currency }}</strong>
+              </div>
+            </div>
+
+            <!-- Expandable Discount / Promo Box (Only for Cash) -->
+            <div class="promo-coupon-wrap">
+              @if (!appliedCoupon()) {
+                @if (!isBookingDiscountSectionOpen()) {
+                  <div class="add-discount-trigger-row">
+                    <button type="button" class="btn-add-discount-link" (click)="isBookingDiscountSectionOpen.set(true)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                      </svg>
+                      <span>{{ t().addDiscountOrAdjustment }}</span>
+                    </button>
+                  </div>
+                } @else {
+                  <div class="discount-inline-box">
+                    <div class="discount-box-head">
+                      <span class="tiny-label">{{ t().applyDiscountOrAdjustment }}</span>
+                      <button type="button" class="btn-close-mini" (click)="isBookingDiscountSectionOpen.set(false)">&times;</button>
+                    </div>
+
+                    <!-- Quick Percentage Preset Offers -->
+                    <div class="discount-presets-row">
+                      <button type="button" class="btn-discount-preset" (click)="applyBookingPercentDiscount(0.10)">
+                        10%
+                      </button>
+                      <button type="button" class="btn-discount-preset" (click)="applyBookingPercentDiscount(0.15)">
+                        15%
+                      </button>
+                      <button type="button" class="btn-discount-preset" (click)="applyBookingPercentDiscount(0.20)">
+                        20%
+                      </button>
+                      <button type="button" class="btn-discount-preset" (click)="applyBookingPercentDiscount(0.25)">
+                        25%
+                      </button>
+                    </div>
+
+                    <!-- Promo Code Input Group -->
+                    <div class="coupon-input-group">
+                      <input type="text" class="coupon-input" [placeholder]="t().enterPromoCodePlaceholder"
+                        [ngModel]="couponCode()" (ngModelChange)="couponCode.set($event)"
+                        (keydown.enter)="$event.preventDefault(); applyCoupon()" />
+                      <button type="button" class="btn-coupon-apply" (click)="applyCoupon()">
+                        {{ t().applyPromoCode }}
+                      </button>
+                    </div>
+                    @if (couponError()) {
+                      <span class="coupon-error-msg">{{ couponError() }}</span>
+                    }
+                  </div>
+                }
+              } @else {
+                <!-- Applied Coupon / Offer Pill -->
+                <div class="coupon-applied-pill">
+                  <div class="coupon-pill-info">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tag-icon">
+                      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                      <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                    </svg>
+                    <strong>{{ appliedCoupon()?.code }} ({{ appliedCoupon()?.discountName }})</strong>
+                  </div>
+                  <button type="button" class="btn-remove-coupon" (click)="removeCoupon()">&times;</button>
+                </div>
+              }
+            </div>
+
+            @if (appliedCoupon()) {
+            <div class="discount-applied-row">
+              <span>{{ t().discountApplied }}</span>
+              <span class="discount-value">-{{ bookingDiscountAmount().toFixed(2) }} {{ t().currency }}</span>
+            </div>
+            }
+
+            <!-- Total Row -->
+            <div class="total-row">
+              <span class="total-label">{{ t().total }}</span>
+              <span class="total-amount">{{ bookingTotal().toFixed(2) }} {{ t().currency }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="modal-footer">
+      <button type="button" class="btn btn--ghost" (click)="closeBookingModal()">
+        {{ t().cancel }}
+      </button>
+      <button type="button" class="btn btn--primary btn-modal-confirm" [disabled]="!isBookingFormValid()"
+        [class.btn--disabled]="!isBookingFormValid()" (click)="confirmNewBooking()">
+        {{ editingCardId() ? t().saveChanges : t().confirmBooking }}
+      </button>
+    </div>
+  </div>
+</div>
+}
+
+<!-- ============================================================
+     MODAL 2: CHECKOUT MODAL
+     ============================================================ -->
+@if (isCheckoutModalOpen() && activeCheckoutCard()) {
+<div class="modal-backdrop" (click)="closeCheckoutModal()">
+  <div class="modal-dialog modal-dialog--checkout" (click)="$event.stopPropagation()">
+    <!-- Modal Header -->
+    <div class="modal-header">
+      <div class="modal-header__text">
+        <h2 class="modal-title">{{ t().classroomCheckout }}</h2>
+        <p class="modal-subtitle">
+          {{ t().finalizingSessionFor }} {{ activeCheckoutCard()?.name }} &bull; {{ activeCheckoutCard()?.instructor }}
+        </p>
+      </div>
+      <button type="button" class="btn-close-circle" (click)="closeCheckoutModal()" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Modal Body (2 Columns) -->
+    <div class="modal-grid">
+      <!-- LEFT COLUMN: Session Details & Breakdown -->
+      <div class="modal-col">
+        <!-- Session Details Box -->
+        <div class="modal-section-card">
+          <div class="session-header-row">
+            <div class="activity-info">
+              <span class="tiny-label">{{ t().activity }}</span>
+              <strong class="activity-title">{{ activeCheckoutCard()?.activity }}</strong>
+            </div>
+            <span class="status-pill-completed">{{ t().statusCompleted }}</span>
+          </div>
+
+          <div class="timing-duration-row">
+            <div class="meta-item">
+              <span class="tiny-label">{{ t().timing }}</span>
+              <div class="timing-val">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tiny-icon">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span>{{ activeCheckoutCard()?.startTime }} - {{ activeCheckoutCard()?.endTime }}</span>
+              </div>
+            </div>
+
+            <div class="meta-item">
+              <span class="tiny-label">{{ t().duration }}</span>
+              <strong class="duration-val">{{ checkoutDurationHours() }} {{ t().hrs }}</strong>
+            </div>
+          </div>
+
+          <!-- Overtime notice if applicable -->
+          @if (checkoutOvertimeStatus() === 'grace_period') {
+          <div class="checkout-overtime-notice checkout-overtime-notice--grace">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="notice-icon">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <div class="notice-text-wrap">
+              <strong>{{ t().gracePeriodNotice }}</strong>
+              <span>{{ checkoutOvertimeAlertMessage() }}</span>
+            </div>
+          </div>
+          } @else if (checkoutOvertimeStatus() === 'extra_hour') {
+          <div class="checkout-overtime-notice checkout-overtime-notice--danger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="notice-icon">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            <div class="notice-text-wrap">
+              <strong>{{ t().overtimeAlertTitle }}</strong>
+              <span>{{ checkoutOvertimeAlertMessage() }}</span>
+            </div>
+          </div>
+          }
+        </div>
+
+        <!-- Financial Breakdown -->
+        <div class="modal-section-card">
+          <h3 class="section-card-title">{{ t().financialBreakdown }}</h3>
+
+          <div class="breakdown-lines">
+            <!-- 1. Room Rental -->
+            <div class="breakdown-line">
+              <div class="line-desc">
+                <div class="line-header">
+                  <strong class="line-title">{{ t().roomRental }}</strong>
+                  @if (!isCheckoutPackage()) {
+                    <button type="button" class="btn-row-action" (click)="openRateModal()"
+                      [title]="t().editRateAndDuration">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="row-action-icon">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                      </svg>
+                      <span>{{ t().edit }}</span>
+                    </button>
+                  } @else {
+                    <span class="badge-pkg-deducted" style="font-size: 0.72rem;">{{ t().deductedFromPackage }}</span>
+                  }
+                </div>
+                @if (!isCheckoutPackage()) {
+                  <span class="line-sub">{{ checkoutRoomRate() }} {{ t().currency }}/{{ t().hrs }} &times; {{
+                    checkoutDurationHours() }} {{ t().hrs }}</span>
+                } @else {
+                  <span class="line-sub" style="color: var(--success);">
+                    {{ t().fullyCoveredByPackage }}
+                  </span>
+                }
+              </div>
+              <div class="line-amount">
+                <span class="amount-number" [style.color]="isCheckoutPackage() ? 'var(--success)' : 'inherit'">
+                  {{ checkoutRoomRentalTotal().toFixed(2) }}
+                </span>
+                <span class="currency-symbol">{{ t().currency }}</span>
+              </div>
+            </div>
+
+            <!-- 2. Catering -->
+            <div class="breakdown-line">
+              <div class="line-desc">
+                <div class="line-header">
+                  <strong class="line-title">{{ t().canteenAndDrinks }}</strong>
+                  <button type="button" class="btn-row-action btn-row-action--canteen" (click)="openCateringModal()"
+                    [title]="t().addCanteenOrders">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                      class="row-action-icon">
+                      <line x1="12" y1="5" x2="12" y2="19"></line>
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    <span>{{ t().addBtn }}</span>
+                  </button>
+                </div>
+                <span class="line-sub">{{ t().teamLunch }}</span>
+              </div>
+              <div class="line-amount">
+                <span class="amount-number">{{ checkoutCateringAmount().toFixed(2) }}</span>
+                <span class="currency-symbol">{{ t().currency }}</span>
+              </div>
+            </div>
+
+            <!-- 3. Printing -->
+            <div class="breakdown-line">
+              <div class="line-desc">
+                <div class="line-header">
+                  <strong class="line-title">{{ t().printingAndPhotocopy }}</strong>
+                  <button type="button" class="btn-row-action btn-row-action--printing" (click)="openPrintingModal()"
+                    [title]="t().calcPrintingCharges">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="row-action-icon">
+                      <path
+                        d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z">
+                      </path>
+                    </svg>
+                    <span>{{ t().addBtn }}</span>
+                  </button>
+                </div>
+                <span class="line-sub">{{ t().handouts }}</span>
+              </div>
+              <div class="line-amount">
+                <span class="amount-number">{{ checkoutPrintingAmount().toFixed(2) }}</span>
+                <span class="currency-symbol">{{ t().currency }}</span>
+              </div>
+            </div>
+
+            <div class="dotted-divider"></div>
+
+            <!-- Subtotal -->
+            <div class="breakdown-line subtotal-row">
+              <strong class="line-title">{{ t().subtotal }}</strong>
+              <div class="line-amount">
+                <span class="amount-number">{{ checkoutSubtotal().toFixed(2) }}</span>
+                <span class="currency-symbol">{{ t().currency }}</span>
+              </div>
+            </div>
+
+            <!-- Loyalty Discount -->
+            @if (checkoutLoyaltyDiscount() > 0) {
+            <div class="breakdown-line discount-applied-line">
+              <div class="line-desc">
+                <div class="line-title-with-remove">
+                  <strong class="line-title success-text">{{ t().loyaltyDiscount }}</strong>
+                  <button type="button" class="btn-remove-discount" (click)="checkoutLoyaltyDiscount.set(0)"
+                    [title]="t().removeDiscountTooltip">
+                    &times;
+                  </button>
+                </div>
+                <span class="line-sub">{{ t().specialMemberRate }}</span>
+              </div>
+              <div class="line-amount success-text">
+                <span>-</span>
+                <span>{{ checkoutLoyaltyDiscount().toFixed(2) }}</span>
+                <span class="currency-symbol">{{ t().currency }}</span>
+              </div>
+            </div>
+            }
+
+            <!-- Manual Adjustment -->
+            @if (checkoutManualAdjustment() > 0) {
+            <div class="breakdown-line discount-applied-line">
+              <div class="line-desc">
+                <div class="line-title-with-remove">
+                  <span class="line-title warning-text">{{ t().manualAdjustment }}</span>
+                  <button type="button" class="btn-remove-discount" (click)="checkoutManualAdjustment.set(0)"
+                    [title]="t().removeAdjustmentTooltip">
+                    &times;
+                  </button>
+                </div>
+              </div>
+              <div class="line-amount warning-text">
+                <span>-</span>
+                <span>{{ checkoutManualAdjustment().toFixed(2) }}</span>
+                <span class="currency-symbol">{{ t().currency }}</span>
+              </div>
+            </div>
+            }
+
+            <!-- Add Discount Trigger -->
+            @if (checkoutLoyaltyDiscount() === 0 && checkoutManualAdjustment() === 0 && !isDiscountSectionOpen()) {
+            <div class="add-discount-trigger-row">
+              <button type="button" class="btn-add-discount-link" (click)="isDiscountSectionOpen.set(true)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>{{ t().addDiscountOrAdjustment }}</span>
+              </button>
+            </div>
+            }
+
+            <!-- Expandable Discount Input Area -->
+            @if (isDiscountSectionOpen()) {
+            <div class="discount-inline-box">
+              <div class="discount-box-head">
+                <span class="tiny-label">{{ t().applyDiscountOrAdjustment }}</span>
+                <button type="button" class="btn-close-mini" (click)="isDiscountSectionOpen.set(false)">&times;</button>
+              </div>
+              <div class="discount-presets-row">
+                <button type="button" class="btn-discount-preset" (click)="applyPercentDiscount(0.10)">
+                  10%
+                </button>
+                <button type="button" class="btn-discount-preset" (click)="applyPercentDiscount(0.15)">
+                  15%
+                </button>
+                <button type="button" class="btn-discount-preset" (click)="applyPercentDiscount(0.20)">
+                  20%
+                </button>
+              </div>
+              <div class="discount-custom-row">
+                <div class="input-container input-container--sm">
+                  <input type="number" min="0" step="5" class="custom-input"
+                    [placeholder]="t().directDiscountAmountPlaceholder" [ngModel]="customDiscountInput()"
+                    (ngModelChange)="customDiscountInput.set($event !== null && $event !== '' ? +$event : null)" />
+                </div>
+                <button type="button" class="btn btn--primary btn--sm" (click)="applyCustomDiscount()">
+                  {{ t().applyBtn }}
+                </button>
+              </div>
+            </div>
+            }
+          </div>
+
+          <!-- Final Amount Banner -->
+          <div class="final-amount-banner">
+            <span class="final-label">{{ t().finalAmount }}</span>
+            <div class="final-badge">
+              <span class="final-badge-val">{{ checkoutFinalAmount().toFixed(2) }} {{ t().currency }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: Payment Processing -->
+      <div class="modal-col">
+        <div class="modal-section-card">
+          <h3 class="section-card-title">{{ t().payment }}</h3>
+
+          @if (isCheckoutPackage() && checkoutFinalAmount() === 0) {
+            <!-- Package 0 EGP Mode -->
+            <div class="package-checkout-covered-banner" style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 10px; padding: 14px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 22px; height: 22px; color: var(--success); flex-shrink: 0;">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              <div style="display: flex; flex-direction: column; gap: 2px;">
+                <strong style="color: var(--success); font-size: 0.92rem;">{{ t().sessionFullyCoveredByPackage }}</strong>
+                <span style="color: var(--text-dim); font-size: 0.78rem;">{{ t().noAdditionalPaymentRequired }}</span>
+              </div>
+            </div>
+
+            <!-- Action Button for Package -->
+            <button
+              type="button"
+              class="btn btn--primary btn-process-checkout"
+              style="width: 100%; margin-top: 10px; cursor: pointer;"
+              (click)="confirmProcessCheckout()"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="process-icon">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="9 12 11 14 15 10"></polyline>
+              </svg>
+              <span>{{ t().completeSessionAndFreeRoom }}</span>
+            </button>
+          } @else {
+            <span class="field-label">{{ t().paymentMethod }}</span>
+
+            <!-- Payment Methods Grid -->
+            <div class="payment-methods-grid">
+              <div class="payment-option-card" [class.payment-option-card--active]="checkoutPaymentMethod() === 'cash'"
+                (click)="selectPaymentMethod('cash')">
+                <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M6 12h.01M18 12h.01"></path>
+                </svg>
+                <span class="pay-name">{{ t().cash }}</span>
+              </div>
+
+              <div class="payment-option-card"
+                [class.payment-option-card--active]="checkoutPaymentMethod() === 'vodafone'"
+                (click)="selectPaymentMethod('vodafone')">
+                <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                  <path d="M16 12h4m-2-2v4"></path>
+                </svg>
+                <span class="pay-name">{{ t().vodafoneCash }}</span>
+              </div>
+
+              <div class="payment-option-card" [class.payment-option-card--active]="checkoutPaymentMethod() === 'fawry'"
+                (click)="selectPaymentMethod('fawry')">
+                <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"></path>
+                  <path d="M8 7h8M8 11h8M8 15h4"></path>
+                </svg>
+                <span class="pay-name">{{ t().fawry }}</span>
+              </div>
+
+              <div class="payment-option-card"
+                [class.payment-option-card--active]="checkoutPaymentMethod() === 'instapay'"
+                (click)="selectPaymentMethod('instapay')">
+                <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                <span class="pay-name">{{ t().instaPay }}</span>
+              </div>
+            </div>
+
+            <!-- Amount Received Input -->
+            <div class="field-wrap" style="margin-top: 14px;">
+              <label class="field-label">{{ t().amountReceived }}</label>
+              <div class="amount-input-box" [class.amount-input-box--invalid]="checkoutAmountReceived() !== null && !isCheckoutPaymentValid()">
+                <span class="input-currency">{{ t().currency }}</span>
+                <input type="number" step="0.01" class="amount-received-input" placeholder="0.00"
+                  [ngModel]="checkoutAmountReceived()"
+                  (ngModelChange)="checkoutAmountReceived.set($event !== null && $event !== '' ? +$event : null)" />
+              </div>
+              @if (checkoutAmountReceived() !== null && !isCheckoutPaymentValid()) {
+                <span class="field-error-msg" style="color: var(--danger); font-size: 0.76rem; font-weight: 600; margin-top: 4px; display: block;">
+                  {{ t().errorAmountReceivedLow }} ({{ checkoutFinalAmount().toFixed(2) }} {{ t().currency }})
+                </span>
+              }
+            </div>
+
+            <!-- Change Due Box -->
+            <div class="change-due-box">
+              <span class="change-label">{{ t().changeDue }}</span>
+              <span class="change-amount">{{ checkoutChangeDue().toFixed(2) }} {{ t().currency }}</span>
+            </div>
+
+            <!-- Action Button -->
+            <button
+              type="button"
+              class="btn btn--primary btn-process-checkout"
+              [disabled]="!isCheckoutPaymentValid()"
+              [style.opacity]="!isCheckoutPaymentValid() ? '0.5' : '1'"
+              [style.cursor]="!isCheckoutPaymentValid() ? 'not-allowed' : 'pointer'"
+              (click)="confirmProcessCheckout()"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="process-icon">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="9 12 11 14 15 10"></polyline>
+              </svg>
+              <span>{{ t().processPaymentAndFreeRoom }}</span>
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+}
+
+<!-- ============================================================
+     SUB-MODAL 1: CATERING PICKER
+     ============================================================ -->
+@if (isCateringModalOpen()) {
+<div class="modal-backdrop modal-backdrop--nested" (click)="closeCateringModal()">
+  <div class="modal-dialog modal-dialog--products" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-header__text">
+        <h2 class="modal-title">{{ t().addCanteenOrders }}</h2>
+        <p class="modal-subtitle">{{ t().selectItemsOrCustom }}</p>
+      </div>
+      <button type="button" class="btn-close-circle" (click)="closeCateringModal()" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="products-list-wrap">
+      @for (prod of cateringProducts(); track prod.id) {
+      <div class="product-item-row">
+        <div class="product-info">
+          <strong class="product-name">{{ isArabic() ? prod.nameAr : prod.nameEn }}</strong>
+          <span class="product-price">{{ prod.price }} {{ t().currency }}</span>
+        </div>
+        <div class="product-stepper">
+          <button type="button" class="stepper-btn" (click)="decrementProduct(prod.id)" [disabled]="prod.count <= 0">
+            -
+          </button>
+          <span class="stepper-count">{{ prod.count }}</span>
+          <button type="button" class="stepper-btn" (click)="incrementProduct(prod.id)">+</button>
+        </div>
+      </div>
+      }
+
+      <div class="field-wrap" style="margin-top: 10px;">
+        <label class="field-label">{{ t().orEnterCustomAmount }}</label>
+        <div class="input-container">
+          <input type="number" min="0" step="5" class="custom-input" [placeholder]="'50'"
+            [ngModel]="customCateringInput()"
+            (ngModelChange)="customCateringInput.set($event !== null && $event !== '' ? +$event : null)" />
+          <button type="button" class="btn-add-products" (click)="saveCustomCateringAmount()">
+            {{ t().applyAmount }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="products-modal-footer">
+      <div class="products-total">
+        <span class="sub-label">{{ t().cateringTotal }}</span>
+        <strong class="total-val">{{ checkoutCateringAmount().toFixed(2) }} {{ t().currency }}</strong>
+      </div>
+      <button type="button" class="btn btn--primary" (click)="closeCateringModal()">
+        {{ t().confirmAndDone }}
+      </button>
+    </div>
+  </div>
+</div>
+}
+
+<!-- ============================================================
+     SUB-MODAL 2: PRINTING CALCULATOR
+     ============================================================ -->
+@if (isPrintingModalOpen()) {
+<div class="modal-backdrop modal-backdrop--nested" (click)="closePrintingModal()">
+  <div class="modal-dialog modal-dialog--products" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-header__text">
+        <h2 class="modal-title">{{ t().calcPrintingCharges }}</h2>
+        <p class="modal-subtitle">{{ t().calcByPagesOrCustom }}</p>
+      </div>
+      <button type="button" class="btn-close-circle" (click)="closePrintingModal()" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="products-list-wrap">
+      <div class="row-grid-2">
+        <div class="field-wrap">
+          <label class="field-label">{{ t().numberOfPages }}</label>
+          <div class="input-container">
+            <input type="number" min="0" class="custom-input" [ngModel]="printingNumPages()"
+              (ngModelChange)="printingNumPages.set(+$event)" />
+          </div>
+        </div>
+        <div class="field-wrap">
+          <label class="field-label">{{ t().pricePerPage }}</label>
+          <div class="input-container">
+            <input type="number" min="0" step="0.25" class="custom-input" [ngModel]="printingPagePrice()"
+              (ngModelChange)="printingPagePrice.set(+$event)" />
+          </div>
+        </div>
+      </div>
+
+      <div class="field-wrap" style="margin-top: 10px;">
+        <label class="field-label">{{ t().orEnterCustomAmount }}</label>
+        <div class="input-container">
+          <input type="number" min="0" step="5" class="custom-input" [placeholder]="'25'"
+            [ngModel]="customPrintingInput()"
+            (ngModelChange)="customPrintingInput.set($event !== null && $event !== '' ? +$event : null)" />
+          <button type="button" class="btn-add-products" (click)="saveCustomPrintingAmount()">
+            {{ t().applyAmount }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="products-modal-footer">
+      <div class="products-total">
+        <span class="sub-label">{{ t().printingTotal }}</span>
+        <strong class="total-val">
+          {{ checkoutPrintingAmount().toFixed(2) }} {{ t().currency }}
+        </strong>
+      </div>
+      <button type="button" class="btn btn--primary" (click)="calcAndApplyPrintingPages()">
+        {{ t().applyAndSave }}
+      </button>
+    </div>
+  </div>
+</div>
+}
+
+<!-- ============================================================
+     SUB-MODAL 3: RATE & DURATION EDITOR
+     ============================================================ -->
+@if (isRateModalOpen()) {
+<div class="modal-backdrop modal-backdrop--nested" (click)="closeRateModal()">
+  <div class="modal-dialog modal-dialog--products" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-header__text">
+        <h2 class="modal-title">{{ t().editRateAndDuration }}</h2>
+        <p class="modal-subtitle">{{ t().adjustRateAndHours }}</p>
+      </div>
+      <button type="button" class="btn-close-circle" (click)="closeRateModal()" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="products-list-wrap">
+      <div class="field-wrap">
+        <label class="field-label">{{ t().hourlyRateEgp }}</label>
+        <div class="input-container">
+          <input type="number" min="0" step="5" class="custom-input" [ngModel]="customRateInput()"
+            (ngModelChange)="customRateInput.set(+$event)" />
+          <div class="quick-chip-group">
+            <button type="button" class="btn-quick-chip" (click)="adjustCustomRate(10)">+10</button>
+            <button type="button" class="btn-quick-chip" (click)="adjustCustomRate(-10)">-10</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="field-wrap" style="margin-top: 10px;">
+        <label class="field-label">{{ t().durationHoursLabel }}</label>
+        <div class="input-container">
+          <input type="number" min="1" step="1" class="custom-input" [ngModel]="customDurationInput()"
+            (ngModelChange)="customDurationInput.set(+$event)" />
+          <div class="quick-chip-group">
+            <button type="button" class="btn-quick-chip" (click)="adjustCustomDuration(1)">+1h</button>
+            <button type="button" class="btn-quick-chip" (click)="adjustCustomDuration(-1)">-1h</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="products-modal-footer">
+      <div class="products-total">
+        <span class="sub-label">{{ t().rentalTotal }}</span>
+        <strong class="total-val">{{ (customRateInput() * customDurationInput()).toFixed(2) }} {{ t().currency
+          }}</strong>
+      </div>
+      <button type="button" class="btn btn--primary" (click)="saveRateAndDuration()">
+        {{ t().applyAndSave }}
+      </button>
+    </div>
+  </div>
+</div>
+}
+
+<!-- CATERING POS MODAL (Integrated for Room & Active Shift) -->
+@if (isCateringPosModalOpen()) {
+  <app-catering-pos-modal
+    [targetRoom]="cateringTargetRoom()"
+    (close)="isCateringPosModalOpen.set(false)"
+    (addToRoomSession)="onAddToRoomSession($event)"
+  ></app-catering-pos-modal>
+}

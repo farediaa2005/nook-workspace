@@ -1,0 +1,310 @@
+<div class="page-container" [class.page-container--rtl]="isArabic()">
+  <!-- Page Header & Action Controls Row -->
+  <div class="show-head">
+    <app-page-header
+      [title]="t().systemUsersRolesTitle"
+      [subtitle]="t().systemUsersRolesSubtitle"
+    ></app-page-header>
+
+    <div class="head-controls-row">
+      <div class="search-wrap">
+        <app-search-box
+          [placeholder]="t().searchUsersPlaceholder"
+          [value]="searchQuery()"
+          (searchChange)="onSearch($event)"
+        ></app-search-box>
+      </div>
+
+      <app-primary-button
+        [text]="t().addNewUserBtn"
+        (click)="openAddModal()"
+      ></app-primary-button>
+    </div>
+  </div>
+
+  <!-- 3 KPI Metric Cards -->
+  <div class="metrics-grid">
+    <!-- Card 1: Total Users -->
+    <app-metric-card
+      [title]="t().totalUsersKpi"
+      [value]="totalUsersCount()"
+      color="yellow"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </app-metric-card>
+
+    <!-- Card 2: Active Admins & Supervisors -->
+    <app-metric-card
+      [title]="t().adminsSupervisorsKpi"
+      [value]="adminSupervisorCount()"
+      color="blue"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+    </app-metric-card>
+
+    <!-- Card 3: Reception & Cashier Accounts -->
+    <app-metric-card
+      [title]="t().receptionCashiersKpi"
+      [value]="receptionCashierCount()"
+      color="green"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="2" y="4" width="20" height="16" rx="2"/>
+        <line x1="2" y1="10" x2="22" y2="10"/>
+      </svg>
+    </app-metric-card>
+  </div>
+
+  <!-- Data Table Container Card -->
+  <div class="table-container-card">
+    <div class="table-responsive">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th>{{ t().userAccountTh }}</th>
+            <th>{{ t().phone }}</th>
+            <th>{{ t().rolePermissionTh }}</th>
+            <th class="th-center">{{ t().accountStatusTh }}</th>
+            <th>{{ t().createdDateTh }}</th>
+            <th class="th-center">{{ t().actions }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (u of paginatedUsers(); track u.id) {
+            <tr>
+              <!-- User Info (Avatar + Name + Username / Email) -->
+              <td>
+                <div class="user-cell-content">
+                  <div class="user-avatar-box">
+                    {{ u.name.charAt(0) }}
+                  </div>
+                  <div class="user-info-text">
+                    <strong class="user-name-title">{{ isArabic() ? (u.nameAr || u.name) : u.name }}</strong>
+                    <span class="user-subtext">@{{ u.username || 'user' }} • {{ u.email }}</span>
+                  </div>
+                </div>
+              </td>
+
+              <!-- Phone Number -->
+              <td>
+                <span class="phone-text">{{ u.phone || '-' }}</span>
+              </td>
+
+              <!-- Role Badge -->
+              <td>
+                @if (isAdminUser(u)) {
+                  <span class="badge-role badge-role--admin nowrap-text">
+                    ⭐ {{ t().adminManagerRole }}
+                  </span>
+                } @else {
+                  <span class="badge-role badge-role--reception nowrap-text">
+                    💼 {{ t().receptionCashierRole }}
+                  </span>
+                }
+              </td>
+
+              <!-- Interactive Status Toggle Button -->
+              <td class="cell-center">
+                <button
+                  type="button"
+                  class="badge-status-btn"
+                  [class.badge-status--active]="u.status === 'active'"
+                  [class.badge-status--inactive]="u.status !== 'active'"
+                  [class.badge-status--protected]="isAdminUser(u)"
+                  [disabled]="isAdminUser(u)"
+                  (click)="toggleUserStatus(u)"
+                  [title]="isAdminUser(u) ? t().adminAccountProtected : t().status"
+                >
+                  <span class="status-dot"></span>
+                  <span>{{ u.status === 'active' ? t().statusActiveText : t().statusDisabledText }}</span>
+                  @if (isAdminUser(u)) {
+                    <span style="font-size: 0.7rem; margin-inline-start: 4px;">🔒</span>
+                  }
+                </button>
+              </td>
+
+              <!-- Created Date -->
+              <td>
+                <span class="date-text">{{ u.createdAt || '-' }}</span>
+              </td>
+
+              <!-- Action Buttons -->
+              <td class="cell-center">
+                <div class="actions-wrapper">
+                  <button
+                    type="button"
+                    class="btn-edit-direct"
+                    (click)="openEditModal(u)"
+                    [title]="t().edit"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                    <span>{{ t().edit }}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="btn-delete-direct"
+                    [disabled]="isCurrentLoggedUser(u) || (isAdminUser(u) && activeAdminCount() <= 1)"
+                    [class.btn-delete-direct--disabled]="isCurrentLoggedUser(u) || (isAdminUser(u) && activeAdminCount() <= 1)"
+                    (click)="deleteUser(u)"
+                    [title]="isCurrentLoggedUser(u) ? t().cannotDeleteOwnAccount : ((isAdminUser(u) && activeAdminCount() <= 1) ? t().cannotDeleteLastAdmin : t().delete)"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="cell-empty-wrap">
+                <div class="empty-state-box">
+                  <h4 class="empty-title">{{ t().noUsersFoundTitle }}</h4>
+                  <p class="empty-subtitle">{{ t().noUsersFoundSubtitle }}</p>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Table Pagination Footer -->
+    <div class="table-footer">
+      <span class="pagination-info">
+        {{ t().showing }} {{ startIndex() }} {{ t().to }} {{ endIndex() }} {{ t().of }} {{ filteredUsers().length }} {{ t().entries }}
+      </span>
+
+      <app-pagination
+        [currentPage]="currentPage()"
+        [totalPages]="totalPages()"
+        (pageChange)="setPage($event)"
+      ></app-pagination>
+    </div>
+  </div>
+
+  <!-- Add / Edit User Modal -->
+  <app-modal
+    [isOpen]="isModalOpen()"
+    [title]="modalMode() === 'add' ? t().addNewUserModalTitle : t().editUserModalTitle"
+    (close)="closeModal()"
+  >
+    <form (submit)="saveUser(); $event.preventDefault()" class="user-modal-form">
+      @if (formError(); as err) {
+        <div class="form-error-banner">
+          {{ err }}
+        </div>
+      }
+
+      <div class="form-grid">
+        <!-- Full Name -->
+        <div class="field-group">
+          <label class="field-label">{{ t().fullName }} *</label>
+          <input
+            type="text"
+            class="custom-input"
+            [placeholder]="t().namePlaceholderExample"
+            [ngModel]="formName()"
+            (ngModelChange)="formName.set($event)"
+            name="formName"
+          />
+        </div>
+
+        <!-- Username -->
+        <div class="field-group">
+          <label class="field-label">{{ t().usernameLabel }} *</label>
+          <input
+            type="text"
+            class="custom-input"
+            [placeholder]="t().usernamePlaceholderExample"
+            [ngModel]="formUsername()"
+            (ngModelChange)="formUsername.set($event)"
+            name="formUsername"
+          />
+        </div>
+
+        <!-- Phone Number -->
+        <div class="field-group">
+          <label class="field-label">{{ t().phone }}</label>
+          <input
+            type="text"
+            class="custom-input"
+            [placeholder]="isArabic() ? '01012345678' : '01012345678'"
+            [ngModel]="formPhone()"
+            (ngModelChange)="formPhone.set($event)"
+            name="formPhone"
+          />
+        </div>
+
+        <!-- Email Address -->
+        <div class="field-group">
+          <label class="field-label">{{ t().email }} *</label>
+          <input
+            type="email"
+            class="custom-input"
+            [placeholder]="'user@nook.io'"
+            [ngModel]="formEmail()"
+            (ngModelChange)="formEmail.set($event)"
+            name="formEmail"
+          />
+        </div>
+
+        <!-- Password / Reset Password -->
+        <div class="field-group">
+          <label class="field-label">{{ modalMode() === 'add' ? t().passwordLabel : t().resetPasswordOptional }}</label>
+          <input
+            type="password"
+            class="custom-input"
+            placeholder="••••••••"
+            [ngModel]="formPassword()"
+            (ngModelChange)="formPassword.set($event)"
+            name="formPassword"
+          />
+        </div>
+
+        <!-- Role Select -->
+        <div class="field-group">
+          <label class="field-label">{{ t().rolePermissionLabel }} *</label>
+          <app-custom-select
+            [options]="roleOptions()"
+            [selectedValue]="formRole()"
+            [fullWidth]="true"
+            (valueChange)="onRoleChange($event)"
+          ></app-custom-select>
+        </div>
+
+        <!-- Status Select -->
+        <div class="field-group">
+          <label class="field-label">{{ t().accountStatusTh }} *</label>
+          <app-custom-select
+            [options]="statusOptions()"
+            [selectedValue]="formStatus()"
+            [fullWidth]="true"
+            (valueChange)="onStatusChange($event)"
+          ></app-custom-select>
+        </div>
+      </div>
+
+      <div class="modal-footer-actions">
+        <button type="button" class="btn-cancel" (click)="closeModal()">
+          {{ t().cancel }}
+        </button>
+        <button type="submit" class="btn-save">
+          {{ t().saveUser }}
+        </button>
+      </div>
+    </form>
+  </app-modal>
+</div>

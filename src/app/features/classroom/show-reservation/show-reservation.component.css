@@ -1,0 +1,259 @@
+.reservation-detail-page {
+  padding: 24px 0;
+}
+
+.back-nav-wrap {
+  margin-bottom: 8px;
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.btn-back:hover {
+  color: var(--yellow);
+}
+
+.back-icon {
+  width: 16px;
+  height: 16px;
+}
+
+[dir="rtl"] .back-icon {
+  transform: rotate(180deg);
+}
+
+.head-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.action-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.reservation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 24px;
+}
+
+.detail-column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.card-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+
+/* Instructor Card */
+.instructor-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.instructor-avatar-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--yellow);
+  flex-shrink: 0;
+}
+
+.instructor-tag {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.instructor-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 2px 0;
+}
+
+.instructor-subtitle {
+  font-size: 0.88rem;
+  color: var(--text-dim);
+}
+
+/* Logistics List */
+.logistics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.logistics-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.logistics-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.logistics-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.logistics-label {
+  font-size: 0.76rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.logistics-value {
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.logistics-sub {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+
+/* Activity Card */
+.activity-highlight {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.activity-name {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-pill--active {
+  background: rgba(62, 201, 138, 0.12);
+  color: var(--success);
+  border: 1px solid rgba(62, 201, 138, 0.3);
+}
+
+.status-pill--upcoming {
+  background: rgba(245, 185, 33, 0.12);
+  color: var(--yellow);
+  border: 1px solid rgba(245, 185, 33, 0.3);
+}
+
+.status-pill--completed {
+  background: var(--surface-2);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+
+.status-pill--cancelled {
+  background: rgba(255, 122, 107, 0.12);
+  color: var(--danger);
+  border: 1px solid rgba(255, 122, 107, 0.3);
+}
+
+/* Financial Card */
+.financial-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.financial-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.92rem;
+}
+
+.line-label {
+  color: var(--text-dim);
+}
+
+.line-val {
+  color: var(--text);
+}
+
+.discount-line .line-val {
+  color: var(--danger);
+}
+
+.financial-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 6px 0;
+}
+
+.total-line {
+  font-size: 1.1rem;
+}
+
+.total-line .line-label {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.total-val {
+  color: var(--yellow);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.empty-state-box {
+  text-align: center;
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.empty-text {
+  color: var(--text-dim);
+  font-size: 1.05rem;
+}

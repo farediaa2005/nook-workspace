@@ -1,0 +1,60 @@
+<div
+  class="custom-select-wrapper"
+  [class.full-width]="fullWidth()"
+  [class.custom-select--sm]="size() === 'sm'"
+  [class.custom-select--lg]="size() === 'lg'"
+  [class.custom-select--up]="isOpeningUpwards()"
+>
+  <!-- Trigger Button -->
+  <button
+    type="button"
+    class="custom-select-trigger"
+    [class.custom-select-trigger--active]="isOpen()"
+    [class.custom-select-trigger--sm]="size() === 'sm'"
+    [class.custom-select-trigger--lg]="size() === 'lg'"
+    [class.full-width]="fullWidth()"
+    (click)="toggle()"
+  >
+    <span class="select-display-text">{{ getSelectedLabel() }}</span>
+    <svg
+      class="chevron-icon"
+      [class.chevron-icon--rotated]="isOpen()"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <polyline points="6 9 12 15 18 9"/>
+    </svg>
+  </button>
+
+  <!-- Popup Card Menu -->
+  @if (isOpen()) {
+    <div class="menu-backdrop" (click)="close()"></div>
+    <div
+      class="custom-select-menu"
+      [class.custom-select-menu--up]="isOpeningUpwards()"
+      [class.custom-select-menu--sm]="size() === 'sm'"
+    >
+      @for (opt of options(); track opt.value) {
+        <button
+          type="button"
+          class="custom-select-item"
+          [class.custom-select-item--active]="isSelected(opt.value)"
+          (click)="select(opt.value)"
+        >
+          <span class="item-label">{{ opt.label }}</span>
+          @if (isSelected(opt.value)) {
+            <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          }
+        </button>
+      }
+    </div>
+  }
+</div>
+
+

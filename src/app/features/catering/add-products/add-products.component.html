@@ -1,0 +1,136 @@
+<div class="page-container" [class.page-container--rtl]="isArabic()">
+  <!-- Page Header -->
+  <div class="page-head">
+    <div class="header-text">
+      <h1 class="page-title">{{ t().addNewProduct }}</h1>
+      <p class="page-subtitle">{{ t().addNewProductSubtitle }}</p>
+    </div>
+    <a routerLink="/catering/show-products" class="btn-close-circle" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </a>
+  </div>
+
+  <!-- Form Container Card -->
+  <form (submit)="saveProduct(); $event.preventDefault()" class="add-form-wrap">
+    <div class="form-card">
+      <h2 class="section-title">{{ t().productDetails }}</h2>
+
+      <div class="form-grid">
+        <!-- Product Name (English) -->
+        <div class="field-wrap full-col">
+          <label class="field-label">{{ t().productNameEnLabel }}</label>
+          <input
+            type="text"
+            class="custom-input"
+            [placeholder]="t().productNameEnPlaceholder"
+            [ngModel]="productName()"
+            (ngModelChange)="productName.set($event)"
+            name="productName"
+            required
+          />
+        </div>
+
+        <!-- Product Name (Arabic) -->
+        <div class="field-wrap full-col">
+          <label class="field-label">{{ t().productNameArLabel }}</label>
+          <input
+            type="text"
+            class="custom-input"
+            [placeholder]="t().productNameArPlaceholder"
+            [ngModel]="productNameAr()"
+            (ngModelChange)="productNameAr.set($event)"
+            name="productNameAr"
+          />
+        </div>
+
+        <!-- Category -->
+        <div class="field-wrap full-col">
+          <label class="field-label">{{ t().categoryRequired }}</label>
+          <app-custom-select
+            [options]="categoryOptions()"
+            [selectedValue]="category()"
+            [fullWidth]="true"
+            (valueChange)="category.set($any($event))"
+          ></app-custom-select>
+        </div>
+
+        <!-- Selling Price -->
+        <div class="field-wrap">
+          <label class="field-label">{{ t().sellingPriceRequired }}</label>
+          <input
+            type="number"
+            min="0"
+            step="0.5"
+            class="custom-input"
+            [ngModel]="sellingPrice()"
+            (ngModelChange)="sellingPrice.set(+$event)"
+            name="sellingPrice"
+            required
+          />
+        </div>
+
+        <!-- Cost Price -->
+        <div class="field-wrap">
+          <label class="field-label">{{ t().costPriceRequired }}</label>
+          <input
+            type="number"
+            min="0"
+            step="0.5"
+            class="custom-input"
+            [ngModel]="costPrice()"
+            (ngModelChange)="costPrice.set(+$event)"
+            name="costPrice"
+            required
+          />
+        </div>
+
+        <!-- Stock Quantity -->
+        <div class="field-wrap">
+          <label class="field-label">{{ t().stockQtyOptional }}</label>
+          <input
+            type="number"
+            min="0"
+            class="custom-input"
+            [ngModel]="stock()"
+            (ngModelChange)="stock.set(+$event)"
+            name="stock"
+          />
+        </div>
+
+        <!-- Expiration Date -->
+        <div class="field-wrap">
+          <label class="field-label">{{ t().expirationDateLabel }}</label>
+          <input
+            type="date"
+            class="custom-input"
+            [ngModel]="expirationDate()"
+            (ngModelChange)="expirationDate.set($event)"
+            name="expirationDate"
+          />
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="form-actions">
+        <a routerLink="/catering/show-products" class="btn btn--secondary">
+          {{ t().cancel }}
+        </a>
+        <button type="submit" class="btn btn--primary" [disabled]="isSubmitting()">
+          @if (isSubmitting()) {
+            <span>{{ t().savingProduct }}</span>
+          } @else {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+              <polyline points="17 21 17 13 7 13 7 21"></polyline>
+              <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+            <span>{{ t().addProductToInventory }}</span>
+          }
+        </button>
+      </div>
+    </div>
+  </form>
+</div>

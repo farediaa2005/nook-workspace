@@ -1,0 +1,415 @@
+<div class="modal-backdrop" (click)="close.emit()" [class.modal-backdrop--rtl]="isArabic()">
+  <div class="modal-card" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="modal-header">
+      <div class="header-titles-box">
+        <span class="header-category-tag">{{ t().nookCanteen }}</span>
+        <h2 class="modal-title">{{ t().addNewProduct }}</h2>
+      </div>
+      <button type="button" class="btn-close-circle" (click)="close.emit()" aria-label="Close" [title]="t().cancel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Form Content -->
+    <form (submit)="submitProduct(); $event.preventDefault()" class="modal-form">
+      <!-- Section 1: PRODUCT IDENTITY -->
+      <div class="form-section-card">
+        <div class="section-header-row">
+          <div class="section-title-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="sec-icon">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+              <line x1="7" y1="7" x2="7.01" y2="7"></line>
+            </svg>
+            <span class="section-title-text">{{ t().productIdentity }}</span>
+          </div>
+        </div>
+
+        <div class="fields-stack">
+          <!-- Product Name with 25 char limit & char counter -->
+          <div class="field-group">
+            <div class="label-with-action">
+              <label class="field-label">
+                {{ t().productName }}
+                <span class="required-star">*</span>
+              </label>
+              <span class="char-count-badge" [class.char-count-badge--limit]="productName().length >= 25">
+                {{ productName().length }}/25
+              </span>
+            </div>
+            <div class="input-with-icon">
+              <input
+                type="text"
+                class="input-control"
+                maxlength="25"
+                [placeholder]="t().productNamePlaceholder"
+                [ngModel]="productName()"
+                (ngModelChange)="productName.set($event)"
+                name="productName"
+                required
+                autofocus
+              />
+            </div>
+          </div>
+
+          <!-- Category + Barcode -->
+          <div class="two-cols-row">
+            <!-- Category with dynamic Add New Category -->
+            <div class="field-group">
+              <label class="field-label">
+                {{ t().productCategory }}
+                <span class="required-star">*</span>
+              </label>
+
+              @if (!isAddingNewCategory()) {
+                <app-custom-select
+                  [options]="categoryOptions()"
+                  [selectedValue]="category()"
+                  [fullWidth]="true"
+                  (valueChange)="onCategoryChange($any($event))"
+                ></app-custom-select>
+              } @else {
+                <!-- Inline Add New Category Box -->
+                <div class="new-cat-inline-box">
+                  <input
+                    type="text"
+                    class="input-control input-cat-new"
+                    [placeholder]="t().newCategoryNamePlaceholder"
+                    [ngModel]="newCategoryName()"
+                    (ngModelChange)="newCategoryName.set($event)"
+                    name="newCategoryName"
+                    autofocus
+                  />
+                  <div class="new-cat-actions">
+                    <button type="button" class="btn-cat-save" (click)="saveNewCategory()" [disabled]="!newCategoryName().trim()">
+                      {{ t().save }}
+                    </button>
+                    <button type="button" class="btn-cat-cancel" (click)="cancelNewCategory()">
+                      {{ t().cancel }}
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <!-- Optional Barcode / Serial Number (Manual, no default fake value) -->
+            <div class="field-group">
+              <label class="field-label">
+                {{ t().barcodeOptional }}
+              </label>
+              <div class="input-with-icon">
+                <input
+                  type="text"
+                  class="input-control font-mono"
+                  [placeholder]="t().barcodeLeaveEmpty"
+                  [ngModel]="barcode()"
+                  (ngModelChange)="barcode.set($event)"
+                  name="barcode"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2 & 3: PRICING & INVENTORY (Two Columns) -->
+      <div class="pricing-inventory-grid">
+        <!-- Left Box: PRICING & EXPIRY -->
+        <div class="form-section-card">
+          <div class="section-header-row">
+            <div class="section-title-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="sec-icon">
+                <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+                <circle cx="12" cy="12" r="2"></circle>
+                <path d="M6 12h.01M18 12h.01"></path>
+              </svg>
+              <span class="section-title-text">{{ t().pricingAndCost }}</span>
+            </div>
+          </div>
+
+          <div class="fields-stack">
+            <div class="two-cols-row">
+              <div class="field-group">
+                <label class="field-label">
+                  {{ t().sellingPriceLabel }}
+                  <span class="required-star">*</span>
+                </label>
+                <div class="input-affix-wrap">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    class="input-control font-bold"
+                    placeholder="0.00"
+                    [ngModel]="sellingPrice()"
+                    (ngModelChange)="sellingPrice.set(+$event)"
+                    name="sellingPrice"
+                    required
+                  />
+                  <span class="input-affix-tag">{{ t().currency }}</span>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <label class="field-label">
+                  {{ t().costPriceLabel }}
+                  <span class="required-star">*</span>
+                </label>
+                <div class="input-affix-wrap">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    class="input-control"
+                    placeholder="0.00"
+                    [ngModel]="costPrice()"
+                    (ngModelChange)="costPrice.set(+$event)"
+                    name="costPrice"
+                    required
+                  />
+                  <span class="input-affix-tag">{{ t().currency }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Financial Margin Loss Warning Banner -->
+            @if (isSellingPriceBelowCost()) {
+              <div class="cost-warning-banner" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; font-size: 0.78rem; font-weight: 700; color: #ef4444; margin-top: 4px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; flex-shrink: 0;">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                  <line x1="12" y1="9" x2="12" y2="13"></line>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <span>{{ t().financialLossWarning }}</span>
+              </div>
+            }
+
+            <!-- Expiration Date with localized date picker and N/A toggle -->
+            <div class="field-group">
+              <div class="label-with-action">
+                <label class="field-label">{{ t().expirationDateLabel }}</label>
+                <button
+                  type="button"
+                  class="btn-toggle-na"
+                  [class.btn-toggle-na--active]="hasNoExpiration()"
+                  (click)="toggleNoExpiration()"
+                >
+                  {{ hasNoExpiration() ? t().noExpirationChecked : t().noExpiration }}
+                </button>
+              </div>
+
+              <div
+                class="custom-date-box"
+                [class.custom-date-box--disabled]="hasNoExpiration()"
+                (click)="openDatePicker(nativeDateInput)"
+              >
+                <input
+                  #nativeDateInput
+                  type="date"
+                  class="native-date-hidden"
+                  [min]="minExpirationDate"
+                  [disabled]="hasNoExpiration()"
+                  [ngModel]="selectedDateValue()"
+                  (ngModelChange)="onDatePicked($event)"
+                  name="expirationDate"
+                />
+                <div class="custom-date-display">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="date-cal-icon">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  <span class="custom-date-text" [class.custom-date-text--placeholder]="!selectedDateValue()">
+                    {{ hasNoExpiration()
+                      ? t().noExpirationDisplay
+                      : (selectedDateValue() ? selectedDateValue() : t().selectExpirationDate) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Box: INVENTORY & BOX CALCULATOR -->
+        <div class="form-section-card">
+          <div class="section-header-row">
+            <div class="section-title-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="sec-icon">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+              </svg>
+              <span class="section-title-text">{{ t().inventoryAndStock }}</span>
+            </div>
+
+            <!-- Carton / Box Calculator Toggle -->
+            <button
+              type="button"
+              class="btn-toggle-box-calc"
+              [class.btn-toggle-box-calc--active]="useBoxCalculator()"
+              (click)="toggleBoxCalculator()"
+            >
+              📦 {{ t().boxCalculator }}
+            </button>
+          </div>
+
+          <div class="fields-stack">
+            <!-- If Box Calculator is Active -->
+            @if (useBoxCalculator()) {
+              <div class="box-calc-panel">
+                <div class="two-cols-row">
+                  <div class="field-group">
+                    <label class="field-label">{{ t().numberOfBoxes }}</label>
+                    <input
+                      type="number"
+                      min="1"
+                      class="input-control text-center font-bold"
+                      [placeholder]="t().boxPlaceholder"
+                      [ngModel]="boxCount()"
+                      (ngModelChange)="boxCount.set(+$event); updateStockFromBoxes()"
+                      name="boxCount"
+                    />
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label">{{ t().unitsPerBox }}</label>
+                    <input
+                      type="number"
+                      min="1"
+                      class="input-control text-center font-bold"
+                      [placeholder]="t().unitsPlaceholder"
+                      [ngModel]="unitsPerBox()"
+                      (ngModelChange)="unitsPerBox.set(+$event); updateStockFromBoxes()"
+                      name="unitsPerBox"
+                    />
+                  </div>
+                </div>
+
+                @if (boxTotalUnits() > 0) {
+                  <div class="box-total-indicator">
+                    <span>📦 {{ t().totalCalculatedStock }}</span>
+                    <strong>{{ boxCount() }} × {{ unitsPerBox() }} = {{ boxTotalUnits() }} {{ t().unitsLabel }}</strong>
+                  </div>
+                }
+
+                <!-- Reorder Level under Box Calculator -->
+                <div class="field-group">
+                  <label class="field-label">{{ t().reorderThreshold }}</label>
+                  <div class="stepper-input-wrap">
+                    <button type="button" class="btn-step-control" (click)="adjustReorder(-5)" [disabled]="!reorderLevel() || reorderLevel()! <= 1">&minus;</button>
+                    <input
+                      type="number"
+                      min="1"
+                      class="input-control text-center font-bold"
+                      placeholder="10"
+                      [ngModel]="reorderLevel()"
+                      (ngModelChange)="reorderLevel.set(+$event)"
+                      name="reorderLevel"
+                    />
+                    <button type="button" class="btn-step-control" (click)="adjustReorder(5)">&plus;</button>
+                  </div>
+                </div>
+              </div>
+            } @else {
+              <!-- Direct Stock Inputs (Initial Stock + Reorder Level) -->
+              <div class="two-cols-row">
+                <!-- Initial Stock -->
+                <div class="field-group">
+                  <label class="field-label">{{ t().initialStock }}</label>
+                  <div class="stepper-input-wrap">
+                    <button type="button" class="btn-step-control" (click)="adjustStock(-5)" [disabled]="!initialStock() || initialStock()! <= 0">&minus;</button>
+                    <input
+                      type="number"
+                      min="0"
+                      class="input-control text-center font-bold"
+                      placeholder="0"
+                      [ngModel]="initialStock()"
+                      (ngModelChange)="initialStock.set(+$event)"
+                      name="initialStock"
+                    />
+                    <button type="button" class="btn-step-control" (click)="adjustStock(5)">&plus;</button>
+                  </div>
+                </div>
+
+                <!-- Reorder Level -->
+                <div class="field-group">
+                  <label class="field-label">{{ t().reorderLevel }}</label>
+                  <div class="stepper-input-wrap">
+                    <button type="button" class="btn-step-control" (click)="adjustReorder(-5)" [disabled]="!reorderLevel() || reorderLevel()! <= 1">&minus;</button>
+                    <input
+                      type="number"
+                      min="1"
+                      class="input-control text-center font-bold"
+                      placeholder="10"
+                      [ngModel]="reorderLevel()"
+                      (ngModelChange)="reorderLevel.set(+$event)"
+                      name="reorderLevel"
+                    />
+                    <button type="button" class="btn-step-control" (click)="adjustReorder(5)">&plus;</button>
+                  </div>
+                </div>
+              </div>
+            }
+
+            <!-- Product Image Dropzone -->
+            <div class="field-group">
+              <label class="field-label">{{ t().productImageOptional }}</label>
+              <div class="upload-container">
+                @if (imagePreview()) {
+                  <div class="image-preview-card">
+                    <img [src]="imagePreview()" alt="Product preview" class="preview-img" />
+                    <button type="button" class="btn-delete-img" (click)="removeImage()" [title]="t().removeImage">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      </svg>
+                    </button>
+                  </div>
+                } @else {
+                  <label class="upload-dropzone">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      class="file-input-hidden"
+                      (change)="onImageFileChange($event)"
+                    />
+                    <div class="upload-placeholder">
+                      <div class="camera-circle-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                          <circle cx="12" cy="13" r="4"></circle>
+                        </svg>
+                      </div>
+                      <span class="upload-text">{{ t().uploadProductImage }}</span>
+                      <span class="upload-subtext">{{ t().imageFileFormat }}</span>
+                    </div>
+                  </label>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="modal-footer">
+        <button type="button" class="btn btn--secondary" (click)="close.emit()">
+          {{ t().cancel }}
+        </button>
+        <button type="submit" class="btn btn--primary" [disabled]="!isFormValid() || isSubmitting()">
+          @if (isSubmitting()) {
+            <span>{{ t().addingProduct }}</span>
+          } @else {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="btn-icon">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>{{ t().addProductToInventory }}</span>
+          }
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

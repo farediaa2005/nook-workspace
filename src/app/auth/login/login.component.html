@@ -1,0 +1,161 @@
+<button class="theme-btn" (click)="toggleTheme()" aria-label="Toggle day/night">
+  @if (isDarkTheme()) {
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="5"/>
+      <line x1="12" y1="1" x2="12" y2="3"/>
+      <line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/>
+      <line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+  } @else {
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  }
+</button>
+
+<div class="wrap">
+  <div class="card">
+    <!-- Top Lamp Fixture -->
+    <div class="lamp" [class.on]="isLampOn()">
+      <span class="shade"></span>
+      <span class="bulb"></span>
+    </div>
+
+    <!-- Logo & Subtitle -->
+    <img
+      class="logo logo-dark"
+      src="/images/logo-dark.png"
+      alt="NOOK Workspace"
+    />
+    <img
+      class="logo logo-light"
+      src="/images/logo-light.png"
+      alt="NOOK Workspace"
+    />
+
+    <div class="head">
+      <p>Light up your Nook</p>
+    </div>
+
+    @if (errorMessage()) {
+      <div class="alert show">{{ errorMessage() }}</div>
+    }
+
+    <!-- Form -->
+    <form (ngSubmit)="onSubmit()" autocomplete="off">
+      <!-- Identifier Field (Username or Email) -->
+      <div class="field" [class.active]="isEmailActive()">
+        <label for="email">Username or Email</label>
+        <div class="boxf">
+          <span class="lead">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </span>
+          <input
+            id="email"
+            type="text"
+            name="email"
+            [ngModel]="email()"
+            (ngModelChange)="email.set($event)"
+            (focus)="onFocus('email')"
+            (blur)="onBlur()"
+            placeholder="Username or Email"
+            autocomplete="username"
+          />
+        </div>
+      </div>
+
+      <!-- Password Field -->
+      <div class="field" [class.active]="isPasswordActive()">
+        <label for="password">Password</label>
+        <div class="boxf">
+          <span class="lead">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </span>
+          <input
+            id="password"
+            [type]="showPassword() ? 'text' : 'password'"
+            name="password"
+            [ngModel]="password()"
+            (ngModelChange)="password.set($event)"
+            (focus)="onFocus('password')"
+            (blur)="onBlur()"
+            placeholder="••••••••"
+            autocomplete="new-password"
+          />
+          <button type="button" class="toggle" (click)="togglePassword()" aria-label="Toggle password visibility">
+            @if (showPassword()) {
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            } @else {
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            }
+          </button>
+        </div>
+      </div>
+
+      <!-- Forgot Password -->
+      <div class="row">
+        <a class="forgot">Forgot password?</a>
+      </div>
+
+      <!-- Submit Button -->
+      <button type="submit" class="enter" [disabled]="isLoading()">
+        @if (isLoading()) {
+          <span>LOGGING IN...</span>
+          <svg class="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="12" stroke-linecap="round"/>
+          </svg>
+        } @else {
+          <span>ENTER NOOK</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+            <polyline points="12 5 19 12 12 19"/>
+          </svg>
+        }
+      </button>
+    </form>
+
+    <!-- Divider -->
+    <div class="divi">Follow us on</div>
+
+    <!-- Social Buttons -->
+    <div class="sso">
+      <a class="ssobtn" href="https://instagram.com" target="_blank" rel="noopener" aria-label="NOOK on Instagram">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+          <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+          <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+        </svg>
+        <span>Instagram</span>
+      </a>
+
+      <a class="ssobtn" href="https://tiktok.com" target="_blank" rel="noopener" aria-label="NOOK on TikTok">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/>
+        </svg>
+        <span>TikTok</span>
+      </a>
+    </div>
+
+    <!-- Footer Tagline -->
+    <div class="foot">
+      <div class="tag">FIND YOUR SPACE. <em>CREATE</em> YOUR STORY.</div>
+    </div>
+  </div>
+</div>

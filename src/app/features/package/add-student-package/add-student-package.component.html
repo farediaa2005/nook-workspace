@@ -1,0 +1,551 @@
+<div class="page-container">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">{{ t().addStudentPackage }}</h1>
+      <p class="page-subtitle">{{ t().addStudentPackageDesc }}</p>
+    </div>
+    <div class="head-controls">
+      <button type="button" class="btn-cancel-nav" (click)="cancel()">
+        {{ t().cancel }}
+      </button>
+    </div>
+  </div>
+
+  <form (submit)="savePackage(); $event.preventDefault()" class="form-container">
+    <div class="form-2col-grid">
+      <!-- Col 1: Member Selection & Validity -->
+      <div class="form-col">
+        <!-- Card 01: Member Lookup & Multi-Member Selection -->
+        <div class="section-card">
+          <div class="form-section-head section-card-header-between">
+            <div class="form-section-head-left">
+              <span class="section-tag">01</span>
+              <h4 class="section-heading">{{ t().memberDataSection }}</h4>
+            </div>
+            <button type="button" class="btn-quick-add" (click)="openQuickAddStudentModal()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="quick-add-svg">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="8.5" cy="7" r="4"/>
+                <line x1="20" y1="8" x2="20" y2="14"/>
+                <line x1="23" y1="11" x2="17" y2="11"/>
+              </svg>
+              <span>{{ isArabic() ? '+ إضافة طالب جديد' : '+ Add New Student' }}</span>
+            </button>
+          </div>
+
+          <div class="field-wrap">
+            <label class="field-label">{{ t().searchMemberLabel }} *</label>
+            <div class="member-autocomplete-wrap">
+              <div class="input-container">
+                <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"/>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input
+                  type="text"
+                  class="custom-input"
+                  [placeholder]="t().searchMemberInputPlaceholder"
+                  [ngModel]="memberSearchQuery()"
+                  (ngModelChange)="memberSearchQuery.set($event); isMemberDropdownOpen.set(true)"
+                  (focus)="isMemberDropdownOpen.set(true)"
+                  name="memberSearchQuery"
+                />
+              </div>
+
+              <!-- Autocomplete Results Dropdown -->
+              @if (isMemberDropdownOpen()) {
+                <div class="autocomplete-dropdown-card">
+                  <!-- Quick add on typed query -->
+                  @if (memberSearchQuery().trim()) {
+                    <div class="autocomplete-item autocomplete-item--quick-add" (click)="openQuickAddStudentModal(memberSearchQuery().trim())">
+                      <div class="ac-item-left">
+                        <div class="member-avatar-box member-avatar-box--add">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 16px; height: 16px;">
+                            <line x1="12" y1="5" x2="12" y2="19"/>
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                          </svg>
+                        </div>
+                        <div class="autocomplete-meta">
+                          <strong class="ac-name-highlight">
+                            {{ isArabic() ? 'إضافة "' + memberSearchQuery().trim() + '" كطالب جديد' : 'Add "' + memberSearchQuery().trim() + '" as new student' }}
+                          </strong>
+                          <span class="ac-sub">{{ isArabic() ? 'تسجيل فوري للطالب واختياره للباقة' : 'Quick register & select for package' }}</span>
+                        </div>
+                      </div>
+                      <span class="btn-add-member-badge btn-add-member-badge--highlight">+ {{ isArabic() ? 'تسجيل واختيار' : 'Register' }}</span>
+                    </div>
+                  }
+
+                  @for (member of studentMemberOptions(); track member.id) {
+                    <div class="autocomplete-item" (click)="addMember(member)">
+                      <div class="ac-item-left">
+                        <div class="member-avatar-box">
+                          {{ (isArabic() ? member.nameAr : member.nameEn).charAt(0) }}
+                        </div>
+                        <div class="autocomplete-meta">
+                          <strong class="ac-name">{{ isArabic() ? member.nameAr : member.nameEn }}</strong>
+                          <span class="ac-sub">{{ isArabic() ? member.subAr : member.subEn }} • {{ member.phone }}</span>
+                        </div>
+                      </div>
+                      <span class="btn-add-member-badge">+ {{ t().addMemberBadge }}</span>
+                    </div>
+                  }
+
+                  @if (studentMemberOptions().length === 0 && !memberSearchQuery().trim()) {
+                    <div class="autocomplete-empty-hint" (click)="openQuickAddStudentModal()">
+                      <span>{{ isArabic() ? '+ انقر هنا لتسجيل طالب جديد' : '+ Click here to register a new student' }}</span>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+
+            <!-- Selected Student Chips -->
+            @if (selectedMembers().length > 0) {
+              <div class="selected-chips-row">
+                @for (mem of selectedMembers(); track mem.id) {
+                  <div class="selected-member-chip">
+                    <span class="chip-avatar-circle">{{ (isArabic() ? mem.nameAr : mem.nameEn).charAt(0) }}</span>
+                    <span class="chip-name-text">{{ isArabic() ? mem.nameAr : mem.nameEn }}</span>
+                    <span class="chip-phone-text">({{ mem.phone }})</span>
+                    <button type="button" class="btn-remove-chip" (click)="removeMember(mem.id)" title="Remove">&times;</button>
+                  </div>
+                }
+              </div>
+            }
+
+            @if (memberError(); as err) {
+              <div class="error-banner">
+                <span>⚠️ {{ err }}</span>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Card 02: Activation & Validity -->
+        <div class="section-card">
+          <div class="form-section-head">
+            <span class="section-tag">02</span>
+            <h4 class="section-heading">{{ t().dateAndValiditySection }}</h4>
+          </div>
+
+          <!-- Validity Duration Mini-Cards Grid -->
+          <div class="validity-cards-grid">
+            @for (preset of validityPresets(); track preset.id) {
+              <div
+                class="validity-select-card"
+                [class.validity-select-card--active]="validityOption() === preset.days"
+                (click)="selectValidityOption(preset)"
+              >
+                <span class="val-card-title">{{ isArabic() ? preset.labelAr : preset.labelEn }}</span>
+              </div>
+            }
+          </div>
+
+          <!-- Start Date & Expiry Date Inputs -->
+          <div class="row-grid-2">
+            <div class="field-wrap">
+              <label class="field-label">{{ t().packageStartDate }}</label>
+              <div class="input-container">
+                <input
+                  type="date"
+                  class="custom-input"
+                  [min]="todayDate()"
+                  [ngModel]="startDate()"
+                  (ngModelChange)="onStartDateChange($event)"
+                  name="startDate"
+                />
+              </div>
+            </div>
+
+            <div class="field-wrap">
+              <div class="label-with-calc">
+                <label class="field-label">{{ t().packageExpiryDate }}</label>
+                <span class="calc-days-tag">{{ validityDays() }} {{ t().packageValidityDays }}</span>
+              </div>
+              <div class="input-container">
+                <input
+                  type="date"
+                  class="custom-input"
+                  [min]="todayDate()"
+                  [ngModel]="expiryDate()"
+                  (ngModelChange)="onExpiryDateChange($event)"
+                  name="expiryDate"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes Textarea -->
+          <div class="field-wrap notes-field-wrap">
+            <label class="field-label">{{ t().notes }}</label>
+            <textarea
+              class="custom-textarea"
+              rows="3"
+              [placeholder]="t().packageNotesPlaceholder"
+              [ngModel]="notes()"
+              (ngModelChange)="notes.set($event)"
+              name="notes"
+            ></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Col 2: Package Selection & Payment Summary -->
+      <div class="form-col">
+        <!-- Card 03: Select Package Tier Cards -->
+        <div class="section-card">
+          <div class="section-card-header">
+            <div class="form-section-head">
+              <span class="section-tag">03</span>
+              <h4 class="section-heading">{{ t().selectHoursPackage }}</h4>
+            </div>
+            <span class="section-badge-pill">{{ dynamicPackagePresets().length }} {{ t().optionsCount }}</span>
+          </div>
+
+          <div class="package-cards-grid">
+            @for (pkg of dynamicPackagePresets(); track pkg.id) {
+              <div
+                class="package-select-card"
+                [class.package-select-card--active]="selectedPackageId() === pkg.id"
+                (click)="selectPackage(pkg)"
+              >
+                <div class="pkg-card-top">
+                  <span class="pkg-tier-tag">{{ isArabic() ? pkg.badgeAr : pkg.badgeEn }}</span>
+                  <div class="pkg-radio-indicator">
+                    <div class="pkg-radio-inner"></div>
+                  </div>
+                </div>
+
+                <h5 class="pkg-card-title">{{ isArabic() ? pkg.nameAr : pkg.nameEn }}</h5>
+
+                <div class="pkg-card-metric">
+                  <span class="pkg-hours-num">{{ pkg.id === 'custom' ? customHours() : pkg.hours }}</span>
+                  <span class="pkg-hours-label">{{ t().hrs }}</span>
+                </div>
+
+                <div class="pkg-card-footer">
+                  <span class="pkg-rate-note">{{ pkg.id === 'custom' ? customHourlyRate() : pkg.rate }} {{ t().egpPerHour }}</span>
+                  <span class="pkg-card-price">{{ pkg.id === 'custom' ? (customHours() * customHourlyRate()) : pkg.price }} {{ t().egp }}</span>
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Custom Hours & Rate Inputs (When Custom Selected) -->
+          @if (selectedPackageId() === 'custom') {
+            <div class="custom-pkg-config-box">
+              <div class="row-grid-2">
+                <div class="field-wrap">
+                  <label class="field-label">{{ isArabic() ? 'إجمالي عدد الساعات' : 'Total Package Hours' }}</label>
+                  <div class="input-container">
+                    <input
+                      type="number"
+                      min="1"
+                      class="custom-input"
+                      [ngModel]="customHours()"
+                      (ngModelChange)="onCustomHoursChange(+$event)"
+                      name="customHours"
+                    />
+                  </div>
+                </div>
+                <div class="field-wrap">
+                  <label class="field-label">{{ isArabic() ? 'السعر الإجمالي للباقة (ج.م)' : 'Total Package Price (EGP)' }}</label>
+                  <div class="input-container">
+                    <input
+                      type="number"
+                      min="1"
+                      class="custom-input"
+                      [ngModel]="customTotalPrice()"
+                      (ngModelChange)="onCustomTotalPriceChange(+$event)"
+                      name="customTotalPrice"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Card 04: PACKAGE SUMMARY & PAYMENT -->
+        <div class="section-card summary-card">
+          <div class="form-section-head">
+            <span class="section-tag">04</span>
+            <h4 class="section-heading">{{ t().packageSummaryAndPayment }}</h4>
+          </div>
+
+          <!-- Summary Breakdown -->
+          <div class="summary-breakdown">
+            <div class="summary-row">
+              <span class="s-label">{{ t().selectedPackageLabel }}</span>
+              <strong class="s-val">{{ effectivePackageName() }}</strong>
+            </div>
+
+            @if (selectedMembers().length > 1) {
+              <div class="summary-row">
+                <span class="s-label">{{ t().studentsCountLabel }}</span>
+                <strong class="s-val">{{ selectedMembers().length }} {{ t().groupStudentsCount }}</strong>
+              </div>
+            }
+
+            <div class="summary-row">
+              <span class="s-label">{{ t().hoursQuota }}</span>
+              <strong class="s-val">{{ effectiveHours() }} {{ t().hrs }}</strong>
+            </div>
+
+            <div class="summary-row">
+              <span class="s-label">{{ t().effectiveRatePerHour }}</span>
+              <span class="s-val">{{ effectiveRate() }} {{ t().egpPerHour }}</span>
+            </div>
+
+            @if (discountAmount() > 0) {
+              <div class="summary-row summary-row--discount">
+                <span class="s-label">{{ t().discountApplied }}</span>
+                <span class="s-val text-green">- {{ discountAmount() }} {{ t().egp }}</span>
+              </div>
+            }
+
+            <div class="summary-divider"></div>
+
+            <!-- Bold Total Row -->
+            <div class="summary-row summary-row--total">
+              <span class="s-total-label">{{ t().totalDueRequired }}</span>
+              <span class="s-total-val">{{ finalTotal() }} <small>{{ t().egp }}</small></span>
+            </div>
+          </div>
+
+          <!-- Expandable Discount Code Field -->
+          <div class="discount-accordion-wrap">
+            <button type="button" class="btn-toggle-discount" (click)="isDiscountOpen.set(!isDiscountOpen())">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="discount-icon">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                <line x1="7" y1="7" x2="7.01" y2="7"/>
+              </svg>
+              <span>{{ isDiscountOpen() ? t().hideDiscount : t().addDiscountCoupon }}</span>
+            </button>
+
+            @if (isDiscountOpen()) {
+              <div class="discount-form-box">
+                <div class="coupon-input-group">
+                  <input
+                    type="text"
+                    class="custom-input coupon-input"
+                    [placeholder]="t().enterCouponCodePlaceholder"
+                    [ngModel]="couponCode()"
+                    (ngModelChange)="couponCode.set($event)"
+                    name="couponCode"
+                  />
+                  <button type="button" class="btn-apply-coupon" (click)="applyCoupon()">
+                    {{ t().applyBtn }}
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- 2x2 Payment Method Cards Grid -->
+          <div class="payment-method-section">
+            <label class="field-label">{{ t().paymentMethodLabel }}</label>
+            <div class="payment-methods-grid">
+              <!-- Cash -->
+              <div
+                class="payment-option-card"
+                [class.payment-option-card--active]="paymentMethod() === 'cash'"
+                (click)="paymentMethod.set('cash')"
+              >
+                <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M6 12h.01M18 12h.01"></path>
+                </svg>
+                <span class="pay-name">{{ t().cashPayment }}</span>
+              </div>
+
+              <!-- Vodafone Cash -->
+              <div
+                class="payment-option-card"
+                [class.payment-option-card--active]="paymentMethod() === 'vodafone'"
+                (click)="paymentMethod.set('vodafone')"
+              >
+                <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                  <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                </svg>
+                <span class="pay-name">{{ t().vodafonePayment }}</span>
+              </div>
+
+              <!-- InstaPay -->
+              <div
+                class="payment-option-card"
+                [class.payment-option-card--active]="paymentMethod() === 'instapay'"
+                (click)="paymentMethod.set('instapay')"
+              >
+                <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                </svg>
+                <span class="pay-name">{{ t().instapayPayment }}</span>
+              </div>
+
+              <!-- Fawry -->
+              <div
+                class="payment-option-card"
+                [class.payment-option-card--active]="paymentMethod() === 'fawry'"
+                (click)="paymentMethod.set('fawry')"
+              >
+                <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+                  <line x1="8" y1="7" x2="16" y2="7" />
+                  <line x1="8" y1="11" x2="16" y2="11" />
+                </svg>
+                <span class="pay-name">{{ t().fawryPayment }}</span>
+              </div>
+            </div>
+
+            <!-- Cash Received & Change Calculations (When Cash Selected) -->
+            @if (paymentMethod() === 'cash') {
+              <div class="cash-calc-block">
+                <div class="field-wrap">
+                  <label class="field-label">{{ t().amountReceivedLabel }}</label>
+                  <div class="input-container">
+                    <input
+                      type="number"
+                      step="0.5"
+                      class="custom-input"
+                      [placeholder]="t().amountReceivedPlaceholder"
+                      [value]="amountReceived() !== null ? amountReceived() : ''"
+                      (input)="onAmountReceivedInput($any($event.target).value)"
+                    />
+                  </div>
+                </div>
+
+                @if (isCashShort()) {
+                  <div class="cash-short-alert">
+                    <span>⚠️ {{ t().cashShortAlert }}</span>
+                  </div>
+                }
+
+                <div class="change-due-box">
+                  <span class="change-label">{{ t().changeDueCustomer }}</span>
+                  <strong class="change-amount">{{ changeDue() }} {{ t().egp }}</strong>
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="form-actions">
+            <button type="button" class="btn-cancel" (click)="cancel()">
+              {{ t().cancel }}
+            </button>
+            <button type="submit" class="btn-confirm">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-check-icon">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              <span>{{ t().confirmAndCompleteSale }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <!-- MODAL: Quick Add New Student -->
+  @if (isQuickAddStudentModalOpen()) {
+    <div class="modal-backdrop-custom" (click)="closeQuickAddStudentModal()">
+      <div class="modal-card-custom" (click)="$event.stopPropagation()">
+        <div class="modal-header-custom">
+          <div>
+            <h2 class="modal-title">{{ isArabic() ? 'تسجيل طالب جديد' : 'Register New Student' }}</h2>
+            <p class="modal-subtitle">{{ isArabic() ? 'تسجيل بيانات الطالب وإضافته فوراً للاشتراك بالباقة' : 'Enter student info and auto-select for this package' }}</p>
+          </div>
+          <button type="button" class="btn-close-circle" (click)="closeQuickAddStudentModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="modal-body-pad">
+          <div class="form-grid-2col">
+            <div class="modal-field-group">
+              <label class="modal-label">{{ isArabic() ? 'اسم الطالب' : 'Student Name' }} *</label>
+              <input
+                type="text"
+                class="modal-input"
+                [placeholder]="isArabic() ? 'مثال: أحمد محمود' : 'e.g. Ahmed Mahmoud'"
+                [ngModel]="quickStudentName()"
+                (ngModelChange)="quickStudentName.set($event)"
+              />
+            </div>
+
+            <div class="modal-field-group">
+              <label class="modal-label">{{ isArabic() ? 'رقم الهاتف' : 'Phone Number' }} *</label>
+              <input
+                type="tel"
+                class="modal-input"
+                [placeholder]="isArabic() ? '01XXXXXXXXX' : '01XXXXXXXXX'"
+                [ngModel]="quickStudentPhone()"
+                (ngModelChange)="quickStudentPhone.set($event)"
+              />
+            </div>
+
+            <div class="modal-field-group">
+              <label class="modal-label">{{ isArabic() ? 'رقم الواتساب' : 'WhatsApp Number' }}</label>
+              <input
+                type="tel"
+                class="modal-input"
+                [placeholder]="isArabic() ? 'نفس الهاتف إذا ترك فارغاً' : 'Same as phone if left empty'"
+                [ngModel]="quickStudentWhatsapp()"
+                (ngModelChange)="quickStudentWhatsapp.set($event)"
+              />
+            </div>
+
+            <div class="modal-field-group">
+              <label class="modal-label">{{ isArabic() ? 'البريد الإلكتروني' : 'Email' }}</label>
+              <input
+                type="email"
+                class="modal-input"
+                [placeholder]="isArabic() ? 'اختياري' : 'Optional'"
+                [ngModel]="quickStudentEmail()"
+                (ngModelChange)="quickStudentEmail.set($event)"
+              />
+            </div>
+
+            <div class="modal-field-group span-2">
+              <label class="modal-label">{{ isArabic() ? 'الكلية / الجامعة' : 'Faculty / College' }}</label>
+              <div class="select-wrapper">
+                <select
+                  class="modal-select"
+                  [ngModel]="quickStudentFacultyId()"
+                  (ngModelChange)="onFacultySelect($event)"
+                >
+                  <option value="">{{ isArabic() ? '-- اختر الكلية (اختياري) --' : '-- Select Faculty (Optional) --' }}</option>
+                  @for (fac of facultiesList(); track fac.id) {
+                    <option [value]="fac.id">{{ fac.name }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer-custom">
+          <button type="button" class="btn btn-secondary" (click)="closeQuickAddStudentModal()" [disabled]="isSubmittingQuickStudent()">
+            {{ isArabic() ? 'إلغاء' : 'Cancel' }}
+          </button>
+          <button type="button" class="btn btn-primary" (click)="submitQuickAddStudent()" [disabled]="isSubmittingQuickStudent()">
+            @if (isSubmittingQuickStudent()) {
+              <span>{{ isArabic() ? 'جاري الحفظ...' : 'Saving...' }}</span>
+            } @else {
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              <span>{{ isArabic() ? 'حفظ واختيار للباقة' : 'Save & Select' }}</span>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

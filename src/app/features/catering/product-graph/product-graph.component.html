@@ -1,0 +1,349 @@
+<div class="analytics-page" [class.analytics-page--rtl]="isArabic()">
+  <!-- Page Header -->
+  <div class="analytics-header">
+    <div class="header-titles">
+      <h1 class="header-main-title">{{ t().productGraphHeaderTitle }}</h1>
+      <p class="header-sub-desc">
+        {{ t().productGraphHeaderDesc }}
+      </p>
+    </div>
+
+    <!-- Header Actions (POS Button + Time Filter Tabs) -->
+    <div class="header-right-actions">
+      <button
+        type="button"
+        class="btn-pos-launch-graph"
+        (click)="openPosModal()"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="pos-icon">
+          <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+          <circle cx="12" cy="12" r="2"></circle>
+          <path d="M6 12h.01M18 12h.01"></path>
+        </svg>
+        <span>{{ t().nookCanteen }}</span>
+      </button>
+
+      <!-- Time Period Filter Tabs -->
+      <div class="time-filter-pills">
+        <button
+          type="button"
+          class="filter-pill"
+          [class.filter-pill--active]="selectedPeriod() === 'today'"
+          (click)="setPeriod('today')"
+        >
+          {{ t().today }}
+        </button>
+        <button
+          type="button"
+          class="filter-pill"
+          [class.filter-pill--active]="selectedPeriod() === 'week'"
+          (click)="setPeriod('week')"
+        >
+          {{ t().thisWeek }}
+        </button>
+        <button
+          type="button"
+          class="filter-pill"
+          [class.filter-pill--active]="selectedPeriod() === 'month'"
+          (click)="setPeriod('month')"
+        >
+          {{ t().thisMonth }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 1: Top 3 Metric Cards -->
+  <div class="metrics-grid">
+    <!-- Card 1: Total Revenue -->
+    <div class="metric-card">
+      <div class="metric-card__header">
+        <span class="metric-card__label">{{ t().totalRevenue }}</span>
+        <div class="metric-card__icon-wrap metric-card__icon-wrap--gold">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+            <circle cx="12" cy="12" r="2"></circle>
+            <path d="M6 12h.01M18 12h.01"></path>
+          </svg>
+        </div>
+      </div>
+      <div class="metric-card__body">
+        <h2 class="metric-card__value">{{ totalRevenue().toLocaleString('en-US', { minimumFractionDigits: 2 }) }} <span class="currency-unit">{{ t().currency }}</span></h2>
+      </div>
+    </div>
+
+    <!-- Card 2: Most Popular Item -->
+    <div class="metric-card">
+      <div class="metric-card__header">
+        <span class="metric-card__label">{{ t().mostPopularItem }}</span>
+        <div class="metric-card__icon-wrap metric-card__icon-wrap--blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+            <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+            <line x1="6" y1="1" x2="6" y2="4"></line>
+            <line x1="10" y1="1" x2="10" y2="4"></line>
+            <line x1="14" y1="1" x2="14" y2="4"></line>
+          </svg>
+        </div>
+      </div>
+      <div class="metric-card__body">
+        <h2 class="metric-card__value metric-card__value--title">{{ isArabic() ? (popularItem().nameAr || popularItem().name) : popularItem().name }}</h2>
+        <div class="metric-card__subtext">
+          <span>{{ popularItem().unitsSold }} {{ t().unitsSoldToday }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3: Average Order Value -->
+    <div class="metric-card">
+      <div class="metric-card__header">
+        <span class="metric-card__label">{{ t().averageOrderValue }}</span>
+        <div class="metric-card__icon-wrap metric-card__icon-wrap--green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+        </div>
+      </div>
+      <div class="metric-card__body">
+        <h2 class="metric-card__value">{{ avgOrderValue().toFixed(2) }} <span class="currency-unit">{{ t().currency }}</span></h2>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2: Charts (Revenue by Category + Payment Method) -->
+  <div class="charts-grid">
+    <!-- Left Chart: Revenue by Category -->
+    <div class="chart-card">
+      <div class="chart-card__header">
+        <h3 class="chart-title">{{ t().revenueByCategory }}</h3>
+      </div>
+
+      <!-- Bar Chart Visualization -->
+      <div class="bar-chart-container">
+        <!-- Y-Axis Values & Grid Lines -->
+        <div class="chart-grid-lines">
+          <div class="grid-line-row">
+            <span class="y-label">{{ chartYAxisMax() }}</span>
+            <div class="dotted-line"></div>
+          </div>
+          <div class="grid-line-row">
+            <span class="y-label">{{ Math.round(chartYAxisMax() * 0.75) }}</span>
+            <div class="dotted-line"></div>
+          </div>
+          <div class="grid-line-row">
+            <span class="y-label">{{ Math.round(chartYAxisMax() * 0.50) }}</span>
+            <div class="dotted-line"></div>
+          </div>
+          <div class="grid-line-row">
+            <span class="y-label">{{ Math.round(chartYAxisMax() * 0.25) }}</span>
+            <div class="dotted-line"></div>
+          </div>
+          <div class="grid-line-row">
+            <span class="y-label">0</span>
+            <div class="dotted-line dotted-line--baseline"></div>
+          </div>
+        </div>
+
+        <!-- Bars Area -->
+        <div class="chart-bars-row">
+          @for (cat of categoryRevenue(); track cat.category) {
+            <div class="bar-group">
+              <div class="bar-track">
+                <div
+                  class="bar-fill"
+                  [style.height.%]="chartYAxisMax() > 0 ? Math.min(100, Math.round((cat.amount / chartYAxisMax()) * 100)) : 0"
+                  [title]="cat.category + ': ' + cat.amount + ' ' + t().currency"
+                >
+                  <span class="bar-tooltip">{{ cat.amount }} {{ t().currency }}</span>
+                </div>
+              </div>
+              <span class="bar-label">{{ isArabic() ? (cat.categoryAr || cat.category) : cat.category }}</span>
+            </div>
+          } @empty {
+            <div style="display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; color: #94a3b8; font-size: 0.9rem;">
+              {{ t().noProductsFound }}
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Chart: Payment Method Donut -->
+    <div class="chart-card chart-card--payment">
+      <div class="chart-card__header">
+        <h3 class="chart-title">{{ t().paymentMethod }}</h3>
+      </div>
+
+      <div class="donut-chart-container">
+        <!-- Donut Ring Graphic -->
+        <div class="donut-wrapper">
+          <svg class="donut-svg" viewBox="0 0 160 160">
+            <!-- Background circle -->
+            <circle class="donut-bg" cx="80" cy="80" r="60" stroke-width="18" fill="none"></circle>
+            <!-- Card Segment (65% yellow) -->
+            <circle
+              class="donut-segment donut-segment--card"
+              cx="80" cy="80" r="60"
+              stroke-width="18"
+              fill="none"
+              stroke-dasharray="245 132"
+              stroke-dashoffset="0"
+            ></circle>
+            <!-- App Segment (23% light blue) -->
+            <circle
+              class="donut-segment donut-segment--app"
+              cx="80" cy="80" r="60"
+              stroke-width="18"
+              fill="none"
+              stroke-dasharray="86 291"
+              stroke-dashoffset="-245"
+            ></circle>
+            <!-- Cash Segment (12% dark/gray) -->
+            <circle
+              class="donut-segment donut-segment--cash"
+              cx="80" cy="80" r="60"
+              stroke-width="18"
+              fill="none"
+              stroke-dasharray="46 331"
+              stroke-dashoffset="-331"
+            ></circle>
+          </svg>
+          <div class="donut-center-info">
+            <strong class="donut-number">{{ paymentBreakdown().totalTxns }}</strong>
+            <span class="donut-sub">{{ t().transactions }}</span>
+          </div>
+        </div>
+
+        <!-- Legend List -->
+        <div class="payment-legend-list">
+          <div class="legend-row">
+            <div class="legend-dot-label">
+              <span class="dot dot--card"></span>
+              <span class="legend-name">{{ t().cardPayment }}</span>
+            </div>
+            <strong class="legend-percent">{{ paymentBreakdown().cardPercent }}%</strong>
+          </div>
+
+          <div class="legend-row">
+            <div class="legend-dot-label">
+              <span class="dot dot--app"></span>
+              <span class="legend-name">{{ t().appPayment }}</span>
+            </div>
+            <strong class="legend-percent">{{ paymentBreakdown().appPercent }}%</strong>
+          </div>
+
+          <div class="legend-row">
+            <div class="legend-dot-label">
+              <span class="dot dot--cash"></span>
+              <span class="legend-name">{{ t().cashPayment }}</span>
+            </div>
+            <strong class="legend-percent">{{ paymentBreakdown().cashPercent }}%</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 3: Top Products by Revenue Table -->
+  <div class="top-products-card">
+    <div class="top-products-card__header">
+      <h3 class="chart-title">{{ t().topProductsByRevenue }}</h3>
+      <a class="link-view-all" routerLink="/catering/show-products" (click)="navigateToInventory()">{{ t().viewAll }}</a>
+    </div>
+
+    <div class="table-responsive-wrapper">
+      <table class="top-products-table">
+        <thead>
+          <tr>
+            <th class="th-rank">#</th>
+            <th>{{ t().thProduct }}</th>
+            <th class="th-qty">{{ t().thSales }}</th>
+            <th class="th-rev">{{ t().thRevenue }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of topProducts(); track item.rank) {
+            <tr class="table-row">
+              <!-- Rank Number -->
+              <td class="td-rank">{{ item.rank }}</td>
+
+              <!-- Item Info -->
+              <td class="td-item">
+                <div class="product-item-cell">
+                  <div class="product-icon-wrap">
+                    @if (item.icon === 'meal' || item.name.includes('Avocado')) {
+                      <!-- Toast / Sandwich Meal Icon -->
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="15" width="18" height="4" rx="2"></rect>
+                        <rect x="3" y="5" width="18" height="4" rx="2"></rect>
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="7" y1="9" x2="7.01" y2="9"></line>
+                        <line x1="17" y1="9" x2="17.01" y2="9"></line>
+                      </svg>
+                    } @else if (item.icon === 'snack' || item.name.includes('Croissant')) {
+                      <!-- Croissant / Bakery Snack Icon -->
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"></path>
+                        <circle cx="8.5" cy="8.5" r="1"></circle>
+                        <circle cx="7.5" cy="14" r="1"></circle>
+                        <circle cx="12" cy="16.5" r="1"></circle>
+                        <circle cx="15.5" cy="13" r="1"></circle>
+                      </svg>
+                    } @else if (item.name.includes('Cold Brew')) {
+                      <!-- Cold Brew / Iced Glass with Straw Icon -->
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M7 21h10l2-14H5l2 14z"></path>
+                        <path d="M5 7h14"></path>
+                        <path d="M12 2v5"></path>
+                        <line x1="8" y1="13" x2="16" y2="13"></line>
+                      </svg>
+                    } @else {
+                      <!-- Hot Coffee Cup Icon -->
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+                        <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+                        <line x1="6" y1="1" x2="6" y2="4"></line>
+                        <line x1="10" y1="1" x2="10" y2="4"></line>
+                        <line x1="14" y1="1" x2="14" y2="4"></line>
+                      </svg>
+                    }
+                  </div>
+                  <div class="product-meta">
+                    <strong class="product-name">{{ isArabic() ? (item.nameAr || item.name) : item.name }}</strong>
+                    <span class="product-category">{{ isArabic() ? (item.categoryAr || item.category) : item.category }}</span>
+                  </div>
+                </div>
+              </td>
+
+              <!-- Quantity -->
+              <td class="td-qty">{{ item.qty }}</td>
+
+              <!-- Revenue -->
+              <td class="td-rev">
+                <strong class="rev-number">{{ item.revenue.toFixed(2) }} {{ t().currency }}</strong>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="4" style="text-align: center; padding: 2.5rem 1rem; color: #94a3b8; font-size: 0.95rem;">
+                {{ t().noProductsFound }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- POS Canteen Modal -->
+  @if (isPosModalOpen()) {
+    <app-catering-pos-modal
+      (close)="closePosModal()"
+    ></app-catering-pos-modal>
+  }
+</div>
+

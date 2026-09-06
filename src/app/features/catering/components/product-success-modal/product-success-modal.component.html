@@ -1,0 +1,62 @@
+<div class="modal-backdrop" (click)="viewInventory.emit()" [class.modal-backdrop--rtl]="isArabic()">
+  <div class="modal-card" (click)="$event.stopPropagation()">
+    <!-- Top Success Icon -->
+    <div class="success-icon-wrapper">
+      <div class="success-icon-circle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="9 12 11 14 15 10"></polyline>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Header Titles -->
+    <div class="modal-header-text">
+      <h2 class="modal-title">{{ t().productAddedSuccess }}</h2>
+      <p class="modal-subtitle">
+        <strong>{{ isArabic() ? (product().nameAr || product().name) : product().name }}</strong> {{ t().productAddedDesc }}
+      </p>
+    </div>
+
+    <!-- Product Summary Card -->
+    <div class="product-summary-card">
+      <div class="product-icon-box">
+        @if (product().image) {
+          <img [src]="product().image" [alt]="product().name" class="product-thumb-img" />
+        } @else {
+          <!-- Fallback Bottle / Item Icon -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="product-fallback-svg">
+            <path d="M8 2h8v3H8z"></path>
+            <path d="M9 5v3l-3 4v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9l-3-4V5"></path>
+            <line x1="10" y1="14" x2="14" y2="14"></line>
+          </svg>
+        }
+      </div>
+
+      <div class="product-summary-info">
+        <strong class="product-name">{{ isArabic() ? (product().nameAr || product().name) : product().name }}</strong>
+        <span class="product-cat-barcode">
+          {{ isArabic() ? (product().categoryAr || product().category) : product().category }}
+          @if (product().barcode) {
+            • {{ t().barcodeLabel }} {{ product().barcode }}
+          }
+        </span>
+        <strong class="product-price">
+          {{ product().sellingPrice.toFixed(2) }} {{ t().currency }}
+        </strong>
+        <span class="product-stock">{{ product().stock }} {{ t().inStockLabel }}</span>
+      </div>
+    </div>
+
+    <!-- Divider & Actions -->
+    <div class="modal-actions">
+      <button type="button" class="btn-text-link" (click)="addAnother.emit()">
+        {{ t().addAnother }}
+      </button>
+
+      <button type="button" class="btn-view-inventory" (click)="viewInventory.emit()">
+        {{ t().viewInventory }}
+      </button>
+    </div>
+  </div>
+</div>

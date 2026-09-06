@@ -1,0 +1,435 @@
+<div class="page-container booking-page">
+  <!-- Page Header -->
+  <div class="booking-header">
+    <div class="header-text">
+      <h1 class="page-title">{{ t().newClassroomBooking }}</h1>
+      <p class="page-subtitle">{{ t().configureBookingDetails }}</p>
+    </div>
+    <a routerLink="/classroom/show-classroom" class="btn-close-circle" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </a>
+  </div>
+
+  <form (submit)="onSubmit(); $event.preventDefault()" class="booking-form-wrap">
+    <div class="booking-grid">
+      <!-- LEFT COLUMN: Core Details & Rates -->
+      <div class="form-column left-column">
+        <!-- Section 1: Core Details -->
+        <div class="form-section">
+          <h2 class="section-title">{{ t().coreDetails }}</h2>
+
+          <!-- Instructor -->
+          <div class="field-wrap">
+            <div class="field-header">
+              <label class="field-label">{{ t().instructor }}</label>
+              @if (instructor().length > 0) {
+                <span class="char-counter">
+                  {{ 50 - instructor().length }} {{ t().charsLeft }}
+                </span>
+              }
+            </div>
+            <div class="input-container">
+              <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              <input
+                type="text"
+                class="custom-input"
+                [placeholder]="t().instructorPlaceholder"
+                [ngModel]="instructor()"
+                (input)="onInstructorInput($event)"
+                name="instructor"
+              />
+              @if (instructor()) {
+                <button type="button" class="input-clear-btn" (click)="clearInstructor()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                  </svg>
+                </button>
+              }
+            </div>
+            @if (instructor() && !isInstructorValid()) {
+              <span class="field-error-msg">
+                {{ t().errorInstructor }}
+              </span>
+            }
+          </div>
+
+          <!-- Activity / Subject -->
+          <div class="field-wrap">
+            <div class="field-header">
+              <label class="field-label">{{ t().activitySubject }}</label>
+              @if (activitySubject().length > 0) {
+                <span class="char-counter">
+                  {{ 60 - activitySubject().length }} {{ t().charsLeft }}
+                </span>
+              }
+            </div>
+            <div class="input-container">
+              <input
+                type="text"
+                class="custom-input"
+                [placeholder]="t().activityPlaceholder"
+                [ngModel]="activitySubject()"
+                (input)="onActivityInput($event)"
+                name="activitySubject"
+              />
+            </div>
+            @if (activitySubject() && !isActivityValid()) {
+              <span class="field-error-msg">
+                {{ t().errorActivity }}
+              </span>
+            }
+          </div>
+
+          <!-- Phone & Email -->
+          <div class="row-grid-2">
+            <div class="field-wrap">
+              <div class="field-header">
+                <label class="field-label">{{ t().phoneNumber }}</label>
+                @if (phoneNumber().length > 0) {
+                  <span class="char-counter">
+                    {{ 11 - phoneNumber().length }} {{ t().digitsLeft }}
+                  </span>
+                }
+              </div>
+              <div class="input-container">
+                <input
+                  type="tel"
+                  class="custom-input"
+                  [placeholder]="t().phonePlaceholder"
+                  [ngModel]="phoneNumber()"
+                  (input)="onPhoneInput($event)"
+                  name="phoneNumber"
+                />
+              </div>
+              @if (phoneNumber() && !isPhoneValid()) {
+                <span class="field-error-msg">
+                  {{ t().errorPhone }}
+                </span>
+              }
+            </div>
+
+            <div class="field-wrap">
+              <div class="field-header">
+                <label class="field-label">{{ t().emailAddress }}</label>
+                @if (emailAddress().length > 0) {
+                  <span class="char-counter">
+                    {{ 80 - emailAddress().length }} {{ t().charsLeft }}
+                  </span>
+                }
+              </div>
+              <div class="input-container">
+                <input
+                  type="email"
+                  class="custom-input"
+                  [placeholder]="t().emailPlaceholder"
+                  [ngModel]="emailAddress()"
+                  (input)="onEmailInput($event)"
+                  name="emailAddress"
+                />
+              </div>
+              @if (emailAddress() && !isEmailValid()) {
+                <span class="field-error-msg">
+                  {{ t().errorEmail }}
+                </span>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Rates & Add-ons -->
+        <div class="form-section">
+          <h2 class="section-title">{{ t().ratesAndAddons }}</h2>
+
+          <!-- Hourly Rate & Printing -->
+          <div class="row-grid-2">
+            <div class="field-wrap">
+              <label class="field-label">{{ t().hourlyRateLabel }}</label>
+              <div class="input-container">
+                <input
+                  type="number"
+                  class="custom-input"
+                  [ngModel]="hourlyRate()"
+                  (ngModelChange)="hourlyRate.set(+$event)"
+                  name="hourlyRate"
+                />
+              </div>
+            </div>
+
+            <div class="field-wrap">
+              <label class="field-label">{{ t().printingChargesLabel }}</label>
+              <div class="input-container">
+                <input
+                  type="number"
+                  step="0.01"
+                  class="custom-input"
+                  [ngModel]="printingCharges()"
+                  (ngModelChange)="printingCharges.set(+$event)"
+                  name="printingCharges"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Booking Date -->
+          <div class="field-wrap">
+            <label class="field-label">{{ t().bookingDate }}</label>
+            <div class="input-container date-input-container" (click)="addBookingDatePicker.showPicker()">
+              <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <input
+                #addBookingDatePicker
+                type="date"
+                class="custom-input custom-input--date"
+                [min]="todayDate()"
+                [ngModel]="bookingDate()"
+                (ngModelChange)="bookingDate.set($event)"
+                name="bookingDate"
+                (click)="addBookingDatePicker.showPicker()"
+              />
+            </div>
+          </div>
+
+          <!-- Start Time & End Time -->
+          <div class="row-grid-2">
+            <div class="field-wrap">
+              <label class="field-label">{{ t().startTime }}</label>
+              <div
+                class="time-picker-box"
+                [class.time-picker-box--invalid]="!isTimeRangeValid() && startTime() && endTime()"
+              >
+                <svg class="time-box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <div class="time-digits">
+                  <input
+                    type="text"
+                    class="time-num-input"
+                    placeholder="02"
+                    maxlength="2"
+                    [ngModel]="startHour()"
+                    (ngModelChange)="startHour.set($event)"
+                    name="startHour"
+                  />
+                  <span class="time-colon">:</span>
+                  <input
+                    type="text"
+                    class="time-num-input"
+                    placeholder="00"
+                    maxlength="2"
+                    [ngModel]="startMinute()"
+                    (ngModelChange)="startMinute.set($event)"
+                    name="startMinute"
+                  />
+                </div>
+                <div class="period-toggle-pill">
+                  <button
+                    type="button"
+                    class="period-opt"
+                    [class.period-opt--active]="startPeriod() === 'AM'"
+                    (click)="startPeriod.set('AM')"
+                  >
+                    AM
+                  </button>
+                  <button
+                    type="button"
+                    class="period-opt"
+                    [class.period-opt--active]="startPeriod() === 'PM'"
+                    (click)="startPeriod.set('PM')"
+                  >
+                    PM
+                  </button>
+                </div>
+              </div>
+              <button type="button" class="btn-time-now" (click)="setStartTimeToNow()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="now-icon">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span>{{ t().now }}</span>
+              </button>
+            </div>
+
+            <!-- End Time -->
+            <div class="field-wrap">
+              <label class="field-label">{{ t().endTime }}</label>
+              <div
+                class="time-picker-box"
+                [class.time-picker-box--invalid]="!isTimeRangeValid() && startTime() && endTime()"
+              >
+                <svg class="time-box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <div class="time-digits">
+                  <input
+                    type="text"
+                    class="time-num-input"
+                    placeholder="05"
+                    maxlength="2"
+                    [ngModel]="endHour()"
+                    (ngModelChange)="endHour.set($event)"
+                    name="endHour"
+                  />
+                  <span class="time-colon">:</span>
+                  <input
+                    type="text"
+                    class="time-num-input"
+                    placeholder="00"
+                    maxlength="2"
+                    [ngModel]="endMinute()"
+                    (ngModelChange)="endMinute.set($event)"
+                    name="endMinute"
+                  />
+                </div>
+                <div class="period-toggle-pill">
+                  <button
+                    type="button"
+                    class="period-opt"
+                    [class.period-opt--active]="endPeriod() === 'AM'"
+                    (click)="endPeriod.set('AM')"
+                  >
+                    AM
+                  </button>
+                  <button
+                    type="button"
+                    class="period-opt"
+                    [class.period-opt--active]="endPeriod() === 'PM'"
+                    (click)="endPeriod.set('PM')"
+                  >
+                    PM
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          @if (!isTimeRangeValid() && startTime() && endTime()) {
+            <div class="time-range-error">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="error-msg-icon">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              <span>{{ t().invalidTimeRange }}</span>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: Logistics & Summary -->
+      <div class="form-column right-column">
+        <!-- Section: Logistics -->
+        <div class="form-section">
+          <div class="section-header-row">
+            <h2 class="section-title">{{ t().logistics }}</h2>
+          </div>
+
+          <div class="room-selector-header">
+            <label class="field-label">{{ t().room }}</label>
+            <span class="badge-confirmed">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="check-icon">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              {{ t().availabilityConfirmed }}
+            </span>
+          </div>
+
+          <div class="room-select-grid">
+            @for (r of rooms(); track r.id) {
+              <div
+                class="room-thumb-card"
+                [class.room-thumb-card--active]="selectedRoomId() === r.id"
+                (click)="selectRoom(r.id)"
+              >
+                <div class="room-thumb-media">
+                  <img [src]="getRoomImage(r.image)" (error)="onImageError($event)" [alt]="r.name" class="room-thumb-img" loading="lazy" />
+                </div>
+                <div class="room-thumb-info">
+                  <strong class="room-thumb-name">{{ r.name }}</strong>
+                  <span class="room-thumb-capacity">MAX {{ r.maxCapacity }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Section: Booking Summary -->
+        <div class="form-section summary-section">
+          <h3 class="summary-heading">{{ t().bookingSummary }}</h3>
+
+          <div class="summary-lines">
+            <div class="summary-line">
+              <span class="summary-label">{{ t().roomRental }}</span>
+              <strong class="summary-value">{{ roomRentalTotal().toFixed(2) }} {{ t().currency }}</strong>
+            </div>
+
+            <div class="summary-line">
+              <span class="summary-label">{{ t().printingCharges }}</span>
+              <strong class="summary-value">{{ (+printingCharges()).toFixed(2) }} {{ t().currency }}</strong>
+            </div>
+
+            <div class="summary-divider"></div>
+
+            <div class="summary-line subtotal-line">
+              <span class="summary-label">{{ t().subtotal }}</span>
+              <strong class="summary-value">{{ subtotal().toFixed(2) }} {{ t().currency }}</strong>
+            </div>
+          </div>
+
+          <!-- Discount Toggle Card -->
+          <div class="discount-card">
+            <div class="discount-info">
+              <strong class="discount-title">{{ t().discount }}</strong>
+              <span class="discount-badge">{{ t().discountTenPercent }}</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" [checked]="isDiscountApplied()" (change)="toggleDiscount()" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          @if (isDiscountApplied()) {
+            <div class="discount-applied-row">
+              <span>{{ t().discountApplied }}</span>
+              <span class="discount-value">-{{ discountAmount().toFixed(2) }} {{ t().currency }}</span>
+            </div>
+          }
+
+          <!-- Total Display -->
+          <div class="total-row">
+            <span class="total-label">{{ t().total }}</span>
+            <span class="total-amount">{{ total().toFixed(2) }} {{ t().currency }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Action Bar -->
+    <div class="booking-actions-bar">
+      <a routerLink="/classroom/show-classroom" class="btn btn--ghost">
+        {{ t().cancel }}
+      </a>
+      <button
+        type="submit"
+        class="btn btn--primary btn-confirm-booking"
+        [disabled]="!isFormValid()"
+        [class.btn--disabled]="!isFormValid()"
+      >
+        {{ t().confirmBooking }}
+      </button>
+    </div>
+  </form>
+</div>

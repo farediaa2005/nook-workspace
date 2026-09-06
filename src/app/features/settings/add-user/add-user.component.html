@@ -1,0 +1,108 @@
+<div class="page-container" [class.page-container--rtl]="isArabic()">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">{{ t().addUser }}</h1>
+      <p class="page-subtitle">{{ t().addUserDesc }}</p>
+    </div>
+  </div>
+
+  <div class="card-box">
+    @if (formError(); as err) {
+      <div class="form-error-banner">
+        {{ err }}
+      </div>
+    }
+
+    <form (submit)="onSubmit(); $event.preventDefault()">
+      <div class="form-grid">
+        <!-- Full Name -->
+        <div class="form-group">
+          <label class="form-label">{{ t().fullName }} *</label>
+          <input
+            type="text"
+            class="form-control"
+            [placeholder]="t().namePlaceholderExample"
+            [ngModel]="fullName()"
+            (ngModelChange)="fullName.set($event)"
+            name="fullName"
+            required
+          />
+        </div>
+
+        <!-- Username -->
+        <div class="form-group">
+          <label class="form-label">{{ t().usernameLabel }}</label>
+          <input
+            type="text"
+            class="form-control"
+            [placeholder]="t().usernamePlaceholderExample"
+            [ngModel]="username()"
+            (ngModelChange)="username.set($event)"
+            name="username"
+          />
+        </div>
+
+        <!-- Email -->
+        <div class="form-group">
+          <label class="form-label">{{ t().email }} *</label>
+          <input
+            type="email"
+            class="form-control"
+            placeholder="staff@nook.io"
+            [ngModel]="email()"
+            (ngModelChange)="email.set($event)"
+            name="email"
+            required
+          />
+        </div>
+
+        <!-- Phone -->
+        <div class="form-group">
+          <label class="form-label">{{ t().phone }}</label>
+          <input
+            type="tel"
+            class="form-control"
+            [placeholder]="'01012345678'"
+            [ngModel]="phone()"
+            (ngModelChange)="phone.set($event)"
+            name="phone"
+          />
+        </div>
+
+        <!-- Password -->
+        <div class="form-group">
+          <label class="form-label">{{ t().passwordLabel }}</label>
+          <input
+            type="password"
+            class="form-control"
+            placeholder="••••••••"
+            [ngModel]="password()"
+            (ngModelChange)="password.set($event)"
+            name="password"
+          />
+        </div>
+
+        <!-- Role -->
+        <div class="form-group">
+          <label class="form-label">{{ t().rolePermissionLabel }} *</label>
+          <app-custom-select
+            [options]="roleOptions()"
+            [selectedValue]="selectedRole()"
+            [fullWidth]="true"
+            (valueChange)="selectedRole.set($event)"
+          ></app-custom-select>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn-cancel" (click)="onCancel()">
+          {{ t().cancel }}
+        </button>
+        <app-primary-button
+          [text]="t().saveUser"
+          [type]="'submit'"
+        ></app-primary-button>
+      </div>
+    </form>
+  </div>
+</div>

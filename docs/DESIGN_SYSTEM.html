@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NOOK Workspace — Design System Documentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #f5b921;
+      --bg: #0a0a0b;
+      --surface: #17181c;
+      --surface-2: #202227;
+      --border: #23252b;
+      --text: #ffffff;
+      --text-dim: #8e929b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Poppins', 'Cairo', sans-serif;
+      background: #0a0a0b;
+      color: #ffffff;
+      padding: 40px 24px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .doc-container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: #121317;
+      border: 1px solid #23252b;
+      border-radius: 24px;
+      padding: 48px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+    }
+
+    .doc-header {
+      border-bottom: 1px solid #23252b;
+      padding-bottom: 28px;
+      margin-bottom: 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .doc-title {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .doc-badge {
+      background: #f5b921;
+      color: #16130a;
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .doc-subtitle {
+      color: #8e929b;
+      font-size: 1rem;
+      margin-top: 6px;
+    }
+
+    .section-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #f5b921;
+      margin: 36px 0 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-left: 4px solid #f5b921;
+      padding-left: 12px;
+    }
+
+    /* Color Swatches Grid */
+    .palette-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .color-card {
+      background: #17181c;
+      border: 1px solid #23252b;
+      border-radius: 14px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .color-preview {
+      height: 60px;
+      width: 100%;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .color-meta {
+      padding: 12px 14px;
+    }
+
+    .color-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #ffffff;
+    }
+
+    .color-hex {
+      font-size: 0.78rem;
+      font-family: monospace;
+      color: #f5b921;
+      margin-top: 2px;
+    }
+
+    .color-desc {
+      font-size: 0.72rem;
+      color: #8e929b;
+      margin-top: 4px;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 28px;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid #23252b;
+    }
+
+    th {
+      background: #17181c;
+      color: #8e929b;
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid #23252b;
+    }
+
+    td {
+      padding: 14px 16px;
+      font-size: 0.88rem;
+      border-bottom: 1px solid #1c1e24;
+      color: #d1d5db;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: #17181c;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: #202227;
+      color: #f5b921;
+    }
+
+    .print-btn {
+      background: #f5b921;
+      color: #16130a;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 16px rgba(245, 185, 33, 0.3);
+    }
+
+    .print-btn:hover {
+      background: #ffc93d;
+    }
+
+    /* Print Styles */
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        padding: 0 !important;
+      }
+      .doc-container {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+      }
+      .print-btn {
+        display: none !important;
+      }
+      .section-title {
+        color: #b47f00 !important;
+        border-left-color: #b47f00 !important;
+      }
+      th {
+        background: #f3f4f6 !important;
+        color: #374151 !important;
+      }
+      td {
+        color: #1f2937 !important;
+        border-bottom-color: #e5e7eb !important;
+      }
+      .color-card {
+        border-color: #e5e7eb !important;
+        background: #f9fafb !important;
+      }
+      .color-name {
+        color: #111827 !important;
+      }
+      .color-desc {
+        color: #4b5563 !important;
+      }
+      .doc-title {
+        color: #111827 !important;
+      }
+      .doc-subtitle {
+        color: #4b5563 !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="doc-container">
+    <div style="display: flex; justify-content: flex-end;">
+      <button class="print-btn" onclick="window.print()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
+          <polyline points="6 9 6 2 18 2 18 9"/>
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+          <rect x="6" y="14" width="12" height="8"/>
+        </svg>
+        Save / Print as PDF
+      </button>
+    </div>
+
+    <header class="doc-header">
+      <div>
+        <h1 class="doc-title">NOOK Workspace</h1>
+        <p class="doc-subtitle">Complete Design System & Typography Documentation</p>
+      </div>
+      <div>
+        <span class="doc-badge">v2.0 Official Guide</span>
+      </div>
+    </header>
+
+    <!-- SECTION 1: FONTS & TYPOGRAPHY -->
+    <h2 class="section-title">1. Typography & Font Hierarchy</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>UI Element</th>
+          <th>Font Family</th>
+          <th>Size (rem / px)</th>
+          <th>Weight</th>
+          <th>Usage & Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Page Title</strong></td>
+          <td>Poppins / Cairo</td>
+          <td><span class="tag">1.75rem (~28px)</span></td>
+          <td>600 (Semi-Bold)</td>
+          <td>Main headers (e.g. <code>Add Student</code>, <code>لوحة التحكم</code>)</td>
+        </tr>
+        <tr>
+          <td><strong>Page Subtitle</strong></td>
+          <td>Poppins / Cairo</td>
+          <td><span class="tag">0.92rem (~14.5px)</span></td>
+          <td>400 (Regular)</td>
+          <td>Sub-headers and page descriptions</td>
+        </tr>
+        <tr>
+          <td><strong>Section Heading</strong></td>
+          <td>Poppins / Cairo</td>
+          <td><span class="tag">1.25rem (~20px)</span></td>
+          <td>700 (Bold)</td>
+          <td>Card sections (e.g. <code>1. Student Information</code>)</td>
+        </tr>
+        <tr>
+          <td><strong>Stat Big Number</strong></td>
+          <td>Poppins / Cairo</td>
+          <td><span class="tag">2.15rem (~34px)</span></td>
+          <td>600 (Semi-Bold)</td>
+          <td>Large dashboard metrics (e.g. <code>248</code>, <code>156</code>)</td>
+        </tr>
+        <tr>
+          <td><strong>Stat Label</strong></td>
+          <td>Poppins / Cairo</td>
+          <td><span class="tag">0.92rem (~14.5px)</span></td>
+          <td>400 (Regular)</td>
+          <td>Metric titles (e.g. <code>Active bookings</code>)</td>
+        </tr>
+        <tr>
+          <td><strong>Trend Badge</strong></td>
+          <td>Poppins</td>
+          <td><span class="tag">0.78rem (~12.5px)</span></td>
+          <td>600 (Semi-Bold)</td>
+          <td>Growth pill badges (e.g. <code>▲ 12%</code>)</td>
+        </tr>
+        <tr>
+          <td><strong>Sidebar Section</strong></td>
+          <td>Poppins / Cairo</td>
+          <td><span class="tag">0.75rem (~12px)</span></td>
+          <td>500 (Medium)</td>
+          <td>Group headers (e.g. <code>MAIN</code>, <code>MANAGEMENT</code>)</td>
+        </tr>
+        <tr>
+          <td><strong>Sidebar Main Item</strong></td>
+          <td>Poppins / Cairo</td>
+          <td><span class="tag">0.88rem (~14px)</span></td>
+          <td>400 (600 active)</td>
+          <td>Accordion parent items (e.g. <code>Workspace</code>)</td>
+        </tr>
+        <tr>
+          <td><strong>Sidebar Sub Item</strong></td>
+          <td>Poppins / Cairo</td>
+          <td><span class="tag">0.82rem (~13px)</span></td>
+          <td>400 (600 active)</td>
+          <td>Sub-menu links (e.g. <code>Add Student</code>)</td>
+        </tr>
+        <tr>
+          <td><strong>Form Field Label</strong></td>
+          <td>Poppins / Cairo</td>
+          <td><span class="tag">0.74rem (~12px)</span></td>
+          <td>700 (UPPERCASE)</td>
+          <td>Field labels (e.g. <code>STUDENT NAME</code>)</td>
+        </tr>
+        <tr>
+          <td><strong>Form Input & Select</strong></td>
+          <td>Poppins / Cairo</td>
+          <td><span class="tag">0.92rem (~14.5px)</span></td>
+          <td>400 (Regular)</td>
+          <td>User inputs, dropdown options, and placeholders</td>
+        </tr>
+        <tr>
+          <td><strong>Primary Button</strong></td>
+          <td>Poppins / Cairo</td>
+          <td><span class="tag">0.90rem (~14.5px)</span></td>
+          <td>700 (Bold)</td>
+          <td>Call to action buttons (e.g. <code>Confirm Check-In</code>)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- SECTION 2: BRAND COLORS -->
+    <h2 class="section-title">2. Core Brand Palette</h2>
+    <div class="palette-grid">
+      <div class="color-card">
+        <div class="color-preview" style="background: #f5b921;"></div>
+        <div class="color-meta">
+          <div class="color-name">Primary Gold</div>
+          <div class="color-hex">#f5b921</div>
+          <div class="color-desc">CTA Buttons, Active Pill, Focus Glow</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-preview" style="background: #ffc93d;"></div>
+        <div class="color-meta">
+          <div class="color-name">Gold Hover</div>
+          <div class="color-hex">#ffc93d</div>
+          <div class="color-desc">Button Hover State</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-preview" style="background: #c48300;"></div>
+        <div class="color-meta">
+          <div class="color-name">Amber Gold (Light)</div>
+          <div class="color-hex">#c48300</div>
+          <div class="color-desc">Light Mode Contrast Gold</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-preview" style="background: #22c55e;"></div>
+        <div class="color-meta">
+          <div class="color-name">Success Green</div>
+          <div class="color-hex">#22c55e</div>
+          <div class="color-desc">Trend Badges & Available Desks</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-preview" style="background: #ef4444;"></div>
+        <div class="color-meta">
+          <div class="color-name">Danger Red</div>
+          <div class="color-hex">#ef4444</div>
+          <div class="color-desc">Errors, Blacklist, Sign Out</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-preview" style="background: #3b82f6;"></div>
+        <div class="color-meta">
+          <div class="color-name">Info Blue</div>
+          <div class="color-hex">#3b82f6</div>
+          <div class="color-desc">Active Members Metric</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 3: DARK THEME -->
+    <h2 class="section-title">3. Dark Theme Palette (Default)</h2>
+    <div class="palette-grid">
+      <div class="color-card">
+        <div class="color-preview" style="background: #0a0a0b;"></div>
+        <div class="color-meta">
+          <div class="color-name">Page Background</div>
+          <div class="color-hex">#0a0a0b</div>
+          <div class="color-desc">Main Page & Sidebar BG</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-preview" style="background: #17181c;"></div>
+        <div class="color-meta">
+          <div class="color-name">Card Surface</div>
+          <div class="color-hex">#17181c</div>
+          <div class="color-desc">Cards, Search Bar, Stat Boxes</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-preview" style="background: #202227;"></div>
+        <div class="color-meta">
+          <div class="color-name">Elevated Surface</div>
+          <div class="color-hex">#202227</div>
+          <div class="color-desc">Inputs, Dropdowns, Table Headers</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-preview" style="background: #23252b;"></div>
+        <div class="color-meta">
+          <div class="color-name">Border Tone</div>
+          <div class="color-hex">#23252b</div>
+          <div class="color-desc">Delicate Borders & Dividers</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-preview" style="background: #ffffff;"></div>
+        <div class="color-meta">
+          <div class="color-name">Main Text</div>
+          <div class="color-hex">#ffffff</div>
+          <div class="color-desc">Headings & Big Numbers</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-preview" style="background: #8e929b;"></div>
+        <div class="color-meta">
+          <div class="color-name">Dim Text</div>
+          <div class="color-hex">#8e929b</div>
+          <div class="color-desc">Descriptions & Labels</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 4: LIGHT THEME -->
+    <h2 class="section-title">4. Light Theme Palette (Warm Sand Cream)</h2>
+    <div class="palette-grid">
+      <div class="color-card">
+        <div class="color-preview" style="background: #f2ede2;"></div>
+        <div class="color-meta">
+          <div class="color-name">Page Background</div>
+          <div class="color-hex">#f2ede2</div>
+          <div class="color-desc">Warm Sand Cream Page BG</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-preview" style="background: #ffffff;"></div>
+        <div class="color-meta">
+          <div class="color-name">Card Surface</div>
+          <div class="color-hex">#ffffff</div>
+          <div class="color-desc">Pure White Cards & Sidebar</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-preview" style="background: #faf4e8;"></div>
+        <div class="color-meta">
+          <div class="color-name">Input Warm Cream</div>
+          <div class="color-hex">#faf4e8</div>
+          <div class="color-desc">Form Input Boxes in Checkin</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-preview" style="background: #e6e0d4;"></div>
+        <div class="color-meta">
+          <div class="color-name">Border Soft</div>
+          <div class="color-hex">#e6e0d4</div>
+          <div class="color-desc">Soft Cream Dividers</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-preview" style="background: #1a1815;"></div>
+        <div class="color-meta">
+          <div class="color-name">Text Dark</div>
+          <div class="color-hex">#1a1815</div>
+          <div class="color-desc">Deep Charcoal Text</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-preview" style="background: #736c61;"></div>
+        <div class="color-meta">
+          <div class="color-name">Text Muted</div>
+          <div class="color-hex">#736c61</div>
+          <div class="color-desc">Muted Descriptions</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 5: STAT CARDS -->
+    <h2 class="section-title">5. Stat Cards Color Matrix</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Metric Card</th>
+          <th>Dark Mode Box</th>
+          <th>Dark Mode Icon</th>
+          <th>Light Mode Box</th>
+          <th>Light Mode Icon</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Active Bookings (Calendar)</strong></td>
+          <td><span class="tag">#38311c</span></td>
+          <td>#f5b921 (Gold)</td>
+          <td><span class="tag">#fdf6e7</span></td>
+          <td>#c48300 (Gold)</td>
+        </tr>
+        <tr>
+          <td><strong>Available Desks (Home)</strong></td>
+          <td><span class="tag">#143024</span></td>
+          <td>#22c55e (Green)</td>
+          <td><span class="tag">#ecf8f2</span></td>
+          <td>#16a34a (Green)</td>
+        </tr>
+        <tr>
+          <td><strong>Active Members (User)</strong></td>
+          <td><span class="tag">#152940</span></td>
+          <td>#3b82f6 (Blue)</td>
+          <td><span class="tag">#eff6ff</span></td>
+          <td>#2563eb (Blue)</td>
+        </tr>
+        <tr>
+          <td><strong>Occupancy Rate (Chart)</strong></td>
+          <td><span class="tag">#2c1a40</span></td>
+          <td>#a855f7 (Purple)</td>
+          <td><span class="tag">#f8f0fc</span></td>
+          <td>#9333ea (Purple)</td>
+        </tr>
+      </tbody>
+    </table>
+
+  </div>
+
+</body>
+</html>

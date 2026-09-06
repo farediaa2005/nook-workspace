@@ -1,0 +1,46 @@
+<div
+  class="metric-card"
+  [class.metric-card--clickable]="!!routerLink()"
+  [class.metric-card--rtl]="isArabic()"
+  [class.metric-card--yellow]="color() === 'yellow'"
+  [class.metric-card--green]="color() === 'green'"
+  [class.metric-card--blue]="color() === 'blue'"
+  [class.metric-card--purple]="color() === 'purple'"
+  [class.metric-card--red]="color() === 'red'"
+  [routerLink]="routerLink()"
+>
+  <div class="metric-head">
+    <div
+      class="metric-icon-wrap"
+      [class.icon-wrap--yellow]="color() === 'yellow'"
+      [class.icon-wrap--green]="color() === 'green'"
+      [class.icon-wrap--blue]="color() === 'blue'"
+      [class.icon-wrap--purple]="color() === 'purple'"
+      [class.icon-wrap--red]="color() === 'red'"
+    >
+      <ng-content select="[icon]"></ng-content>
+    </div>
+
+    <div
+      class="metric-number"
+      [class.metric-number--text]="isTextValue()"
+    >
+      {{ displayValue() }}
+    </div>
+  </div>
+
+  <div class="metric-title">{{ title() }}</div>
+
+  @if (badge(); as b) {
+    <div
+      class="metric-badge"
+      [class.badge--green]="b.type === 'green'"
+      [class.badge--blue]="b.type === 'blue'"
+      [class.badge--purple]="b.type === 'purple'"
+      [class.badge--yellow]="b.type === 'yellow'"
+      [class.badge--red]="b.type === 'red'"
+    >
+      {{ b.text }}
+    </div>
+  }
+</div>

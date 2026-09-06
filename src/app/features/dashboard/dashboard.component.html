@@ -1,0 +1,462 @@
+<div class="dashboard-container" [class.dashboard-container--rtl]="isArabic()">
+  <!-- 1. Hero Welcome Banner -->
+  <div class="welcome-banner">
+    <div class="welcome-main">
+      <div class="welcome-text-wrap">
+        <h1 class="welcome-title">
+          {{ t().welcomeBack }} <span class="admin-name-highlight">{{ userName() || t().systemAdmin }}</span> <span class="wave-emoji">👋</span>
+        </h1>
+        <p class="welcome-subtitle">
+          {{ t().dashboardSubtitle }}
+        </p>
+      </div>
+
+      <a routerLink="/classroom/reservation" class="btn-view-bookings">
+        {{ t().viewBookings }}
+      </a>
+    </div>
+  </div>
+
+  <!-- 2. Action Cards Grid (4 Quick Action Cards) -->
+  <div class="dashboard-action-cards-grid">
+    <!-- Card 1: Add Discount (Yellow) -->
+    <a routerLink="/details/add-discount" [queryParams]="{ openAdd: 'true' }" class="dash-action-card dash-action-card--yellow">
+      <div class="dash-card-top">
+        <div class="dash-card-top-left">
+          <div class="dash-card-icon-wrap dash-card-icon-wrap--yellow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+              <line x1="7" y1="7" x2="7.01" y2="7"/>
+            </svg>
+          </div>
+          <h3 class="dash-card-title">{{ t().addDiscount }}</h3>
+        </div>
+        <div class="dash-card-arrow-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="7" y1="17" x2="17" y2="7"/>
+            <polyline points="7 7 17 7 17 17"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="dash-card-body">
+        <p class="dash-card-desc">{{ t().createAndManageDiscounts }}</p>
+      </div>
+
+      <div class="dash-card-footer">
+        <span class="dash-card-badge dash-card-badge--yellow">
+          {{ t().discountAndOffers }}
+        </span>
+      </div>
+    </a>
+
+    <!-- Card 2: Check-in Student (Green) -->
+    <a routerLink="/workspace/show-student" [queryParams]="{ openCheckIn: 'true' }" class="dash-action-card dash-action-card--green">
+      <div class="dash-card-top">
+        <div class="dash-card-top-left">
+          <div class="dash-card-icon-wrap dash-card-icon-wrap--green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="8.5" cy="7" r="4"/>
+              <line x1="20" y1="8" x2="20" y2="14"/>
+              <line x1="23" y1="11" x2="17" y2="11"/>
+            </svg>
+          </div>
+          <h3 class="dash-card-title">{{ t().checkInStudent }}</h3>
+        </div>
+        <div class="dash-card-arrow-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="7" y1="17" x2="17" y2="7"/>
+            <polyline points="7 7 17 7 17 17"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="dash-card-body">
+        <p class="dash-card-desc">{{ t().fastCheckInDesc }}</p>
+      </div>
+
+      <div class="dash-card-footer">
+        <span class="dash-card-badge dash-card-badge--green">
+          {{ t().quickCheckIn }}
+        </span>
+      </div>
+    </a>
+
+    <!-- Card 3: Add Classroom (Blue) -->
+    <a routerLink="/classroom/show-classroom" [queryParams]="{ openBooking: 'true' }" class="dash-action-card dash-action-card--blue">
+      <div class="dash-card-top">
+        <div class="dash-card-top-left">
+          <div class="dash-card-icon-wrap dash-card-icon-wrap--blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+          </div>
+          <h3 class="dash-card-title">{{ t().addClassroom }}</h3>
+        </div>
+        <div class="dash-card-arrow-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="7" y1="17" x2="17" y2="7"/>
+            <polyline points="7 7 17 7 17 17"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="dash-card-body">
+        <p class="dash-card-desc">{{ t().configureNewRoomDesc }}</p>
+      </div>
+
+      <div class="dash-card-footer">
+        <span class="dash-card-badge dash-card-badge--blue">
+          {{ t().setupRoom }}
+        </span>
+      </div>
+    </a>
+
+    <!-- Card 4: Close Shift (Purple) -->
+    <a routerLink="/shift/active" [queryParams]="{ openClose: 'true' }" class="dash-action-card dash-action-card--purple">
+      <div class="dash-card-top">
+        <div class="dash-card-top-left">
+          <div class="dash-card-icon-wrap dash-card-icon-wrap--purple">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <h3 class="dash-card-title">{{ t().closeShiftBtn }}</h3>
+        </div>
+        <div class="dash-card-arrow-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="7" y1="17" x2="17" y2="7"/>
+            <polyline points="7 7 17 7 17 17"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="dash-card-body">
+        <p class="dash-card-desc">{{ t().shiftHandoverDesc }}</p>
+      </div>
+
+      <div class="dash-card-footer">
+        <span class="dash-card-badge dash-card-badge--purple">
+          {{ t().closeShiftBtn }}
+        </span>
+      </div>
+    </a>
+  </div>
+
+  <!-- 3. Visual Analytics Charts Grid (The Graph) -->
+  <div class="analytics-grid">
+    <!-- Chart 1: Activity & Occupancy Flow (Modern Interactive Curve) -->
+    <div class="analytics-card chart-card-flow">
+      <div class="flow-header">
+        <div class="flow-title-wrap">
+          <h3 class="chart-card-title">{{ t().activityOccupancyFlow }}</h3>
+          <span class="live-pulse-badge">
+            <span class="pulse-dot"></span>
+            {{ t().peakToday }} {{ peakOccupancyRate() }}%
+          </span>
+        </div>
+
+        <!-- Timeframe Toggle Switcher -->
+        <div class="timeframe-toggle">
+          <button
+            type="button"
+            class="toggle-btn"
+            [class.toggle-btn--active]="chartTimeframe() === 'today'"
+            (click)="chartTimeframe.set('today')"
+          >
+            {{ t().todayHourly }}
+          </button>
+          <button
+            type="button"
+            class="toggle-btn"
+            [class.toggle-btn--active]="chartTimeframe() === 'week'"
+            (click)="chartTimeframe.set('week')"
+          >
+            {{ t().weekly }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Key Flow Metrics Strip -->
+      <div class="flow-metrics-strip">
+        <div class="flow-metric-item">
+          <span class="flow-metric-label">{{ t().peakTime }}</span>
+          <strong class="flow-metric-val">{{ peakTimeRange() }}</strong>
+        </div>
+        <div class="flow-metric-item">
+          <span class="flow-metric-label">{{ t().avgSession }}</span>
+          <strong class="flow-metric-val">{{ avgSessionDuration() }}</strong>
+        </div>
+        <div class="flow-metric-item">
+          <span class="flow-metric-label">{{ t().totalFootfall }}</span>
+          <strong class="flow-metric-val">{{ totalFootfallCount() }}</strong>
+        </div>
+      </div>
+
+      <!-- Smooth Area Gradient Chart -->
+      <div class="flow-chart-container">
+        <svg viewBox="0 0 520 180" class="flow-svg" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="flowGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#f5b921" stop-opacity="0.38"/>
+              <stop offset="85%" stop-color="#f5b921" stop-opacity="0.02"/>
+              <stop offset="100%" stop-color="#f5b921" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+
+          <!-- Horizontal Grid Lines -->
+          <line x1="15" y1="30" x2="505" y2="30" stroke="var(--border)" stroke-dasharray="3 3" opacity="0.45"/>
+          <line x1="15" y1="75" x2="505" y2="75" stroke="var(--border)" stroke-dasharray="3 3" opacity="0.45"/>
+          <line x1="15" y1="120" x2="505" y2="120" stroke="var(--border)" stroke-dasharray="3 3" opacity="0.45"/>
+          <line x1="15" y1="160" x2="505" y2="160" stroke="var(--border)" opacity="0.7"/>
+
+          <!-- Area Fill (Solid, crisp display) -->
+          <path [attr.d]="areaPath()" fill="url(#flowGradient)"/>
+
+          <!-- Line Stroke -->
+          <path [attr.d]="curvePath()" fill="none" stroke="#f5b921" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+          <!-- Interactive Data Points (White dot with gold stroke) -->
+          @for (pt of currentChartPoints(); track pt.label) {
+            <g
+              class="chart-point-group"
+              (mouseenter)="hoveredPoint.set(pt)"
+              (mouseleave)="hoveredPoint.set(null)"
+            >
+              <circle
+                [attr.cx]="pt.x"
+                [attr.cy]="pt.y"
+                r="5"
+                fill="#ffffff"
+                stroke="#f5b921"
+                stroke-width="2.5"
+                class="chart-dot"
+              />
+              <circle
+                [attr.cx]="pt.x"
+                [attr.cy]="pt.y"
+                r="18"
+                fill="transparent"
+                class="chart-dot-hitbox"
+              />
+            </g>
+          }
+        </svg>
+
+        <!-- Hover Tooltip Popup -->
+        @if (hoveredPoint(); as hp) {
+          <div
+            class="flow-tooltip"
+            [style.left.%]="(hp.x / 520) * 100"
+            [style.top.px]="hp.y - 38"
+          >
+            <strong>{{ isArabic() ? hp.labelAr : hp.label }}</strong>: {{ hp.count }} {{ t().studentsUnit }} ({{ hp.occupancy }}%)
+          </div>
+        }
+
+        <!-- X-Axis Labels -->
+        <div class="flow-x-labels">
+          @for (pt of currentChartPoints(); track pt.label) {
+            <span
+              class="x-label"
+              [class.x-label--active]="hoveredPoint()?.label === pt.label"
+              [style.left.%]="(pt.x / 520) * 100"
+            >
+              {{ isArabic() ? pt.labelAr : pt.label }}
+            </span>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart 2: Space Distribution (Donut Chart) -->
+    <div class="analytics-card chart-card-donut">
+      <h3 class="chart-card-title">{{ t().spaceDistribution }}</h3>
+      <div class="donut-content-wrap">
+        <!-- Donut Ring SVG (Dynamically Bound to Live Space Occupancy) -->
+        <div class="donut-chart-box">
+          <svg viewBox="0 0 120 120" class="donut-svg">
+            <!-- Private Desks -->
+            <circle
+              cx="60"
+              cy="60"
+              r="40"
+              fill="none"
+              stroke="#f5b921"
+              stroke-width="18"
+              [attr.stroke-dasharray]="spaceDistribution().privateDash"
+              [attr.stroke-dashoffset]="spaceDistribution().privateOffset"
+              transform="rotate(-90 60 60)"
+            />
+            <!-- Shared -->
+            <circle
+              cx="60"
+              cy="60"
+              r="40"
+              fill="none"
+              stroke="#2563eb"
+              stroke-width="18"
+              [attr.stroke-dasharray]="spaceDistribution().sharedDash"
+              [attr.stroke-dashoffset]="spaceDistribution().sharedOffset"
+              transform="rotate(-90 60 60)"
+            />
+            <!-- Meeting rooms -->
+            <circle
+              cx="60"
+              cy="60"
+              r="40"
+              fill="none"
+              stroke="#16a34a"
+              stroke-width="18"
+              [attr.stroke-dasharray]="spaceDistribution().meetingDash"
+              [attr.stroke-dashoffset]="spaceDistribution().meetingOffset"
+              transform="rotate(-90 60 60)"
+            />
+          </svg>
+        </div>
+
+        <!-- Donut Legend List (Dynamic Live Percentages) -->
+        <div class="donut-legend">
+          <div class="legend-row">
+            <span class="legend-dot dot--yellow"></span>
+            <span class="legend-label">{{ t().privateDesks }}</span>
+            <strong class="legend-val">{{ spaceDistribution().privatePct }}%</strong>
+          </div>
+          <div class="legend-row">
+            <span class="legend-dot dot--blue"></span>
+            <span class="legend-label">{{ t().sharedSpaces }}</span>
+            <strong class="legend-val">{{ spaceDistribution().sharedPct }}%</strong>
+          </div>
+          <div class="legend-row">
+            <span class="legend-dot dot--green"></span>
+            <span class="legend-label">{{ t().meetingRooms }}</span>
+            <strong class="legend-val">{{ spaceDistribution().meetingPct }}%</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Operational Activity Boards (Placed AFTER the Graph) -->
+  <div class="operational-grid">
+    <!-- Board 1: Live Active Sessions in Space -->
+    <div class="dashboard-card">
+      <div class="card-header-flex">
+        <div class="header-title-wrap">
+          <span class="live-dot-mini"></span>
+          <h3 class="card-main-title">{{ t().currentActiveStudents }}</h3>
+        </div>
+        <a routerLink="/workspace/show-student" class="card-link-more">
+          <span>{{ t().viewAll }}</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </a>
+      </div>
+
+      <div class="table-responsive">
+        <table class="dashboard-mini-table">
+          <thead>
+            <tr>
+              <th>{{ t().studentName }}</th>
+              <th>{{ t().deskSpace }}</th>
+              <th>{{ t().checkIn }}</th>
+              <th>{{ t().duration }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (st of activeStudentsPreview(); track st.id) {
+              <tr>
+                <td>
+                  <div class="user-mini-cell">
+                    <div class="user-avatar-char">{{ (st.name || 'U')[0] }}</div>
+                    <strong class="user-full-name">{{ st.name }}</strong>
+                  </div>
+                </td>
+                <td>
+                  <span class="desk-pill">{{ st.spaceOrFaculty }}</span>
+                </td>
+                <td>
+                  <span class="time-text">{{ st.checkInTime }}</span>
+                </td>
+                <td>
+                  <span class="duration-badge">{{ st.duration }}</span>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="4" style="text-align: center; padding: 2rem; color: #94a3b8; font-size: 0.9rem;">
+                  {{ t().noData }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Board 2: Today's Classroom & Hall Reservations -->
+    <div class="dashboard-card">
+      <div class="card-header-flex">
+        <div class="header-title-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#f5b921" stroke-width="2" class="header-icon-gold">
+            <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          <h3 class="card-main-title">{{ t().todaysRoomBookings }}</h3>
+        </div>
+        <a routerLink="/classroom/reservation" class="card-link-more">
+          <span>{{ t().viewSchedule }}</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </a>
+      </div>
+
+      <div class="bookings-list">
+        @for (res of upcomingReservations(); track res.id) {
+          <div class="booking-item-card">
+            <div class="booking-left">
+              <strong class="booking-event-title">{{ isArabic() ? res.titleAr : res.title }}</strong>
+              <span class="booking-room-tag">{{ isArabic() ? res.roomNameAr : res.roomName }}</span>
+              <div class="booking-meta-line">
+                <span class="meta-instructor">{{ isArabic() ? res.instructorAr : res.instructor }}</span>
+                <span class="meta-dot">•</span>
+                <span class="meta-attendees">{{ res.attendees }} {{ t().seatsLabel }}</span>
+              </div>
+            </div>
+
+            <div class="booking-right">
+              <span class="booking-time-badge">{{ res.timeSlot }}</span>
+              <span
+                class="booking-status-pill"
+                [class.status-pill--progress]="res.status === 'in_progress'"
+                [class.status-pill--upcoming]="res.status === 'upcoming'"
+                [class.status-pill--confirmed]="res.status === 'confirmed'"
+              >
+                @if (res.status === 'in_progress') {
+                  {{ t().inProgress }}
+                } @else if (res.status === 'upcoming') {
+                  {{ t().upcoming }}
+                } @else {
+                  {{ t().confirmed }}
+                }
+              </span>
+            </div>
+          </div>
+        } @empty {
+          <div style="padding: 2rem; text-align: center; color: #94a3b8; font-size: 0.9rem;">
+            {{ t().noData }}
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+

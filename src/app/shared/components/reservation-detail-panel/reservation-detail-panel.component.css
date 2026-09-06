@@ -1,0 +1,338 @@
+.panel-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+  animation: backdropFadeIn 0.25s ease-out;
+}
+
+[dir="rtl"] .panel-backdrop {
+  justify-content: flex-start;
+}
+
+.side-panel {
+  width: 100%;
+  max-width: 440px;
+  height: 100%;
+  background: var(--surface);
+  color: var(--text);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.25);
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow-y: auto;
+}
+
+[dir="rtl"] .side-panel {
+  border-left: none;
+  border-right: 1px solid var(--border);
+  box-shadow: 8px 0 32px rgba(0, 0, 0, 0.25);
+  animation: slideInLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes backdropFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+/* Header */
+.panel-header {
+  padding: 24px 24px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.panel-title-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.panel-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+  font-family: var(--font-display);
+}
+
+.status-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.status-badge--confirmed {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.close-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* Body */
+.panel-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+}
+
+/* Generic Detail Card */
+.detail-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Card 1: Instructor */
+.instructor-card {
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+}
+
+.instructor-avatar-wrap {
+  flex-shrink: 0;
+}
+
+.instructor-avatar-fallback {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(245, 185, 33, 0.15);
+  color: var(--yellow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.instructor-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.instructor-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.instructor-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+/* Section Label */
+.card-section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* Card 2: Logistics */
+.logistics-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.logistics-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(245, 185, 33, 0.12);
+  color: var(--yellow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.logistics-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.logistics-primary {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.logistics-secondary {
+  font-size: 0.84rem;
+  color: var(--text-dim);
+}
+
+/* Card 3: Activity */
+.activity-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.activity-location {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.86rem;
+  color: var(--text-dim);
+}
+
+.activity-location svg {
+  color: var(--text-dim);
+}
+
+/* Card 4: Cost Breakdown */
+.cost-card {
+  gap: 14px;
+}
+
+.cost-heading {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.cost-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cost-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.88rem;
+  color: var(--text-dim);
+}
+
+.cost-row .cost-val {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cost-row--discount .cost-val {
+  color: var(--success);
+}
+
+.cost-total-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.cost-row--total {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.cost-row--total .total-val {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+/* Footer Actions */
+.panel-footer {
+  padding: 18px 24px 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+}
+
+.panel-btn {
+  flex: 1;
+  height: 42px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.panel-btn--edit {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.panel-btn--edit:hover {
+  background: var(--border);
+}
+
+.panel-btn--checkout {
+  background: rgba(59, 130, 246, 0.08);
+  color: #3b82f6;
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.panel-btn--checkout:hover {
+  background: rgba(59, 130, 246, 0.15);
+}

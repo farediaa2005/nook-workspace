@@ -1,0 +1,452 @@
+<div class="page-container">
+  <!-- 1. Page Header & Top Controls Row -->
+  <div class="show-head">
+    <app-page-header
+      [title]="isArabic() ? 'دليل وقائمة جميع الستيودنتس' : 'Master Student Directory'"
+      [subtitle]="isArabic() ? 'سجل شامل بكافة الطلاب المسجلين بالسيستم مع بيانات التواصل والجامعات والاشتراكات والزيارات' : 'Comprehensive directory of all registered students with contact info, colleges, packages, and activity'"
+    ></app-page-header>
+
+    <div class="head-controls-row">
+      <!-- Export CSV Button -->
+      <button
+        type="button"
+        class="btn-export-data"
+        (click)="exportStudentsToCSV()"
+        [title]="isArabic() ? 'تصدير إكسيل / CSV' : 'Export CSV'"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="export-icon">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        <span>{{ isArabic() ? 'تصدير إكسيل / CSV' : 'Export CSV' }}</span>
+      </button>
+
+      <!-- Register Student Primary CTA -->
+      <app-primary-button
+        class="students-add-btn"
+        [text]="isArabic() ? '+ تسجيل ستيودنت جديد' : '+ Register New Student'"
+        (clicked)="openRegisterModal()"
+      ></app-primary-button>
+    </div>
+  </div>
+
+  <!-- 2. Metrics Grid -->
+  <div class="metrics-grid">
+    <app-metric-card
+      [title]="isArabic() ? 'إجمالي الستيودنتس المسجلين' : 'Total Registered Students'"
+      [value]="totalRegisteredCount()"
+      color="blue"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </app-metric-card>
+
+    <app-metric-card
+      [title]="isArabic() ? 'جالسين بالداخل الآن' : 'Inside Right Now'"
+      [value]="activeInsideCount()"
+      color="yellow"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+      </svg>
+    </app-metric-card>
+
+    <app-metric-card
+      [title]="isArabic() ? 'مشتركي الباكيدجات' : 'Package Subscribers'"
+      [value]="packageSubscribersCount()"
+      color="purple"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+      </svg>
+    </app-metric-card>
+  </div>
+
+  <!-- 3. Toolbar & Filters Card -->
+  <div class="toolbar-card">
+    <div class="toolbar-search">
+      <app-search-box
+        [placeholder]="isArabic() ? 'ابحث بالاسم، الموبايل، الواتساب، الإيميل، الكلية أو كود الطالب...' : 'Search by name, phone, whatsapp, email, college, ID...'"
+        [value]="searchQuery()"
+        (valueChange)="searchQuery.set($event)"
+      ></app-search-box>
+    </div>
+
+    <div class="toolbar-filters">
+      <div class="filter-item">
+        <app-custom-select
+          [options]="statusOptions()"
+          [selectedValue]="statusFilter()"
+          (valueChange)="statusFilter.set($event); currentPage.set(1)"
+        ></app-custom-select>
+      </div>
+
+      <div class="filter-item">
+        <app-custom-select
+          [options]="packageOptions()"
+          [selectedValue]="packageFilter()"
+          (valueChange)="packageFilter.set($event); currentPage.set(1)"
+        ></app-custom-select>
+      </div>
+
+      <div class="filter-item">
+        <app-custom-select
+          [options]="collegeOptions()"
+          [selectedValue]="collegeFilter()"
+          (valueChange)="collegeFilter.set($event); currentPage.set(1)"
+        ></app-custom-select>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Directory Table Card -->
+  <div class="table-container-card">
+    <div class="table-responsive">
+      <table class="custom-table directory-table">
+        <thead>
+          <tr>
+            <th class="col-student">{{ isArabic() ? 'الستيودنت' : 'Student' }}</th>
+            <th class="col-contact">{{ isArabic() ? 'بيانات التواصل' : 'Contact Info' }}</th>
+            <th class="col-faculty">{{ isArabic() ? 'الكلية والجامعة' : 'Faculty & College' }}</th>
+            <th class="col-package">{{ isArabic() ? 'الباكيدج / الاشتراك' : 'Package & Plan' }}</th>
+            <th class="col-visits">{{ isArabic() ? 'الزيارات والنشاط' : 'Visits & Activity' }}</th>
+            <th class="col-status">{{ isArabic() ? 'الحالة الحالية' : 'Status' }}</th>
+            <th class="col-actions text-center">{{ isArabic() ? 'الأكشنز' : 'Actions' }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (student of paginatedStudents(); track student.id) {
+            <tr class="table-row">
+              <!-- Student Info -->
+              <td class="col-student">
+                <div class="student-cell">
+                  <div class="student-avatar-wrap">
+                    <img [src]="getStudentAvatar(student)" (error)="onAvatarError($event, student.name)" [alt]="student.name" class="avatar-img" />
+                    @if (student.currentStatus === 'active') {
+                      <span class="live-dot-indicator" title="جالس داخل الورك سبيس الآن"></span>
+                    }
+                  </div>
+                  <div class="student-names">
+                    <span class="student-name-main">{{ student.name }}</span>
+                  </div>
+                </div>
+              </td>
+
+              <!-- Contact Info -->
+              <td class="col-contact">
+                <div class="contact-pill-list">
+                  @if (student.phone) {
+                    <a [href]="'tel:' + student.phone" class="contact-link phone-link" title="اتصال هاتفي">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                      </svg>
+                      <span>{{ student.phone }}</span>
+                    </a>
+                  }
+                  @if (student.whatsapp || student.phone) {
+                    <a [href]="'https://wa.me/2' + (student.whatsapp || student.phone)" target="_blank" class="contact-link whatsapp-link" title="واتساب">
+                      <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z"/>
+                      </svg>
+                      <span>{{ isArabic() ? 'واتساب' : 'WhatsApp' }}</span>
+                    </a>
+                  }
+                  @if (student.email) {
+                    <a [href]="'mailto:' + student.email" class="contact-link email-link" title="إيميل">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                        <polyline points="22,6 12,13 2,6"/>
+                      </svg>
+                      <span>{{ student.email }}</span>
+                    </a>
+                  }
+                </div>
+              </td>
+
+              <!-- Faculty & College -->
+              <td class="col-faculty">
+                <div class="faculty-box">
+                  <span class="faculty-badge">{{ student.faculty || student.college || (isArabic() ? 'طالب عام' : 'General') }}</span>
+                  @if (student.college && student.college !== student.faculty) {
+                    <span class="college-subtext">{{ student.college }}</span>
+                  }
+                </div>
+              </td>
+
+              <!-- Package & Plan -->
+              <td class="col-package">
+                @if (student.packageInfo?.hasPackage) {
+                  <div class="package-pill-wrap">
+                    <span class="badge-package-active">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                      </svg>
+                      <span>{{ isArabic() ? (student.packageInfo?.packageNameAr || student.packageInfo?.packageName) : (student.packageInfo?.packageNameEn || student.packageInfo?.packageName) }}</span>
+                    </span>
+                    <div class="package-hours-info">
+                      <span class="hours-num">{{ student.packageInfo?.remainingHours ?? 0 }}</span>
+                      <span class="hours-total">/ {{ student.packageInfo?.totalHours ?? 0 }} {{ isArabic() ? 'ساعة متبقية' : 'hrs left' }}</span>
+                    </div>
+                  </div>
+                } @else {
+                  <span class="badge-paygo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"/>
+                      <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    <span>{{ isArabic() ? 'دفع بالساعة' : 'Pay As You Go' }}</span>
+                  </span>
+                }
+              </td>
+
+              <!-- Visits & Activity -->
+              <td class="col-visits">
+                <div class="visits-info-box">
+                  <span class="visits-count-pill">
+                    {{ student.totalVisits }} {{ isArabic() ? 'زيارة' : 'visits' }}
+                  </span>
+                  @if (student.totalSpent > 0) {
+                    <span class="visits-spent">{{ student.totalSpent }} ج.م</span>
+                  }
+                  @if (student.lastVisitDate) {
+                    <span class="last-visit-date">{{ isArabic() ? 'آخر ظهور:' : 'Last:' }} {{ student.lastVisitDate }}</span>
+                  }
+                </div>
+              </td>
+
+              <!-- Current Status -->
+              <td class="col-status">
+                @if (student.currentStatus === 'active') {
+                  <span class="badge-status badge-status--active">
+                    <span class="dot-pulse"></span>
+                    <span>{{ isArabic() ? 'جالس الآن' : 'Active Inside' }}</span>
+                  </span>
+                  @if (student.activeSession?.faculty) {
+                    <span class="active-room-tag">{{ student.activeSession?.faculty }}</span>
+                  }
+                } @else if (student.currentStatus === 'blocked') {
+                  <span class="badge-status badge-status--blocked">
+                    <span>{{ isArabic() ? 'محظور 🔴' : 'Blocked' }}</span>
+                  </span>
+                } @else {
+                  <span class="badge-status badge-status--offline">
+                    <span>{{ isArabic() ? 'غير متواجد' : 'Offline' }}</span>
+                  </span>
+                }
+              </td>
+
+              <!-- Actions (Only Edit and Delete) -->
+              <td class="col-actions">
+                <div class="actions-group">
+                  <button type="button" class="btn-action-icon" (click)="openEditModal(student)" [title]="isArabic() ? 'تعديل بيانات الطالب' : 'Edit Student'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+
+                  <button type="button" class="btn-action-icon btn-delete-icon" (click)="confirmDeleteStudent(student)" [title]="isArabic() ? 'حذف الطالب من الدليل' : 'Delete Student'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7" class="text-center py-5 empty-cell">
+                <div class="empty-state-box">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-icon">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  <p class="empty-title">{{ isArabic() ? 'لا يوجد طلاب مطابقين للبحث' : 'No students matching search' }}</p>
+                  <button type="button" class="btn-register-action mt-3" (click)="openRegisterModal()">
+                    <span>{{ isArabic() ? '+ تسجيل طالب جديد' : '+ Register Student' }}</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 5. Pagination Component -->
+    @if (filteredStudents().length > 0) {
+      <div class="pagination-footer">
+        <app-pagination
+          [currentPage]="currentPage()"
+          [totalPages]="totalPages()"
+          (pageChange)="onPageChange($event)"
+        ></app-pagination>
+      </div>
+    }
+  </div>
+
+  <!-- MODAL: Direct Register Student -->
+  @if (isRegisterModalOpen()) {
+    <div class="modal-backdrop-custom" (click)="closeRegisterModal()">
+      <div class="modal-card-custom" (click)="$event.stopPropagation()">
+        <div class="modal-header-custom">
+          <div>
+            <h2 class="modal-title">{{ isArabic() ? 'تسجيل ستيودنت جديد في الدليل' : 'Register New Student' }}</h2>
+            <p class="modal-subtitle">{{ isArabic() ? 'إضافة بيانات الطالب لقاعدة البيانات والدليل العام' : 'Add student details directly to directory' }}</p>
+          </div>
+          <button type="button" class="btn-close-circle" (click)="closeRegisterModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="modal-body-pad">
+          <div class="form-grid-2col">
+            <div class="modal-field-group">
+              <label class="modal-label">{{ isArabic() ? 'اسم الطالب' : 'Student Name' }} *</label>
+              <input type="text" class="modal-input" [ngModel]="regName()" (ngModelChange)="regName.set($event)" [placeholder]="isArabic() ? 'الاسم بالكامل' : 'Full Name'" />
+            </div>
+
+            <div class="modal-field-group">
+              <label class="modal-label">{{ isArabic() ? 'رقم الهاتف' : 'Phone Number' }} *</label>
+              <input type="tel" class="modal-input" [ngModel]="regPhone()" (ngModelChange)="regPhone.set($event)" placeholder="01xxxxxxxxx" />
+            </div>
+
+            <div class="modal-field-group">
+              <label class="modal-label">{{ isArabic() ? 'رقم الواتساب' : 'WhatsApp Number' }}</label>
+              <input type="tel" class="modal-input" [ngModel]="regWhatsapp()" (ngModelChange)="regWhatsapp.set($event)" placeholder="01xxxxxxxxx" />
+            </div>
+
+            <div class="modal-field-group">
+              <label class="modal-label">{{ isArabic() ? 'البريد الإلكتروني' : 'Email' }}</label>
+              <input type="email" class="modal-input" [ngModel]="regEmail()" (ngModelChange)="regEmail.set($event)" placeholder="student@example.com" />
+            </div>
+
+            <div class="modal-field-group">
+              <label class="modal-label">{{ isArabic() ? 'الجامعة' : 'University' }}</label>
+              <input type="text" class="modal-input" [ngModel]="regCollege()" (ngModelChange)="regCollege.set($event)" placeholder="مثال: جامعة القاهرة" />
+            </div>
+
+            <div class="modal-field-group">
+              <label class="modal-label">{{ isArabic() ? 'الكلية / التخصص' : 'Faculty / Major' }}</label>
+              <input type="text" class="modal-input" [ngModel]="regFaculty()" (ngModelChange)="regFaculty.set($event)" placeholder="مثال: كلية الهندسة" />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer-custom">
+          <button type="button" class="btn btn-secondary" (click)="closeRegisterModal()">{{ isArabic() ? 'إلغاء' : 'Cancel' }}</button>
+          <button type="button" class="btn btn-primary" (click)="submitRegisterStudent()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span>{{ isArabic() ? 'حفظ وتسجيل' : 'Save & Register' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: Edit Student -->
+  @if (isEditModalOpen()) {
+    <div class="modal-backdrop-custom" (click)="closeEditModal()">
+      <div class="modal-card-custom" (click)="$event.stopPropagation()">
+        <div class="modal-header-custom">
+          <div>
+            <h2 class="modal-title">{{ isArabic() ? 'تعديل بيانات الطالب' : 'Edit Student Details' }}</h2>
+            <p class="modal-subtitle">{{ isArabic() ? 'تحديث البيانات المحفوظة في الدليل' : 'Update saved details in directory' }}</p>
+          </div>
+          <button type="button" class="btn-close-circle" (click)="closeEditModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="modal-body-pad">
+          <div class="form-grid-2col">
+            <div class="modal-field-group">
+              <label class="modal-label">{{ isArabic() ? 'اسم الطالب' : 'Student Name' }} *</label>
+              <input type="text" class="modal-input" [ngModel]="editName()" (ngModelChange)="editName.set($event)" />
+            </div>
+
+            <div class="modal-field-group">
+              <label class="modal-label">{{ isArabic() ? 'رقم الهاتف' : 'Phone Number' }} *</label>
+              <input type="tel" class="modal-input" [ngModel]="editPhone()" (ngModelChange)="editPhone.set($event)" />
+            </div>
+
+            <div class="modal-field-group">
+              <label class="modal-label">{{ isArabic() ? 'رقم الواتساب' : 'WhatsApp Number' }}</label>
+              <input type="tel" class="modal-input" [ngModel]="editWhatsapp()" (ngModelChange)="editWhatsapp.set($event)" />
+            </div>
+
+            <div class="modal-field-group">
+              <label class="modal-label">{{ isArabic() ? 'البريد الإلكتروني' : 'Email' }}</label>
+              <input type="email" class="modal-input" [ngModel]="editEmail()" (ngModelChange)="editEmail.set($event)" />
+            </div>
+
+            <div class="modal-field-group">
+              <label class="modal-label">{{ isArabic() ? 'الجامعة' : 'University' }}</label>
+              <input type="text" class="modal-input" [ngModel]="editCollege()" (ngModelChange)="editCollege.set($event)" />
+            </div>
+
+            <div class="modal-field-group">
+              <label class="modal-label">{{ isArabic() ? 'الكلية / التخصص' : 'Faculty / Major' }}</label>
+              <input type="text" class="modal-input" [ngModel]="editFaculty()" (ngModelChange)="editFaculty.set($event)" />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer-custom">
+          <button type="button" class="btn btn-secondary" (click)="closeEditModal()">{{ isArabic() ? 'إلغاء' : 'Cancel' }}</button>
+          <button type="button" class="btn btn-primary" (click)="submitEditStudent()">
+            <span>{{ isArabic() ? 'تحديث البيانات' : 'Update Details' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: Delete Confirmation -->
+  @if (isDeleteModalOpen()) {
+    <div class="modal-backdrop-custom" (click)="closeDeleteModal()">
+      <div class="modal-card-custom modal-card-sm" (click)="$event.stopPropagation()">
+        <div class="modal-header-custom">
+          <h2 class="modal-title">{{ isArabic() ? 'تأكيد الحذف' : 'Confirm Delete' }}</h2>
+          <button type="button" class="btn-close-circle" (click)="closeDeleteModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body-pad">
+          <p class="delete-warning-text">
+            {{ isArabic() ? 'هل أنت متأكد من رغبتك في حذف بيانات الطالب' : 'Are you sure you want to delete' }}
+            <strong>{{ studentToDelete()?.name }}</strong>
+            {{ isArabic() ? 'من الدليل العام؟' : 'from directory?' }}
+          </p>
+        </div>
+        <div class="modal-footer-custom">
+          <button type="button" class="btn btn-secondary" (click)="closeDeleteModal()">{{ isArabic() ? 'إلغاء' : 'Cancel' }}</button>
+          <button type="button" class="btn btn-danger" (click)="executeDeleteStudent()">
+            <span>{{ isArabic() ? 'تأكيد الحذف' : 'Delete' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

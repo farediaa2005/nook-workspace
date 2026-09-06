@@ -1,0 +1,14 @@
+<div class="data-table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            @for (col of columns(); track col) {
+              <th>{{ col }}</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          <ng-content></ng-content>
+        </tbody>
+      </table>
+    </div>

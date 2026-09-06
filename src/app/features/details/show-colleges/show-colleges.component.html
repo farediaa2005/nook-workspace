@@ -1,0 +1,612 @@
+<div class="page-container" [class.page-container--rtl]="isArabic()">
+  <!-- Page Header & Top Controls Row -->
+  <div class="show-head">
+    <div class="head-title-wrap">
+      <h1 class="page-title">{{ isArabic() ? 'إحصائيات ودليل الكليات' : 'Colleges Directory & Analytics' }}</h1>
+      <p class="page-subtitle">{{ isArabic() ? 'رسم بياني شامل لتوزيع ساعات وطلاب وإيرادات كل كلية مع إدارة بيانات الكليات' : 'Comprehensive graph for college hours, students, revenue distribution and directory' }}</p>
+    </div>
+
+    <div class="head-controls-row">
+      <!-- Tab Navigation Switcher -->
+      <div class="view-tabs-toggle">
+        <button
+          type="button"
+          class="tab-btn"
+          [class.tab-btn--active]="activeTab() === 'analytics'"
+          (click)="activeTab.set('analytics')"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-icon">
+            <path d="M21.21 15.89A10 10 0 1 1 8 2.83"/>
+            <path d="M22 12A10 10 0 0 0 12 2v10z"/>
+          </svg>
+          <span>{{ isArabic() ? 'رسم بياني الكليات (College Graph)' : 'College Graph' }}</span>
+        </button>
+
+        <button
+          type="button"
+          class="tab-btn"
+          [class.tab-btn--active]="activeTab() === 'directory'"
+          (click)="activeTab.set('directory')"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-icon">
+            <line x1="8" y1="6" x2="21" y2="6"/>
+            <line x1="8" y1="12" x2="21" y2="12"/>
+            <line x1="8" y1="18" x2="21" y2="18"/>
+            <line x1="3" y1="6" x2="3.01" y2="6"/>
+            <line x1="3" y1="12" x2="3.01" y2="12"/>
+            <line x1="3" y1="18" x2="3.01" y2="18"/>
+          </svg>
+          <span>{{ isArabic() ? 'دليل الكليات' : 'Colleges Directory' }}</span>
+        </button>
+      </div>
+
+      <!-- Add College Primary CTA -->
+      <app-primary-button
+        class="colleges-add-btn"
+        [text]="t().addCollegeBtn"
+        (clicked)="openAddModal()"
+      ></app-primary-button>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- TAB 1: COLLEGE GRAPH & ANALYTICS (Matches user's requested layout)       -->
+  <!-- ========================================================================= -->
+  @if (activeTab() === 'analytics') {
+    <!-- Date Filter Bar (Date From: ... To: ...) -->
+    <div class="analytics-filter-card">
+      <div class="filter-header-line">
+        <div class="filter-title-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#f5b921" stroke-width="2" class="gold-icon">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <h3 class="filter-heading">{{ isArabic() ? 'تحديد الفترة الزمنية للرسم البياني' : 'College Graph Date Range' }}</h3>
+        </div>
+
+        <!-- Quick Preset Buttons -->
+        <div class="preset-pills">
+          <button type="button" class="preset-pill" [class.preset-pill--active]="datePreset() === 'all'" (click)="setDatePreset('all')">
+            {{ isArabic() ? 'الكل' : 'All Time' }}
+          </button>
+          <button type="button" class="preset-pill" [class.preset-pill--active]="datePreset() === 'today'" (click)="setDatePreset('today')">
+            {{ isArabic() ? 'اليوم' : 'Today' }}
+          </button>
+          <button type="button" class="preset-pill" [class.preset-pill--active]="datePreset() === 'week'" (click)="setDatePreset('week')">
+            {{ isArabic() ? 'آخر 7 أيام' : 'This Week' }}
+          </button>
+          <button type="button" class="preset-pill" [class.preset-pill--active]="datePreset() === 'month'" (click)="setDatePreset('month')">
+            {{ isArabic() ? 'هذا الشهر' : 'This Month' }}
+          </button>
+          <button type="button" class="preset-pill" [class.preset-pill--active]="datePreset() === 'year'" (click)="setDatePreset('year')">
+            {{ isArabic() ? 'هذا العام' : 'This Year' }}
+          </button>
+        </div>
+      </div>
+
+      <div class="date-inputs-row">
+        <div class="date-input-group">
+          <label class="date-label">Date From: (من تاريخ)</label>
+          <input
+            type="date"
+            class="custom-date-input"
+            [ngModel]="dateFrom()"
+            (ngModelChange)="dateFrom.set($event); onCustomDateChange()"
+          />
+        </div>
+
+        <div class="date-input-group">
+          <label class="date-label">To: (إلى تاريخ)</label>
+          <input
+            type="date"
+            class="custom-date-input"
+            [ngModel]="dateTo()"
+            (ngModelChange)="dateTo.set($event); onCustomDateChange()"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Analytics Top Summary KPI Cards -->
+    <div class="analytics-metrics-strip">
+      <div class="kpi-mini-card">
+        <span class="kpi-mini-label">{{ isArabic() ? 'أكثر كلية إقبالاً' : 'Top College' }}</span>
+        <strong class="kpi-mini-val" style="color: #f5b921;">
+          {{ topCollegeItem() ? topCollegeItem()?.name : '-' }}
+        </strong>
+        <span class="kpi-mini-sub">{{ topCollegeItem() ? (topCollegeItem()?.percentage + '% من الإجمالي') : '' }}</span>
+      </div>
+
+      <div class="kpi-mini-card">
+        <span class="kpi-mini-label">{{ isArabic() ? 'إجمالي الساعات' : 'Total Hours' }}</span>
+        <strong class="kpi-mini-val">{{ totalAnalyticsHours() }} {{ isArabic() ? 'ساعة' : 'hrs' }}</strong>
+        <span class="kpi-mini-sub">{{ isArabic() ? 'موزعة على كافة الكليات' : 'Across all colleges' }}</span>
+      </div>
+
+      <div class="kpi-mini-card">
+        <span class="kpi-mini-label">{{ isArabic() ? 'إجمالي الطلاب' : 'Total Students' }}</span>
+        <strong class="kpi-mini-val" style="color: #3b82f6;">{{ totalAnalyticsStudents() }} {{ isArabic() ? 'طالب' : 'students' }}</strong>
+        <span class="kpi-mini-sub">{{ collegeAnalyticsData().length }} {{ isArabic() ? 'كلية مسجلة' : 'colleges' }}</span>
+      </div>
+
+      <div class="kpi-mini-card">
+        <span class="kpi-mini-label">{{ isArabic() ? 'إجمالي الإيرادات' : 'Total Revenue' }}</span>
+        <strong class="kpi-mini-val" style="color: #10b981;">{{ totalAnalyticsRevenue() }} {{ isArabic() ? 'ج.م' : 'EGP' }}</strong>
+        <span class="kpi-mini-sub">{{ isArabic() ? 'جلسات وباقات' : 'Sessions & Passes' }}</span>
+      </div>
+    </div>
+
+    <!-- Main College Graph Board (Split Table + Pie Chart Layout) -->
+    <div class="college-graph-layout">
+      <!-- Left Column: Detailed College Table -->
+      <div class="college-table-panel">
+        <div class="panel-header">
+          <div class="panel-title-wrap">
+            <h3 class="panel-title">{{ isArabic() ? 'جدول توزيع الكليات' : 'College Breakdown Table' }}</h3>
+            <span class="count-badge">{{ collegeAnalyticsData().length }} {{ isArabic() ? 'كلية' : 'colleges' }}</span>
+          </div>
+        </div>
+
+        <div class="graph-table-wrap">
+          <table class="graph-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">No.</th>
+                <th>{{ isArabic() ? 'الكلية (College)' : 'College' }}</th>
+                <th class="th-center">{{ isArabic() ? 'الطلاب (Students)' : 'Students' }}</th>
+                <th class="th-center">{{ isArabic() ? 'الساعات (Hours)' : 'Hours' }}</th>
+                <th class="th-center">{{ isArabic() ? 'الإجمالي (Total)' : 'Total (EGP)' }}</th>
+                <th class="th-center">{{ isArabic() ? 'النسبة (%)' : 'Share (%)' }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of collegeAnalyticsData(); track item.id) {
+                <tr
+                  class="graph-row"
+                  [class.graph-row--hovered]="hoveredCollegeId() === item.id"
+                  (mouseenter)="hoveredCollegeId.set(item.id)"
+                  (mouseleave)="hoveredCollegeId.set(null)"
+                >
+                  <td class="cell-no">
+                    <span class="no-badge" [style.background-color]="item.colorLight" [style.color]="item.color">
+                      {{ item.no }}
+                    </span>
+                  </td>
+                  <td class="cell-college">
+                    <div class="college-name-box">
+                      <span class="color-dot" [style.background-color]="item.color"></span>
+                      <strong class="college-name-text">{{ item.name }}</strong>
+                    </div>
+                  </td>
+                  <td class="cell-center">
+                    <span class="val-students">{{ item.studentsCount }}</span>
+                  </td>
+                  <td class="cell-center">
+                    <span class="val-hours">{{ item.hours }}</span>
+                  </td>
+                  <td class="cell-center">
+                    <span class="val-total">{{ item.totalRevenue }}</span>
+                  </td>
+                  <td class="cell-center">
+                    <div class="percentage-cell">
+                      <div class="pct-bar-bg">
+                        <div class="pct-bar-fill" [style.width.%]="item.percentage" [style.background-color]="item.color"></div>
+                      </div>
+                      <strong class="pct-text" [style.color]="item.color">{{ item.percentage }}%</strong>
+                    </div>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-dim);">
+                    {{ t().noData }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+            @if (collegeAnalyticsData().length > 0) {
+              <tfoot>
+                <tr class="graph-total-row">
+                  <td colspan="2"><strong>{{ isArabic() ? 'الإجمالي العام' : 'Grand Total' }}</strong></td>
+                  <td class="cell-center"><strong>{{ totalAnalyticsStudents() }}</strong></td>
+                  <td class="cell-center"><strong>{{ totalAnalyticsHours() }}</strong></td>
+                  <td class="cell-center"><strong>{{ totalAnalyticsRevenue() }}</strong></td>
+                  <td class="cell-center"><strong>100%</strong></td>
+                </tr>
+              </tfoot>
+            }
+          </table>
+        </div>
+      </div>
+
+      <!-- Right Column: Interactive Vector Pie Chart -->
+      <div class="college-chart-panel">
+        <div class="panel-header">
+          <h3 class="panel-title">{{ isArabic() ? 'الرسم البياني الدائري (Pie Chart)' : 'College Graph (Pie Chart)' }}</h3>
+        </div>
+
+        <div class="pie-chart-container">
+          <svg viewBox="0 0 300 300" class="pie-svg">
+            <defs>
+              <filter id="sliceShadow" x="-10%" y="-10%" width="120%" height="120%">
+                <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.35"/>
+              </filter>
+            </defs>
+
+            <!-- Render Pie Slices -->
+            @for (item of collegeAnalyticsData(); track item.id) {
+              <g
+                class="pie-slice-group"
+                [class.pie-slice--hovered]="hoveredCollegeId() === item.id"
+                (mouseenter)="hoveredCollegeId.set(item.id)"
+                (mouseleave)="hoveredCollegeId.set(null)"
+              >
+                <path
+                  [attr.d]="item.svgPath"
+                  [attr.fill]="item.color"
+                  stroke="var(--surface)"
+                  stroke-width="2"
+                  class="pie-slice-path"
+                />
+
+                <!-- Percentage Label on Larger Slices -->
+                @if (item.percentage >= 4) {
+                  <text
+                    [attr.x]="item.labelX"
+                    [attr.y]="item.labelY"
+                    text-anchor="middle"
+                    dominant-baseline="central"
+                    class="slice-pct-label"
+                  >
+                    {{ item.percentage }}%
+                  </text>
+                }
+              </g>
+            }
+          </svg>
+
+          <!-- Interactive Hover Tooltip Card -->
+          <div class="chart-active-card">
+            @if (hoveredCollege(); as hCol) {
+              <div class="active-card-content">
+                <div class="active-card-header">
+                  <span class="active-color-badge" [style.background-color]="hCol.color"></span>
+                  <strong class="active-title">{{ hCol.name }}</strong>
+                </div>
+                <div class="active-stats-grid">
+                  <div class="active-stat">
+                    <span>{{ isArabic() ? 'الطلاب:' : 'Students:' }}</span>
+                    <strong>{{ hCol.studentsCount }}</strong>
+                  </div>
+                  <div class="active-stat">
+                    <span>{{ isArabic() ? 'الساعات:' : 'Hours:' }}</span>
+                    <strong>{{ hCol.hours }} h</strong>
+                  </div>
+                  <div class="active-stat">
+                    <span>{{ isArabic() ? 'الإيراد:' : 'Revenue:' }}</span>
+                    <strong>{{ hCol.totalRevenue }} ج.م</strong>
+                  </div>
+                  <div class="active-stat">
+                    <span>{{ isArabic() ? 'النسبة:' : 'Share:' }}</span>
+                    <strong [style.color]="hCol.color">{{ hCol.percentage }}%</strong>
+                  </div>
+                </div>
+              </div>
+            } @else {
+              <div class="active-card-placeholder">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 28px; height: 28px; color: #f5b921;">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="16" x2="12" y2="12"/>
+                  <line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+                <p>{{ isArabic() ? 'مرر الماوس فوق أي قطاع أو سطر لعرض تفاصيله' : 'Hover over any slice or row to inspect details' }}</p>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ========================================================================= -->
+  <!-- TAB 2: COLLEGES DIRECTORY & MANAGEMENT                                   -->
+  <!-- ========================================================================= -->
+  @if (activeTab() === 'directory') {
+    <!-- 3 Summary Metric Cards Grid -->
+    <div class="metrics-grid">
+      <!-- Card 1: Total Universities -->
+      <app-metric-card
+        [title]="t().totalColleges"
+        [value]="totalUniversitiesCount()"
+        [description]="t().derivedFromRegisteredColleges"
+        color="yellow"
+      >
+        <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="10" y1="12" x2="14" y2="12"/>
+          <line x1="10" y1="16" x2="14" y2="16"/>
+        </svg>
+      </app-metric-card>
+
+      <!-- Card 2: Total Faculties / Colleges -->
+      <app-metric-card
+        [title]="t().showColleges"
+        [value]="totalCollegesCount()"
+        color="green"
+      >
+        <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+          <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+        </svg>
+      </app-metric-card>
+
+      <!-- Card 3: Enrolled Students -->
+      <app-metric-card
+        [title]="t().totalAffiliatedStudents"
+        [value]="enrolledStudentsCount()"
+        color="blue"
+      >
+        <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </app-metric-card>
+    </div>
+
+    <!-- 2. Toolbar & Search Bar Card -->
+    <div class="toolbar-card">
+      <div class="toolbar-search">
+        <app-search-box
+          [placeholder]="t().searchCollegesPlaceholder"
+          [value]="searchQuery()"
+          (valueChange)="onSearchChange($event)"
+        ></app-search-box>
+      </div>
+
+      <div class="toolbar-stats">
+        <span class="toolbar-badge">
+          🏛️ {{ filteredColleges().length }} {{ isArabic() ? 'كلية مسجلة' : 'Colleges Listed' }}
+        </span>
+      </div>
+    </div>
+
+    <!-- 3. Directory Table Card -->
+    <div class="table-container-card">
+      <div class="table-responsive">
+        <table class="custom-table">
+          <thead>
+            <tr>
+              <th>{{ t().collegeNameLabel }}</th>
+              <th>{{ t().universityLabel }}</th>
+              <th class="th-center">{{ t().studentsCountTh }}</th>
+              <th>{{ t().campusLocation }}</th>
+              <th class="th-center">{{ t().actions }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (col of paginatedColleges(); track col.id) {
+              <tr>
+                <!-- College Name & Icon -->
+                <td class="cell-student-td">
+                  <div class="student-cell-content">
+                    <div class="college-icon-box">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+                        <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+                      </svg>
+                    </div>
+                    <div class="student-meta">
+                      <strong class="student-name">{{ isArabic() ? col.name : (col.nameEn || col.name) }}</strong>
+                      @if (col.notes) {
+                        <span class="student-faculty" style="font-size: 0.78rem;">{{ col.notes }}</span>
+                      }
+                    </div>
+                  </div>
+                </td>
+
+                <!-- University Name -->
+                <td>
+                  <span class="university-badge">
+                    {{ isArabic() ? col.university : (col.universityEn || col.university) }}
+                  </span>
+                </td>
+
+                <!-- Students Count -->
+                <td class="cell-center">
+                  <span class="students-count-pill">
+                    {{ col.studentsCount }} {{ isArabic() ? 'طالب' : 'students' }}
+                  </span>
+                </td>
+
+                <!-- Campus / Branch -->
+                <td>
+                  <span class="campus-text">
+                    {{ isArabic() ? col.campus : (col.campusEn || col.campus) }}
+                  </span>
+                </td>
+
+                <!-- Actions (Edit & Delete Buttons) -->
+                <td class="cell-center">
+                  <div class="actions-wrapper" style="justify-content: center; gap: 8px;">
+                    <button
+                      type="button"
+                      class="btn-edit-direct"
+                      (click)="openEditModal(col)"
+                      [title]="t().edit"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                      <span>{{ t().edit }}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      class="btn-delete-direct"
+                      (click)="openDeleteModal(col)"
+                      [title]="t().delete"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                      </svg>
+                      <span>{{ t().delete }}</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="5" class="cell-empty">
+                  {{ t().noData }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Table Pagination Footer -->
+      <div class="table-footer">
+        <span class="pagination-info">
+          {{ t().showing }} {{ startIndex() }} {{ t().to }} {{ endIndex() }} {{ t().of }} {{ filteredColleges().length }} {{ t().entries }}
+        </span>
+
+        <app-pagination
+          [currentPage]="currentPage()"
+          [totalPages]="totalPages()"
+          (pageChange)="setPage($event)"
+        ></app-pagination>
+      </div>
+    </div>
+  }
+
+  <!-- Add / Edit College Modal -->
+  <app-modal
+    [isOpen]="isModalOpen()"
+    [title]="getModalTitle()"
+    (close)="closeModal()"
+  >
+    <form (submit)="saveCollege(); $event.preventDefault()" class="college-modal-form">
+      @if (formError(); as err) {
+        <div class="form-error-banner">
+          {{ err }}
+        </div>
+      }
+
+      <div class="form-grid">
+        <!-- College Name -->
+        <div class="field-group">
+          <label class="field-label">{{ t().collegeNameLabel }} *</label>
+          <input
+            type="text"
+            class="custom-input"
+            [placeholder]="isArabic() ? 'مثال: كلية الهندسة' : 'e.g. Faculty of Engineering'"
+            [ngModel]="formName()"
+            (ngModelChange)="formName.set($event)"
+            name="formName"
+          />
+        </div>
+
+        <!-- University Name -->
+        <div class="field-group">
+          <label class="field-label">{{ t().universityLabel }} *</label>
+          <input
+            type="text"
+            class="custom-input"
+            [placeholder]="isArabic() ? 'مثال: جامعة القاهرة، جامعة عين شمس' : 'e.g. Cairo University'"
+            [ngModel]="formUniversity()"
+            (ngModelChange)="formUniversity.set($event)"
+            name="formUniversity"
+          />
+        </div>
+
+        <!-- Campus / Branch -->
+        <div class="field-group">
+          <label class="field-label">{{ t().campusLocation }}</label>
+          <input
+            type="text"
+            class="custom-input"
+            [placeholder]="isArabic() ? 'مثال: مجمع الجيزة، العباسية' : 'e.g. Giza Main Campus'"
+            [ngModel]="formCampus()"
+            (ngModelChange)="formCampus.set($event)"
+            name="formCampus"
+          />
+        </div>
+
+        <!-- Registered Students Count / Estimated Capacity -->
+        <div class="field-group">
+          <label class="field-label">{{ t().estimatedCollegeCapacity }}</label>
+          <input
+            type="number"
+            min="0"
+            class="custom-input"
+            [placeholder]="isArabic() ? 'مثال: 500 طالب' : 'e.g. 500 students'"
+            [ngModel]="formStudentsCount()"
+            (ngModelChange)="formStudentsCount.set($event)"
+            name="formStudentsCount"
+          />
+        </div>
+
+        <!-- Notes / Description -->
+        <div class="field-group full-width">
+          <label class="field-label">{{ t().notes }}</label>
+          <textarea
+            class="custom-textarea"
+            rows="3"
+            [placeholder]="isArabic() ? 'ملاحظات عن طلاب الكلية وأوقات ذروة الحضور...' : 'Notes about student attendance patterns...'"
+            [ngModel]="formNotes()"
+            (ngModelChange)="formNotes.set($event)"
+            name="formNotes"
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer-actions">
+        <button type="button" class="btn-cancel" (click)="closeModal()">
+          {{ t().cancel }}
+        </button>
+
+        <app-primary-button
+          [text]="t().saveCollegeBtn"
+          type="submit"
+        ></app-primary-button>
+      </div>
+    </form>
+  </app-modal>
+
+  <!-- Delete Confirmation Modal -->
+  @if (isDeleteModalOpen() && collegeToDelete(); as delCol) {
+    <div class="modal-overlay" (click)="closeDeleteModal()">
+      <div class="delete-card" (click)="$event.stopPropagation()">
+        <div class="delete-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" style="width: 32px; height: 32px;">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+        </div>
+
+        <h3 class="delete-title">{{ t().confirmDeleteCollegeTitle }}</h3>
+        <p class="delete-subtitle">
+          {{ t().confirmDeleteCollegeDesc }} ("{{ isArabic() ? delCol.name : (delCol.nameEn || delCol.name) }}")
+        </p>
+
+        <div class="delete-actions-footer">
+          <button type="button" class="btn-cancel" (click)="closeDeleteModal()">
+            {{ t().cancel }}
+          </button>
+          <button type="button" class="btn-confirm-delete" (click)="confirmDelete()">
+            {{ t().delete }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,375 @@
+<div class="modal-overlay" (click)="close.emit()">
+  <div class="modal-card modal-card--checkout" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="modal-head">
+      <div class="modal-head-text">
+        <h2 class="modal-title">{{ data().title }}</h2>
+        @if (data().subtitle) {
+          <p class="modal-subtitle">{{ data().subtitle }}</p>
+        }
+      </div>
+      <button type="button" class="btn-close-circle" (click)="close.emit()" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Body (2-Column Grid) -->
+    <div class="modal-checkout-grid">
+      <!-- LEFT COLUMN: Session Details & Breakdown -->
+      <div class="modal-col">
+        <!-- 1. Session Details Card -->
+        <div class="modal-section-card">
+          <h3 class="section-card-title">{{ isArabic() ? 'تفاصيل السيشن' : 'SESSION DETAILS' }}</h3>
+
+          <div class="session-box">
+            <div class="session-header-row">
+              <div class="activity-info">
+                <span class="tiny-label">{{ isArabic() ? 'النشاط' : 'ACTIVITY' }}</span>
+                <strong class="activity-title">{{ data().session.activity }}</strong>
+              </div>
+              <span
+                class="status-pill"
+                [class.status-pill--active]="data().session.status === 'active'"
+                [class.status-pill--completed]="data().session.status !== 'active'"
+              >
+                @if (data().session.status === 'active') {
+                  <span class="status-dot"></span>
+                  <span>{{ isArabic() ? 'قاعد جوه' : 'Active' }}</span>
+                } @else {
+                  <span>{{ isArabic() ? 'خلصت خلاص' : 'Completed' }}</span>
+                }
+              </span>
+            </div>
+
+            <div class="timing-duration-row">
+              <div class="meta-item">
+                <span class="tiny-label">{{ isArabic() ? 'التوقيت' : 'TIMING' }}</span>
+                <div class="timing-val">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tiny-icon">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                  </svg>
+                  <span>
+                    {{ formatTime(data().session.startTime) }}
+                    @if (data().session.endTime) {
+                      - {{ formatTime(data().session.endTime) }}
+                    }
+                  </span>
+                </div>
+              </div>
+
+              <div class="meta-item">
+                <span class="tiny-label">{{ isArabic() ? 'الوقت كله' : 'TOTAL DURATION' }}</span>
+                <strong class="duration-val">{{ formatTime(data().session.duration) }}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Financial Breakdown Card -->
+        <div class="modal-section-card">
+          <div class="section-card-header-row">
+            <h3 class="section-card-title">{{ isArabic() ? 'تفاصيل الحساب' : 'FINANCIAL BREAKDOWN' }}</h3>
+          </div>
+
+          <div class="breakdown-lines">
+            <!-- Dynamic Line Items -->
+            @for (item of data().financialBreakdown.items; track item.title) {
+              <div class="breakdown-line">
+                <div class="line-desc">
+                  <strong class="line-title">{{ item.title }}</strong>
+
+                  <div class="line-sub-row">
+                    @if (item.canEdit) {
+                      <button
+                        type="button"
+                        class="btn-box-action btn-box-action--yellow"
+                        (click)="editRate.emit()"
+                        title="Edit"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                      </button>
+                    }
+                    @if (item.canAdd) {
+                      <button
+                        type="button"
+                        class="btn-box-action btn-box-action--yellow"
+                        (click)="addCatering.emit()"
+                        title="Add"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                          <line x1="12" y1="5" x2="12" y2="19"></line>
+                          <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                      </button>
+                    }
+                    @if (item.isPrinting) {
+                      <button
+                        type="button"
+                        class="btn-box-action btn-box-action--blue"
+                        (click)="editPrinting.emit()"
+                        title="Printing"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"></path>
+                        </svg>
+                      </button>
+                    }
+
+                    @if (item.subtitle) {
+                      <span class="line-sub">{{ item.subtitle }}</span>
+                    }
+                  </div>
+                </div>
+
+                <div class="line-amount">
+                  <span class="amount-number">{{ item.amount.toFixed(2) }}</span>
+                  <span class="currency-symbol">{{ t().currency }}</span>
+                </div>
+              </div>
+
+              <!-- Nested Catering Itemized List if available -->
+              @if (item.isCatering && data().financialBreakdown.cateringItems && data().financialBreakdown.cateringItems!.length > 0) {
+                <div class="catering-items-list-compact">
+                  @for (cat of data().financialBreakdown.cateringItems; track cat.id) {
+                    <div class="catering-compact-item">
+                      <span class="catering-compact-name">• {{ cat.name }}</span>
+                      <div class="catering-compact-right">
+                        <span class="catering-compact-price">{{ cat.price.toFixed(2) }} {{ t().currency }}</span>
+                        <button
+                          type="button"
+                          class="btn-remove-catering"
+                          (click)="removeCatering.emit(cat.id)"
+                          title="Remove"
+                        >×</button>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            }
+
+            <div class="dotted-divider"></div>
+
+            <!-- Subtotal Line -->
+            <div class="breakdown-line subtotal-row">
+              <strong class="line-title">{{ isArabic() ? 'الحساب المبدئي' : 'Subtotal' }}</strong>
+              <div class="line-amount">
+                <span class="amount-number">{{ data().financialBreakdown.subtotal.toFixed(2) }}</span>
+                <span class="currency-symbol">{{ t().currency }}</span>
+              </div>
+            </div>
+
+            <!-- Discount Presets & Coupon Input -->
+            <div class="discount-actions-bar">
+              <div class="discount-preset-pills">
+                <span class="pills-label">{{ isArabic() ? 'الديسكاونت:' : 'Discount:' }}</span>
+                <button
+                  type="button"
+                  class="btn-pill"
+                  [class.btn-pill--active]="data().financialBreakdown.discountPercent === 0 && customDiscountInput() === null"
+                  (click)="setDiscount(0); customDiscountInput.set(null)"
+                >0%</button>
+                <button
+                  type="button"
+                  class="btn-pill"
+                  [class.btn-pill--active]="data().financialBreakdown.discountPercent === 10 && customDiscountInput() === null"
+                  (click)="setDiscount(10); customDiscountInput.set(null)"
+                >10%</button>
+                <button
+                  type="button"
+                  class="btn-pill"
+                  [class.btn-pill--active]="data().financialBreakdown.discountPercent === 15 && customDiscountInput() === null"
+                  (click)="setDiscount(15); customDiscountInput.set(null)"
+                >15%</button>
+                <button
+                  type="button"
+                  class="btn-pill"
+                  [class.btn-pill--active]="data().financialBreakdown.discountPercent === 20 && customDiscountInput() === null"
+                  (click)="setDiscount(20); customDiscountInput.set(null)"
+                >20%</button>
+              </div>
+
+              <!-- Custom Discount Free-input with % vs EGP Unit Selector -->
+              <div class="custom-discount-row" style="display: flex; align-items: center; gap: 6px; margin: 4px 0;">
+                <input
+                  type="number"
+                  min="0"
+                  class="coupon-dialog-input"
+                  style="max-width: 120px; padding: 4px 8px; font-size: 0.80rem;"
+                  [placeholder]="isArabic() ? 'ديسكاونت مخصص' : 'Custom discount'"
+                  [value]="customDiscountInput() !== null ? customDiscountInput() : ''"
+                  (input)="customDiscountInput.set(+$any($event.target).value); onCustomDiscountInput($any($event.target).value)"
+                />
+                <div class="unit-selector" style="display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;">
+                  <button
+                    type="button"
+                    style="padding: 3px 8px; font-size: 0.75rem; border: none; cursor: pointer; font-weight: 700;"
+                    [style.background]="customDiscountMode() === 'percentage' ? 'var(--yellow)' : 'var(--surface-2)'"
+                    [style.color]="customDiscountMode() === 'percentage' ? '#111' : 'var(--text)'"
+                    (click)="toggleDiscountMode('percentage')"
+                  >%</button>
+                  <button
+                    type="button"
+                    style="padding: 3px 8px; font-size: 0.75rem; border: none; cursor: pointer; font-weight: 700;"
+                    [style.background]="customDiscountMode() === 'fixed' ? 'var(--yellow)' : 'var(--surface-2)'"
+                    [style.color]="customDiscountMode() === 'fixed' ? '#111' : 'var(--text)'"
+                    (click)="toggleDiscountMode('fixed')"
+                  >{{ isArabic() ? 'ج.م' : 'EGP' }}</button>
+                </div>
+              </div>
+
+              <div class="coupon-inline-wrap">
+                <input
+                  type="text"
+                  class="coupon-dialog-input"
+                  [placeholder]="isArabic() ? 'كوبون (مثلاً: NOOK10)' : 'Coupon (e.g. NOOK10)'"
+                  [ngModel]="localCouponInput()"
+                  (ngModelChange)="localCouponInput.set($event)"
+                />
+                <button
+                  type="button"
+                  class="btn-apply-coupon"
+                  (click)="onApplyCoupon()"
+                >
+                  {{ isArabic() ? 'أبّلاي' : 'Apply' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: Payment Processing -->
+      <div class="modal-col">
+        <div class="modal-section-card">
+          <h3 class="section-card-title">{{ isArabic() ? 'هيدفع إزاي؟' : 'PAYMENT METHOD' }}</h3>
+
+          <!-- 2x2 Payment Method Grid -->
+          <div class="payment-methods-grid">
+            <!-- Cash -->
+            <div
+              class="payment-option-card"
+              [class.payment-option-card--active]="data().payment.selectedMethod === 'cash'"
+              (click)="selectPaymentMethod('cash')"
+            >
+              <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M6 12h.01M18 12h.01"></path>
+              </svg>
+              <span class="pay-name">{{ isArabic() ? 'كاش' : 'Cash' }}</span>
+            </div>
+
+            <!-- Vodafone Cash -->
+            <div
+              class="payment-option-card"
+              [class.payment-option-card--active]="data().payment.selectedMethod === 'vodafone'"
+              (click)="selectPaymentMethod('vodafone')"
+            >
+              <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                <line x1="12" y1="18" x2="12.01" y2="18"></line>
+              </svg>
+              <span class="pay-name">{{ isArabic() ? 'فودافون كاش' : 'Vodafone Cash' }}</span>
+            </div>
+
+            <!-- Fawry -->
+            <div
+              class="payment-option-card"
+              [class.payment-option-card--active]="data().payment.selectedMethod === 'fawry'"
+              (click)="selectPaymentMethod('fawry')"
+            >
+              <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+              </svg>
+              <span class="pay-name">{{ isArabic() ? 'فوري' : 'Fawry' }}</span>
+            </div>
+
+            <!-- InstaPay -->
+            <div
+              class="payment-option-card"
+              [class.payment-option-card--active]="data().payment.selectedMethod === 'instapay'"
+              (click)="selectPaymentMethod('instapay')"
+            >
+              <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+              </svg>
+              <span class="pay-name">{{ isArabic() ? 'إنستاباي' : 'InstaPay' }}</span>
+            </div>
+          </div>
+
+          <!-- Amount Received Input -->
+          <div class="field-wrap">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label class="field-label" style="margin: 0;">{{ isArabic() ? 'الكاش اللي استلمته' : 'AMOUNT RECEIVED' }}</label>
+              @if (isInsufficient()) {
+                <span class="insufficient-alert-pill">
+                  {{ isArabic() ? 'الفلوس مش مكفية' : 'Insufficient Amount' }}
+                </span>
+              }
+            </div>
+            <div class="amount-input-box" [class.amount-input-box--error]="isInsufficient()">
+              <input
+                type="number"
+                min="0"
+                step="5"
+                class="amount-received-input"
+                [placeholder]="isArabic() ? '0.00 ج.م' : 'EGP 0.00'"
+                [value]="data().payment.amountReceived !== null ? data().payment.amountReceived : ''"
+                (input)="onAmountInput($any($event.target).value)"
+              />
+            </div>
+            @if (isInsufficient()) {
+              <span class="insufficient-error-text">
+                {{ isArabic() ? 'اكتب المبلغ اللي استلمته' : 'Please enter received amount' }}
+              </span>
+            }
+            @if (isPartialPayment()) {
+              <div class="partial-notice-badge" style="margin-top: 8px; padding: 8px 12px; background: rgba(245, 185, 33, 0.14); border: 1px solid rgba(245, 185, 33, 0.45); border-radius: 8px; font-size: 0.82rem; color: var(--yellow); display: flex; justify-content: space-between; align-items: center;">
+                <span>⚠️ {{ isArabic() ? 'دفع جزء: باقي فلوس هتتسجل دين على الستيودنت' : 'Partial payment: Remaining balance due' }}</span>
+                <strong>{{ remainingBalance().toFixed(2) }} {{ isArabic() ? 'ج.م' : 'EGP' }}</strong>
+              </div>
+            }
+          </div>
+
+          <!-- Change Due Box -->
+          <div class="change-due-box">
+            <span class="change-label">{{ isArabic() ? 'باقي فلوسه (الفكة)' : 'Change Due' }}</span>
+            <strong class="change-amount">
+              {{ (isInsufficient() || isPartialPayment() ? 0 : data().payment.changeDue).toFixed(2) }} {{ isArabic() ? 'ج.م' : 'EGP' }}
+            </strong>
+          </div>
+
+          <!-- Process Payment Button -->
+          <button
+            type="button"
+            class="btn-process-checkout"
+            [disabled]="data().payment.isProcessing || isInsufficient()"
+            (click)="onProcessPayment()"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="8 12 11 15 16 9"></polyline>
+            </svg>
+            <span>
+              @if (isPartialPayment()) {
+                {{ isArabic() ? '✓ تحصيل جزء وتقفيل (' + data().payment.amountReceived + ' ج.م)' : '✓ Collect Partial & Free Room (' + data().payment.amountReceived + ' EGP)' }}
+              } @else {
+                {{ data().payment.buttonText || (isArabic() ? 'تحصيل وتقفيل السيشن' : 'Process Payment & Free Room') }}
+              }
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,369 @@
+<div class="page-container">
+  <!-- Page Header & Top Right Controls -->
+  <div class="show-head">
+    <app-page-header
+      [title]="t().instructorsPageTitle"
+      [subtitle]="t().instructorsPageSubtitle"
+    ></app-page-header>
+
+    <div class="head-controls-row">
+      <!-- Export CSV Button -->
+      <button
+        type="button"
+        class="btn-export-data"
+        (click)="exportInstructorsToCSV()"
+        [title]="t().exportDisplayedToCSV"
+        style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.85rem; font-weight: 600; cursor: pointer;"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 15px; height: 15px;">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        <span>{{ t().export }}</span>
+      </button>
+
+      <!-- Search Box -->
+      <app-search-box
+        class="instructors-search-box"
+        [placeholder]="t().searchInstructorsPlaceholder"
+        [value]="searchQuery()"
+        (valueChange)="onSearchChange($event)"
+      ></app-search-box>
+
+      <!-- Add Instructor Primary CTA -->
+      <app-primary-button
+        class="instructors-add-btn"
+        [text]="t().addInstructorBtn"
+        (clicked)="openAddModal()"
+      ></app-primary-button>
+    </div>
+  </div>
+
+  <!-- 3 Summary Metric Cards Grid -->
+  <div class="metrics-grid">
+    <!-- Card 1: Total Instructors -->
+    <app-metric-card
+      [title]="t().totalInstructors"
+      [value]="totalInstructorsCount()"
+      color="yellow"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </app-metric-card>
+
+    <!-- Card 2: Active Workshops & Sessions -->
+    <app-metric-card
+      [title]="t().activeInstructors"
+      [value]="activeWorkshopsCount()"
+      color="green"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+        <line x1="8" y1="21" x2="16" y2="21"/>
+        <line x1="12" y1="17" x2="12" y2="21"/>
+      </svg>
+    </app-metric-card>
+
+    <!-- Card 3: Corporate Partners & Affiliations -->
+    <app-metric-card
+      [title]="t().totalWorkshopsGiven"
+      [value]="corporatePartnersCount()"
+      color="blue"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="10" y1="12" x2="14" y2="12"/>
+        <line x1="10" y1="16" x2="14" y2="16"/>
+      </svg>
+    </app-metric-card>
+  </div>
+
+  <!-- Data Table Container Card -->
+  <div class="table-container-card">
+    <div class="table-responsive">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th>{{ t().instructorTh }}</th>
+            <th>{{ t().specialtyTh }}</th>
+            <th>{{ t().affiliationTh }}</th>
+            <th class="th-center">{{ t().sessionsCountTh }}</th>
+            <th class="th-center">{{ t().status }}</th>
+            <th class="th-center">{{ t().actions }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (ins of paginatedInstructors(); track ins.id) {
+            <tr>
+              <!-- Instructor Info & Avatar -->
+              <td class="cell-student-td">
+                <div class="student-cell-content">
+                  <div class="member-avatar-box">
+                    {{ ins.name.charAt(0) }}
+                  </div>
+                  <div class="student-meta">
+                    <strong class="student-name">{{ isArabic() ? ins.name : (ins.nameEn || ins.name) }}</strong>
+                    <span class="student-phone">{{ ins.phone }}</span>
+                    @if (ins.email) {
+                      <span class="student-faculty" style="font-size: 0.78rem;">{{ ins.email }}</span>
+                    }
+                  </div>
+                </div>
+              </td>
+
+              <!-- Specialty -->
+              <td>
+                <span class="specialty-badge">
+                  {{ isArabic() ? ins.specialty : (ins.specialtyEn || ins.specialty) }}
+                </span>
+              </td>
+
+              <!-- Affiliation -->
+              <td>
+                <span class="affiliation-text">
+                  {{ isArabic() ? ins.affiliation : (ins.affiliationEn || ins.affiliation) }}
+                </span>
+              </td>
+
+              <!-- Total Sessions -->
+              <td class="cell-center">
+                <span class="sessions-pill">
+                  {{ ins.totalSessions }} {{ isArabic() ? 'ورشة' : 'sessions' }}
+                </span>
+              </td>
+
+              <!-- Status Badge -->
+              <td class="cell-center">
+                @if (ins.status === 'active') {
+                  <span class="badge-status badge-status--active">
+                    <span class="status-dot"></span>
+                    <span>{{ t().active }}</span>
+                  </span>
+                } @else {
+                  <span class="badge-status badge-status--expired">
+                    <span class="status-dot"></span>
+                    <span>{{ t().inactive }}</span>
+                  </span>
+                }
+              </td>
+
+              <!-- Row Actions (Edit & Delete Buttons) -->
+              <td class="cell-center">
+                <div class="actions-wrapper" style="justify-content: center; gap: 8px;">
+                  <button
+                    type="button"
+                    class="btn-edit-direct"
+                    (click)="openEditModal(ins)"
+                    [title]="t().edit"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                    <span>{{ t().edit }}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="btn-delete-direct"
+                    (click)="openDeleteModal(ins)"
+                    [title]="t().delete"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                    <span>{{ t().delete }}</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="cell-empty">
+                {{ t().noData }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Table Pagination Footer -->
+    <div class="table-footer">
+      <span class="pagination-info">
+        {{ t().showing }} {{ startIndex() }} {{ t().to }} {{ endIndex() }} {{ t().of }} {{ filteredInstructors().length }} {{ t().entries }}
+      </span>
+
+      <app-pagination
+        [currentPage]="currentPage()"
+        [totalPages]="totalPages()"
+        (pageChange)="setPage($event)"
+      ></app-pagination>
+    </div>
+  </div>
+
+  <!-- Add / Edit Instructor Modal -->
+  <app-modal
+    [isOpen]="isModalOpen()"
+    [title]="getModalTitle()"
+    (close)="closeModal()"
+  >
+    <form (submit)="saveInstructor(); $event.preventDefault()" class="instructor-modal-form">
+      @if (formError(); as err) {
+        <div class="form-error-banner">
+          {{ err }}
+        </div>
+      }
+
+      <div class="form-grid">
+        <!-- Full Name -->
+        <div class="field-group">
+          <label class="field-label">{{ t().instructorNameLabel }} *</label>
+          <input
+            type="text"
+            class="custom-input"
+            [placeholder]="isArabic() ? 'مثال: د. محمد طه' : 'e.g. Dr. Mohamed Taha'"
+            [ngModel]="formName()"
+            (ngModelChange)="formName.set($event)"
+            name="formName"
+          />
+        </div>
+
+        <!-- Phone Number -->
+        <div class="field-group">
+          <label class="field-label">{{ t().phone }} *</label>
+          <input
+            type="text"
+            class="custom-input"
+            [placeholder]="'01012345678'"
+            [ngModel]="formPhone()"
+            (ngModelChange)="formPhone.set($event)"
+            name="formPhone"
+          />
+        </div>
+
+        <!-- Email Address -->
+        <div class="field-group">
+          <label class="field-label">{{ t().emailLabel }}</label>
+          <input
+            type="email"
+            class="custom-input"
+            [placeholder]="'instructor@example.com'"
+            [ngModel]="formEmail()"
+            (ngModelChange)="formEmail.set($event)"
+            name="formEmail"
+          />
+        </div>
+
+        <!-- Specialty / Domain -->
+        <div class="field-group">
+          <label class="field-label">{{ t().specialtyLabel }}</label>
+          <input
+            type="text"
+            class="custom-input"
+            [placeholder]="isArabic() ? 'مثال: الذكاء الاصطناعي، UI/UX' : 'e.g. AI, UI/UX Design'"
+            [ngModel]="formSpecialty()"
+            (ngModelChange)="formSpecialty.set($event)"
+            name="formSpecialty"
+          />
+        </div>
+
+        <!-- Affiliation / Academy -->
+        <div class="field-group">
+          <label class="field-label">{{ t().affiliationLabel }}</label>
+          <input
+            type="text"
+            class="custom-input"
+            [placeholder]="isArabic() ? 'مثال: جامعة القاهرة، مستقل' : 'e.g. Cairo University, Freelance'"
+            [ngModel]="formAffiliation()"
+            (ngModelChange)="formAffiliation.set($event)"
+            name="formAffiliation"
+          />
+        </div>
+
+        <!-- Total Sessions -->
+        <div class="field-group">
+          <label class="field-label">{{ t().sessionsCountTh }}</label>
+          <input
+            type="number"
+            class="custom-input"
+            [ngModel]="formSessions()"
+            (ngModelChange)="formSessions.set($event)"
+            name="formSessions"
+          />
+        </div>
+
+        <!-- Status -->
+        <div class="field-group">
+          <label class="field-label">{{ t().status }}</label>
+          <app-custom-select
+            [options]="statusOptions()"
+            [selectedValue]="formStatus()"
+            [fullWidth]="true"
+            (valueChange)="formStatus.set($any($event))"
+          ></app-custom-select>
+        </div>
+
+        <!-- Bio / Notes -->
+        <div class="field-group full-width">
+          <label class="field-label">{{ t().bioLabel }}</label>
+          <textarea
+            class="custom-textarea"
+            rows="3"
+            [placeholder]="isArabic() ? 'اكتب نبذة مختصرة عن الخبرات والمجالات...' : 'Short bio or relevant qualifications...'"
+            [ngModel]="formBio()"
+            (ngModelChange)="formBio.set($event)"
+            name="formBio"
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer-actions">
+        <button type="button" class="btn-cancel" (click)="closeModal()">
+          {{ t().cancel }}
+        </button>
+
+        <app-primary-button
+          [text]="t().saveInstructorBtn"
+          type="submit"
+        ></app-primary-button>
+      </div>
+    </form>
+  </app-modal>
+
+  <!-- Delete Confirmation Modal -->
+  @if (isDeleteModalOpen() && instructorToDelete(); as delIns) {
+    <div class="modal-overlay" (click)="closeDeleteModal()">
+      <div class="delete-card" (click)="$event.stopPropagation()">
+        <div class="delete-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" style="width: 32px; height: 32px;">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+        </div>
+
+        <h3 class="delete-title">{{ t().confirmDeleteInstructorTitle }}</h3>
+        <p class="delete-subtitle">
+          {{ t().confirmDeleteInstructorDesc }} ("{{ isArabic() ? delIns.name : (delIns.nameEn || delIns.name) }}")
+        </p>
+
+        <div class="delete-actions-footer">
+          <button type="button" class="btn-cancel" (click)="closeDeleteModal()">
+            {{ t().cancel }}
+          </button>
+          <button type="button" class="btn-confirm-delete" (click)="confirmDelete()">
+            {{ t().delete }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>
