@@ -8,18 +8,13 @@
 
 /**
  * Base URL for the backend API.
- * In browser dev environment (localhost / 127.0.0.1 / port 4200),
- * an empty string '' is used so all requests are handled through the
- * Angular dev-server proxy (proxy.conf.json -> https://nook.runasp.net).
- * This completely avoids browser CORS preflight (OPTIONS 405 Method Not Allowed) failures.
+ * An empty string '' is used so all API requests are routed through:
+ * 1. Angular Dev Server Proxy (proxy.conf.json) in local dev.
+ * 2. Vercel Serverless Rewrites (vercel.json) in production.
+ * This completely avoids browser CORS preflight issues across all environments.
  */
-export const API_BASE_URL =
-  typeof window !== 'undefined' &&
-  (window.location.hostname === 'localhost' ||
-   window.location.hostname === '127.0.0.1' ||
-   window.location.port === '4200')
-    ? ''
-    : 'https://nook.runasp.net';
+export const API_BASE_URL = '';
+
 
 /** API endpoint paths organized by domain */
 export const API_ENDPOINTS = {

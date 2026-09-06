@@ -2,8 +2,13 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/api/:match*",
+      "destination": "https://nook.runasp.net/api/:match*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
 }
+
