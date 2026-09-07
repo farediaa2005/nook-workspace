@@ -12,6 +12,8 @@ import { CustomSelectComponent, SelectOption } from '../../../shared/components/
 
 import { DetailsService } from '../../../core/services/details.service';
 import { Instructor } from '../../../core/models/details.model';
+import { exportToCsv } from '../../../core/utils/csv.util';
+import { getTodayDateISO } from '../../../core/utils/date-time.util';
 // [MOCK DATA DISABLED FOR LIVE API - See src/testing/mocks/details.mock.ts for offline presentation/testing]
 
 export type { Instructor };
@@ -145,23 +147,15 @@ export class ShowInstructorsComponent implements OnInit {
     const headers = ['ID', 'Name', 'Phone', 'Email', 'Specialty', 'Affiliation', 'Sessions', 'Status'];
     const rows = list.map(ins => [
       ins.id,
-      `"${ins.name}"`,
-      `"${ins.phone || ''}"`,
-      `"${ins.email || ''}"`,
-      `"${ins.specialty || ''}"`,
-      `"${ins.affiliation || ''}"`,
+      ins.name,
+      ins.phone || '',
+      ins.email || '',
+      ins.specialty || '',
+      ins.affiliation || '',
       ins.totalSessions || 0,
       ins.status
     ]);
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `nook_instructors_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportToCsv(`nook_instructors_${getTodayDateISO()}.csv`, headers, rows);
   }
 
   // Pagination Handler

@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { LanguageService } from '../../../core/services/language.service';
@@ -14,7 +14,7 @@ export type TimeFilterPeriod = 'today' | 'week' | 'month';
   templateUrl: './product-graph.component.html',
   styleUrl: './product-graph.component.css'
 })
-export class ProductGraphComponent {
+export class ProductGraphComponent implements OnInit {
   private router = inject(Router);
   private langService = inject(LanguageService);
   private cateringService = inject(CateringService);
@@ -26,6 +26,10 @@ export class ProductGraphComponent {
   // Time filter state
   selectedPeriod = signal<TimeFilterPeriod>('today');
   isPosModalOpen = signal<boolean>(false);
+
+  ngOnInit(): void {
+    this.cateringService.getProducts().subscribe();
+  }
 
   navigateToInventory(): void {
     this.router.navigate(['/catering/show-products']);
@@ -42,10 +46,6 @@ export class ProductGraphComponent {
   // Metrics reactive signals dynamically derived from real persisted inventory
   totalRevenue = computed(() => {
     return Math.round(this.cateringService.totalRevenue() * 100) / 100;
-  });
-
-  revenueGrowth = computed(() => {
-    return this.totalRevenue() > 0 ? '+12.5%' : '0%';
   });
 
   popularItem = computed(() => {
@@ -65,7 +65,6 @@ export class ProductGraphComponent {
     };
   });
 
-  // BUG-12: Real Average Order Value = Total Revenue ÷ Total Actual Orders/Transactions
   avgOrderValue = computed(() => {
     const totalRev = this.totalRevenue();
     if (totalRev <= 0) return 0;
@@ -86,10 +85,10 @@ export class ProductGraphComponent {
   // Category revenue data for bar chart
   categoryRevenue = this.cateringService.categoryRevenue;
 
-  // BUG-13: Dynamic Y-Axis scale matching data values
   chartYAxisMax = computed(() => {
     const cats = this.categoryRevenue();
     const maxAmount = cats.reduce((m, c) => Math.max(m, c.amount), 0);
+    if (maxAmount <= 0) return 100;
     if (maxAmount <= 100) return 100;
     if (maxAmount <= 200) return 200;
     if (maxAmount <= 400) return 400;
@@ -99,8 +98,46 @@ export class ProductGraphComponent {
   // Payment breakdown data for donut chart
   paymentBreakdown = this.cateringService.paymentBreakdown;
 
+  // Real SVG Donut Chart Calculation (Circumference = 2 * PI * 60 ≈ 377)
+  readonly donutCircumference = 377;
+
+  donutCardDash = computed(() => {
+    const p = this.paymentBreakdown();
+    if (p.totalTxns === 0) return `0 ${this.donutCircumference}`;
+    const len = Math.round((p.cardPercent / 100) * this.donutCircumference);
+    return `${len} ${this.donutCircumference - len}`;
+  });
+
+  donutAppDash = computed(() => {
+    const p = this.paymentBreakdown();
+    if (p.totalTxns === 0) return `0 ${this.donutCircumference}`;
+    const len = Math.round((p.appPercent / 100) * this.donutCircumference);
+    return `${len} ${this.donutCircumference - len}`;
+  });
+
+  donutAppOffset = computed(() => {
+    const p = this.paymentBreakdown();
+    if (p.totalTxns === 0) return 0;
+    const cardLen = Math.round((p.cardPercent / 100) * this.donutCircumference);
+    return -cardLen;
+  });
+
+  donutCashDash = computed(() => {
+    const p = this.paymentBreakdown();
+    if (p.totalTxns === 0) return `0 ${this.donutCircumference}`;
+    const len = Math.round((p.cashPercent / 100) * this.donutCircumference);
+    return `${len} ${this.donutCircumference - len}`;
+  });
+
+  donutCashOffset = computed(() => {
+    const p = this.paymentBreakdown();
+    if (p.totalTxns === 0) return 0;
+    const cardLen = Math.round((p.cardPercent / 100) * this.donutCircumference);
+    const appLen = Math.round((p.appPercent / 100) * this.donutCircumference);
+    return -(cardLen + appLen);
+  });
+
   setPeriod(period: TimeFilterPeriod): void {
     this.selectedPeriod.set(period);
   }
 }
-

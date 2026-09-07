@@ -149,9 +149,17 @@ export class ClassroomCheckoutComponent implements OnInit {
         amountReceived: received,
         finalAmount: finalAmt,
         changeDue: this.changeDue()
+      }).subscribe({
+        next: () => {
+          this.router.navigate(['/classroom/show-classroom']);
+        },
+        error: (err) => {
+          console.error('Failed to checkout room:', err);
+          this.router.navigate(['/classroom/show-classroom']);
+        }
       });
+    } else {
+      this.router.navigate(['/classroom/show-classroom']);
     }
-
-    this.router.navigate(['/classroom/show-classroom']);
   }
 }

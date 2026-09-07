@@ -1,10 +1,12 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { ShiftService } from '../../../core/services/shift.service';
 import { LanguageService } from '../../../core/services/language.service';
 import { ShiftRecord, ShiftHistoryItem, ShiftTransaction } from '../../../core/models/shift.model';
 import { getSafeAvatar } from '../../../core/utils/avatar.util';
+import { exportToCsv } from '../../../core/utils/csv.util';
 
 @Component({
   selector: 'app-show-shift',
@@ -18,12 +20,14 @@ export class ShowShiftComponent implements OnInit {
   private langService = inject(LanguageService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private destroyRef = inject(DestroyRef);
 
   t = this.langService.t;
   isArabic = this.langService.isArabic;
   currencyText = computed(() => this.t().currency);
 
   shiftId = signal<string>('');
+  fetchedRecord = signal<ShiftRecord | null>(null);
 
   // Selected shift data
   activeShift = this.shiftService.currentShift;
@@ -31,16 +35,32 @@ export class ShowShiftComponent implements OnInit {
   shiftRecords = this.shiftService.shiftHistory;
 
   ngOnInit(): void {
-    this.route.params.subscribe(params => {
+    this.route.params.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
       const id = params['id'];
       if (id) {
         this.shiftId.set(id);
+        this.loadShiftDetails(id);
       } else {
-        this.route.queryParams.subscribe(q => {
-          if (q['id']) this.shiftId.set(q['id']);
+        this.route.queryParams.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(q => {
+          if (q['id']) {
+            this.shiftId.set(q['id']);
+            this.loadShiftDetails(q['id']);
+          }
         });
       }
     });
+  }
+
+  private loadShiftDetails(id: string): void {
+    if (id === 'active') {
+      this.shiftService.fetchCurrentShiftFromApi();
+    } else {
+      this.shiftService.getShiftById(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(record => {
+        if (record) {
+          this.fetchedRecord.set(record);
+        }
+      });
+    }
   }
 
   // Selected or active shift record
@@ -50,6 +70,11 @@ export class ShowShiftComponent implements OnInit {
 
     if (id && active && (active.id === id || id === 'active')) {
       return active;
+    }
+
+    const fetched = this.fetchedRecord();
+    if (fetched && (!id || fetched.id === id)) {
+      return fetched;
     }
 
     if (id) {
@@ -140,23 +165,22 @@ export class ShowShiftComponent implements OnInit {
 
   exportExcel(): void {
     const curr = this.currencyText();
-    const staff = this.displayStaffName();
-    const date = this.displayDate();
+    const isAr = this.isArabic();
     const txs = this.transactions();
 
-    const csvContent = 'data:text/csv;charset=utf-8,' +
-      [`Shift Details for ${staff} (${date})`]
-      .concat(['Time,Description,Category,Payment Channel,Amount'])
-      .concat(txs.map(t => `"${t.timestamp}","${t.details}","${t.type}","${t.paymentMethod}",${t.amount} ${curr}`))
-      .join('\n');
+    const headers = isAr
+      ? ['الوقت', 'الوصف', 'التصنيف', 'طريقة الدفع', 'المبلغ']
+      : ['Time', 'Description', 'Category', 'Payment Channel', 'Amount'];
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `nook_shift_${this.shiftId() || 'report'}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const rows = txs.map(t => [
+      t.timestamp,
+      t.details,
+      t.type,
+      t.paymentMethod,
+      `${t.amount} ${curr}`
+    ]);
+
+    exportToCsv(`nook_shift_${this.shiftId() || 'report'}.csv`, headers, rows);
   }
 
   printReport(): void {

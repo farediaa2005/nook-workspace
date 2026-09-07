@@ -70,11 +70,19 @@ export interface UpdateShiftDto {
 /** Alias for close shift request */
 export type CloseShiftDto = UpdateShiftDto;
 
+/** Structured Shift Item Category */
+export type ShiftItemCategory =
+  | 'canteen'
+  | 'classroom'
+  | 'workspace'
+  | 'package'
+  | 'expense';
+
 /** Shift transaction item response DTO */
 export interface ShiftItemDto {
   id: string;
   cost: number;
-  type?: string | null;
+  type?: ShiftItemCategory | string | null;
   payWay?: number;          // PayWay enum: 1=Cash, 2=Vodafone, 3=Instapay, 4=Fawry
   item?: string | null;
   shiftId?: string;
@@ -87,7 +95,7 @@ export interface ShiftItemDto {
 /** Create shift item request — matches OpenAPI CreateShiftItemDto */
 export interface CreateShiftItemDto {
   cost: number;
-  type?: string;
+  type?: ShiftItemCategory | string;
   payWay?: number;          // PayWay: 1=Cash, 2=Vodafone, 3=Instapay, 4=Fawry
   item?: string;
   // Compatibility helpers

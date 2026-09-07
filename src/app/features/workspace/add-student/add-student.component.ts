@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { LanguageService } from '../../../core/services/language.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { generateAvatarSvg } from '../../../core/utils/avatar.util';
+import { getTodayDateISO } from '../../../core/utils/date-time.util';
 
 @Component({
   selector: 'app-add-student',
@@ -30,8 +31,8 @@ export class AddStudentComponent {
   whatsapp = signal('');
   college = signal('');
   faculty = signal('');
-  todayDate = new Date().toISOString().split('T')[0];
-  selectedDate = signal(new Date().toISOString().split('T')[0]);
+  todayDate = getTodayDateISO();
+  selectedDate = signal(getTodayDateISO());
   checkInTime = signal(
     `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`
   );

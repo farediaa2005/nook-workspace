@@ -21,8 +21,8 @@
     <!-- Product Summary Card -->
     <div class="product-summary-card">
       <div class="product-icon-box">
-        @if (product().image) {
-          <img [src]="product().image" [alt]="product().name" class="product-thumb-img" />
+        @if (resolvedImage() && !isImageFailed()) {
+          <img [src]="resolvedImage()" [alt]="product().name" class="product-thumb-img" (error)="onImageError()" />
         } @else {
           <!-- Fallback Bottle / Item Icon -->
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="product-fallback-svg">

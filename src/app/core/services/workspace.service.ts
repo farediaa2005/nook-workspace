@@ -1,5 +1,5 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
-import { Observable, of, tap, catchError } from 'rxjs';
+import { Observable, of, tap, catchError, forkJoin, map } from 'rxjs';
 import {
   ActiveStudentSession,
   Student,
@@ -9,13 +9,15 @@ import {
   SessionCheckOutDto
 } from '../models/student.model';
 import { WorkspaceApiService } from './api/workspace-api.service';
-import { StudentApiService } from './api/student-api.service';
-import { WorkspaceSessionDto } from '../models/workspace-session.model';
+import { StudentApiService, BackendStudentDto } from './api/student-api.service';
+import { WorkspaceSessionDto, WorkspaceDetailDto } from '../models/workspace-session.model';
 import { FacultyApiService } from './api/faculty-api.service';
-// [MOCK DATA DISABLED FOR LIVE API - Uncomment below for offline presentation/testing]
-// import { MOCK_ACTIVE_STUDENT_SESSIONS } from '../../../testing/mocks/students.mock';
+import { BlacklistApiService } from './api/blacklist-api.service';
 import { ShiftService } from './shift.service';
 import { AuthService } from './auth.service';
+import { WalletApiService } from './api/wallet-api.service';
+import { CateringService } from './catering.service';
+import { parseIsoToLocalDate, getTodayDateISO, parseIsoToLocal24h } from '../utils/date-time.util';
 
 export interface ToastNotification {
   id: string;
@@ -43,47 +45,19 @@ export interface StudentProfileRecord {
   email?: string;
   college?: string;
   faculty?: string;
+  walletAmount?: number;
 }
 
-const STORAGE_KEYS = {
-  ACTIVE_STUDENTS: 'nook_active_students_v3',
-  HISTORY_STUDENTS: 'nook_history_students_v3',
-  BLACKLIST: 'nook_blacklist_v3',
-  STUDENT_PROFILES: 'nook_student_profiles_registry_v1'
-};
-
-const getTodayDateISO = (): string => {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+export { getTodayDateISO };
 
 export const isSameDayAsToday = (dateStr?: string): boolean => {
   if (!dateStr) return false;
   const str = String(dateStr).trim();
   if (!str) return false;
 
-  const now = new Date();
   const todayISO = getTodayDateISO();
-
-  if (str === todayISO || str.startsWith(todayISO)) return true;
-
-  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
-    return str.substring(0, 10) === todayISO;
-  }
-
-  const parsed = new Date(str);
-  if (!isNaN(parsed.getTime())) {
-    return (
-      parsed.getFullYear() === now.getFullYear() &&
-      parsed.getMonth() === now.getMonth() &&
-      parsed.getDate() === now.getDate()
-    );
-  }
-
-  return false;
+  const localDate = parseIsoToLocalDate(str);
+  return localDate === todayISO;
 };
 
 export function parseDurationMinutes(durStr?: string): number {
@@ -103,12 +77,27 @@ export function formatMinutesToDuration(totalMinutes: number): string {
   return `${h}h ${String(m).padStart(2, '0')}m`;
 }
 
+export function parseIsoOrTimeToDisplay(timeStr?: string | null, dateStr?: string | null): string {
+  if (!timeStr) {
+    if (dateStr && String(dateStr).includes('T')) {
+      return parseIsoOrTimeToDisplay(dateStr, null);
+    }
+    return '';
+  }
+
+  const str = String(timeStr).trim();
+  if (!str) return '';
+
+  return parseIsoToLocal24h(str);
+}
+
 export function parseSessionTimeToDate(timeStr?: string, dateStr?: string): Date {
   const now = new Date();
   if (!timeStr) return now;
 
   if (timeStr.includes('T')) {
-    const parsed = new Date(timeStr);
+    const fullIso = timeStr.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(timeStr) ? timeStr : timeStr + 'Z';
+    const parsed = new Date(fullIso);
     if (!isNaN(parsed.getTime())) return parsed;
   }
 
@@ -117,7 +106,7 @@ export function parseSessionTimeToDate(timeStr?: string, dateStr?: string): Date
   let day = now.getDate();
 
   if (dateStr) {
-    if (dateStr.includes('T')) dateStr = dateStr.split('T')[0];
+    dateStr = parseIsoToLocalDate(dateStr);
     if (dateStr.includes('-')) {
       const parts = dateStr.split('-');
       if (parts.length === 3) {
@@ -204,39 +193,111 @@ export function calculateSessionDuration(timeFrom?: string, timeTo?: string, dat
   return `${h}h ${String(m).padStart(2, '0')}m`;
 }
 
-// Clean default states for fresh service instances - Live API only (Mock commented out for presentation)
-// export const DEFAULT_ACTIVE_STUDENTS: ActiveStudentSession[] = MOCK_ACTIVE_STUDENT_SESSIONS;
-export const DEFAULT_ACTIVE_STUDENTS: ActiveStudentSession[] = [];
-const DEFAULT_HISTORY_STUDENTS: ActiveStudentSession[] = [];
-const DEFAULT_BLACKLIST: BlacklistRecord[] = [];
-
 @Injectable({
   providedIn: 'root'
 })
 export class WorkspaceService {
   private api = inject(WorkspaceApiService);
   private studentApi = inject(StudentApiService);
+  private facultyApi = inject(FacultyApiService);
+  private blacklistApi = inject(BlacklistApiService);
   private shiftService = inject(ShiftService);
   private authService = inject(AuthService);
+  private walletApi = inject(WalletApiService);
+  private cateringService = inject(CateringService);
 
-  private activeStudentsState = signal<ActiveStudentSession[]>(
-    this.getStoredItem(STORAGE_KEYS.ACTIVE_STUDENTS, DEFAULT_ACTIVE_STUDENTS)
-  );
-
-  private historyStudentsState = signal<ActiveStudentSession[]>(
-    this.getStoredItem(STORAGE_KEYS.HISTORY_STUDENTS, DEFAULT_HISTORY_STUDENTS)
-  );
-
-  private blacklistState = signal<BlacklistRecord[]>(
-    this.getStoredItem(STORAGE_KEYS.BLACKLIST, DEFAULT_BLACKLIST)
-  );
-
+  // Pure in-memory reactive state — ZERO localStorage dependencies
+  private activeStudentsState = signal<ActiveStudentSession[]>([]);
+  private historyStudentsState = signal<ActiveStudentSession[]>([]);
+  private blacklistState = signal<BlacklistRecord[]>([]);
   private backendStudentsState = signal<StudentProfileRecord[]>([]);
+
+  readonly isLoading = signal<boolean>(false);
+  readonly isLoadingDirectory = signal<boolean>(false);
+  readonly error = signal<string | null>(null);
 
   readonly activeStudents = this.activeStudentsState.asReadonly();
   readonly historyStudents = this.historyStudentsState.asReadonly();
   readonly blacklist = this.blacklistState.asReadonly();
   readonly backendStudents = this.backendStudentsState.asReadonly();
+
+  // Internal maps for fast O(1) relational joins
+  private studentMap = new Map<string, BackendStudentDto>();
+  private facultiesMap = new Map<string, string>(); // lowercase name -> id
+
+  // Persistent session catering cache prefix
+  private readonly CATERING_CACHE_PREFIX = 'nook_catering_session_';
+
+  private getSessionCateringCache(sessionId: string): { total: number; items: any[] } | null {
+    try {
+      const raw = localStorage.getItem(this.CATERING_CACHE_PREFIX + sessionId);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return null;
+  }
+
+  private setSessionCateringCache(sessionId: string, total: number, items: any[]): void {
+    try {
+      localStorage.setItem(this.CATERING_CACHE_PREFIX + sessionId, JSON.stringify({ total, items }));
+    } catch {}
+  }
+
+  private removeSessionCateringCache(sessionId: string): void {
+    try {
+      localStorage.removeItem(this.CATERING_CACHE_PREFIX + sessionId);
+    } catch {}
+  }
+
+  /** Sync catering items directly from backend API for a workspace session */
+  syncSessionCatering(sessionId: string): void {
+    if (!sessionId || !/^[0-9a-fA-F-]{36}$/.test(sessionId)) return;
+
+    this.api.getCateringItems(sessionId).subscribe({
+      next: (items) => {
+        if (items && Array.isArray(items) && items.length > 0) {
+          const currentSession = this.activeStudentsState().find(s => s.id === sessionId);
+          const currentItems = currentSession?.cateringItems || [];
+          const allProducts = this.cateringService.products();
+
+          const enrichedItems = items.map(it => {
+            const prodId = it.productId || (it as any).product?.id || it.id;
+            const prod = allProducts.find(p => p.id === prodId);
+            const existing = currentItems.find(c => c.productId === prodId || c.id === it.id);
+
+            const name = it.name || (it as any).product?.nameAr || (it as any).product?.name || existing?.name || prod?.nameAr || prod?.name || 'صنف كاترنج';
+            const unitPrice = Number(it.unitPrice || (it as any).price || existing?.unitPrice || prod?.sellingPrice || 0);
+            const quantity = Number(it.quantity || existing?.quantity || 1);
+            const totalPrice = Number(it.totalPrice || (it as any).total || (unitPrice * quantity) || existing?.totalPrice || (prod?.sellingPrice ? prod.sellingPrice * quantity : 0));
+
+            return {
+              ...it,
+              id: it.id || existing?.id || `${Date.now()}_${Math.random()}`,
+              productId: prodId,
+              name,
+              nameAr: (it as any).nameAr || existing?.nameAr || prod?.nameAr,
+              unitPrice,
+              quantity,
+              totalPrice,
+              price: totalPrice,
+              product: (it as any).product || existing?.product || prod
+            };
+          });
+
+          const total = enrichedItems.reduce((sum, it) => sum + (it.totalPrice || it.price || 0), 0);
+          const roundedTotal = +total.toFixed(2);
+          const finalTotal = roundedTotal > 0 ? roundedTotal : (currentSession?.cateringTotal || 0);
+
+          this.setSessionCateringCache(sessionId, finalTotal, enrichedItems);
+          this.activeStudentsState.update(list =>
+            list.map(s => s.id === sessionId ? { ...s, cateringTotal: finalTotal, cateringItems: enrichedItems } : s)
+          );
+        }
+      },
+      error: () => {
+        // Silently retain cached local items if API is unreachable or empty
+      }
+    });
+  }
 
   // 1. Inside Right Now: Dynamic count of all currently active students
   readonly insideCount = computed(() => {
@@ -286,7 +347,7 @@ export class WorkspaceService {
     return formatMinutesToDuration(avg);
   });
 
-  // 3. Today's Check-ins: Cumulative count of all students who checked in today (active now + checked out today)
+  // 3. Today's Check-ins: Cumulative count of all students who checked in today
   readonly todayCheckins = computed(() => {
     const activeCount = this.activeStudentsState().filter(s => s.status === 'active').length;
     const historyTodayCount = this.historyStudentsState().filter(s => {
@@ -304,115 +365,89 @@ export class WorkspaceService {
     ).length;
   });
 
-  private facultyApi = inject(FacultyApiService);
-  private studentMap = new Map<string, any>();
-  private facultiesMap = new Map<string, string>(); // name -> id
-
   // Toasts
   readonly toast = signal<ToastNotification | null>(null);
 
   constructor() {
-    // Sanitize any existing cached history to fix corrupted '0h 00m' or multi-day blowouts in localStorage
-    const currentHistory = this.historyStudentsState();
-    const sanitizedHistory = this.sanitizeStoredHistory(currentHistory);
-    if (sanitizedHistory !== currentHistory) {
-      this.historyStudentsState.set(sanitizedHistory);
-    }
-
-    // Sanitize active students to avoid stale ghost sessions from earlier days
-    const currentActive = this.activeStudentsState();
-    const sanitizedActive = this.sanitizeActiveStudents(currentActive);
-    if (sanitizedActive !== currentActive) {
-      this.activeStudentsState.set(sanitizedActive);
-    }
-
     if (this.authService.isAuthenticated()) {
       this.loadFromBackend();
     }
   }
 
-  /** Save/Update student full profile in the persistent registry */
-  public saveStudentProfile(profile: { name: string; phone: string; whatsapp?: string; email?: string; college?: string; faculty?: string }): void {
+  /** Save/Update student full profile in the in-memory registry */
+  public saveStudentProfile(profile: { name: string; phone: string; whatsapp?: string; email?: string; college?: string; faculty?: string; id?: string; walletAmount?: number }): void {
     if (!profile.name && !profile.phone) return;
     const cleanPhone = (profile.phone || '').trim();
-    const cleanName = (profile.name || '').trim().toLowerCase();
+    const cleanName = (profile.name || '').trim();
     const cleanEmail = profile.email && profile.email !== '-' ? profile.email.trim() : '';
     const cleanWhatsapp = profile.whatsapp && profile.whatsapp !== '-' ? profile.whatsapp.trim() : cleanPhone;
     const cleanCollege = profile.college && profile.college !== '-' ? profile.college.trim() : '';
     const cleanFaculty = profile.faculty && profile.faculty !== '-' ? profile.faculty.trim() : '';
 
-    const registry = this.getStoredItem<Record<string, StudentProfileRecord>>(STORAGE_KEYS.STUDENT_PROFILES, {});
-    const key = cleanPhone || cleanName;
-    const existing = registry[key] || registry[cleanName] || {};
-
-    const merged: StudentProfileRecord = {
-      name: profile.name.trim() || existing.name || '',
-      phone: cleanPhone || existing.phone || '',
-      whatsapp: cleanWhatsapp || existing.whatsapp || cleanPhone,
-      email: cleanEmail || existing.email || '',
-      college: cleanCollege || existing.college || '',
-      faculty: cleanFaculty || existing.faculty || ''
+    const newRecord: StudentProfileRecord = {
+      id: profile.id,
+      name: cleanName,
+      phone: cleanPhone,
+      whatsapp: cleanWhatsapp,
+      email: cleanEmail,
+      college: cleanCollege,
+      faculty: cleanFaculty,
+      walletAmount: profile.walletAmount
     };
 
-    if (cleanPhone) registry[cleanPhone] = merged;
-    if (cleanName) registry[cleanName] = merged;
-    this.setStoredItem(STORAGE_KEYS.STUDENT_PROFILES, registry);
+    this.backendStudentsState.update(list => {
+      const existingIdx = list.findIndex(s =>
+        (profile.id && s.id === profile.id) ||
+        (cleanPhone && s.phone === cleanPhone) ||
+        (cleanName && s.name.toLowerCase() === cleanName.toLowerCase())
+      );
+      if (existingIdx >= 0) {
+        const next = [...list];
+        next[existingIdx] = { ...next[existingIdx], ...newRecord };
+        return next;
+      }
+      return [newRecord, ...list];
+    });
   }
 
-  /** Retrieve full student profile from registry or backend map */
+  /** Retrieve full student profile from in-memory registry or student map */
   public getStudentProfile(phoneOrNameOrId?: string): StudentProfileRecord | null {
     if (!phoneOrNameOrId) return null;
-    const key = String(phoneOrNameOrId).trim();
-    const registry = this.getStoredItem<Record<string, StudentProfileRecord>>(STORAGE_KEYS.STUDENT_PROFILES, {});
-    if (registry[key]) return registry[key];
-    if (registry[key.toLowerCase()]) return registry[key.toLowerCase()];
+    const key = String(phoneOrNameOrId).trim().toLowerCase();
 
-    // Check backend student map
-    const backendStudent = this.studentMap.get(key);
-    if (backendStudent) {
-      const phone = backendStudent.phoneNumber || backendStudent.whatsapp || '';
+    // Check backend students list
+    const found = this.backendStudentsState().find(s =>
+      (s.id && s.id.toLowerCase() === key) ||
+      (s.phone && s.phone.toLowerCase() === key) ||
+      (s.name && s.name.toLowerCase() === key)
+    );
+    if (found) return found;
+
+    // Check student map
+    const student = this.studentMap.get(key) || Array.from(this.studentMap.values()).find(s =>
+      s.id.toLowerCase() === key ||
+      (s.phoneNumber && s.phoneNumber.toLowerCase() === key) ||
+      (s.name && s.name.toLowerCase() === key)
+    );
+    if (student) {
+      const phone = student.phoneNumber || student.whatsapp || '';
       return {
-        id: backendStudent.id,
-        name: backendStudent.name || '',
+        id: student.id,
+        name: student.name || '',
         phone: phone,
-        whatsapp: backendStudent.whatsapp || phone,
+        whatsapp: student.whatsapp || phone,
         email: '',
-        college: backendStudent.facultyName || '',
-        faculty: backendStudent.facultyName || ''
+        college: student.facultyName || '',
+        faculty: student.facultyName || ''
       };
     }
+
     return null;
   }
 
-  /** Retrieve all unique registered student profiles for autocomplete and directory */
+  /** Retrieve all registered student profiles for autocomplete and directory */
   public getAllStudentProfiles(): StudentProfileRecord[] {
-    const registry = this.getStoredItem<Record<string, StudentProfileRecord>>(STORAGE_KEYS.STUDENT_PROFILES, {});
-    const uniqueMap = new Map<string, StudentProfileRecord>();
-
-    // 1. From local persistent registry
-    Object.values(registry).forEach((p: StudentProfileRecord) => {
-      const k = (p.phone || p.name || p.id || '').trim().toLowerCase();
-      if (k && !uniqueMap.has(k)) uniqueMap.set(k, p);
-    });
-
-    // 2. From backend students state
-    this.backendStudentsState().forEach((p: StudentProfileRecord) => {
-      const k = (p.phone || p.name || p.id || '').trim().toLowerCase();
-      if (k) {
-        const existing = uniqueMap.get(k);
-        uniqueMap.set(k, {
-          id: p.id || existing?.id,
-          name: p.name || existing?.name || '',
-          phone: p.phone || existing?.phone || '',
-          whatsapp: p.whatsapp || existing?.whatsapp || p.phone || '',
-          email: p.email || existing?.email || '',
-          college: p.college || existing?.college || '',
-          faculty: p.faculty || existing?.faculty || ''
-        });
-      }
-    });
-
-    return Array.from(uniqueMap.values());
+    return this.backendStudentsState();
   }
 
   /** Direct registration of a new student */
@@ -426,9 +461,6 @@ export class WorkspaceService {
       faculty: profile.faculty?.trim() || ''
     };
 
-    this.saveStudentProfile(cleanProfile);
-    this.backendStudentsState.update(list => [cleanProfile, ...list.filter(s => s.phone !== cleanProfile.phone && s.name.toLowerCase() !== cleanProfile.name.toLowerCase())]);
-
     const facKey = (cleanProfile.faculty || cleanProfile.college || '').toLowerCase().trim();
     const matchedFacultyId = this.facultiesMap.get(facKey) || undefined;
 
@@ -439,136 +471,107 @@ export class WorkspaceService {
       facultyId: matchedFacultyId
     }).subscribe({
       next: (created) => {
+        const withId: StudentProfileRecord = {
+          ...cleanProfile,
+          id: created?.id
+        };
+        this.saveStudentProfile(withId);
         if (created?.id) {
-          const withId = { ...cleanProfile, id: created.id };
-          this.saveStudentProfile(withId);
-          this.backendStudentsState.update(list => list.map(s => s.phone === cleanProfile.phone ? withId : s));
+          this.studentMap.set(created.id, created);
         }
+        this.showToast(`تم تسجيل الطالب "${cleanProfile.name}" في النظام بنجاح!`, 'success');
       },
-      error: () => {}
+      error: (err) => {
+        this.saveStudentProfile(cleanProfile);
+        this.showToast(`تم حفظ بيانات الطالب محلياً: ${err?.message || ''}`, 'info');
+      }
     });
-
-    this.showToast(`تم تسجيل الطالب "${cleanProfile.name}" في النظام بنجاح!`, 'success');
   }
 
-  /** Delete a student from local persistent registry */
+  /** Delete a student from registered students */
   public deleteStudentProfile(phoneOrIdOrName: string): void {
-    const registry = this.getStoredItem<Record<string, StudentProfileRecord>>(STORAGE_KEYS.STUDENT_PROFILES, {});
-    const clean = phoneOrIdOrName.trim();
-    delete registry[clean];
-    delete registry[clean.toLowerCase()];
-    for (const k of Object.keys(registry)) {
-      const p = registry[k];
-      if (p.id === clean || p.phone === clean || p.name.toLowerCase() === clean.toLowerCase()) {
-        delete registry[k];
-      }
-    }
-    this.setStoredItem(STORAGE_KEYS.STUDENT_PROFILES, registry);
-    this.backendStudentsState.update(list => list.filter(s => s.id !== clean && s.phone !== clean && s.name.toLowerCase() !== clean.toLowerCase()));
-    this.showToast(`تم حذف بيانات الطالب من الدليل بنجاح!`, 'info');
-  }
+    const clean = phoneOrIdOrName.trim().toLowerCase();
+    const student = this.backendStudentsState().find(s =>
+      (s.id && s.id.toLowerCase() === clean) ||
+      (s.phone && s.phone.toLowerCase() === clean) ||
+      (s.name && s.name.toLowerCase() === clean)
+    );
 
-  /** Sanitize active students to ensure durations are reasonable */
-  private sanitizeActiveStudents(active: ActiveStudentSession[]): ActiveStudentSession[] {
-    if (!active || active.length === 0) return active;
-    let modified = false;
-    const sanitized = active.map(s => {
-      const mins = parseDurationMinutes(s.duration);
-      if (!s.duration || mins === 0 || mins > 18 * 60) {
-        modified = true;
-        const computedDur = calculateSessionDuration(s.checkInTime, undefined, s.date);
-        return {
-          ...s,
-          duration: computedDur
-        };
-      }
-      return s;
-    });
-
-    if (modified) {
-      this.setStoredItem(STORAGE_KEYS.ACTIVE_STUDENTS, sanitized);
-    }
-    return sanitized;
-  }
-
-  /** Sanitize cached history records to ensure duration is calculated from checkIn/checkOut or cost */
-  private sanitizeStoredHistory(history: ActiveStudentSession[]): ActiveStudentSession[] {
-    if (!history || history.length === 0) return history;
-    let modified = false;
-    const sanitized = history.map(s => {
-      const rawDur = s.duration?.trim();
-      const mins = parseDurationMinutes(rawDur);
-      const isAnomalous = !rawDur || mins === 0 || mins > 18 * 60 || rawDur === '0h 00m' || rawDur === '0 س 00 د' || rawDur === '0h 0m' || rawDur === '0m';
-      if (isAnomalous) {
-        modified = true;
-        let computedDur = '1h 00m';
-        if (s.checkInTime && s.checkOutTime) {
-          computedDur = calculateSessionDuration(s.checkInTime, s.checkOutTime, s.date, s.checkOutDate || s.date);
-          const compMins = parseDurationMinutes(computedDur);
-          if (compMins > 18 * 60) {
-            computedDur = calculateSessionDuration(s.checkInTime, s.checkOutTime, s.date, s.date);
-          }
-        } else if (s.cost && s.cost > 0) {
-          const costMins = Math.max(15, Math.round((s.cost / 30) * 60));
-          computedDur = formatMinutesToDuration(costMins);
+    const guid = student?.id;
+    if (guid && /^[0-9a-fA-F-]{36}$/.test(guid)) {
+      this.studentApi.deleteStudent(guid).subscribe({
+        next: () => {
+          this.backendStudentsState.update(list => list.filter(s => s.id !== guid));
+          this.studentMap.delete(guid);
+          this.showToast('تم حذف بيانات الطالب من السيرفر بنجاح!', 'info');
+        },
+        error: () => {
+          this.backendStudentsState.update(list => list.filter(s => s.id !== guid));
+          this.showToast('تم حذف بيانات الطالب من القائمة!', 'info');
         }
-        return {
-          ...s,
-          duration: computedDur
-        };
-      }
-      return s;
-    });
-
-    if (modified) {
-      this.setStoredItem(STORAGE_KEYS.HISTORY_STUDENTS, sanitized);
+      });
+    } else {
+      this.backendStudentsState.update(list => list.filter(s =>
+        s.id !== clean && s.phone?.toLowerCase() !== clean && s.name?.toLowerCase() !== clean
+      ));
+      this.showToast('تم حذف بيانات الطالب من القائمة!', 'info');
     }
-    return sanitized;
   }
 
-  /** Load live sessions from API and sync signals */
+  /** Load live sessions, students, faculties, and blacklist from API */
   public loadFromBackend(): void {
     if (!this.authService.isAuthenticated()) return;
 
-    // 1. Sync Faculties for ID mapping
-    this.facultyApi.getFaculties().pipe(
-      catchError(() => of([]))
-    ).subscribe({
-      next: (faculties) => {
+    this.isLoading.set(true);
+    this.error.set(null);
+
+    // Concurrently fetch faculties, blacklists, and students first to ensure mapping data is ready
+    forkJoin({
+      faculties: this.facultyApi.getFaculties().pipe(catchError(() => of([]))),
+      blacklists: this.blacklistApi.getBlacklists().pipe(catchError(() => of([]))),
+      students: this.studentApi.getStudents().pipe(catchError(() => of([])))
+    }).subscribe({
+      next: ({ faculties, blacklists, students }) => {
+        // 1. Populate faculties map
         (faculties || []).forEach((f: any) => {
           if (f.name) this.facultiesMap.set(f.name.toLowerCase().trim(), f.id);
           if (f.nameEn) this.facultiesMap.set(f.nameEn.toLowerCase().trim(), f.id);
         });
-      }
-    });
 
-    // 2. Sync Students
-    this.studentApi.getStudents().pipe(
-      catchError((err) => {
-        if (err?.status === 403) {
-          console.info('[WorkspaceService] Students API requires elevated role (403 Forbidden). Using cached student data.');
-        }
-        return of([]);
-      })
-    ).subscribe({
-      next: (students) => {
+        // 2. Populate students map and directory state
         const profileList: StudentProfileRecord[] = [];
         (students || []).forEach(s => {
           this.studentMap.set(s.id, s);
-          const p: StudentProfileRecord = {
+          profileList.push({
             id: s.id,
             name: s.name,
             phone: s.phoneNumber || s.whatsapp || '',
             whatsapp: s.whatsapp || s.phoneNumber || '',
             college: s.facultyName || '',
             faculty: s.facultyName || ''
-          };
-          profileList.push(p);
-          this.saveStudentProfile(p);
+          });
         });
-        if (profileList.length > 0) {
-          this.backendStudentsState.set(profileList);
-        }
+        this.backendStudentsState.set(profileList);
+
+        // 3. Populate blacklist state
+        const blacklistRecords: BlacklistRecord[] = (blacklists || []).map(b => {
+          const matchedSt = b.studentId ? this.studentMap.get(b.studentId) : null;
+          return {
+            id: b.id,
+            studentId: b.studentId || b.id,
+            name: b.name || matchedSt?.name || 'طالب محظور',
+            phone: matchedSt?.phoneNumber || matchedSt?.whatsapp || '',
+            reason: b.reason || 'مخالفة القواعد',
+            blockedDate: b.blacklistedAt ? parseIsoToLocalDate(b.blacklistedAt) : getTodayDateISO()
+          };
+        });
+        this.blacklistState.set(blacklistRecords);
+
+        // 4. Fetch live workspace sessions
+        this.fetchSessions();
+      },
+      error: (err) => {
+        console.error('[WorkspaceService] Error during bootstrap fetch:', err);
         this.fetchSessions();
       }
     });
@@ -577,47 +580,31 @@ export class WorkspaceService {
   private fetchSessions(): void {
     this.api.getSessions().pipe(
       catchError((err) => {
-        if (err?.status === 403) {
-          console.info('[WorkspaceService] Sessions API requires elevated role (403 Forbidden). Retaining cached sessions.');
-        } else {
-          console.warn('[WorkspaceService] Could not sync sessions from API, using cached data.');
-        }
-        return of(null);
+        console.warn('[WorkspaceService] Could not fetch sessions from API:', err?.message);
+        this.error.set(err?.message || 'Failed to fetch workspace sessions');
+        this.isLoading.set(false);
+        return of([]);
       })
     ).subscribe({
       next: (sessions) => {
-        if (sessions === null) {
-          // Keep cached sessions on error
-          return;
-        }
+        this.isLoading.set(false);
         if (sessions && sessions.length > 0) {
           const mapped: ActiveStudentSession[] = sessions.map(dto => this.mapDtoToSession(dto));
-          const active = this.sanitizeActiveStudents(mapped.filter(s => s.status === 'active'));
-          const history = this.sanitizeStoredHistory(mapped.filter(s => s.status === 'completed'));
+          const active = mapped.filter(s => s.status === 'active');
+          const history = mapped.filter(s => s.status === 'completed' || s.status === 'blocked');
 
-          // Merge local un-synced active sessions (e.g. client generated IDs starting with 'STU-')
-          const existingActive = this.activeStudentsState();
-          const localOnlyActive = existingActive.filter(local =>
-            local.id.startsWith('STU-') && !active.some(a => a.name === local.name || (local.phone && a.phone === local.phone))
-          );
-          const mergedActive = [...active, ...localOnlyActive];
+          this.activeStudentsState.set(active);
+          this.historyStudentsState.set(history);
 
-          this.activeStudentsState.set(mergedActive);
-          this.setStoredItem(STORAGE_KEYS.ACTIVE_STUDENTS, mergedActive);
-          if (history.length > 0) {
-            this.historyStudentsState.set(history);
-            this.setStoredItem(STORAGE_KEYS.HISTORY_STUDENTS, history);
-          }
-        } else if (sessions && sessions.length === 0) {
-          const existingActive = this.activeStudentsState();
-          const localOnlyActive = existingActive.filter(local => local.id.startsWith('STU-'));
-          if (localOnlyActive.length > 0) {
-            this.activeStudentsState.set(localOnlyActive);
-            this.setStoredItem(STORAGE_KEYS.ACTIVE_STUDENTS, localOnlyActive);
-          } else {
-            this.activeStudentsState.set([]);
-            this.setStoredItem(STORAGE_KEYS.ACTIVE_STUDENTS, []);
-          }
+          // Synchronize catering items from backend API for all active sessions
+          active.forEach(s => {
+            if (s.id && /^[0-9a-fA-F-]{36}$/.test(s.id)) {
+              this.syncSessionCatering(s.id);
+            }
+          });
+        } else {
+          this.activeStudentsState.set([]);
+          this.historyStudentsState.set([]);
         }
       }
     });
@@ -630,16 +617,25 @@ export class WorkspaceService {
     }, 4000);
   }
 
-  checkInStudent(newStudent: Omit<ActiveStudentSession, 'id' | 'duration' | 'status'>): void {
-    const student: ActiveStudentSession = {
-      ...newStudent,
-      id: 'STU-' + Math.floor(100 + Math.random() * 900),
-      date: newStudent.date || getTodayDateISO(),
-      duration: '0h 01m',
-      status: 'active'
-    };
+  /** Check in a student to workspace session */
+  checkInStudent(newStudent: Omit<ActiveStudentSession, 'id' | 'duration' | 'status' | 'billingType'> & { billingType?: 'new-session' | 'package' | 'coupon'; studentId?: string; zone?: number }): void {
+    // 0. Blacklist Enforcement Guard (Requirement 9)
+    const cleanName = (newStudent.name || '').trim().toLowerCase();
+    const cleanPhone = (newStudent.phone || '').trim();
+    const isBlacklisted = this.blacklistState().some(b =>
+      (cleanPhone && b.phone && b.phone === cleanPhone) ||
+      (cleanName && b.name && b.name.toLowerCase().trim() === cleanName) ||
+      (newStudent.studentId && b.studentId && b.studentId === newStudent.studentId)
+    );
+    if (isBlacklisted) {
+      this.showToast('لا يمكن تسجيل دخول طالب محظور (BLOCKED). يرجى فك الحظر أولاً من قائمة الحظر', 'error');
+      return;
+    }
 
-    // Save full student profile in local registry immediately
+    const facKey = (newStudent.faculty || newStudent.college || '').toLowerCase().trim();
+    const matchedFacultyId = this.facultiesMap.get(facKey) || undefined;
+
+    // Save student profile in directory
     this.saveStudentProfile({
       name: newStudent.name,
       phone: newStudent.phone,
@@ -649,68 +645,151 @@ export class WorkspaceService {
       faculty: newStudent.faculty && newStudent.faculty !== '-' ? newStudent.faculty : ''
     });
 
-    // Optimistic UI update
-    this.activeStudentsState.update(list => {
-      const updated = [student, ...list];
-      this.setStoredItem(STORAGE_KEYS.ACTIVE_STUDENTS, updated);
-      return updated;
-    });
+    const onCheckInSuccess = (createdSession: any, studentGuid?: string) => {
+      const realSession: ActiveStudentSession = {
+        id: createdSession.id,
+        studentId: studentGuid || createdSession.studentId || undefined,
+        name: newStudent.name,
+        phone: newStudent.phone,
+        whatsapp: newStudent.whatsapp || newStudent.phone,
+        email: newStudent.email,
+        faculty: newStudent.faculty,
+        college: newStudent.college,
+        date: newStudent.date || getTodayDateISO(),
+        checkInTime: newStudent.checkInTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        duration: '0h 01m',
+        cost: newStudent.sessionPrice || newStudent.cost || 30,
+        billingType: newStudent.billingType || 'new-session',
+        packageOrCoupon: newStudent.packageOrCoupon,
+        printingCount: newStudent.printingCount,
+        printingPrice: newStudent.printingPrice,
+        walletAmount: newStudent.walletAmount,
+        wifiCode: newStudent.wifiCode,
+        roomId: newStudent.roomId,
+        roomName: newStudent.roomName,
+        addedBy: newStudent.addedBy || this.shiftService.activeStaffName(),
+        status: 'active'
+      };
 
-    this.showToast(`تم تسجيل دخول الطالب "${student.name}" بنجاح!`, 'success');
+      this.activeStudentsState.update(list => [realSession, ...list]);
+      this.showToast(`تم تسجيل دخول الطالب "${realSession.name}" بنجاح!`, 'success');
+    };
 
-    // Resolve matching facultyId from map if available
-    const facKey = (newStudent.faculty || newStudent.college || '').toLowerCase().trim();
-    const matchedFacultyId = this.facultiesMap.get(facKey) || undefined;
+    const onCheckInError = (err: any) => {
+      console.error('[WorkspaceService] Error during checkin:', err);
+      this.showToast(`تعذر تسجيل الجلسة في السيرفر: ${err?.message || 'خطأ في الاتصال'}`, 'error');
+    };
 
-    // Call Backend API: Create student first if needed, then check in
+    const executeCheckIn = (studentGuid?: string) => {
+      const zone = newStudent.zone ?? (newStudent.roomName?.toLowerCase().includes('silent') ? 1 : 0);
+      const payload = {
+        studentId: studentGuid || null,
+        roomId: newStudent.roomId || null,
+        zone,
+        date: newStudent.date || new Date().toISOString(),
+        timeFrom: newStudent.checkInTime ? parseSessionTimeToDate(newStudent.checkInTime, newStudent.date).toISOString() : new Date().toISOString(),
+        printing: newStudent.printingCount || 0,
+        wallet: newStudent.walletAmount || 0,
+        discount: newStudent.cost || 0,
+        note: newStudent.name
+      };
+
+      if (!studentGuid && newStudent.roomId) {
+        this.api.walkIn({
+          studentName: newStudent.name,
+          phoneNumber: newStudent.phone,
+          whatsapp: newStudent.whatsapp || newStudent.phone,
+          facultyId: matchedFacultyId,
+          roomId: newStudent.roomId,
+          notes: newStudent.name
+        }).subscribe({
+          next: (created) => onCheckInSuccess(created, created?.studentId || undefined),
+          error: () => {
+            this.api.checkIn(payload).subscribe({
+              next: (created) => onCheckInSuccess(created, studentGuid),
+              error: onCheckInError
+            });
+          }
+        });
+      } else {
+        this.api.checkIn(payload).subscribe({
+          next: (created) => onCheckInSuccess(created, studentGuid),
+          error: onCheckInError
+        });
+      }
+    };
+
+    // If student already has GUID, directly check in
+    if (newStudent.studentId && /^[0-9a-fA-F-]{36}$/.test(newStudent.studentId)) {
+      executeCheckIn(newStudent.studentId);
+      return;
+    }
+
+    // Check if phone or name matches existing student in studentMap
+    const existing = Array.from(this.studentMap.values()).find(s =>
+      (newStudent.phone && (s.phoneNumber === newStudent.phone || s.whatsapp === newStudent.phone)) ||
+      (newStudent.name && s.name.toLowerCase() === newStudent.name.toLowerCase().trim())
+    );
+
+    if (existing?.id) {
+      executeCheckIn(existing.id);
+      return;
+    }
+
+    // Otherwise create student first on backend
     this.studentApi.createStudent({
       name: newStudent.name,
       phoneNumber: newStudent.phone,
       whatsapp: newStudent.whatsapp || newStudent.phone,
+      roomId: newStudent.roomId || null,
+      zone: newStudent.zone ?? (newStudent.roomName?.toLowerCase().includes('silent') ? 1 : 0),
+      addedBy: newStudent.addedBy || this.shiftService.activeStaffName(),
+      printingPrice: newStudent.printingPrice || 2.0,
       facultyId: matchedFacultyId
     }).subscribe({
-      next: (created) => {
-        const studentId = created?.id || undefined;
-        this.api.checkIn({
-          studentId: studentId,
-          date: new Date().toISOString(),
-          timeFrom: new Date().toISOString(),
-          printing: newStudent.printingCount || 0,
-          wallet: newStudent.walletAmount || 0,
-          discount: newStudent.cost || 0,
-          note: newStudent.name
-        }).subscribe({
-          next: (res) => {
-            if (res && res.id) {
-              this.activeStudentsState.update(list =>
-                list.map(s => s.id === student.id ? { ...s, id: res.id, studentId: studentId || s.id } : s)
-              );
-            }
-          },
-          error: (err) => console.warn('[WorkspaceService] Checkin API sync notice:', err?.message)
-        });
+      next: (createdStudent) => {
+        if (createdStudent?.id) {
+          this.studentMap.set(createdStudent.id, createdStudent);
+          this.saveStudentProfile({ ...newStudent, id: createdStudent.id });
+        }
+        if (createdStudent?.status === 'active' || createdStudent?.roomId) {
+          onCheckInSuccess(createdStudent, createdStudent?.id);
+        } else {
+          executeCheckIn(createdStudent?.id);
+        }
       },
       error: () => {
-        this.api.checkIn({
-          date: new Date().toISOString(),
-          timeFrom: new Date().toISOString(),
-          printing: newStudent.printingCount || 0,
-          wallet: newStudent.walletAmount || 0,
-          note: newStudent.name
-        }).subscribe({
-          next: (res) => {
-            if (res && res.id) {
-              this.activeStudentsState.update(list =>
-                list.map(s => s.id === student.id ? { ...s, id: res.id } : s)
-              );
-            }
-          },
-          error: (err) => console.warn('[WorkspaceService] Direct checkin notice:', err?.message)
-        });
+        executeCheckIn(undefined);
       }
     });
   }
 
+  /** Update session details (e.g. from Student Checkout edit modal) */
+  updateSessionDetails(
+    sessionId: string,
+    updatedData: {
+      name?: string;
+      phone?: string;
+      faculty?: string;
+      checkInTime?: string;
+      hourlyRate?: number;
+      depositAmount?: number;
+      printingPages?: number;
+    }
+  ): Observable<boolean> {
+    const session = this.activeStudentsState().find(s => s.id === sessionId);
+    if (session) {
+      this.activeStudentsState.update(list =>
+        list.map(s => s.id === sessionId ? { ...s, ...updatedData } : s)
+      );
+    }
+    return this.api.updateSession(sessionId, updatedData as any).pipe(
+      map(() => true),
+      catchError(() => of(true))
+    );
+  }
+
+  /** Check out a student session */
   checkOutStudent(
     studentId: string,
     checkoutOptions?: {
@@ -718,8 +797,14 @@ export class WorkspaceService {
       totalCost?: number;
       amountReceived?: number;
       outstandingBalance?: number;
+      walletAmount?: number;
       paymentStatus?: 'paid' | 'partially_paid' | 'pending';
       duration?: string;
+      usePackageHours?: number;
+      packageId?: string;
+      discountId?: string;
+      couponCode?: string;
+      payWay?: number;
     }
   ): void {
     const student = this.activeStudentsState().find(s => s.id === studentId);
@@ -735,6 +820,10 @@ export class WorkspaceService {
       finalDuration = calculateSessionDuration(student.checkInTime, nowTime, student.date, today);
     }
 
+    const updatedWallet = checkoutOptions?.walletAmount !== undefined
+      ? checkoutOptions.walletAmount
+      : (student.walletAmount || 0);
+
     const completedStudent: ActiveStudentSession = {
       ...student,
       date: student.date ? (isSameDayAsToday(student.date) ? student.date : today) : today,
@@ -744,22 +833,26 @@ export class WorkspaceService {
       duration: finalDuration,
       cost: checkoutOptions?.totalCost !== undefined ? checkoutOptions.totalCost : student.cost,
       outstandingBalance: remaining,
+      walletAmount: updatedWallet,
       paymentStatus: isPartial ? 'partially_paid' : 'paid'
     };
 
-    // Remove from active
-    this.activeStudentsState.update(list => {
-      const updated = list.filter(s => s.id !== studentId);
-      this.setStoredItem(STORAGE_KEYS.ACTIVE_STUDENTS, updated);
-      return updated;
+    // Update in-memory student profile with new wallet
+    this.saveStudentProfile({
+      id: student.studentId,
+      name: student.name,
+      phone: student.phone,
+      whatsapp: student.whatsapp,
+      email: student.email,
+      college: student.college,
+      faculty: student.faculty,
+      walletAmount: updatedWallet
     });
 
-    // Add to history
-    this.historyStudentsState.update(list => {
-      const updated = [completedStudent, ...list];
-      this.setStoredItem(STORAGE_KEYS.HISTORY_STUDENTS, updated);
-      return updated;
-    });
+    // Remove from active state and add to history
+    this.activeStudentsState.update(list => list.filter(s => s.id !== studentId));
+    this.historyStudentsState.update(list => [completedStudent, ...list]);
+    this.removeSessionCateringCache(studentId);
 
     const receivedAmt = checkoutOptions?.amountReceived !== undefined ? checkoutOptions.amountReceived : (student.cost || 30);
     this.showToast(
@@ -777,21 +870,97 @@ export class WorkspaceService {
       details: `محاسبة جلسة طالب - ${student.name}${isPartial ? ` (دفع جزئي: مستلم ${receivedAmt} ج.م، متبقي ${remaining} ج.م)` : ''}`
     });
 
-    // Call Backend API
-    this.api.checkOut(studentId, {
-      timeTo: new Date().toISOString(),
-      paidAmount: receivedAmt,
-      payWay: 1,
-      paymentMethod: checkoutOptions?.paymentMethod || 'Cash',
-      totalCost: checkoutOptions?.totalCost || student.cost || 30
-    }).subscribe({
-      error: (err) => console.warn('[WorkspaceService] Checkout API sync notice:', err?.message)
-    });
+    // Call Backend Dedicated Student Checkout API (Section 4.1)
+    const targetStudentGuid = student.studentId || (/^[0-9a-fA-F-]{36}$/.test(studentId) ? studentId : undefined);
+    const durationMinutes = parseDurationMinutes(finalDuration);
+    const durationHours = +(Math.max(0.1, durationMinutes / 60)).toFixed(2);
+    const currentShift = this.shiftService.currentShift();
+    const shiftId = currentShift?.id && /^[0-9a-fA-F-]{36}$/.test(currentShift.id) ? currentShift.id : undefined;
+
+    if (targetStudentGuid) {
+      this.studentApi.checkoutStudent(targetStudentGuid, {
+        studentId: targetStudentGuid,
+        checkOutTime: new Date().toISOString(),
+        durationHours,
+        totalCost: checkoutOptions?.totalCost !== undefined ? checkoutOptions.totalCost : (student.cost || 30),
+        amountReceived: receivedAmt,
+        walletAmount: updatedWallet,
+        paymentMethod: checkoutOptions?.paymentMethod || 'cash',
+        shiftId
+      }).subscribe({
+        error: (err) => console.warn('[WorkspaceService] Student Checkout API notice:', err?.message)
+      });
+    }
+
+    // Call Backend Workspace Session Checkout API if session ID is GUID
+    if (/^[0-9a-fA-F-]{36}$/.test(studentId)) {
+      this.api.checkOut(studentId, {
+        timeTo: new Date().toISOString(),
+        paidAmount: receivedAmt,
+        paymentMethod: checkoutOptions?.paymentMethod || (checkoutOptions?.payWay === 3 ? 'Wallet' : (checkoutOptions?.payWay === 2 ? 'Visa' : 'Cash')),
+        payWay: this.mapPaymentMethodToPayWay(checkoutOptions?.paymentMethod),
+        wallet: updatedWallet,
+        usePackageHours: checkoutOptions?.usePackageHours,
+        packageId: checkoutOptions?.packageId,
+        discountId: checkoutOptions?.discountId,
+        couponCode: checkoutOptions?.couponCode,
+        totalCost: checkoutOptions?.totalCost || student.cost || 30
+      }).subscribe({
+        error: (err) => console.warn('[WorkspaceService] Checkout API notice:', err?.message)
+      });
+    }
+  }
+
+  // ==========================================
+  // DIGITAL WALLET INTEGRATION (Section 9)
+  // ==========================================
+
+  getStudentWalletBalance(studentId: string): Observable<any> {
+    return this.walletApi.getBalance(studentId);
+  }
+
+  getStudentWalletTransactions(studentId: string): Observable<any[]> {
+    return this.walletApi.getTransactions(studentId);
+  }
+
+  topUpStudentWallet(studentId: string, amount: number, paymentMethod: string = 'Cash', notes?: string): Observable<any> {
+    return this.walletApi.topUpDirect({
+      studentId,
+      amount,
+      note: notes || `Direct Top-up (${paymentMethod})`
+    }).pipe(
+      tap((tx) => {
+        this.activeStudentsState.update(list =>
+          list.map(s => s.studentId === studentId || s.id === studentId ? { ...s, walletAmount: (s.walletAmount || 0) + amount } : s)
+        );
+        this.shiftService.recordTransaction({
+          type: 'workspace',
+          paymentMethod: (paymentMethod.toLowerCase() as any) || 'cash',
+          amount,
+          details: `شحن محفظة الطالب - ${amount} ج.م`
+        });
+        this.showToast(`تم شحن المحفظة بمبلغ ${amount} ج.م بنجاح!`, 'success');
+      })
+    );
+  }
+
+  deductStudentWallet(studentId: string, amount: number, notes?: string): Observable<any> {
+    return this.walletApi.deduct({
+      studentId,
+      amount,
+      note: notes || 'Workspace Session Deduction'
+    }).pipe(
+      tap(() => {
+        this.activeStudentsState.update(list =>
+          list.map(s => s.studentId === studentId || s.id === studentId ? { ...s, walletAmount: (s.walletAmount || 0) - amount } : s)
+        );
+      })
+    );
   }
 
   settleOutstandingBalance(studentPhoneOrId: string, amount: number): void {
-    this.historyStudentsState.update(list => {
-      const updated = list.map(s => {
+    this.historyStudentsState.update(list =>
+      list.map(s => {
         if (s.id === studentPhoneOrId || s.phone === studentPhoneOrId) {
           const currentBal = s.outstandingBalance || 0;
           const newBal = Math.max(0, currentBal - amount);
@@ -802,10 +971,8 @@ export class WorkspaceService {
           };
         }
         return s;
-      });
-      this.setStoredItem(STORAGE_KEYS.HISTORY_STUDENTS, updated);
-      return updated;
-    });
+      })
+    );
 
     this.shiftService.recordTransaction({
       type: 'workspace',
@@ -818,24 +985,88 @@ export class WorkspaceService {
   }
 
   addCateringToStudent(studentId: string, amount: number, items?: any[]): void {
-    this.activeStudentsState.update(list => {
-      const updated = list.map(s => {
+    const allProducts = this.cateringService.products();
+    const normalizedItems = (items || []).map(item => {
+      const prodId = item.productId || item.product?.id || item.id;
+      const prod = allProducts.find(p => p.id === prodId);
+      const unitPrice = Number((item.unitPrice ?? item.price ?? item.product?.piecePrice ?? item.product?.sellingPrice ?? prod?.sellingPrice) || 0);
+      const quantity = Number(item.quantity || 1);
+      const totalPrice = Number((item.totalPrice ?? item.total ?? (unitPrice * quantity)) || (prod?.sellingPrice ? prod.sellingPrice * quantity : 0));
+      const name = item.name || item.product?.nameAr || item.product?.name || prod?.nameAr || prod?.name || 'صنف كاترنج';
+      return {
+        id: item.id || prodId || `${Date.now()}_${Math.random()}`,
+        productId: prodId,
+        name,
+        nameAr: item.nameAr || item.product?.nameAr || prod?.nameAr,
+        unitPrice,
+        quantity,
+        totalPrice,
+        price: totalPrice,
+        product: item.product || prod
+      };
+    });
+
+    this.activeStudentsState.update(list =>
+      list.map(s => {
         if (s.id === studentId) {
           const currentTotal = s.cateringTotal || 0;
           const newTotal = +(currentTotal + amount).toFixed(2);
           const currentItems = s.cateringItems || [];
+          const combinedItems = [...currentItems, ...normalizedItems];
+          this.setSessionCateringCache(studentId, newTotal, combinedItems);
           return {
             ...s,
             cateringTotal: newTotal,
-            cateringItems: [...currentItems, ...(items || [])]
+            cateringItems: combinedItems
           };
         }
         return s;
+      })
+    );
+
+    // Call backend API to add items if items provided
+    if (normalizedItems.length > 0) {
+      normalizedItems.forEach(item => {
+        if (item.productId && /^[0-9a-fA-F-]{36}$/.test(studentId)) {
+          this.api.addCateringItem(studentId, {
+            productId: item.productId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice
+          }).subscribe({
+            next: () => {
+              this.syncSessionCatering(studentId);
+            },
+            error: (err) => console.warn('[WorkspaceService] Add catering item notice:', err?.message)
+          });
+        }
       });
-      this.setStoredItem(STORAGE_KEYS.ACTIVE_STUDENTS, updated);
-      return updated;
-    });
+    }
+
     this.showToast(`تم إضافة كاترنج بقيمة ${amount} ج.م للطالب بنجاح!`, 'success');
+  }
+
+  /** Remove a single catering item from a student session */
+  removeCateringFromStudent(studentId: string, itemId: string): void {
+    const student = this.activeStudentsState().find(s => s.id === studentId);
+    if (!student) return;
+
+    const currentItems = student.cateringItems || [];
+    const itemToRemove = currentItems.find(i => i.id === itemId || i.productId === itemId);
+    const updatedItems = currentItems.filter(i => i.id !== itemId && i.productId !== itemId);
+    const newTotal = +updatedItems.reduce((sum, it) => sum + (it.totalPrice || it.price || 0), 0).toFixed(2);
+
+    this.setSessionCateringCache(studentId, newTotal, updatedItems);
+    this.activeStudentsState.update(list =>
+      list.map(s => s.id === studentId ? { ...s, cateringTotal: newTotal, cateringItems: updatedItems } : s)
+    );
+
+    if (/^[0-9a-fA-F-]{36}$/.test(studentId) && itemToRemove?.id && /^[0-9a-fA-F-]{36}$/.test(itemToRemove.id)) {
+      this.api.removeCateringItem(studentId, itemToRemove.id).subscribe({
+        error: (err) => console.warn('[WorkspaceService] Remove catering item notice:', err?.message)
+      });
+    }
+
+    this.showToast('تم حذف الصنف من الحساب بنجاح', 'info');
   }
 
   updateStudent(idOrStudent: string | ActiveStudentSession, updates?: Partial<ActiveStudentSession>): void {
@@ -853,7 +1084,7 @@ export class WorkspaceService {
     const currentStudent = this.activeStudentsState().find(s => s.id === targetId) || this.historyStudentsState().find(s => s.id === targetId);
     const merged = { ...currentStudent, ...patch };
 
-    // Persist full profile
+    // Update in-memory profile
     if (merged.name || merged.phone) {
       this.saveStudentProfile({
         name: merged.name || '',
@@ -861,23 +1092,15 @@ export class WorkspaceService {
         whatsapp: merged.whatsapp || merged.phone || '',
         email: merged.email || '',
         college: merged.college || '',
-        faculty: merged.faculty || ''
+        faculty: merged.faculty || '',
+        id: merged.studentId
       });
     }
 
-    this.activeStudentsState.update(list => {
-      const updated = list.map(s => (s.id === targetId ? { ...s, ...patch } : s));
-      this.setStoredItem(STORAGE_KEYS.ACTIVE_STUDENTS, updated);
-      return updated;
-    });
+    this.activeStudentsState.update(list => list.map(s => (s.id === targetId ? { ...s, ...patch } : s)));
+    this.historyStudentsState.update(list => list.map(s => (s.id === targetId ? { ...s, ...patch } : s)));
 
-    this.historyStudentsState.update(list => {
-      const updated = list.map(s => (s.id === targetId ? { ...s, ...patch } : s));
-      this.setStoredItem(STORAGE_KEYS.HISTORY_STUDENTS, updated);
-      return updated;
-    });
-
-    // If student has backend GUID or studentId, call backend updateStudent
+    // If student has backend GUID, update in backend
     const targetStudentGuid = (patch as any).studentId || currentStudent?.studentId;
     if (targetStudentGuid && /^[0-9a-fA-F-]{36}$/.test(targetStudentGuid)) {
       const facKey = (patch.faculty || patch.college || currentStudent?.faculty || '').toLowerCase().trim();
@@ -892,66 +1115,104 @@ export class WorkspaceService {
       });
     }
 
+    // If workspace session has GUID, update session
+    if (targetId && /^[0-9a-fA-F-]{36}$/.test(targetId)) {
+      this.api.updateSession(targetId, {
+        note: patch.name || currentStudent?.name || null,
+        wiFi: patch.wifiCode ? 1 : undefined,
+        printing: patch.printingCount,
+        wallet: patch.walletAmount
+      }).subscribe({
+        error: (err) => console.warn('[WorkspaceService] Update session notice:', err?.message)
+      });
+    }
+
     this.showToast('تم تحديث بيانات الطالب بنجاح!', 'success');
   }
 
   deleteStudent(id: string): void {
-    const student = this.activeStudentsState().find(s => s.id === id);
-    this.activeStudentsState.update(list => {
-      const updated = list.filter(s => s.id !== id);
-      this.setStoredItem(STORAGE_KEYS.ACTIVE_STUDENTS, updated);
-      return updated;
-    });
+    const student = this.activeStudentsState().find(s => s.id === id) || this.historyStudentsState().find(s => s.id === id);
 
-    this.historyStudentsState.update(list => {
-      const updated = list.filter(s => s.id !== id);
-      this.setStoredItem(STORAGE_KEYS.HISTORY_STUDENTS, updated);
-      return updated;
-    });
+    this.activeStudentsState.update(list => list.filter(s => s.id !== id));
+    this.historyStudentsState.update(list => list.filter(s => s.id !== id));
+    this.removeSessionCateringCache(id);
 
     if (student) {
-      this.showToast(`تم حذف الطالب "${student.name}" بنجاح!`, 'info');
+      this.showToast(`تم حذف جلسة الطالب "${student.name}" بنجاح!`, 'info');
     }
 
-    this.api.deleteSession(id).subscribe({
-      error: () => { }
-    });
+    if (/^[0-9a-fA-F-]{36}$/.test(id)) {
+      this.api.deleteSession(id).subscribe({
+        error: (err) => console.warn('[WorkspaceService] Delete session notice:', err?.message)
+      });
+    }
   }
 
   blockStudent(student: Student, reason?: string): void {
-    const newRecord: BlacklistRecord = {
-      id: 'BLK-' + Math.floor(100 + Math.random() * 900),
-      studentId: student.id,
-      name: student.name,
-      phone: student.phone,
-      email: student.email,
-      faculty: student.faculty,
-      college: student.college,
-      reason: reason || 'مخالفة قواعد وقوانين مساحة العمل',
-      blockedDate: getTodayDateISO()
-    };
+    // 1. Requirement 7: Forbid blocking if student is currently checked-in
+    if (student.status === 'active' || this.activeStudentsState().some(s => s.id === student.id && s.status === 'active')) {
+      this.showToast('لا يمكن حظر الطالب أثناء تواجده في مساحة العمل. يرجى إنهاء الجلسة (Check-out) وتسوية الحساب أولاً', 'error');
+      return;
+    }
 
-    // Update status to 'blocked'
-    this.activeStudentsState.update(list => {
-      const next = list.map(s => (s.id === student.id ? { ...s, status: 'blocked' as const } : s));
-      this.setStoredItem(STORAGE_KEYS.ACTIVE_STUDENTS, next);
-      return next;
-    });
+    const targetStudentId = student.studentId || student.id;
+    const blockReason = reason || 'مخالفة قواعد وقوانين مساحة العمل';
+
+    // 2. Requirement 8: Blocked students MUST NOT appear in active students; they belong in history
+    this.activeStudentsState.update(list => list.filter(s => s.id !== student.id));
 
     this.historyStudentsState.update(list => {
-      const next = list.map(s => (s.id === student.id ? { ...s, status: 'blocked' as const } : s));
-      this.setStoredItem(STORAGE_KEYS.HISTORY_STUDENTS, next);
-      return next;
+      const exists = list.some(s => s.id === student.id);
+      if (exists) {
+        return list.map(s => s.id === student.id ? { ...s, status: 'blocked' as const } : s);
+      }
+      const blockedSession: ActiveStudentSession = {
+        ...student,
+        status: 'blocked',
+        billingType: (student.billingType as any) || 'new-session',
+        checkOutDate: student.checkOutDate || getTodayDateISO()
+      };
+      return [blockedSession, ...list];
     });
 
-    // Add to blacklist
-    this.blacklistState.update(list => {
-      const next = [newRecord, ...list.filter(r => r.studentId !== student.id)];
-      this.setStoredItem(STORAGE_KEYS.BLACKLIST, next);
-      return next;
+    // Call Blacklist API
+    this.blacklistApi.addToBlacklist({
+      name: student.name,
+      studentId: /^[0-9a-fA-F-]{36}$/.test(targetStudentId) ? targetStudentId : undefined,
+      reason: blockReason,
+      blacklistedAt: new Date().toISOString()
+    }).subscribe({
+      next: (res) => {
+        const record: BlacklistRecord = {
+          id: res?.id || 'BLK-' + Date.now(),
+          studentId: targetStudentId,
+          name: student.name,
+          phone: student.phone,
+          email: student.email,
+          faculty: student.faculty,
+          college: student.college,
+          reason: blockReason,
+          blockedDate: getTodayDateISO()
+        };
+        this.blacklistState.update(list => [record, ...list.filter(r => r.studentId !== targetStudentId)]);
+        this.showToast(`تم حظر الطالب "${student.name}" وإضافته للبلاك ليست!`, 'error');
+      },
+      error: () => {
+        const record: BlacklistRecord = {
+          id: 'BLK-' + Date.now(),
+          studentId: targetStudentId,
+          name: student.name,
+          phone: student.phone,
+          email: student.email,
+          faculty: student.faculty,
+          college: student.college,
+          reason: blockReason,
+          blockedDate: getTodayDateISO()
+        };
+        this.blacklistState.update(list => [record, ...list.filter(r => r.studentId !== targetStudentId)]);
+        this.showToast(`تم حظر الطالب "${student.name}"!`, 'error');
+      }
     });
-
-    this.showToast(`تم حظر الطالب "${student.name}" وإضافته للبلاك ليست!`, 'error');
   }
 
   unblockStudent(recordOrStudentId: string): void {
@@ -959,58 +1220,69 @@ export class WorkspaceService {
       r => r.id === recordOrStudentId || r.studentId === recordOrStudentId
     );
     const targetStudentId = record?.studentId || recordOrStudentId;
+    const blacklistId = record?.id || recordOrStudentId;
 
-    // Remove from blacklist
-    this.blacklistState.update(list => {
-      const next = list.filter(r => r.id !== recordOrStudentId && r.studentId !== recordOrStudentId);
-      this.setStoredItem(STORAGE_KEYS.BLACKLIST, next);
-      return next;
-    });
+    this.blacklistState.update(list =>
+      list.filter(r => r.id !== recordOrStudentId && r.studentId !== recordOrStudentId)
+    );
 
-    // Restore status to 'active' or 'completed'
-    this.activeStudentsState.update(list => {
-      const next = list.map(s => (s.id === targetStudentId && s.status === 'blocked' ? { ...s, status: 'active' as const } : s));
-      this.setStoredItem(STORAGE_KEYS.ACTIVE_STUDENTS, next);
-      return next;
-    });
+    this.activeStudentsState.update(list =>
+      list.map(s => (s.id === targetStudentId && s.status === 'blocked' ? { ...s, status: 'active' as const } : s))
+    );
 
-    this.historyStudentsState.update(list => {
-      const next = list.map(s => (s.id === targetStudentId && s.status === 'blocked' ? { ...s, status: 'completed' as const } : s));
-      this.setStoredItem(STORAGE_KEYS.HISTORY_STUDENTS, next);
-      return next;
-    });
+    this.historyStudentsState.update(list =>
+      list.map(s => (s.id === targetStudentId && s.status === 'blocked' ? { ...s, status: 'completed' as const } : s))
+    );
+
+    if (blacklistId && /^[0-9a-fA-F-]{36}$/.test(blacklistId)) {
+      this.blacklistApi.removeFromBlacklist(blacklistId).subscribe({
+        error: (err) => console.warn('[WorkspaceService] Unblock notice:', err?.message)
+      });
+    }
 
     this.showToast(`تم إلغاء حظر الطالب "${record?.name || targetStudentId}" بنجاح!`, 'success');
   }
 
-  // --- Backend 1-to-1 Swappable API Methods ---
+  /** Get single session by ID — checks in-memory signals first, falls back to live API */
+  getSessionById(id: string): Observable<ActiveStudentSession | null> {
+    const fromActive = this.activeStudentsState().find(s => s.id === id);
+    if (fromActive) return of(fromActive);
+
+    const fromHistory = this.historyStudentsState().find(s => s.id === id);
+    if (fromHistory) return of(fromHistory);
+
+    if (!id || !/^[0-9a-fA-F-]{36}$/.test(id)) {
+      return of(null);
+    }
+
+    return this.api.getSessionById(id).pipe(
+      map(dto => {
+        if (!dto) return null;
+        return this.mapDtoToSession(dto);
+      }),
+      catchError(() => of(null))
+    );
+  }
+
+  // --- Backend 1-to-1 Swappable Observable Methods ---
   getStudents(): Observable<ActiveStudentSession[]> {
     return of(this.activeStudentsState());
   }
 
   addStudent(dto: CreateStudentDto): Observable<ActiveStudentSession> {
-    const student: ActiveStudentSession = {
-      id: 'STU-' + Math.floor(100 + Math.random() * 900),
+    this.checkInStudent({
       name: dto.name,
       phone: dto.phone || dto.phoneNumber || '',
       email: dto.email,
       faculty: dto.faculty,
       college: dto.college,
+      billingType: 'new-session',
       date: getTodayDateISO(),
       checkInTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      duration: '0h 01m',
-      cost: dto.sessionPrice || 30,
-      billingType: 'new-session',
-      status: 'active',
+      sessionPrice: dto.sessionPrice || 30,
       notes: dto.notes
-    };
-    this.activeStudentsState.update(list => {
-      const updated = [student, ...list];
-      this.setStoredItem(STORAGE_KEYS.ACTIVE_STUDENTS, updated);
-      return updated;
     });
-    this.showToast(`تم إضافة الطالب "${student.name}" بنجاح!`, 'success');
-    return of(student);
+    return of(this.activeStudentsState()[0]);
   }
 
   checkIn(dto: SessionCheckInDto): Observable<ActiveStudentSession> {
@@ -1033,35 +1305,27 @@ export class WorkspaceService {
     return of(true);
   }
 
-  private mapDtoToSession(dto: WorkspaceSessionDto | any): ActiveStudentSession {
+  private mapDtoToSession(dto: WorkspaceSessionDto | WorkspaceDetailDto | any): ActiveStudentSession {
     const timeStr = dto.timeFrom || dto.checkInTime;
     const isAct = dto.status === 1 || dto.status === 'Active' || dto.status === 'active' || (!dto.timeTo && dto.status !== 2 && dto.status !== 'Left');
     const student = dto.studentId ? this.studentMap.get(dto.studentId) : null;
-    
-    // Check local profile registry for full details (phone, email, whatsapp, college, faculty)
+
     const profile = this.getStudentProfile(dto.studentId) ||
-                    this.getStudentProfile(student?.phoneNumber) ||
-                    this.getStudentProfile(dto.studentPhone) ||
-                    this.getStudentProfile(student?.name) ||
-                    this.getStudentProfile(dto.studentName) ||
-                    this.getStudentProfile(dto.note);
+      (student?.phoneNumber ? this.getStudentProfile(student.phoneNumber) : null) ||
+      (dto.studentPhoneNumber ? this.getStudentProfile(dto.studentPhoneNumber) : null) ||
+      (dto.studentPhone ? this.getStudentProfile(dto.studentPhone) : null) ||
+      (student?.name ? this.getStudentProfile(student.name) : null) ||
+      (dto.studentName ? this.getStudentProfile(dto.studentName) : null) ||
+      (dto.note ? this.getStudentProfile(dto.note) : null);
 
-    const name = profile?.name || student?.name || (dto.note && dto.note !== '-' ? dto.note : '') || (dto.studentName && dto.studentName !== '-' ? dto.studentName : '') || 'طالب';
-    const phone = profile?.phone || student?.phoneNumber || student?.whatsapp || (dto.studentPhone && dto.studentPhone !== '-' ? dto.studentPhone : '') || '';
+    const name = profile?.name || student?.name || dto.studentName || (dto.note && dto.note !== '-' ? dto.note : '') || 'طالب';
+    const phone = profile?.phone || student?.phoneNumber || dto.studentPhoneNumber || student?.whatsapp || dto.studentPhone || '';
     const whatsapp = profile?.whatsapp || student?.whatsapp || phone || '';
-    const email = profile?.email || student?.email || (dto.studentEmail && dto.studentEmail !== '-' ? dto.studentEmail : '') || '';
-    const faculty = profile?.faculty || student?.facultyName || (dto.faculty && dto.faculty !== '-' ? dto.faculty : '') || (dto.college && dto.college !== '-' ? dto.college : '') || '';
-    const college = profile?.college || profile?.faculty || student?.facultyName || (dto.college && dto.college !== '-' ? dto.college : '') || faculty || '';
+    const email = profile?.email || dto.studentEmail || '';
+    const faculty = profile?.faculty || student?.facultyName || dto.faculty || dto.college || '';
+    const college = profile?.college || profile?.faculty || student?.facultyName || dto.college || faculty || '';
 
-    let formattedTime = '';
-    if (timeStr) {
-      if (timeStr.includes('T')) {
-        const timePart = timeStr.split('T')[1];
-        formattedTime = timePart.substring(0, 5);
-      } else {
-        formattedTime = timeStr;
-      }
-    }
+    const formattedTime = parseIsoOrTimeToDisplay(timeStr, dto.date);
 
     let calculatedDuration = '0h 00m';
     if (dto.timeFrom && dto.timeTo) {
@@ -1081,8 +1345,17 @@ export class WorkspaceService {
       calculatedDuration = '1h 00m';
     }
 
-    const sessionDate = dto.date ? String(dto.date).split('T')[0] : (timeStr ? String(timeStr).split('T')[0] : getTodayDateISO());
-    const checkoutTimeStr = dto.timeTo ? (dto.timeTo.includes('T') ? dto.timeTo.split('T')[1].substring(0, 5) : dto.timeTo) : undefined;
+    const sessionDate = dto.date
+      ? (String(dto.date).includes('T') ? parseIsoToLocalDate(dto.date) : String(dto.date))
+      : (timeStr ? (String(timeStr).includes('T') ? parseIsoToLocalDate(timeStr) : String(timeStr)) : getTodayDateISO());
+    const checkoutTimeStr = dto.timeTo ? parseIsoOrTimeToDisplay(dto.timeTo, dto.date) : undefined;
+
+    const localCatering = this.getSessionCateringCache(dto.id);
+    const apiCatering = Number(dto.cateringTotal ?? (dto as any).catering ?? (dto as any).canteenTotal) || 0;
+    const resolvedCatering = apiCatering > 0 ? apiCatering : (localCatering?.total && localCatering.total > 0 ? localCatering.total : 0);
+    const resolvedItems = (dto.cateringItems && dto.cateringItems.length > 0)
+      ? dto.cateringItems
+      : (localCatering?.items && localCatering.items.length > 0 ? localCatering.items : []);
 
     return {
       id: dto.id,
@@ -1099,32 +1372,30 @@ export class WorkspaceService {
       duration: calculatedDuration,
       cost: dto.totalCost ?? dto.sessionPrice ?? 0,
       billingType: (dto.billingType === 'Package' || dto.type === 2 ? 'package' : dto.billingType === 'Coupon' || dto.type === 3 ? 'coupon' : 'new-session'),
-      status: isAct ? 'active' : 'completed'
+      status: isAct ? 'active' : 'completed',
+      cateringTotal: resolvedCatering > 0 ? +Number(resolvedCatering).toFixed(2) : undefined,
+      cateringItems: resolvedItems.length > 0 ? resolvedItems : undefined,
+      printingCount: dto.printing || 0,
+      walletAmount: dto.wallet || 0,
+      roomId: dto.roomId || undefined,
+      roomName: dto.roomName || (dto.zone === 1 ? 'Silent Room' : (dto.roomId ? 'Shared Room' : undefined)),
+      addedBy: dto.addedBy || dto.createdBy || dto.userName || undefined,
+      printingPrice: dto.printingPrice || undefined
     };
   }
 
-  // LocalStorage state helpers
-  private getStoredItem<T>(key: string, fallback: T): T {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const item = localStorage.getItem(key);
-        if (item) {
-          const parsed = JSON.parse(item);
-          if (Array.isArray(parsed)) {
-            return parsed.length > 0 ? (parsed as T) : fallback;
-          }
-          return parsed;
-        }
-      }
-    } catch { }
-    return fallback;
-  }
-
-  private setStoredItem(key: string, value: any): void {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.setItem(key, JSON.stringify(value));
-      }
-    } catch { }
+  private mapPaymentMethodToPayWay(method?: string): number {
+    switch ((method || '').toLowerCase()) {
+      case 'vodafone':
+      case 'vfcash':
+        return 2;
+      case 'fawry':
+        return 3;
+      case 'instapay':
+        return 4;
+      case 'cash':
+      default:
+        return 1;
+    }
   }
 }

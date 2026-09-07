@@ -768,6 +768,9 @@
   height: 100%;
   object-fit: cover;
   transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  display: block;
+  font-size: 0;
+  color: transparent;
 }
 
 .pos-product-card:hover:not(.pos-product-card--out) .product-img {
@@ -778,35 +781,86 @@
   width: 100%;
   height: 100%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--text-dim);
-  background: radial-gradient(circle at center, rgba(245, 185, 33, 0.06) 0%, transparent 70%);
+  gap: 6px;
+  padding: 10px;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.product-media-fallback svg {
-  width: 32px;
-  height: 32px;
-  opacity: 0.75;
+.pos-product-card:hover:not(.pos-product-card--out) .product-media-fallback {
+  transform: scale(1.05);
+}
+
+.fallback--water {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(14, 165, 233, 0.06) 100%);
+  color: #06b6d4;
+}
+
+.fallback--coffee {
+  background: linear-gradient(135deg, rgba(245, 185, 33, 0.18) 0%, rgba(217, 119, 6, 0.07) 100%);
+  color: #f5b921;
+}
+
+.fallback--beverage {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.16) 0%, rgba(139, 92, 246, 0.06) 100%);
+  color: #a855f7;
+}
+
+.fallback--snack {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.15) 0%, rgba(244, 63, 94, 0.06) 100%);
+  color: #f97316;
+}
+
+.fallback-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--border);
+  transition: all 0.2s ease;
+}
+
+.pos-product-card:hover .fallback-icon-wrap {
+  transform: scale(1.1);
+  border-color: currentColor;
+}
+
+.fallback-icon-wrap svg {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+}
+
+.fallback-cat-hint {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  letter-spacing: 0.2px;
 }
 
 /* Floating Badges on Thumbnail */
 .product-floating-tag {
   position: absolute;
-  top: 6px;
-  inset-inline-end: 6px;
+  top: 8px;
+  inset-inline-start: 8px;
   z-index: 3;
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  padding: 2px 8px;
+  padding: 3px 9px;
   border-radius: 20px;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   white-space: nowrap;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   line-height: 1.3;
 }
 

@@ -165,143 +165,154 @@
           </tr>
         </thead>
         <tbody>
-          @for (pkg of paginatedPackages(); track pkg.id) {
+          @if (packageService.isLoading()) {
             <tr>
-              <!-- Student / Group Members Info -->
-              <td class="cell-student-td">
-                <div class="student-cell-content">
-                  <div class="member-avatar-box">
-                    {{ (isArabic() ? pkg.memberNameAr : pkg.memberNameEn).charAt(0) }}
-                  </div>
-                  <div class="student-meta">
-                    <div class="name-with-group">
-                      <strong class="student-name">{{ isArabic() ? pkg.memberNameAr : pkg.memberNameEn }}</strong>
-                      @if (pkg.members && pkg.members.length > 1) {
-                        <span class="group-count-badge" title="Group Pass: {{ pkg.members.length }} students">
-                          +{{ pkg.members.length - 1 }} {{ t().groupStudentsCount }}
-                        </span>
-                      }
+              <td colspan="8" class="cell-empty" style="padding: 40px 0;">
+                <div style="display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--text-muted, #94a3b8);">
+                  <div class="spinner" style="width: 20px; height: 20px; border: 2px solid rgba(234,179,8,0.2); border-top-color: #eab308; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+                  <span>{{ isArabic() ? 'جاري تحميل الباقات من السيرفر...' : 'Loading packages from server...' }}</span>
+                </div>
+              </td>
+            </tr>
+          } @else {
+            @for (pkg of paginatedPackages(); track pkg.id) {
+              <tr>
+                <!-- Student / Group Members Info -->
+                <td class="cell-student-td">
+                  <div class="student-cell-content">
+                    <div class="member-avatar-box">
+                      {{ (isArabic() ? pkg.memberNameAr : pkg.memberNameEn).charAt(0) }}
                     </div>
-                    <span class="student-faculty">{{ isArabic() ? pkg.memberSubAr : pkg.memberSubEn }}</span>
-                    <span class="student-phone">{{ pkg.memberPhone }}</span>
+                    <div class="student-meta">
+                      <div class="name-with-group">
+                        <strong class="student-name">{{ isArabic() ? pkg.memberNameAr : pkg.memberNameEn }}</strong>
+                        @if (pkg.members && pkg.members.length > 1) {
+                          <span class="group-count-badge" title="Group Pass: {{ pkg.members.length }} students">
+                            +{{ pkg.members.length - 1 }} {{ t().groupStudentsCount }}
+                          </span>
+                        }
+                      </div>
+                      <span class="student-faculty">{{ isArabic() ? pkg.memberSubAr : pkg.memberSubEn }}</span>
+                      <span class="student-phone">{{ pkg.memberPhone }}</span>
+                    </div>
                   </div>
-                </div>
-              </td>
+                </td>
 
-              <!-- Allocated Hours -->
-              <td class="cell-center">
-                <span class="nowrap-text">{{ pkg.allocatedHours }} {{ t().hrs }}</span>
-              </td>
+                <!-- Allocated Hours -->
+                <td class="cell-center">
+                  <span class="nowrap-text">{{ pkg.allocatedHours }} {{ t().hrs }}</span>
+                </td>
 
-              <!-- Used Hours -->
-              <td class="cell-center">
-                <span class="used-hours-val nowrap-text">{{ pkg.usedHours }} {{ t().hrs }}</span>
-              </td>
+                <!-- Used Hours -->
+                <td class="cell-center">
+                  <span class="used-hours-val nowrap-text">{{ pkg.usedHours }} {{ t().hrs }}</span>
+                </td>
 
-              <!-- Remaining Hours Pill -->
-              <td class="cell-center">
-                <span
-                  class="remaining-pill nowrap-text"
-                  [class.remaining-pill--low]="pkg.remainingHours <= 3 && pkg.remainingHours > 0"
-                  [class.remaining-pill--zero]="pkg.remainingHours === 0"
-                  [class.remaining-pill--good]="pkg.remainingHours > 3"
-                >
-                  {{ pkg.remainingHours }} {{ t().hrs }}
-                </span>
-              </td>
-
-              <!-- Cost & Payment Method -->
-              <td class="cell-center">
-                <div class="cost-stack">
-                  <strong class="cost-number nowrap-text">{{ pkg.cost }} {{ t().egp }}</strong>
-                  <span class="pay-method-badge pay-method-badge--{{ pkg.paymentMethod }}">{{ pkg.paymentMethod }}</span>
-                </div>
-              </td>
-
-              <!-- Expiry Date -->
-              <td class="cell-center">
-                <span class="date-text nowrap-text">{{ pkg.expiryDate }}</span>
-              </td>
-
-              <!-- Status Badge -->
-              <td class="cell-center">
-                @if (pkg.status === 'active') {
-                  <span class="badge-status badge-status--active nowrap-text">
-                    <span class="status-dot"></span>
-                    <span>{{ t().statusActivePass }}</span>
-                  </span>
-                } @else if (pkg.status === 'near_expiry') {
-                  <span class="badge-status badge-status--near-expiry nowrap-text">
-                    <span class="status-dot"></span>
-                    <span>{{ t().statusNearExpiryPass }}</span>
-                  </span>
-                } @else if (pkg.status === 'exhausted') {
-                  <span class="badge-status badge-status--exhausted nowrap-text">
-                    <span class="status-dot"></span>
-                    <span>{{ t().statusExhaustedPass }}</span>
-                  </span>
-                } @else {
-                  <span class="badge-status badge-status--expired nowrap-text">
-                    <span class="status-dot"></span>
-                    <span>{{ t().statusExpiredPass }}</span>
-                  </span>
-                }
-              </td>
-
-              <!-- Row Actions: Details & Direct Delete Button -->
-              <td class="cell-center">
-                <div class="actions-wrapper" style="justify-content: center; gap: 8px;">
-                  <!-- Details & Usage Drawer Trigger -->
-                  <button
-                    type="button"
-                    class="btn-checkout"
-                    (click)="openDrawer(pkg)"
-                    [title]="t().viewDetailsAndHistory"
+                <!-- Remaining Hours Pill -->
+                <td class="cell-center">
+                  <span
+                    class="remaining-pill nowrap-text"
+                    [class.remaining-pill--low]="pkg.remainingHours <= 3 && pkg.remainingHours > 0"
+                    [class.remaining-pill--zero]="pkg.remainingHours === 0"
+                    [class.remaining-pill--good]="pkg.remainingHours > 3"
                   >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-                      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-                    </svg>
-                    <span>{{ t().details }}</span>
-                  </button>
+                    {{ pkg.remainingHours }} {{ t().hrs }}
+                  </span>
+                </td>
 
-                  <!-- Edit Package Button -->
-                  <button
-                    type="button"
-                    class="btn-checkout"
-                    style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.25);"
-                    (click)="openEditModal(pkg)"
-                    [title]="t().edit"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                    </svg>
-                    <span>{{ t().edit }}</span>
-                  </button>
+                <!-- Cost & Payment Method -->
+                <td class="cell-center">
+                  <div class="cost-stack">
+                    <strong class="cost-number nowrap-text">{{ pkg.cost }} {{ t().egp }}</strong>
+                    <span class="pay-method-badge pay-method-badge--{{ pkg.paymentMethod }}">{{ pkg.paymentMethod }}</span>
+                  </div>
+                </td>
 
-                  <!-- Direct Delete Button -->
-                  <button
-                    type="button"
-                    class="btn-delete-direct"
-                    (click)="openDeleteModal(pkg)"
-                    [title]="t().deletePackageAction"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline points="3 6 5 6 21 6"/>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    </svg>
-                    <span>{{ t().delete }}</span>
-                  </button>
-                </div>
-              </td>
-            </tr>
-          } @empty {
-            <tr>
-              <td colspan="8" class="cell-empty">
-                {{ t().noStudentPackagesFound }}
-              </td>
-            </tr>
+                <!-- Expiry Date -->
+                <td class="cell-center">
+                  <span class="date-text nowrap-text">{{ pkg.expiryDate }}</span>
+                </td>
+
+                <!-- Status Badge -->
+                <td class="cell-center">
+                  @if (pkg.status === 'active') {
+                    <span class="badge-status badge-status--active nowrap-text">
+                      <span class="status-dot"></span>
+                      <span>{{ t().statusActivePass }}</span>
+                    </span>
+                  } @else if (pkg.status === 'near_expiry') {
+                    <span class="badge-status badge-status--near-expiry nowrap-text">
+                      <span class="status-dot"></span>
+                      <span>{{ t().statusNearExpiryPass }}</span>
+                    </span>
+                  } @else if (pkg.status === 'exhausted') {
+                    <span class="badge-status badge-status--exhausted nowrap-text">
+                      <span class="status-dot"></span>
+                      <span>{{ t().statusExhaustedPass }}</span>
+                    </span>
+                  } @else {
+                    <span class="badge-status badge-status--expired nowrap-text">
+                      <span class="status-dot"></span>
+                      <span>{{ t().statusExpiredPass }}</span>
+                    </span>
+                  }
+                </td>
+
+                <!-- Row Actions: Details & Direct Delete Button -->
+                <td class="cell-center">
+                  <div class="actions-wrapper" style="justify-content: center; gap: 8px;">
+                    <!-- Details & Usage Drawer Trigger -->
+                    <button
+                      type="button"
+                      class="btn-checkout"
+                      (click)="openDrawer(pkg)"
+                      [title]="t().viewDetailsAndHistory"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                      </svg>
+                      <span>{{ t().details }}</span>
+                    </button>
+
+                    <!-- Edit Package Button -->
+                    <button
+                      type="button"
+                      class="btn-checkout"
+                      style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.25);"
+                      (click)="openEditModal(pkg)"
+                      [title]="t().edit"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                      </svg>
+                      <span>{{ t().edit }}</span>
+                    </button>
+
+                    <!-- Direct Delete Button -->
+                    <button
+                      type="button"
+                      class="btn-delete-direct"
+                      (click)="openDeleteModal(pkg)"
+                      [title]="t().deletePackageAction"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                      </svg>
+                      <span>{{ t().delete }}</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="8" class="cell-empty">
+                  {{ t().noStudentPackagesFound }}
+                </td>
+              </tr>
+            }
           }
         </tbody>
       </table>
@@ -1119,8 +1130,8 @@
       </div>
 
       <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px;">
-        <button type="button" (click)="closeEditModal()" style="padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text); font-weight: 600; cursor: pointer;">{{ t().cancel }}</button>
-        <button type="button" (click)="saveEditedPackage()" style="padding: 10px 22px; border-radius: 8px; border: none; background: var(--primary); color: #fff; font-weight: 700; cursor: pointer;">{{ t().save }}</button>
+        <button type="button" class="modal-btn-cancel" (click)="closeEditModal()">{{ t().cancel }}</button>
+        <button type="button" class="modal-btn-save" (click)="saveEditedPackage()">{{ t().save }}</button>
       </div>
     </div>
   </div>

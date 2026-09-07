@@ -1,13 +1,15 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ShiftService } from '../../../core/services/shift.service';
 import { LanguageService } from '../../../core/services/language.service';
 import { ShiftHistoryItem } from '../../../core/models/shift.model';
 import { getSafeAvatar } from '../../../core/utils/avatar.util';
+import { exportToCsv } from '../../../core/utils/csv.util';
 import { CustomSelectComponent, SelectOption } from '../../../shared/components/custom-select/custom-select.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 import { DateFilterDropdownComponent, DateFilterOption } from '../../../shared/components/date-filter-dropdown/date-filter-dropdown.component';
+import { getTodayDateISO } from '../../../core/utils/date-time.util';
 
 @Component({
   selector: 'app-shift-history',
@@ -22,16 +24,21 @@ import { DateFilterDropdownComponent, DateFilterOption } from '../../../shared/c
   templateUrl: './shift-history.component.html',
   styleUrl: './shift-history.component.css'
 })
-export class ShiftHistoryComponent {
+export class ShiftHistoryComponent implements OnInit {
   private shiftService = inject(ShiftService);
   private langService = inject(LanguageService);
 
   t = this.langService.t;
   isArabic = this.langService.isArabic;
   currencyText = computed(() => this.t().currency);
+  isLoadingHistory = this.shiftService.isLoadingHistory;
+
+  ngOnInit(): void {
+    this.shiftService.fetchShiftHistoryFromApi();
+  }
 
   // Today's ISO date string to enforce max date restriction (cannot pick future dates)
-  readonly todayIso = new Date().toISOString().split('T')[0];
+  readonly todayIso = getTodayDateISO();
 
   // Date Filter signals
   selectedDateOption = signal<DateFilterOption>('all');
@@ -155,27 +162,18 @@ export class ShiftHistoryComponent {
         ? (isAr ? 'متطابق' : 'Balanced')
         : (isAr ? 'عجز / زيادة' : 'Variance');
       return [
-        `"${i.staffName.replace(/"/g, '""')}"`,
-        `"${i.date}"`,
-        `"${i.startTime} - ${i.endTime}"`,
-        `"${i.cashIn} ${curr}"`,
-        `"${i.cashOut} ${curr}"`,
-        `"${i.finalTotal} ${curr}"`,
-        `"${i.variance} ${curr}"`,
-        `"${statusText}"`
-      ].join(',');
+        i.staffName,
+        i.date,
+        `${i.startTime} - ${i.endTime}`,
+        `${i.cashIn} ${curr}`,
+        `${i.cashOut} ${curr}`,
+        `${i.finalTotal} ${curr}`,
+        `${i.variance} ${curr}`,
+        statusText
+      ];
     });
 
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `nook_shift_history_${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    exportToCsv(`nook_shift_history_${Date.now()}.csv`, headers, rows);
   }
 
   exportPDF(): void {

@@ -68,6 +68,20 @@ export interface UpdateWorkspacePackageDto {
 export interface UsePackageHoursDto {
   hours: number;
   notes?: string;
+  sessionTitle?: string;
+  roomOrDesk?: string;
+}
+
+/** Package Usage History item representation */
+export interface PackageUsageHistoryDto {
+  id?: string;
+  packageId?: string;
+  date?: string;
+  usedHours: number;
+  remainingHours: number;
+  sessionTitle?: string;
+  userOrStaff?: string;
+  notes?: string;
 }
 
 /** Classroom Package response DTO — GET /api/ClassroomPackages */

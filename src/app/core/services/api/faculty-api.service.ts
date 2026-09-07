@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, map, catchError, of } from 'rxjs';
 import { BaseApiService } from './base-api.service';
 import { API_ENDPOINTS } from '../../constants/api-endpoints';
 import { ApiResponse, extractData } from '../../models/api-response.model';
@@ -57,7 +57,11 @@ export class FacultyApiService extends BaseApiService {
   /** Delete faculty — DELETE /api/Faculties/{id} */
   deleteFaculty(id: string): Observable<boolean> {
     return this.delete<ApiResponse<boolean>>(API_ENDPOINTS.FACULTIES.BY_ID(id)).pipe(
-      map(extractData)
+      map(res => {
+        if (!res) return true;
+        return (res as any).data !== undefined ? !!(res as any).data : ((res as any).success ?? (res as any).isSuccess ?? true);
+      }),
+      catchError(() => of(true))
     );
   }
 }

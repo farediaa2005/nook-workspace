@@ -1,12 +1,13 @@
 import { Injectable } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, map, switchMap } from 'rxjs';
 import { BaseApiService } from './base-api.service';
 import { API_ENDPOINTS } from '../../constants/api-endpoints';
 import { ApiResponse, extractData } from '../../models/api-response.model';
 import {
   ClassroomPackageDto,
   CreateClassroomPackageDto,
-  UpdateClassroomPackageDto
+  UpdateClassroomPackageDto,
+  UsePackageHoursDto
 } from '../../models/package-api.model';
 
 @Injectable({
@@ -68,8 +69,8 @@ export class ClassroomPackageApiService extends BaseApiService {
   /** Update package — PUT /api/ClassroomPackages/{id} */
   updatePackage(id: string, dto: UpdateClassroomPackageDto | Partial<CreateClassroomPackageDto> | any): Observable<ClassroomPackageDto> {
     const payload: Record<string, any> = {
-      purchasedAt: dto.purchasedAt || new Date().toISOString(),
-      dateFrom: dto.dateFrom || new Date().toISOString(),
+      purchasedAt: dto.purchasedAt || dto.dateFrom || dto.createdAt || null,
+      dateFrom: dto.dateFrom || dto.purchasedAt || dto.createdAt || null,
       dateTo: dto.dateTo || dto.expiryDate || null,
       hours: dto.hours ?? dto.totalHours ?? 20,
       remainingHours: dto.remainingHours ?? dto.hours ?? dto.totalHours ?? 20,
@@ -80,6 +81,19 @@ export class ClassroomPackageApiService extends BaseApiService {
 
     return this.put<ApiResponse<ClassroomPackageDto>>(API_ENDPOINTS.CLASSROOM_PACKAGES.BY_ID(id), payload).pipe(
       map(extractData)
+    );
+  }
+
+  /** Deduct hours from package (updates package via PUT /api/ClassroomPackages/{id}) */
+  useHours(id: string, dto: UsePackageHoursDto): Observable<ClassroomPackageDto> {
+    return this.getPackageById(id).pipe(
+      switchMap(pkg => {
+        const remainingHours = Math.max(0, (pkg.remainingHours != null ? pkg.remainingHours : pkg.hours) - dto.hours);
+        return this.updatePackage(id, {
+          ...pkg,
+          remainingHours
+        });
+      })
     );
   }
 

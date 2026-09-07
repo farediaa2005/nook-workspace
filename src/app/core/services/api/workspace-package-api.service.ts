@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, map, switchMap } from 'rxjs';
 import { BaseApiService } from './base-api.service';
 import { API_ENDPOINTS } from '../../constants/api-endpoints';
 import { ApiResponse, extractData } from '../../models/api-response.model';
@@ -69,8 +69,8 @@ export class WorkspacePackageApiService extends BaseApiService {
   /** Update an existing package — PUT /api/WorkspacePackages/{id} */
   updatePackage(id: string, dto: UpdateWorkspacePackageDto | Partial<CreateWorkspacePackageDto> | any): Observable<WorkspacePackageDto> {
     const payload: Record<string, any> = {
-      purchasedAt: dto.purchasedAt || new Date().toISOString(),
-      dateFrom: dto.dateFrom || new Date().toISOString(),
+      purchasedAt: dto.purchasedAt || dto.dateFrom || dto.createdAt || null,
+      dateFrom: dto.dateFrom || dto.purchasedAt || dto.createdAt || null,
       dateTo: dto.dateTo || dto.expiryDate || null,
       hours: dto.hours ?? dto.totalHours ?? 10,
       remainingHours: dto.remainingHours ?? dto.hours ?? dto.totalHours ?? 10,
@@ -87,16 +87,12 @@ export class WorkspacePackageApiService extends BaseApiService {
   /** Deduct hours from package (updates package via PUT /api/WorkspacePackages/{id}) */
   useHours(id: string, dto: UsePackageHoursDto): Observable<WorkspacePackageDto> {
     return this.getPackageById(id).pipe(
-      map(pkg => {
-        const remainingHours = Math.max(0, (pkg.remainingHours || pkg.hours) - dto.hours);
-        this.updatePackage(id, {
+      switchMap(pkg => {
+        const remainingHours = Math.max(0, (pkg.remainingHours != null ? pkg.remainingHours : pkg.hours) - dto.hours);
+        return this.updatePackage(id, {
           ...pkg,
           remainingHours
-        }).subscribe();
-        return {
-          ...pkg,
-          remainingHours
-        };
+        });
       })
     );
   }

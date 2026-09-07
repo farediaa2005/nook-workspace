@@ -17,3 +17,18 @@ export type {
 } from './package.model';
 export * from './api-response.model';
 export * from './details.model';
+export * from './workspace-session.model';
+export * from './wallet.model';
+export * from './floor-plan.model';
+export * from './course.model';
+export * from './mobile.model';
+export type {
+  PaymentMethodType,
+  FinancialBreakdownItem,
+  CheckoutSessionData,
+  CheckoutFinancialData,
+  CheckoutPaymentData,
+  CheckoutData,
+  ProcessPaymentEvent
+} from './checkout.model';
+

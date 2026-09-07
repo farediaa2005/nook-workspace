@@ -2749,10 +2749,21 @@ tr.row--menu-open td {
 }
 
 @media (max-width: 768px) {
-  .head-controls {
+  .show-head {
     flex-direction: column;
     align-items: stretch;
+    gap: 16px;
+  }
+
+  .head-title-wrap {
     width: 100%;
+  }
+
+  .head-controls {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    width: 100%;
+    gap: 10px;
   }
 
   .top-search-box,
@@ -2760,7 +2771,14 @@ tr.row--menu-open td {
   .date-filter-dropdown,
   .btn-new-checkin {
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     justify-content: center;
+  }
+
+  .btn-new-checkin {
+    height: 44px;
+    font-size: 0.95rem;
   }
 
   .metrics-grid {
@@ -2776,5 +2794,15 @@ tr.row--menu-open td {
   .consumption-drawer {
     width: 100vw;
     max-width: 100vw;
+  }
+}
+
+@media (max-width: 576px) {
+  .page-title {
+    font-size: 1.35rem;
+  }
+
+  .page-subtitle {
+    font-size: 0.82rem;
   }
 }

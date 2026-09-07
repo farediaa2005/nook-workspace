@@ -1,16 +1,16 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LanguageService } from '../../../core/services/language.service';
 import { WorkspaceService, calculateSessionDuration } from '../../../core/services/workspace.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { PackageService } from '../../../core/services/package.service';
-
-export interface CateringLineItem {
-  id: string;
-  name: string;
-  price: number;
-}
+import { CouponApiService } from '../../../core/services/api/coupon-api.service';
+import { WalletApiService } from '../../../core/services/api/wallet-api.service';
+import { ActiveStudentSession } from '../../../core/models/student.model';
+import { CateringLineItem } from '../../../core/models/workspace-session.model';
+import { convertMinutesTo12h } from '../../../core/utils/date-time.util';
 
 @Component({
   selector: 'app-workspace-checkout',
@@ -24,8 +24,11 @@ export class WorkspaceCheckoutComponent implements OnInit {
   private workspaceService = inject(WorkspaceService);
   private settingsService = inject(SettingsService);
   private packageService = inject(PackageService);
+  private couponApi = inject(CouponApiService);
+  private walletApi = inject(WalletApiService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private destroyRef = inject(DestroyRef);
 
   t = this.langService.t;
   isArabic = this.langService.isArabic;
@@ -37,10 +40,14 @@ export class WorkspaceCheckoutComponent implements OnInit {
   phone = signal('');
   email = signal('');
 
+  // Wallet State
+  walletBalance = signal<number>(0);
+  useWallet = signal<boolean>(false);
+
   // Session Details
   checkInTime = signal('09:00 AM');
   checkoutTime = signal(
-    new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    convertMinutesTo12h(new Date().getHours() * 60 + new Date().getMinutes(), false)
   );
   durationDisplay = signal('1h 00m');
   durationHours = signal(1.0);
@@ -87,12 +94,26 @@ export class WorkspaceCheckoutComponent implements OnInit {
 
   // Summary Totals
   subtotal = computed(() => +(this.baseCost() + this.cateringTotal() + this.printingTotal() + this.wifiCost()).toFixed(2));
-  finalAmount = computed(() =>
-    Math.max(0, +(this.subtotal() - this.totalDiscounts() - this.depositAmount()).toFixed(2))
-  );
+  
+  walletDeduction = computed(() => {
+    const baseFinal = Math.max(0, +(this.subtotal() - this.totalDiscounts() - this.depositAmount()).toFixed(2));
+    if (this.selectedPaymentMethod() === 'wallet' || this.useWallet()) {
+      return Math.min(this.walletBalance(), baseFinal);
+    }
+    return 0;
+  });
+
+  finalAmount = computed(() => {
+    if (this.selectedPaymentMethod() === 'package') return 0;
+    const baseFinal = Math.max(0, +(this.subtotal() - this.totalDiscounts() - this.depositAmount()).toFixed(2));
+    if (this.selectedPaymentMethod() === 'wallet' || this.useWallet()) {
+      return Math.max(0, +(baseFinal - this.walletDeduction()).toFixed(2));
+    }
+    return baseFinal;
+  });
 
   // Payment
-  selectedPaymentMethod = signal<'cash' | 'vodafone' | 'fawry' | 'instapay' | 'package'>('cash');
+  selectedPaymentMethod = signal<'cash' | 'vodafone' | 'fawry' | 'instapay' | 'package' | 'wallet'>('cash');
   amountReceived = signal<number>(0);
   changeToReturn = computed(() =>
     Math.max(0, +(this.amountReceived() - this.finalAmount()).toFixed(2))
@@ -113,81 +134,218 @@ export class WorkspaceCheckoutComponent implements OnInit {
   newItemName = signal('');
   newItemPrice = signal<number>(0);
 
+  // Edit Session Modal State & Form Signals
+  showEditModal = signal(false);
+  isSavingEdit = signal(false);
+  editError = signal<string | null>(null);
+
+  editStudentName = signal('');
+  editPhone = signal('');
+  editFaculty = signal('');
+  editCheckInTime = signal('');
+  editHourlyRate = signal<number>(20);
+  editDepositAmount = signal<number>(0);
+  editPrintingPages = signal<number>(0);
+
   ngOnInit(): void {
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
       const id = params['studentId'];
       if (id) {
         const student = this.workspaceService.activeStudents().find(s => s.id === id);
         if (student) {
-          this.studentId.set(student.id);
-          this.studentName.set(student.name);
-          this.faculty.set(student.faculty || student.college || 'عام');
-          this.phone.set(student.phone);
-          this.checkInTime.set(student.checkInTime || '09:00 AM');
-          
-          let durStr = student.duration || '';
-          if (!durStr || durStr === '0h 00m' || durStr === '0 س 00 د' || durStr === '0h 0m') {
-            const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            durStr = calculateSessionDuration(student.checkInTime, nowStr, student.date);
-          }
-          this.durationDisplay.set(durStr || '1h 00m');
-
-          // Parse duration into hours
-          let durH = 0;
-          const hMatch = durStr.match(/(\d+)\s*(?:h|س|hours?)/i);
-          const mMatch = durStr.match(/(\d+)\s*(?:m|د|mins?)/i);
-          if (hMatch) durH += parseInt(hMatch[1], 10);
-          if (mMatch) durH += parseInt(mMatch[1], 10) / 60;
-          this.durationHours.set(durH > 0 ? +durH.toFixed(2) : 1);
-
-          // Load catering items
-          if (student.cateringItems && student.cateringItems.length > 0) {
-            this.cateringItems.set(student.cateringItems.map((c: any) => ({
-              id: c.id || Date.now().toString() + Math.random(),
-              name: c.name,
-              price: c.price
-            })));
-          } else if ((student as any).canteenOrders && (student as any).canteenOrders.length > 0) {
-            this.cateringItems.set((student as any).canteenOrders.map((c: any) => ({
-              id: c.id || Date.now().toString() + Math.random(),
-              name: c.name,
-              price: c.price
-            })));
-          }
-
-          const pages = student.printingPages || student.printingCount;
-          if (pages) {
-            this.printingPages.set(pages);
-          }
-          if (student.depositAmount) {
-            this.depositAmount.set(student.depositAmount);
-          }
-
-          if (student.billingType === 'package' || (student.packageOrCoupon && student.packageOrCoupon.toLowerCase().includes('package'))) {
-            this.selectedPaymentMethod.set('package');
-          }
+          this.applyStudentToCheckout(student);
+        } else {
+          this.workspaceService.getSessionById(id).subscribe(loaded => {
+            if (loaded) {
+              this.applyStudentToCheckout(loaded);
+            }
+          });
         }
       }
     });
   }
 
-  selectPaymentMethod(method: 'cash' | 'vodafone' | 'fawry' | 'instapay' | 'package'): void {
+  private applyStudentToCheckout(student: ActiveStudentSession): void {
+    this.studentId.set(student.id);
+    this.studentName.set(student.name);
+    this.faculty.set(student.faculty || student.college || 'عام');
+    this.phone.set(student.phone);
+    this.checkInTime.set(student.checkInTime || '09:00 AM');
+    
+    let durStr = student.duration || '';
+    if (!durStr || durStr === '0h 00m' || durStr === '0 س 00 د' || durStr === '0h 0m') {
+      const now = new Date();
+      const nowStr = convertMinutesTo12h(now.getHours() * 60 + now.getMinutes(), this.isArabic());
+      durStr = calculateSessionDuration(student.checkInTime, nowStr, student.date);
+    }
+    this.durationDisplay.set(durStr || '1h 00m');
+
+    // Parse duration into hours
+    let durH = 0;
+    const hMatch = durStr.match(/(\d+)\s*(?:h|س|hours?)/i);
+    const mMatch = durStr.match(/(\d+)\s*(?:m|د|mins?)/i);
+    if (hMatch) durH += parseInt(hMatch[1], 10);
+    if (mMatch) durH += parseInt(mMatch[1], 10) / 60;
+    this.durationHours.set(durH > 0 ? +durH.toFixed(2) : 1);
+
+    // Fetch student wallet balance
+    const targetStudentId = student.phone || student.id;
+    if (targetStudentId) {
+      this.walletApi.getBalance(targetStudentId).subscribe({
+        next: (res) => {
+          this.walletBalance.set(res?.balance || 0);
+        },
+        error: () => {
+          this.walletBalance.set(0);
+        }
+      });
+    }
+
+    // Load catering items
+    if (student.cateringItems && student.cateringItems.length > 0) {
+      this.cateringItems.set(student.cateringItems.map((c: any) => ({
+        id: c.id || Date.now().toString() + Math.random(),
+        name: c.name || c.product?.nameAr || c.product?.name || (this.isArabic() ? 'صنف كاترنج' : 'Catering Item'),
+        price: c.totalPrice || c.price || ((c.unitPrice || 0) * (c.quantity || 1)) || 0
+      })));
+    } else if ((student as any).canteenOrders && (student as any).canteenOrders.length > 0) {
+      this.cateringItems.set((student as any).canteenOrders.map((c: any) => ({
+        id: c.id || Date.now().toString() + Math.random(),
+        name: c.name || c.product?.nameAr || c.product?.name || (this.isArabic() ? 'صنف كاترنج' : 'Catering Item'),
+        price: c.totalPrice || c.price || ((c.unitPrice || 0) * (c.quantity || 1)) || 0
+      })));
+    } else if (student.cateringTotal && student.cateringTotal > 0) {
+      this.cateringItems.set([{
+        id: 'catering_' + student.id,
+        name: this.isArabic() ? 'طلبات كاترنج' : 'Catering Orders',
+        price: student.cateringTotal
+      }]);
+    }
+
+    const pages = student.printingPages || student.printingCount;
+    if (pages) {
+      this.printingPages.set(pages);
+    }
+    if (student.depositAmount) {
+      this.depositAmount.set(student.depositAmount);
+    }
+
+    if (student.billingType === 'package' || (student.packageOrCoupon && student.packageOrCoupon.toLowerCase().includes('package'))) {
+      this.selectedPaymentMethod.set('package');
+    }
+  }
+
+  selectPaymentMethod(method: 'cash' | 'vodafone' | 'fawry' | 'instapay' | 'package' | 'wallet'): void {
     this.selectedPaymentMethod.set(method);
+    if (method === 'wallet') {
+      this.useWallet.set(true);
+    }
+  }
+
+  toggleUseWallet(): void {
+    this.useWallet.update(val => !val);
+  }
+
+  // Edit Session Flow
+  openEditModal(): void {
+    this.editStudentName.set(this.studentName());
+    this.editPhone.set(this.phone());
+    this.editFaculty.set(this.faculty());
+    this.editCheckInTime.set(this.checkInTime());
+    this.editHourlyRate.set(this.hourlyRate());
+    this.editDepositAmount.set(this.depositAmount());
+    this.editPrintingPages.set(this.printingPages());
+    this.editError.set(null);
+    this.showEditModal.set(true);
+  }
+
+  closeEditModal(): void {
+    if (!this.isSavingEdit()) {
+      this.showEditModal.set(false);
+    }
+  }
+
+  saveEditSession(): void {
+    if (!this.editStudentName().trim()) {
+      this.editError.set(this.isArabic() ? 'يرجى إدخال اسم الطالب' : 'Please enter student name');
+      return;
+    }
+
+    this.isSavingEdit.set(true);
+    this.editError.set(null);
+
+    const updatedData = {
+      name: this.editStudentName().trim(),
+      phone: this.editPhone().trim(),
+      faculty: this.editFaculty().trim(),
+      checkInTime: this.editCheckInTime().trim(),
+      hourlyRate: Math.max(0, +this.editHourlyRate()),
+      depositAmount: Math.max(0, +this.editDepositAmount()),
+      printingPages: Math.max(0, +this.editPrintingPages())
+    };
+
+    this.workspaceService.updateSessionDetails(this.studentId(), updatedData).subscribe({
+      next: () => {
+        this.isSavingEdit.set(false);
+        this.studentName.set(updatedData.name);
+        this.phone.set(updatedData.phone);
+        this.faculty.set(updatedData.faculty);
+        this.checkInTime.set(updatedData.checkInTime);
+        this.hourlyRate.set(updatedData.hourlyRate);
+        this.depositAmount.set(updatedData.depositAmount);
+        this.printingPages.set(updatedData.printingPages);
+
+        const now = new Date();
+        const nowStr = convertMinutesTo12h(now.getHours() * 60 + now.getMinutes(), this.isArabic());
+        const durStr = calculateSessionDuration(updatedData.checkInTime, nowStr);
+        this.durationDisplay.set(durStr || '1h 00m');
+
+        let durH = 0;
+        const hMatch = durStr.match(/(\d+)\s*(?:h|س|hours?)/i);
+        const mMatch = durStr.match(/(\d+)\s*(?:m|د|mins?)/i);
+        if (hMatch) durH += parseInt(hMatch[1], 10);
+        if (mMatch) durH += parseInt(mMatch[1], 10) / 60;
+        this.durationHours.set(durH > 0 ? +durH.toFixed(2) : 1);
+
+        this.showEditModal.set(false);
+        this.workspaceService.showToast(
+          this.isArabic() ? 'تم تحديث بيانات الجلسة بنجاح!' : 'Session updated successfully!',
+          'success'
+        );
+      },
+      error: (err) => {
+        this.isSavingEdit.set(false);
+        const msg = err?.error?.message || (this.isArabic() ? 'حدث خطأ أثناء حفظ بيانات الجلسة' : 'Failed to update session');
+        this.editError.set(msg);
+      }
+    });
   }
 
   applyCoupon(): void {
     const code = this.couponInput().trim().toUpperCase();
     if (!code) return;
 
-    if (code === 'NOOK10' || code === 'SAVE10') {
-      this.couponDiscount.set(20.00);
-      this.couponApplied.set(true);
-      this.workspaceService.showToast('تم تطبيق خصم الكوبون: 20 ج.م!', 'success');
-    } else {
-      this.couponDiscount.set(10.00);
-      this.couponApplied.set(true);
-      this.workspaceService.showToast(`تم تطبيق الكوبون "${code}": 10 ج.م!`, 'success');
-    }
+    this.couponApi.getCouponByCode(code).subscribe({
+      next: (coupon) => {
+        if (coupon) {
+          const discountVal = coupon.value || 10;
+          this.couponDiscount.set(discountVal);
+          this.couponApplied.set(true);
+          this.workspaceService.showToast(`تم تطبيق الكوبون "${code}": ${discountVal} ج.م!`, 'success');
+        } else {
+          this.workspaceService.showToast('كود الكوبون غير صالح أو منتهي الصلاحية', 'error');
+        }
+      },
+      error: () => {
+        if (code === 'NOOK10' || code === 'SAVE10') {
+          this.couponDiscount.set(20.00);
+          this.couponApplied.set(true);
+          this.workspaceService.showToast('تم تطبيق خصم الكوبون: 20 ج.م!', 'success');
+        } else {
+          this.workspaceService.showToast('كود الكوبون غير موجود في النظام', 'error');
+        }
+      }
+    });
   }
 
   openAddDiscount(): void {
@@ -226,6 +384,7 @@ export class WorkspaceCheckoutComponent implements OnInit {
   }
 
   finalizeAndClose(): void {
+    // 1. Package deduction
     if (this.selectedPaymentMethod() === 'package') {
       this.packageService.deductStudentPackageHours(this.phone() || this.studentId(), this.durationHours());
       this.workspaceService.showToast(
@@ -233,6 +392,27 @@ export class WorkspaceCheckoutComponent implements OnInit {
         'success'
       );
     }
+
+    // 2. Wallet deduction
+    const deductAmount = this.walletDeduction();
+    if (deductAmount > 0) {
+      this.walletApi.deduct({
+        studentId: this.phone() || this.studentId(),
+        amount: deductAmount,
+        note: `Workspace session checkout #${this.studentId()}`
+      }).subscribe({
+        next: () => {
+          this.workspaceService.showToast(
+            `تم خصم ${deductAmount.toFixed(2)} ج.م من محفظة الطالب بنجاح!`,
+            'success'
+          );
+        },
+        error: (err) => {
+          console.warn('Wallet deduction notice:', err);
+        }
+      });
+    }
+
     const finalAmt = this.finalAmount();
     const amtReceived = this.amountReceived() > 0 ? this.amountReceived() : finalAmt;
     const remaining = this.outstandingBalance();
@@ -259,3 +439,4 @@ export class WorkspaceCheckoutComponent implements OnInit {
     this.router.navigate(['/workspace/show-student']);
   }
 }
+

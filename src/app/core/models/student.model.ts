@@ -76,6 +76,11 @@ export interface Student {
   outstandingBalance?: number;
   paymentStatus?: 'paid' | 'partially_paid' | 'pending';
   depositAmount?: number;
+  roomId?: string;
+  roomName?: string;
+  addedBy?: string;
+  printingPrice?: number;
+  amountReceived?: number;
   status: 'active' | 'in-session' | 'inactive' | 'blocked' | 'completed';
   notes?: string;
 }

@@ -9,6 +9,7 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 import { PackageService } from '../../core/services/package.service';
 import { SettingsService } from '../../core/services/settings.service';
 import { CateringService } from '../../core/services/catering.service';
+import { LanguageService } from '../../core/services/language.service';
 
 @Component({
   selector: 'app-login',
@@ -26,6 +27,14 @@ export class LoginComponent {
   private cateringService = inject(CateringService);
   private router = inject(Router);
   private themeService = inject(ThemeService);
+  private languageService = inject(LanguageService);
+
+  isArabic = this.languageService.isArabic;
+  t = this.languageService.t;
+
+  toggleLanguage(): void {
+    this.languageService.toggleLanguage();
+  }
 
   email = signal<string>('');
   password = signal<string>('');
@@ -63,13 +72,20 @@ export class LoginComponent {
     return this.isEmailActive() || this.isPasswordActive();
   }
 
+  onForgotPassword(): void {
+    const contactMsg = this.isArabic()
+      ? 'لاستعادة أو إعادة تعيين كلمة المرور، يرجى التواصل مع مسؤول النظام (System Administrator).'
+      : 'To reset or recover your password, please contact the System Administrator.';
+    this.errorMessage.set(contactMsg);
+  }
+
   onSubmit(): void {
     this.errorMessage.set('');
     const id = this.email().trim();
     const pw = this.password().trim();
 
     if (!id || !pw) {
-      this.errorMessage.set('يرجى إدخال اسم المستخدم أو البريد الإلكتروني وكلمة المرور.');
+      this.errorMessage.set(this.t().loginValidationRequired);
       return;
     }
 
@@ -91,9 +107,9 @@ export class LoginComponent {
       error: (err) => {
         this.isLoading.set(false);
         console.error('[Login Error]', err);
-        let msg = 'اسم المستخدم أو كلمة المرور غير صحيحة.';
+        let msg = this.t().loginInvalidCredentials;
         if (err.status === 0) {
-          msg = 'تعذر الاتصال بالخادم. يرجى التأكد من تشغيل الخادم والشبكة.';
+          msg = this.t().loginNetworkError;
         } else if (err?.error?.message) {
           msg = err.error.message;
         } else if (err?.error?.errors && Array.isArray(err.error.errors) && err.error.errors.length > 0) {

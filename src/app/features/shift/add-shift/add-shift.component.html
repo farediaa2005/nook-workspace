@@ -3,7 +3,17 @@
   <!-- Page Header -->
   <header class="page-head">
     <div class="header-text">
-      <h1 class="page-title">{{ t().addShift }}</h1>
+      <div class="title-row">
+        <h1 class="page-title">{{ t().addShift }}</h1>
+        @if (isAdmin()) {
+          <span class="admin-role-badge">
+            <svg viewBox="0 0 24 24" fill="none" class="badge-icon">
+              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"/>
+            </svg>
+            <span>{{ isArabic() ? 'لوحة تحكم الأدمن' : 'Admin Terminal' }}</span>
+          </span>
+        }
+      </div>
       <p class="page-subtitle">{{ t().addShiftDesc }}</p>
     </div>
   </header>
@@ -23,18 +33,18 @@
         <p class="notice-desc">
           {{ t().staffLabel }}: <strong>{{ currentActiveStaff() }}</strong> — {{ t().startedAt }}: <strong>{{ currentShiftStartTime() }}</strong>
         </p>
-        <p style="margin: 4px 0 0; font-size: 0.82rem; color: #ef4444; font-weight: 600;">
+        <p class="notice-alert">
           ⚠️ {{ t().twoShiftsRunningWarning }}
         </p>
       </div>
-      <div class="notice-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <a routerLink="/shift/active" class="btn-primary">
+      <div class="notice-actions">
+        <a routerLink="/shift/active" class="btn-primary-sm">
           <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
             <polyline points="9 18 15 12 9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
           <span>{{ t().goToActiveShiftBtn }}</span>
         </a>
-        <a routerLink="/shift/active" [queryParams]="{ close: 'true' }" class="btn-secondary" style="background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 8px 14px; font-weight: 700; text-decoration: none; font-size: 0.85rem;">
+        <a routerLink="/shift/active" [queryParams]="{ close: 'true' }" class="btn-danger-sm">
           <span>{{ t().closeShiftBtn }}</span>
         </a>
       </div>
@@ -57,17 +67,27 @@
       </div>
 
       <div class="info-grid">
+        <!-- Staff Identity Box -->
         <div class="info-box">
-          <span class="info-label">{{ t().shiftStaffName }}</span>
-          <span class="info-value">{{ staffName() }}</span>
+          <div class="info-label-row">
+            <span class="info-label">{{ t().shiftStaffName }}</span>
+            @if (isAdmin()) {
+              <span class="admin-tag">{{ isArabic() ? 'مسؤول النظام' : 'System Admin' }}</span>
+            }
+          </div>
+          <span class="info-value">{{ currentUser()?.name || t().frontDeskStaff }}</span>
         </div>
+
+        <!-- Shift Start Time -->
         <div class="info-box">
           <span class="info-label">{{ t().shiftStartTime }}</span>
-          <span class="info-value">{{ currentTimeStr }}</span>
+          <span class="info-value font-num">{{ currentTimeStr }}</span>
         </div>
+
+        <!-- Date -->
         <div class="info-box">
           <span class="info-label">{{ t().date }}</span>
-          <span class="info-value">{{ currentDateStr }}</span>
+          <span class="info-value">{{ currentDateStr() }}</span>
         </div>
       </div>
     </div>
@@ -97,12 +117,12 @@
           <div class="input-with-currency">
             <input
               type="number"
-              step="0.01"
+              step="any"
               min="0"
-              [placeholder]="'0.00'"
+              placeholder="0.00"
               [ngModel]="initialCash()"
-              (ngModelChange)="initialCash.set($event)"
-              class="field-input highlight-input"
+              (ngModelChange)="initialCash.set($event !== null && $event !== undefined ? +$event : 0)"
+              class="field-input highlight-input font-num"
               autofocus
             />
             <span class="currency-badge">{{ currencyText() }}</span>
@@ -121,12 +141,12 @@
           <div class="input-with-currency">
             <input
               type="number"
-              step="0.01"
+              step="any"
               min="0"
-              [placeholder]="'0.00'"
+              placeholder="0.00"
               [ngModel]="startVodafone()"
-              (ngModelChange)="startVodafone.set($event)"
-              class="field-input"
+              (ngModelChange)="startVodafone.set($event !== null && $event !== undefined ? +$event : 0)"
+              class="field-input font-num"
             />
             <span class="currency-badge">{{ currencyText() }}</span>
           </div>
@@ -144,12 +164,12 @@
           <div class="input-with-currency">
             <input
               type="number"
-              step="0.01"
+              step="any"
               min="0"
-              [placeholder]="'0.00'"
+              placeholder="0.00"
               [ngModel]="startInstaPay()"
-              (ngModelChange)="startInstaPay.set($event)"
-              class="field-input"
+              (ngModelChange)="startInstaPay.set($event !== null && $event !== undefined ? +$event : 0)"
+              class="field-input font-num"
             />
             <span class="currency-badge">{{ currencyText() }}</span>
           </div>
@@ -167,12 +187,12 @@
           <div class="input-with-currency">
             <input
               type="number"
-              step="0.01"
+              step="any"
               min="0"
-              [placeholder]="'0.00'"
+              placeholder="0.00"
               [ngModel]="startFawry()"
-              (ngModelChange)="startFawry.set($event)"
-              class="field-input"
+              (ngModelChange)="startFawry.set($event !== null && $event !== undefined ? +$event : 0)"
+              class="field-input font-num"
             />
             <span class="currency-badge">{{ currencyText() }}</span>
           </div>
@@ -222,10 +242,15 @@
         [disabled]="!canSubmit()"
         (click)="startShift()"
       >
-        <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
-          <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span>{{ t().startShiftBtn }}</span>
+        @if (isSubmitting()) {
+          <div class="btn-spinner"></div>
+          <span>{{ isArabic() ? 'جاري الفتح...' : 'Starting...' }}</span>
+        } @else {
+          <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
+            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>{{ t().startShiftBtn }}</span>
+        }
       </button>
     </div>
 

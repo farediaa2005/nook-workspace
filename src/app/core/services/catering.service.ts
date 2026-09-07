@@ -1,10 +1,20 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
-import { catchError, of } from 'rxjs';
-import { CateringProduct, TopSellingProduct, CategoryRevenue, PaymentBreakdown } from '../models/catering.model';
-import { ProductApiService, BackendProductDto } from './api/product-api.service';
+import { Observable, catchError, of, map, tap, switchMap } from 'rxjs';
+import {
+  ProductDto,
+  CreateProductDto,
+  UpdateProductDto,
+  CateringProduct,
+  TopSellingProduct,
+  CategoryRevenue,
+  PaymentBreakdown,
+  ProductStatus
+} from '../models/catering.model';
+import { ProductApiService } from './api/product-api.service';
 import { AuthService } from './auth.service';
+import { parseIsoToLocalDate, parseIsoToLocalDateObj } from '../utils/date-time.util';
+import { resolveImageUrl, getProductImageCache, setProductImageCache } from '../utils/image-url.util';
 
-export const INITIAL_PRODUCTS: CateringProduct[] = [];
 export const DEFAULT_CATEGORIES: { value: string; labelEn: string; labelAr: string }[] = [
   { value: 'Snacks', labelEn: 'Snacks', labelAr: 'سناكس ومخبوزات' },
   { value: 'Beverages', labelEn: 'Beverages', labelAr: 'مشروبات وعصائر' },
@@ -12,24 +22,6 @@ export const DEFAULT_CATEGORIES: { value: string; labelEn: string; labelAr: stri
   { value: 'Meals', labelEn: 'Meals', labelAr: 'وجبات وسندوتشات' },
   { value: 'Merchandise', labelEn: 'Merchandise', labelAr: 'ميرش ومنتجات NOOK' }
 ];
-
-function getLocalCache<T>(key: string, fallback: T): T {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const item = localStorage.getItem(key);
-      if (item) return JSON.parse(item);
-    }
-  } catch {}
-  return fallback;
-}
-
-function setLocalCache<T>(key: string, val: T): void {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      localStorage.setItem(key, JSON.stringify(val));
-    }
-  } catch {}
-}
 
 function base64ToFile(dataUrl: string, filename: string): File | null {
   try {
@@ -49,57 +41,93 @@ function base64ToFile(dataUrl: string, filename: string): File | null {
   }
 }
 
+export interface CreateProductInput {
+  name: string;
+  nameAr?: string;
+  category?: string;
+  categoryAr?: string;
+  sellingPrice: number;
+  costPrice: number;
+  stock: number;
+  barcode?: string;
+  expirationDate?: string;
+  reorderLevel?: number;
+  imageFile?: File | null;
+  image?: string | null;
+}
+
+/**
+ * 4️⃣ Catering Feature Service (Layer 4: [4. Feature Service])
+ * The "Brain" of the Catering feature:
+ * - Injects ProductApiService (Layer 3)
+ * - Maps raw ProductDto to UI CateringProduct model (Data Mapping)
+ * - Manages Angular Signals state for UI reactivity
+ * - Provides clean business methods (getProducts, createProduct, updateProduct, deleteProduct)
+ */
 @Injectable({
   providedIn: 'root'
 })
 export class CateringService {
-  public static readonly STORAGE_KEY = 'nook_catering_products_cache';
-  public static readonly TOMBSTONE_KEY = 'nook_deleted_products';
-
   private productApi = inject(ProductApiService);
   private authService = inject(AuthService);
 
-  readonly products = signal<CateringProduct[]>(this.loadInitialProducts());
+  // Private State Signals
+  private productsState = signal<CateringProduct[]>([]);
+  private isLoadingState = signal<boolean>(false);
+  private errorMessageState = signal<string | null>(null);
+
+  // Public Readonly Signals
+  readonly products = this.productsState.asReadonly();
+  readonly isLoading = this.isLoadingState.asReadonly();
+  readonly errorMessage = this.errorMessageState.asReadonly();
+
   readonly categories = signal<{ value: string; labelEn: string; labelAr: string }[]>([...DEFAULT_CATEGORIES]);
 
-  // Dynamic Top Selling Products based on current products array
+  // Dynamic Top Selling Products based on actual sales
   readonly topProducts = computed<TopSellingProduct[]>(() => {
-    const list = [...this.products()];
+    const list = this.productsState().filter(p => (p.soldCount || 0) > 0 || (p.totalRevenue || 0) > 0);
+    if (list.length === 0) return [];
+
     list.sort((a, b) => {
       const bRev = b.totalRevenue ?? ((b.soldCount ?? 0) * b.sellingPrice);
       const aRev = a.totalRevenue ?? ((a.soldCount ?? 0) * a.sellingPrice);
       return bRev - aRev;
     });
-    return list.slice(0, 4).map((p, idx) => ({
+
+    return list.slice(0, 5).map((p, idx) => ({
       rank: idx + 1,
       name: p.name,
       nameAr: p.nameAr || p.name,
       category: p.category,
       categoryAr: p.categoryAr || p.category,
       icon: p.icon || 'coffee',
-      qty: p.soldCount ?? 1,
+      qty: p.soldCount ?? 0,
       revenue: p.totalRevenue ?? ((p.soldCount ?? 0) * p.sellingPrice)
     }));
   });
 
-  // Dynamic Category Revenue Breakdown based on current products
+  // Dynamic Category Revenue Breakdown based on actual product revenue
   readonly categoryRevenue = computed<CategoryRevenue[]>(() => {
-    const list = this.products();
+    const list = this.productsState().filter(p => (p.totalRevenue ?? ((p.soldCount ?? 0) * p.sellingPrice)) > 0);
+    if (list.length === 0) return [];
+
     const map = new Map<string, { amount: number; nameAr: string }>();
 
     for (const p of list) {
-      const cat = p.category || 'Misc';
-      const catAr = p.categoryAr || 'أخرى';
+      const cat = p.category || 'Snacks';
+      const catAr = p.categoryAr || 'سناكس ومخبوزات';
       const rev = p.totalRevenue ?? ((p.soldCount ?? 0) * p.sellingPrice);
       const existing = map.get(cat) || { amount: 0, nameAr: catAr };
       existing.amount += rev;
       map.set(cat, existing);
     }
 
-    let maxVal = 100;
+    let maxVal = 0;
     map.forEach(val => {
       if (val.amount > maxVal) maxVal = val.amount;
     });
+
+    if (maxVal === 0) return [];
 
     const result: CategoryRevenue[] = [];
     map.forEach((val, cat) => {
@@ -112,12 +140,12 @@ export class CateringService {
       });
     });
 
-    return result.slice(0, 5);
+    return result;
   });
 
   // Dynamic Total Revenue
   readonly totalRevenue = computed(() => {
-    return this.products().reduce((sum, p) => sum + (p.totalRevenue ?? ((p.soldCount ?? 0) * p.sellingPrice)), 0);
+    return this.productsState().reduce((sum, p) => sum + (p.totalRevenue ?? ((p.soldCount ?? 0) * p.sellingPrice)), 0);
   });
 
   // Payment Breakdown
@@ -130,41 +158,75 @@ export class CateringService {
 
   constructor() {
     if (this.authService.isAuthenticated()) {
-      this.syncWithBackend();
+      this.getProducts().subscribe();
     }
   }
 
-  private loadInitialProducts(): CateringProduct[] {
-    const deletedIds = getLocalCache<string[]>(CateringService.TOMBSTONE_KEY, []);
-    const cached = getLocalCache<CateringProduct[]>(CateringService.STORAGE_KEY, []);
-    return (cached || []).filter(p => !deletedIds.includes(p.id));
-  }
+  /**
+   * Get products from backend API (GET /api/Products).
+   * Maps ProductDto[] -> CateringProduct[] and updates state.
+   */
+  getProducts(): Observable<CateringProduct[]> {
+    if (!this.authService.isAuthenticated()) {
+      return of([]);
+    }
 
-  /** Fetch live products from backend */
-  syncWithBackend(): void {
-    if (!this.authService.isAuthenticated()) return;
-    this.productApi.getProducts().pipe(
+    this.isLoadingState.set(true);
+    this.errorMessageState.set(null);
+
+    return this.productApi.getProducts().pipe(
+      map(dtoList => {
+        const mapped = (dtoList || []).map(dto => this.mapDtoToProduct(dto));
+        this.productsState.set(mapped);
+        this.isLoadingState.set(false);
+        return mapped;
+      }),
       catchError((err) => {
-        console.warn('[CateringService] Could not fetch products from API, retaining cached data:', err?.message || err);
-        return of([] as BackendProductDto[]);
+        this.isLoadingState.set(false);
+        const msg = err?.error?.message || err?.message || 'Failed to sync products from server';
+        this.errorMessageState.set(msg);
+        console.warn('[CateringService] Could not fetch products from API:', msg);
+        return of([] as CateringProduct[]);
       })
-    ).subscribe({
-      next: (apiProducts) => {
-        const deletedIds = getLocalCache<string[]>(CateringService.TOMBSTONE_KEY, []);
-        if (apiProducts && apiProducts.length > 0) {
-          const validList = apiProducts.filter(p => !deletedIds.includes(p.id));
-          const mapped = validList.map(p => this.mapDtoToProduct(p));
-          this.products.set(mapped);
-          setLocalCache(CateringService.STORAGE_KEY, mapped);
-        }
-      }
-    });
+    );
   }
 
-  private mapDtoToProduct(dto: BackendProductDto): CateringProduct {
+  /** Alias for backward compatibility */
+  syncWithBackend(): Observable<CateringProduct[]> {
+    return this.getProducts();
+  }
+
+  /**
+   * Data Mapping: transforms backend ProductDto into frontend CateringProduct
+   */
+  private mapDtoToProduct(dto: ProductDto): CateringProduct {
     const margin = dto.piecePrice > 0
       ? Math.round(((dto.piecePrice - dto.cost) / dto.piecePrice) * 100)
       : 0;
+
+    let isExpired = false;
+    let expDateStr: string | undefined = undefined;
+    if (dto.expireDate) {
+      expDateStr = parseIsoToLocalDate(dto.expireDate);
+      const parsed = parseIsoToLocalDateObj(dto.expireDate);
+      if (!isNaN(parsed.getTime()) && parsed.getTime() < Date.now()) {
+        isExpired = true;
+      }
+    }
+
+    let status: ProductStatus = 'healthy';
+    if (isExpired) {
+      status = 'expired';
+    } else if (dto.quantity === 0) {
+      status = 'low_stock';
+    } else if (dto.quantity <= 10) {
+      status = 'low_stock';
+    }
+
+    let resolvedImage = resolveImageUrl(dto.imageUrl);
+    if ((!resolvedImage || resolvedImage.trim() === '') && dto.id) {
+      resolvedImage = getProductImageCache(dto.id) || '';
+    }
 
     return {
       id: dto.id,
@@ -178,11 +240,12 @@ export class CateringService {
       reorderLevel: 10,
       soldCount: 0,
       totalRevenue: 0,
-      status: dto.quantity <= 10 ? (dto.quantity === 0 ? 'expired' : 'low_stock') : 'healthy',
+      status: status,
       marginPercent: margin,
       barcode: dto.serialNo || '',
-      image: dto.imageUrl || '',
-      expirationDate: dto.expireDate ? String(dto.expireDate).split('T')[0] : undefined
+      image: resolvedImage,
+      expirationDate: expDateStr,
+      isExpired: isExpired
     };
   }
 
@@ -201,98 +264,250 @@ export class CateringService {
     return newCat;
   }
 
-  addProduct(newProduct: CateringProduct): void {
-    const margin = newProduct.sellingPrice > 0
-      ? Math.round(((newProduct.sellingPrice - newProduct.costPrice) / newProduct.sellingPrice) * 100)
-      : 0;
-
-    const reorder = newProduct.reorderLevel !== undefined ? newProduct.reorderLevel : 10;
-    let status: CateringProduct['status'] = 'healthy';
-    if (newProduct.stock <= reorder && newProduct.stock > 0) {
-      status = 'low_stock';
-    } else if (newProduct.isExpired || newProduct.stock === 0) {
-      status = newProduct.isExpired ? 'expired' : 'low_stock';
-    }
-
-    const item: CateringProduct = {
-      ...newProduct,
-      reorderLevel: reorder,
-      barcode: newProduct.barcode || `${Math.floor(1000000000 + Math.random() * 9000000000)}`,
-      marginPercent: margin,
-      status: status,
-      totalRevenue: (newProduct.soldCount || 0) * newProduct.sellingPrice
-    };
-
-    // 1. Immediately update UI & persist to Local Storage
-    this.products.update(list => {
-      const next = [item, ...list];
-      setLocalCache(CateringService.STORAGE_KEY, next);
-      return next;
-    });
-
-    // 2. Prepare payload for Backend API
+  /**
+   * Create product (POST /api/Products).
+   * Maps input to CreateProductDto/FormData, calls Layer 3 API, and maps returned ProductDto.
+   */
+  createProduct(input: CreateProductInput): Observable<CateringProduct> {
+    const nameVal = (input.name || '').trim();
     let expireDateIso: string | undefined = undefined;
-    if (newProduct.expirationDate && newProduct.expirationDate !== 'N/A' && newProduct.expirationDate.trim() !== '') {
-      const d = new Date(newProduct.expirationDate);
+    if (input.expirationDate && input.expirationDate !== 'N/A' && input.expirationDate.trim() !== '') {
+      const d = new Date(input.expirationDate);
       if (!isNaN(d.getTime())) {
         expireDateIso = d.toISOString();
       }
     }
 
-    // Determine if file upload is required
-    const file = newProduct.imageFile || (newProduct.image ? base64ToFile(newProduct.image, 'product.png') : null);
+    const file = input.imageFile || (input.image?.startsWith('data:') ? base64ToFile(input.image, 'product.png') : null);
 
+    let api$: Observable<ProductDto>;
     if (file) {
       const formData = new FormData();
-      formData.append('Name', newProduct.name);
-      formData.append('PiecePrice', String(newProduct.sellingPrice));
-      formData.append('Cost', String(newProduct.costPrice));
-      formData.append('Quantity', String(newProduct.stock));
-      if (newProduct.barcode) formData.append('SerialNo', newProduct.barcode);
-      if (expireDateIso) formData.append('ExpireDate', expireDateIso);
-      formData.append('imageFile', file);
+      formData.append('Name', nameVal);
+      formData.append('name', nameVal);
+      formData.append('PiecePrice', String(input.sellingPrice || 0));
+      formData.append('piecePrice', String(input.sellingPrice || 0));
+      formData.append('Cost', String(input.costPrice || 0));
+      formData.append('cost', String(input.costPrice || 0));
+      formData.append('Quantity', String(input.stock || 0));
+      formData.append('quantity', String(input.stock || 0));
+      if (input.barcode && input.barcode.trim()) {
+        formData.append('SerialNo', input.barcode.trim());
+        formData.append('serialNo', input.barcode.trim());
+      }
+      if (expireDateIso) {
+        formData.append('ExpireDate', expireDateIso);
+        formData.append('expireDate', expireDateIso);
+      }
+      formData.append('imageFile', file, file.name);
+      formData.append('file', file, file.name);
+      formData.append('image', file, file.name);
+      formData.append('Image', file, file.name);
 
-      this.productApi.createProduct(formData).subscribe({
-        next: (res) => {
-          if (res && res.id) {
-            this.products.update(list => {
-              const updated = list.map(p => p.id === item.id ? { ...p, id: res.id, image: res.imageUrl || p.image } : p);
-              setLocalCache(CateringService.STORAGE_KEY, updated);
-              return updated;
-            });
-          }
-        },
-        error: (err) => console.warn('[CateringService] Create product API notice (FormData):', err?.message)
-      });
+      api$ = this.productApi.createProduct(formData);
     } else {
-      const plainPayload = {
-        Name: newProduct.name,
-        PiecePrice: newProduct.sellingPrice,
-        Cost: newProduct.costPrice,
-        Quantity: newProduct.stock,
-        SerialNo: newProduct.barcode || undefined,
-        ImageUrl: newProduct.image && !newProduct.image.startsWith('data:') ? newProduct.image : undefined,
-        ExpireDate: expireDateIso
+      const plainDto: CreateProductDto = {
+        Name: nameVal,
+        name: nameVal,
+        PiecePrice: input.sellingPrice || 0,
+        piecePrice: input.sellingPrice || 0,
+        Cost: input.costPrice || 0,
+        cost: input.costPrice || 0,
+        Quantity: input.stock || 0,
+        quantity: input.stock || 0,
+        SerialNo: input.barcode?.trim() || undefined,
+        serialNo: input.barcode?.trim() || undefined,
+        ImageUrl: input.image && !input.image.startsWith('data:') ? input.image : undefined,
+        imageUrl: input.image && !input.image.startsWith('data:') ? input.image : undefined,
+        ExpireDate: expireDateIso,
+        expireDate: expireDateIso
       };
 
-      this.productApi.createProduct(plainPayload).subscribe({
-        next: (res) => {
-          if (res && res.id) {
-            this.products.update(list => {
-              const updated = list.map(p => p.id === item.id ? { ...p, id: res.id, image: res.imageUrl || p.image } : p);
-              setLocalCache(CateringService.STORAGE_KEY, updated);
-              return updated;
-            });
-          }
-        },
-        error: (err) => console.warn('[CateringService] Create product API notice (JSON):', err?.message)
-      });
+      api$ = this.productApi.createProduct(plainDto);
     }
+
+    return api$.pipe(
+      switchMap(resDto => {
+        if (file && resDto && resDto.id) {
+          return this.productApi.uploadProductImage(resDto.id, file).pipe(
+            map(uploadRes => {
+              if (typeof uploadRes === 'string' && uploadRes.trim()) {
+                resDto.imageUrl = uploadRes;
+              } else if (uploadRes && typeof uploadRes === 'object' && uploadRes.imageUrl) {
+                resDto.imageUrl = uploadRes.imageUrl;
+              }
+              return resDto;
+            }),
+            catchError(() => of(resDto))
+          );
+        }
+        return of(resDto);
+      }),
+      map(resDto => {
+        const product = this.mapDtoToProduct(resDto);
+        if (input.category) {
+          product.category = input.category;
+          product.categoryAr = input.categoryAr || input.category;
+        }
+        if (input.nameAr) product.nameAr = input.nameAr;
+        if (input.reorderLevel !== undefined) product.reorderLevel = input.reorderLevel;
+
+        // Fallback to local image if backend returned empty or unresolved image
+        if (input.image && (!product.image || product.image.trim() === '')) {
+          product.image = input.image;
+        }
+
+        // Cache image in localStorage for immediate and persistent display
+        if (product.id && product.image) {
+          setProductImageCache(product.id, product.image);
+        }
+
+        this.productsState.update(list => [product, ...list.filter(p => p.id !== product.id)]);
+        return product;
+      })
+    );
   }
 
-  processPosSale(sale: { items: { product: CateringProduct; quantity: number; unitPrice: number; totalPrice: number }[]; paymentMethod: 'cash' | 'card' | 'app'; total: number }): void {
-    this.products.update(list => {
-      const next = list.map(prod => {
+  /** Alias for backward compatibility */
+  addProduct(input: CreateProductInput): Observable<CateringProduct> {
+    return this.createProduct(input);
+  }
+
+  /**
+   * Update product (PUT /api/Products/{id}).
+   */
+  updateProduct(updated: CateringProduct): Observable<CateringProduct> {
+    const nameVal = (updated.name || '').trim();
+    let expireDateIso: string | undefined = undefined;
+    if (updated.expirationDate && updated.expirationDate !== 'N/A' && updated.expirationDate.trim() !== '') {
+      const d = new Date(updated.expirationDate);
+      if (!isNaN(d.getTime())) {
+        expireDateIso = d.toISOString();
+      }
+    }
+
+    const file = updated.imageFile || (updated.image?.startsWith('data:') ? base64ToFile(updated.image, 'product.png') : null);
+
+    let api$: Observable<ProductDto>;
+    if (file) {
+      const formData = new FormData();
+      formData.append('Name', nameVal);
+      formData.append('name', nameVal);
+      formData.append('PiecePrice', String(updated.sellingPrice || 0));
+      formData.append('piecePrice', String(updated.sellingPrice || 0));
+      formData.append('Cost', String(updated.costPrice || 0));
+      formData.append('cost', String(updated.costPrice || 0));
+      formData.append('Quantity', String(updated.stock || 0));
+      formData.append('quantity', String(updated.stock || 0));
+      if (updated.barcode && updated.barcode.trim()) {
+        formData.append('SerialNo', updated.barcode.trim());
+        formData.append('serialNo', updated.barcode.trim());
+      }
+      if (expireDateIso) {
+        formData.append('ExpireDate', expireDateIso);
+        formData.append('expireDate', expireDateIso);
+      }
+      formData.append('imageFile', file, file.name);
+      formData.append('file', file, file.name);
+      formData.append('image', file, file.name);
+      formData.append('Image', file, file.name);
+
+      api$ = this.productApi.updateProduct(updated.id, formData);
+    } else {
+      const plainDto: UpdateProductDto = {
+        Name: nameVal,
+        name: nameVal,
+        PiecePrice: updated.sellingPrice || 0,
+        piecePrice: updated.sellingPrice || 0,
+        Cost: updated.costPrice || 0,
+        cost: updated.costPrice || 0,
+        Quantity: updated.stock || 0,
+        quantity: updated.stock || 0,
+        SerialNo: updated.barcode?.trim() || undefined,
+        serialNo: updated.barcode?.trim() || undefined,
+        ImageUrl: updated.image && !updated.image.startsWith('data:') ? updated.image : undefined,
+        imageUrl: updated.image && !updated.image.startsWith('data:') ? updated.image : undefined,
+        ExpireDate: expireDateIso,
+        expireDate: expireDateIso
+      };
+
+      api$ = this.productApi.updateProduct(updated.id, plainDto);
+    }
+
+    return api$.pipe(
+      switchMap(resDto => {
+        if (file && resDto && resDto.id) {
+          return this.productApi.uploadProductImage(resDto.id, file).pipe(
+            map(uploadRes => {
+              if (typeof uploadRes === 'string' && uploadRes.trim()) {
+                resDto.imageUrl = uploadRes;
+              } else if (uploadRes && typeof uploadRes === 'object' && uploadRes.imageUrl) {
+                resDto.imageUrl = uploadRes.imageUrl;
+              }
+              return resDto;
+            }),
+            catchError(() => of(resDto))
+          );
+        }
+        return of(resDto);
+      }),
+      map(resDto => {
+        const product = this.mapDtoToProduct(resDto);
+        product.category = updated.category;
+        product.categoryAr = updated.categoryAr;
+        if (updated.nameAr) product.nameAr = updated.nameAr;
+        if (updated.reorderLevel !== undefined) product.reorderLevel = updated.reorderLevel;
+        if (updated.image && (!product.image || product.image.trim() === '')) {
+          product.image = updated.image;
+        }
+        if (product.id && product.image) {
+          setProductImageCache(product.id, product.image);
+        }
+        this.productsState.update(list => list.map(p => p.id === product.id ? product : p));
+        return product;
+      })
+    );
+  }
+
+  /**
+   * Delete product (DELETE /api/Products/{id}).
+   */
+  deleteProduct(id: string): Observable<boolean> {
+    return this.productApi.deleteProduct(id).pipe(
+      tap(() => {
+        this.productsState.update(list => list.filter(p => p.id !== id));
+      })
+    );
+  }
+
+  /**
+   * Process POS sale and sync stock deduction directly with backend API.
+   */
+  processPosSale(sale: {
+    items: { product: CateringProduct; quantity: number; unitPrice: number; totalPrice: number }[];
+    paymentMethod: 'cash' | 'card' | 'app';
+    total: number;
+  }): void {
+    // 1. Sync quantity reduction with backend for each item
+    for (const item of sale.items) {
+      const current = this.productsState().find(p => p.id === item.product.id);
+      if (current) {
+        const newStock = Math.max(0, current.stock - item.quantity);
+        this.productApi.updateProduct(current.id, {
+          Name: current.name,
+          PiecePrice: current.sellingPrice,
+          Cost: current.costPrice,
+          Quantity: newStock,
+          SerialNo: current.barcode || undefined
+        }).subscribe({
+          error: (err) => console.warn('[CateringService] Stock deduction update notice:', err?.message || err)
+        });
+      }
+    }
+
+    // 2. Update local signals
+    this.productsState.update(list => {
+      return list.map(prod => {
         const found = sale.items.find(i => i.product.id === prod.id);
         if (!found) return prod;
 
@@ -301,7 +516,7 @@ export class CateringService {
         const newTotalRevenue = (prod.totalRevenue || 0) + found.totalPrice;
         const reorder = prod.reorderLevel !== undefined ? prod.reorderLevel : 10;
 
-        let status: CateringProduct['status'] = prod.status;
+        let status: ProductStatus = prod.status;
         if (newStock === 0) {
           status = 'low_stock';
         } else if (newStock <= reorder) {
@@ -316,69 +531,24 @@ export class CateringService {
           status
         };
       });
-      setLocalCache(CateringService.STORAGE_KEY, next);
-      return next;
     });
 
-    this.paymentBreakdown.update(pb => ({
-      ...pb,
-      totalTxns: pb.totalTxns + 1
-    }));
-  }
+    // 3. Update payment breakdown statistics
+    this.paymentBreakdown.update(pb => {
+      const totalTxns = pb.totalTxns + 1;
+      let cash = pb.cashPercent;
+      let card = pb.cardPercent;
+      let app = pb.appPercent;
+      if (sale.paymentMethod === 'cash') cash++;
+      else if (sale.paymentMethod === 'card') card++;
+      else if (sale.paymentMethod === 'app') app++;
 
-  updateProduct(updated: CateringProduct): void {
-    this.products.update(list => {
-      const next = list.map(p => (p.id === updated.id ? updated : p));
-      setLocalCache(CateringService.STORAGE_KEY, next);
-      return next;
-    });
-
-    const file = updated.imageFile || (updated.image ? base64ToFile(updated.image, 'product.png') : null);
-
-    if (file) {
-      const formData = new FormData();
-      formData.append('Name', updated.name);
-      formData.append('PiecePrice', String(updated.sellingPrice));
-      formData.append('Cost', String(updated.costPrice));
-      formData.append('Quantity', String(updated.stock));
-      if (updated.barcode) formData.append('SerialNo', updated.barcode);
-      formData.append('imageFile', file);
-
-      this.productApi.updateProduct(updated.id, formData).subscribe({
-        error: (err) => console.warn('[CateringService] Update product API notice (FormData):', err?.message)
-      });
-    } else {
-      this.productApi.updateProduct(updated.id, {
-        Name: updated.name,
-        PiecePrice: updated.sellingPrice,
-        Cost: updated.costPrice,
-        Quantity: updated.stock,
-        SerialNo: updated.barcode || undefined,
-        ImageUrl: updated.image && !updated.image.startsWith('data:') ? updated.image : undefined
-      }).subscribe({
-        error: (err) => console.warn('[CateringService] Update product API notice (JSON):', err?.message)
-      });
-    }
-  }
-
-  deleteProduct(id: string): void {
-    // 1. Tombstone tracking
-    const deletedIds = getLocalCache<string[]>(CateringService.TOMBSTONE_KEY, []);
-    if (!deletedIds.includes(id)) {
-      deletedIds.push(id);
-      setLocalCache(CateringService.TOMBSTONE_KEY, deletedIds);
-    }
-
-    // 2. Remove from local signal and local storage
-    this.products.update(list => {
-      const next = list.filter(p => p.id !== id);
-      setLocalCache(CateringService.STORAGE_KEY, next);
-      return next;
-    });
-
-    // 3. API Delete Call
-    this.productApi.deleteProduct(id).subscribe({
-      error: (err) => console.warn('[CateringService] Delete product API notice:', err?.message)
+      return {
+        totalTxns,
+        cashPercent: totalTxns > 0 ? Math.round((cash / totalTxns) * 100) : 0,
+        cardPercent: totalTxns > 0 ? Math.round((card / totalTxns) * 100) : 0,
+        appPercent: totalTxns > 0 ? Math.round((app / totalTxns) * 100) : 0
+      };
     });
   }
 }

@@ -14,6 +14,8 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
 import { CustomSelectComponent, SelectOption } from '../../../shared/components/custom-select/custom-select.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 import { generateAvatarSvg, getSafeAvatar } from '../../../core/utils/avatar.util';
+import { exportToCsv } from '../../../core/utils/csv.util';
+import { getTodayDateISO } from '../../../core/utils/date-time.util';
 import { Router } from '@angular/router';
 
 export interface StudentDirectoryItem {
@@ -186,7 +188,7 @@ export class ShowStudentsComponent implements OnInit, OnDestroy {
       return normalizeKey(phone, name, id);
     };
 
-    // 1. Ingest Registered Student Profiles (localStorage + backend)
+    // 1. Ingest Registered Student Profiles (Backend API Signal)
     const registeredProfiles = this.workspaceService.getAllStudentProfiles();
     for (const p of registeredProfiles) {
       const key = getOrCreateKey(p.phone, p.name, p.id);
@@ -480,26 +482,18 @@ export class ShowStudentsComponent implements OnInit, OnDestroy {
     const headers = ['ID', 'Name', 'Phone', 'WhatsApp', 'Email', 'College', 'Faculty', 'Status', 'Package', 'Total Visits', 'Total Spent'];
     const rows = data.map(s => [
       s.id,
-      `"${s.name.replace(/"/g, '""')}"`,
+      s.name,
       s.phone || '',
       s.whatsapp || '',
       s.email || '',
-      `"${(s.college || '').replace(/"/g, '""')}"`,
-      `"${(s.faculty || '').replace(/"/g, '""')}"`,
+      s.college || '',
+      s.faculty || '',
       s.currentStatus,
       s.packageInfo?.hasPackage ? s.packageInfo.packageName : 'Pay As You Go',
       s.totalVisits,
       s.totalSpent
     ]);
 
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `students_directory_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportToCsv(`students_directory_${getTodayDateISO()}.csv`, headers, rows);
   }
 }

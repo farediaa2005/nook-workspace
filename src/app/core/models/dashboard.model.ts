@@ -21,6 +21,10 @@ export interface DashboardSummaryDto {
   // Compatibility fallback getters / aliases
   activeWorkspacesCount?: number;
   activeClassroomsCount?: number;
+  availableRoomsCount?: number;
+  availableDesksCount?: number;
+  occupancyRatePercentage?: number;
+  activeStudentsCount?: number;
   todayTotalRevenue?: number;
   pendingTopUpRequestsCount?: number;
   pendingBookingsCount?: number;
@@ -81,5 +85,62 @@ export interface TopStudentDto {
   studentPhone?: string;
   totalVisits?: number;
   totalSpent?: number;
+}
+
+// ==========================================
+// Frontend UI Models (Presentation Layer Models)
+// ==========================================
+
+export interface UpcomingRoomBooking {
+  id: string;
+  roomName: string;
+  roomNameAr: string;
+  title: string;
+  titleAr: string;
+  instructor: string;
+  instructorAr: string;
+  timeSlot: string;
+  attendees: number;
+  status: 'in_progress' | 'upcoming' | 'confirmed';
+}
+
+export interface ActiveStudentPreviewItem {
+  id: string;
+  name: string;
+  spaceOrFaculty: string;
+  checkInTime: string;
+  duration: string;
+}
+
+export interface ActivityFlowPoint {
+  label: string;
+  labelAr: string;
+  count: number;
+  occupancy: number;
+  x: number;
+  y: number;
+}
+
+export interface SpaceDistributionMetrics {
+  privatePct: number;
+  sharedPct: number;
+  meetingPct: number;
+  privateDash: string;
+  sharedDash: string;
+  meetingDash: string;
+  privateOffset: number;
+  sharedOffset: number;
+  meetingOffset: number;
+}
+
+export interface DashboardMetrics {
+  totalBookings: string;
+  availableDesks: string;
+  activeMembers: string;
+  occupancyRate: string;
+  peakOccupancyRate: number;
+  peakTimeRange: string;
+  avgSessionDuration: string;
+  totalFootfall: number;
 }
 

@@ -189,6 +189,7 @@ export interface Translations {
   configureBookingDetails: string;
   searchClassrooms: string;
   statusAll: string;
+  statusInSession: string;
   statusScheduled: string;
   statusAvailable: string;
   statusCompleted: string;
@@ -290,6 +291,14 @@ export interface Translations {
   noAdditionalPaymentRequired: string;
   completeSessionAndFreeRoom: string;
   selectBtn: string;
+  loadingClassrooms: string;
+  failedToLoadClassrooms: string;
+  failedToCreateBooking: string;
+  failedToCheckout: string;
+  bookingCreatedSuccess: string;
+  bookingUpdatedSuccess: string;
+  bookingDeletedSuccess: string;
+  checkoutSuccess: string;
 
   // Checkout & Shared Modals
   quickAdd: string;
@@ -822,6 +831,10 @@ export interface Translations {
   duePriceHeader: string;
   tierDescriptionHeader: string;
   noPricingTiersAdded: string;
+  loadingPricingPlans: string;
+  loadingRooms: string;
+  loadingPackagePresets: string;
+  loadingAccounts: string;
   noPackagePresetsAdded: string;
   roomCapacityCap: string;
   egpPerHourShort: string;
@@ -886,6 +899,23 @@ export interface Translations {
   validPriceRequired: string;
   roomNameRequired: string;
   packageHoursRequired: string;
+  profileSettingsTab: string;
+  personalInformation: string;
+  firstNameLabel: string;
+  lastNameLabel: string;
+  securityTitle: string;
+  securitySubtitle: string;
+  currentPasswordLabel: string;
+  newPasswordLabel: string;
+  confirmNewPasswordLabel: string;
+  updatePasswordBtn: string;
+  sessionManagementTitle: string;
+  sessionManagementSubtitle: string;
+  signOutSecurelyBtn: string;
+  currentSessionTitle: string;
+  activeNowBadge: string;
+  headquartersLocation: string;
+  systemAdministratorBadge: string;
 
   // Dashboard Overview
   welcome: string;
@@ -927,6 +957,9 @@ export interface Translations {
   viewSchedule: string;
   inProgress: string;
   seatsLabel: string;
+  noPeakYet: string;
+  peopleUnit: string;
+  loadingDashboard: string;
 
   // 9. Packages (Student & Instructor)
   details: string;
@@ -1063,6 +1096,23 @@ export interface Translations {
   twoShiftsRunningWarning: string;
   printShiftSummaryBtn: string;
   closingNotesLabel: string;
+  checkingActiveShift: string;
+  loadingShiftHistory: string;
+  loadingWorkspaceSessions: string;
+  loadingStudentDirectory: string;
+
+  // Login & Authentication
+  loginSubtitle: string;
+  loginIdentifierLabel: string;
+  loginPasswordLabel: string;
+  loginForgotPassword: string;
+  loginEnterBtn: string;
+  loginLoadingBtn: string;
+  loginFollowUs: string;
+  loginTagline: string;
+  loginValidationRequired: string;
+  loginInvalidCredentials: string;
+  loginNetworkError: string;
 
   // Packages Management
   editPackageTitle: string;
@@ -1093,6 +1143,10 @@ export interface Translations {
   addingProduct: string;
   productExpiredTooltip: string;
   expiredStatus: string;
+  loadingProductsFromServer: string;
+  failedToSaveProduct: string;
+  failedToUpdateProduct: string;
+  failedToDeleteProduct: string;
 
   // Workspace & Checkout
   printingLabel: string;
@@ -1386,7 +1440,8 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     newClassroomBookingDesc: 'Configure session details and resources.',
     configureBookingDetails: 'Configure session details and resources.',
     searchClassrooms: 'Search classrooms, instructors...',
-    statusAll: 'Status: All',
+    statusAll: 'All Statuses',
+    statusInSession: 'In Session',
     statusScheduled: 'Scheduled',
     statusAvailable: 'Available',
     statusCompleted: 'Completed',
@@ -1488,6 +1543,14 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     noAdditionalPaymentRequired: 'No additional payment required',
     completeSessionAndFreeRoom: 'Complete Session & Free Room',
     selectBtn: 'Select',
+    loadingClassrooms: 'Loading classrooms...',
+    failedToLoadClassrooms: 'Failed to load classrooms',
+    failedToCreateBooking: 'Failed to create booking',
+    failedToCheckout: 'Failed to checkout classroom',
+    bookingCreatedSuccess: 'Booking created successfully',
+    bookingUpdatedSuccess: 'Booking updated successfully',
+    bookingDeletedSuccess: 'Booking cancelled successfully',
+    checkoutSuccess: 'Classroom checked out successfully',
 
     // Checkout & Shared Modals
     quickAdd: 'Quick Add',
@@ -1722,8 +1785,8 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     ratesAndTiming: 'Date & Schedule',
 
     // 6. Details
-    membersInfo: 'Students & Info',
-    addDiscount: 'Add Discount',
+    membersInfo: 'Records & Details',
+    addDiscount: 'Discounts & Promo Codes',
     addDiscountDesc: 'Create promotional discounts or student promo codes',
     discountCode: 'Promo Code',
     discountPercent: 'Discount Percentage (%)',
@@ -2020,6 +2083,10 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     duePriceHeader: 'Due Price',
     tierDescriptionHeader: 'Tier Description',
     noPricingTiersAdded: 'No pricing tiers added',
+    loadingPricingPlans: 'Loading pricing plans from server...',
+    loadingRooms: 'Loading rooms and spaces from server...',
+    loadingPackagePresets: 'Loading package presets from server...',
+    loadingAccounts: 'Loading accounts from server...',
     noPackagePresetsAdded: 'No package presets added',
     roomCapacityCap: 'Cap',
     egpPerHourShort: 'EGP/hr',
@@ -2084,6 +2151,23 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     validPriceRequired: 'Valid price is required',
     roomNameRequired: 'Room name is required',
     packageHoursRequired: 'Package hours is required',
+    profileSettingsTab: 'Profile & Account',
+    personalInformation: 'Personal Information',
+    firstNameLabel: 'FIRST NAME',
+    lastNameLabel: 'LAST NAME',
+    securityTitle: 'Security',
+    securitySubtitle: 'Manage your password and security preferences.',
+    currentPasswordLabel: 'CURRENT PASSWORD',
+    newPasswordLabel: 'NEW PASSWORD',
+    confirmNewPasswordLabel: 'CONFIRM NEW PASSWORD',
+    updatePasswordBtn: 'Update Password',
+    sessionManagementTitle: 'Session Management',
+    sessionManagementSubtitle: 'Review active sessions or securely sign out.',
+    signOutSecurelyBtn: 'Sign Out Securely',
+    currentSessionTitle: 'Current Session',
+    activeNowBadge: 'Active Now',
+    headquartersLocation: 'Headquarters',
+    systemAdministratorBadge: 'System Administrator',
 
     // Dashboard Overview
     welcome: 'Welcome, System Admin',
@@ -2125,6 +2209,9 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     viewSchedule: 'View Schedule',
     inProgress: 'In Progress',
     seatsLabel: 'seats',
+    noPeakYet: 'No peak yet',
+    peopleUnit: 'people',
+    loadingDashboard: 'Loading dashboard...',
 
     // 9. Packages (Student & Instructor)
     details: 'Details',
@@ -2261,6 +2348,23 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     twoShiftsRunningWarning: 'Two shifts cannot be open simultaneously. The active shift must be closed first.',
     printShiftSummaryBtn: 'Print Shift Summary',
     closingNotesLabel: 'Closing Notes:',
+    checkingActiveShift: 'Checking for active shift...',
+    loadingShiftHistory: 'Loading shift history from server...',
+    loadingWorkspaceSessions: 'Loading workspace sessions from server...',
+    loadingStudentDirectory: 'Loading students directory from server...',
+
+    // Login & Authentication
+    loginSubtitle: 'Light up your Nook',
+    loginIdentifierLabel: 'Username or Email',
+    loginPasswordLabel: 'Password',
+    loginForgotPassword: 'Forgot password?',
+    loginEnterBtn: 'ENTER NOOK',
+    loginLoadingBtn: 'LOGGING IN...',
+    loginFollowUs: 'Follow us on',
+    loginTagline: 'FIND YOUR SPACE. CREATE YOUR STORY.',
+    loginValidationRequired: 'Please enter username or email and password.',
+    loginInvalidCredentials: 'Invalid username or password.',
+    loginNetworkError: 'Cannot connect to server. Please check your connection.',
 
     // Packages Management
     editPackageTitle: 'Edit Package Details',
@@ -2291,6 +2395,10 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     addingProduct: 'Adding Product...',
     productExpiredTooltip: 'Product is expired - not available for sale',
     expiredStatus: 'Expired',
+    loadingProductsFromServer: 'Loading products from server...',
+    failedToSaveProduct: 'Failed to save product to server',
+    failedToUpdateProduct: 'Failed to update product on server',
+    failedToDeleteProduct: 'Failed to delete product from server',
 
     // Workspace & Checkout
     printingLabel: 'Printing',
@@ -2409,102 +2517,102 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     delete: 'امسح',
     filter: 'فلترة',
     export: 'طلّع شيت CSV',
-    actions: 'أكشنز',
-    status: 'الستاتس والحالة',
-    active: 'شغال وأكتيف',
-    inactive: 'مش شغال / مقفول',
-    all: 'كله',
-    view: 'بص عليه',
-    phone: 'رقم الموبايل',
-    email: 'الإيميل',
-    fullName: 'الاسم كامل',
+    actions: 'الإجراءات',
+    status: 'الحالة',
+    active: 'نشط',
+    inactive: 'غير نشط',
+    all: 'الكل',
+    view: 'عرض',
+    phone: 'رقم الهاتف',
+    email: 'البريد الإلكتروني',
+    fullName: 'الاسم بالكامل',
     date: 'التاريخ',
-    time: 'الساعة كام',
+    time: 'الوقت',
     price: 'السعر (ج.م)',
-    notes: 'نوتس وملاحظات',
-    noData: 'مفيش أي داتا متسجلة هنا خالص.',
-    submit: 'أكد وتمام',
-    loading: 'ثانية واحدة بنحمّل...',
+    notes: 'ملاحظات',
+    noData: 'لا توجد بيانات مسجلة هنا حالياً.',
+    submit: 'تأكيد',
+    loading: 'جاري التحميل...',
     currency: 'ج.م',
-    main: 'الهوم',
-    dashboard: 'الداشبورد',
-    management: 'الإدارة والتحكم',
-    other: 'حاجات تانية',
+    main: 'الرئيسية',
+    dashboard: 'لوحة التحكم',
+    management: 'الإدارة',
+    other: 'أخرى',
 
     // 1. Workspace
-    workspace: 'الورك سبيس',
-    addStudent: 'ضيف ستيودنت جديد',
-    addStudentDesc: 'سجل ستيودنت جديد عندك في سيستم الورك سبيس',
-    checkInStudent: 'تشيك إن لستيودنت',
-    checkInStudentDesc: 'دخل بيانات الستيودنت وتفاصيل السيشن بتاعته.',
-    studentInformation: '1. بيانات الستيودنت',
-    sessionAndBilling: '2. السيشن والحساب',
-    studentName: 'اسم الستيودنت',
+    workspace: 'مساحة العمل',
+    addStudent: 'إضافة طالب جديد',
+    addStudentDesc: 'تسجيل طالب جديد في نظام مساحة العمل',
+    checkInStudent: 'تسجيل دخول طالب',
+    checkInStudentDesc: 'أدخل بيانات الطالب وتفاصيل جلسته.',
+    studentInformation: '1. بيانات الطالب',
+    sessionAndBilling: '2. تفاصيل الجلسة والحساب',
+    studentName: 'اسم الطالب',
     whatsapp: 'رقم الواتساب',
-    sameAsPhone: 'هو هو نفس رقم الموبايل',
+    sameAsPhone: 'مطابق لرقم الهاتف',
     faculty: 'الكلية أو التخصص',
-    printing: 'برنت ورق (عدد الورق)',
+    printing: 'طباعة مستندات (عدد الأوراق)',
     wifi: 'الواي فاي',
-    wifiVoucher: 'فاوتشر / كود الواي فاي',
-    extraServices: '3. سيرفيسز وحركات إضافية',
-    pickSpecificDate: 'نقّي تاريخ معين:',
-    noStudentsFound: 'ملقناش أي ستيودنت بالبحث أو التاريخ ده.',
-    wallet: 'الواليت (ج.م)',
+    wifiVoucher: 'قسيمة الواي فاي',
+    extraServices: '3. الخدمات الإضافية',
+    pickSpecificDate: 'اختر تاريخاً محدداً:',
+    noStudentsFound: 'لم يتم العثور على أي طالب مطابق للبحث أو التاريخ.',
+    wallet: 'المحفظة (ج.م)',
     egp: 'ج.م',
     papers: 'ورقة',
-    blacklistAlert: 'خد بالك: الستيودنت ده محطوط في البلاك ليست عشان عامل دوشة قبل كده!',
-    checkIn: 'وقت التشيك إن',
-    expectedCheckout: 'هيعمل تشيك أوت إمتى؟',
-    newSession: 'سيشن جديدة',
-    standardHourlyRate: 'سعر الساعة العادي',
-    usePackage: 'خصم من الباكيدج',
-    deductFromHours: 'اخصم من ساعات الباكيدج بتاعته',
-    coupon: 'بروموكود ديسكاونت',
-    applyDiscountCode: 'طبّق كود الخصم',
-    selectPackageCoupon: 'اختار الكوبون أو الباكيدج',
-    sessionPrice: 'سعر السيشن (ج.م)',
-    sessionPricePlaceholder: 'مثلاً: 40',
-    selectPackage: 'اختار الباكيدج المشترك فيها',
-    couponCode: 'كود البروموكود',
-    enterCouponPlaceholder: 'اكتب كود البروموكود هنا',
-    confirmCheckIn: 'يلا تشيك إن',
-    showStudents: 'الستيودنتس اللي منورنا',
-    showStudentsDesc: 'دليل وقايمة الستيودنتس المسجلين واشتراكاتهم',
-    activeStudentsTitle: 'الستيودنتس اللي موجودين',
-    activeStudentsSubtitle: 'قايمة بالناس اللي قاعدة في الورك سبيس دلوقتي',
-    allStudentsDirectory: 'دليل جميع الستيودنتس',
-    registerNewStudentBtn: 'تسجيل ستيودنت جديد',
+    blacklistAlert: 'تنبيه: هذا الطالب مدرج في القائمة السوداء بسبب مخالفات سابقة!',
+    checkIn: 'وقت تسجيل الدخول',
+    expectedCheckout: 'وقت المغادرة المتوقع',
+    newSession: 'جلسة جديدة',
+    standardHourlyRate: 'سعر الساعة القياسي',
+    usePackage: 'خصم من الباقة',
+    deductFromHours: 'خصم من رصيد ساعات الباقة',
+    coupon: 'كود خصم',
+    applyDiscountCode: 'تطبيق كود الخصم',
+    selectPackageCoupon: 'اختر القسيمة أو الباقة',
+    sessionPrice: 'سعر الجلسة (ج.م)',
+    sessionPricePlaceholder: 'مثال: 40',
+    selectPackage: 'اختر الباقة المشترك بها',
+    couponCode: 'كود الخصم',
+    enterCouponPlaceholder: 'أدخل كود الخصم هنا',
+    confirmCheckIn: 'تأكيد تسجيل الدخول',
+    showStudents: 'سجل الطلاب',
+    showStudentsDesc: 'دليل وقائمة الطلاب المسجلين واشتراكاتهم',
+    activeStudentsTitle: 'الطلاب المتواجدون حالياً',
+    activeStudentsSubtitle: 'قائمة بالمتواجدين في مساحة العمل حالياً',
+    allStudentsDirectory: 'دليل جميع الطلاب',
+    registerNewStudentBtn: 'تسجيل طالب جديد',
     contactInfo: 'بيانات التواصل',
     collegeAndFaculty: 'الكلية والجامعة',
-    packageAndPlan: 'الباكيدج والاشتراك',
+    packageAndPlan: 'الباقة والاشتراك',
     visitsAndActivity: 'الزيارات والنشاط',
     statusOffline: 'غير متواجد',
-    totalRegisteredStudents: 'إجمالي الستيودنتس المسجلين',
-    packageSubscribers: 'مشتركي الباكيدجات',
-    registerStudentTitle: 'تسجيل ستيودنت جديد في الدليل',
-    registerStudentSubtitle: 'إضافة بيانات الستيودنت لقاعدة البيانات والدليل العام',
-    insideRightNow: 'مين منورنا دلوقتي؟',
-    avgSessionTitle: 'متوسط وقت القعدة (السيشن)',
-    todayCheckinsTitle: 'تشيك إن النهارده',
-    checkoutsTodayTitle: 'تشيك أوت النهارده',
-    workspaceHistory: 'هيستوري الورك سبيس',
-    cateringColumn: 'الكافيه والمشروبات',
-    actionsColumn: 'الأكشنز',
+    totalRegisteredStudents: 'إجمالي الطلاب المسجلين',
+    packageSubscribers: 'مشتركو الباقات',
+    registerStudentTitle: 'تسجيل طالب جديد في الدليل',
+    registerStudentSubtitle: 'إضافة بيانات الطالب إلى قاعدة البيانات والدليل العام',
+    insideRightNow: 'المتواجدون الآن',
+    avgSessionTitle: 'متوسط مدة الجلسة',
+    todayCheckinsTitle: 'تسجيلات دخول اليوم',
+    checkoutsTodayTitle: 'تسجيلات مغادرة اليوم',
+    workspaceHistory: 'سجل مساحة العمل',
+    cateringColumn: 'المقصف والمشروبات',
+    actionsColumn: 'الإجراءات',
     costColumn: 'التكلفة (ج.م)',
-    checkedOutStatus: 'عمل تشيك أوت وخلّص',
-    statusActive: 'قاعد جوه',
-    statusLeft: 'مشي خلاص',
-    statusBlocked: 'متبلك في البلاك ليست',
-    blockStudentBtn: 'بلك الستيودنت',
-    blockConfirmTitle: 'هتبلك الستيودنت ده وتنزله بلاك ليست؟',
-    blockReasonLabel: 'متبلك ليه؟ (السبب)',
-    blockReasonPlaceholder: 'اكتب السبب هنا (مثلاً: عامل دوشة متكررة، مدفعش الحساب، كسر القواعد...)',
-    confirmBlockBtn: 'بلكه ووديه البلاك ليست',
-    unblockBtn: 'فك البلوك عنه',
-    blockedDate: 'تاريخ التبليك',
+    checkedOutStatus: 'مكتمل (مغادر)',
+    statusActive: 'نشط',
+    statusLeft: 'مغادر',
+    statusBlocked: 'محظور في القائمة السوداء',
+    blockStudentBtn: 'حظر الطالب',
+    blockConfirmTitle: 'هل ترغب في حظر هذا الطالب وإدراجه في القائمة السوداء؟',
+    blockReasonLabel: 'سبب الحظر',
+    blockReasonPlaceholder: 'اكتب سبب الحظر هنا (مثلاً: تكرار الإزعاج، عدم سداد المستحقات، مخالفة اللائحة...)',
+    confirmBlockBtn: 'تأكيد الحظر والإدراج',
+    unblockBtn: 'إلغاء الحظر',
+    blockedDate: 'تاريخ الحظر',
     reason: 'السبب',
-    filterText: 'فلترة',
-    addBtn: 'ضيف',
+    filterText: 'تصفية',
+    addBtn: 'إضافة',
     checkOutBtn: 'تشيك أوت',
     newStudentCheckInBtn: 'تشيك إن لستيودنت جديد',
     searchStudentOrFaculty: 'دور باسم الستيودنت أو الكلية...',
@@ -2582,6 +2690,7 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     configureBookingDetails: 'ظبط ديتيلز الحجز والمعدات المطلوبة.',
     searchClassrooms: 'دور على رومات، إنستراكتورز...',
     statusAll: 'الحالة: كله',
+    statusInSession: 'مشغولة حالياً',
     statusScheduled: 'محجوزة',
     statusAvailable: 'فاضية وجاهزة',
     statusCompleted: 'خلصت خلاص',
@@ -2683,6 +2792,14 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     noAdditionalPaymentRequired: 'مفيش أي مبالغ مستحقة الدفع',
     completeSessionAndFreeRoom: 'إتمام السيشن وتحرير الروم',
     selectBtn: 'اختيار',
+    loadingClassrooms: 'جارٍ تحميل بيانات القاعات...',
+    failedToLoadClassrooms: 'فشل تحميل بيانات القاعات',
+    failedToCreateBooking: 'فشل إنشاء الحجز',
+    failedToCheckout: 'فشل إنهاء حجز القاعة',
+    bookingCreatedSuccess: 'تم إنشاء الحجز بنجاح',
+    bookingUpdatedSuccess: 'تم تحديث الحجز بنجاح',
+    bookingDeletedSuccess: 'تم إلغاء الحجز بنجاح',
+    checkoutSuccess: 'تم إنهاء الجلسة وتسوية الحساب بنجاح',
 
     // Checkout & Shared Modals
     quickAdd: 'ضيف سريعة',
@@ -2917,11 +3034,11 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     ratesAndTiming: 'الموعد والتوقيت',
 
     // 6. Details
-    membersInfo: 'الستيودنتس والديتيلز',
-    addDiscount: 'ضيف ديسكاونت',
-    addDiscountDesc: 'اعمل كود ديسكاونت أو عروض خاصة للستيودنتس',
-    discountCode: 'كود الديسكاونت',
-    discountPercent: 'نسبة الديسكاونت (%)',
+    membersInfo: 'السجلات والتفاصيل',
+    addDiscount: 'أكواد الخصم والعروض',
+    addDiscountDesc: 'إنشاء كود خصم أو عروض خاصة للطلاب',
+    discountCode: 'كود الخصم',
+    discountPercent: 'نسبة الخصم (%)',
     saveDiscount: 'سيف كود الديسكاونت',
     showColleges: 'عرض الكليات',
     showCollegesDesc: 'دليل الكليات والجامعات المتعاقد معها',
@@ -2931,8 +3048,8 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     showInstructorsDesc: 'قائمة الإنستراكتورز والمدربين المعتمدين في المساحة',
     instructorName: 'اسم الإنستراكتور',
     specialization: 'التخصص / المجال',
-    discountsAndPromoCodes: 'أكواد الديسكاونت والعروض',
-    discountsPageSubtitle: 'إنشاء أكواد الديسكاونت والعروض الترويجية ومتابعة نسبة الاستخدام والأرباح',
+    discountsAndPromoCodes: 'أكواد الخصم والعروض',
+    discountsPageSubtitle: 'إنشاء أكواد الخصم والعروض الترويجية ومتابعة نسبة الاستخدام والأرباح',
     createPromoCodeBtn: '+ إنشاء كود ديسكاونت جديد',
     searchDiscountsPlaceholder: 'اسيرش بالكود، العنوان، أو النطاق المتاح...',
     activePromoCodes: 'أكواد الديسكاونت النشطة',
@@ -3215,6 +3332,10 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     duePriceHeader: 'السعر المستحق',
     tierDescriptionHeader: 'وصف الشريحة',
     noPricingTiersAdded: 'مفيش شرائح تسعير مضافة',
+    loadingPricingPlans: 'جاري تحميل خطط الأسعار من السيرفر...',
+    loadingRooms: 'جاري تحميل القاعات والمساحات من السيرفر...',
+    loadingPackagePresets: 'جاري تحميل قوالب الباقات من السيرفر...',
+    loadingAccounts: 'جاري تحميل المستخدمين من السيرفر...',
     noPackagePresetsAdded: 'مفيش قوالب باكيدجات مضافة',
     roomCapacityCap: 'فرد',
     egpPerHourShort: 'ج.م / ساعة',
@@ -3279,6 +3400,23 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     validPriceRequired: 'لازم تدخل سعر شريحة الساعات',
     roomNameRequired: 'لازم تدخل اسم الروم أو المساحة',
     packageHoursRequired: 'لازم تحدد عدد ساعات الباكيدج',
+    profileSettingsTab: 'الملف الشخصي والحساب',
+    personalInformation: 'البيانات الشخصية',
+    firstNameLabel: 'الاسم الأول',
+    lastNameLabel: 'اسم العائلة',
+    securityTitle: 'الأمان وكلمة المرور',
+    securitySubtitle: 'إدارة كلمة المرور وتفضيلات الأمان الخاص بك.',
+    currentPasswordLabel: 'كلمة المرور الحالية',
+    newPasswordLabel: 'كلمة المرور الجديدة',
+    confirmNewPasswordLabel: 'تأكيد كلمة المرور الجديدة',
+    updatePasswordBtn: 'تحديث كلمة المرور',
+    sessionManagementTitle: 'إدارة الجلسات',
+    sessionManagementSubtitle: 'مراجعة الجلسات النشطة أو تسجيل الخروج الآمن.',
+    signOutSecurelyBtn: 'تسجيل الخروج الآمن',
+    currentSessionTitle: 'الجلسة الحالية',
+    activeNowBadge: 'نشط الآن',
+    headquartersLocation: 'المقر الرئيسي',
+    systemAdministratorBadge: 'مدير النظام',
 
     // Dashboard Overview
     welcome: 'منور يا باشا، نورت NOOK!',
@@ -3320,6 +3458,9 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     viewSchedule: 'شوف جدول الحجوزات كله',
     inProgress: 'شغالة دلوقتي',
     seatsLabel: 'كرسي',
+    noPeakYet: 'مفيش زحمة لسه',
+    peopleUnit: 'أفراد',
+    loadingDashboard: 'جاري تحميل لوحة التحكم...',
 
     // 9. Packages (Student & Instructor)
     details: 'التفاصيل',
@@ -3457,6 +3598,23 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     twoShiftsRunningWarning: 'مينفعش تفتح شفتين في نفس الوقت! لازم تقفل الشفت الشغال الأول قبل ما تفتح شفت جديد.',
     printShiftSummaryBtn: 'اطبع تقفيلة وتقرير الشفت',
     closingNotesLabel: 'نوتس وملاحظات قفل الشفت:',
+    checkingActiveShift: 'جاري التحقق من الوردية النشطة من السيرفر...',
+    loadingShiftHistory: 'جاري تحميل سجل الورديات من السيرفر...',
+    loadingWorkspaceSessions: 'جاري تحميل جلسات مساحة العمل من السيرفر...',
+    loadingStudentDirectory: 'جاري تحميل دليل الطلاب من السيرفر...',
+
+    // Login & Authentication
+    loginSubtitle: 'نوّر مساحتك في نوك',
+    loginIdentifierLabel: 'اسم المستخدم أو البريد الإلكتروني',
+    loginPasswordLabel: 'كلمة المرور',
+    loginForgotPassword: 'نسيت كلمة المرور؟',
+    loginEnterBtn: 'دخول نوك',
+    loginLoadingBtn: 'جاري تسجيل الدخول...',
+    loginFollowUs: 'تابعنا على',
+    loginTagline: 'اكتشف مساحتك. اصنع قصتك.',
+    loginValidationRequired: 'يرجى إدخال اسم المستخدم أو البريد الإلكتروني وكلمة المرور.',
+    loginInvalidCredentials: 'اسم المستخدم أو كلمة المرور غير صحيحة.',
+    loginNetworkError: 'تعذر الاتصال بالخادم. يرجى التأكد من تشغيل الخادم والشبكة.',
 
     // Packages Management
     editPackageTitle: 'تعديل بيانات الباكيدج',
@@ -3487,6 +3645,10 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     addingProduct: 'ثانية واحدة بنضيف...',
     productExpiredTooltip: 'المنتج ده إكسبايرد ومينفعش يتباع للزبون',
     expiredStatus: 'إكسبايرد (منتهي)',
+    loadingProductsFromServer: 'جاري تحميل المنتجات من الخادم...',
+    failedToSaveProduct: 'فشل حفظ المنتج في السيرفر',
+    failedToUpdateProduct: 'فشل تعديل بيانات المنتج في السيرفر',
+    failedToDeleteProduct: 'فشل حذف المنتج من السيرفر',
 
     // Workspace & Checkout
     printingLabel: 'برنت الورق',
@@ -3600,22 +3762,24 @@ const TRANSLATIONS: Record<Lang, Translations> = {
   providedIn: 'root'
 })
 export class LanguageService {
+  public static readonly LANG_KEY = 'nook_lang';
+
   private static getInitialLang(): Lang {
-    if (typeof localStorage !== 'undefined') {
+    if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem('nook_lang');
+        const saved = localStorage.getItem(LanguageService.LANG_KEY);
         if (saved === 'ar' || saved === 'en') {
           return saved;
         }
-      } catch (e) {}
+      } catch {}
     }
     return 'ar';
   }
 
-  currentLang = signal<Lang>(LanguageService.getInitialLang());
+  readonly currentLang = signal<Lang>(LanguageService.getInitialLang());
 
-  isArabic = computed(() => this.currentLang() === 'ar');
-  t = computed(() => TRANSLATIONS[this.currentLang()]);
+  readonly isArabic = computed(() => this.currentLang() === 'ar');
+  readonly t = computed(() => TRANSLATIONS[this.currentLang()]);
 
   constructor() {
     this.setLanguage(this.currentLang());
@@ -3628,14 +3792,14 @@ export class LanguageService {
 
   setLanguage(lang: Lang): void {
     this.currentLang.set(lang);
-    if (typeof localStorage !== 'undefined') {
+    if (typeof window !== 'undefined') {
+      const dir = lang === 'ar' ? 'rtl' : 'ltr';
+      document.documentElement.setAttribute('dir', dir);
+      document.documentElement.setAttribute('lang', lang);
       try {
-        localStorage.setItem('nook_lang', lang);
-      } catch (e) {}
+        localStorage.setItem(LanguageService.LANG_KEY, lang);
+      } catch {}
     }
-    const dir = lang === 'ar' ? 'rtl' : 'ltr';
-    document.documentElement.setAttribute('dir', dir);
-    document.documentElement.setAttribute('lang', lang);
   }
 
   formatNameLocale(name?: string): string {
@@ -3723,6 +3887,25 @@ export class LanguageService {
     // Normalize corrupted double markers
     str = str.replace(/\b(AM\s+PM|PM\s+AM|AM\s+AM|PM\s+PM)\b/gi, m => m.toUpperCase().startsWith('P') ? 'PM' : 'AM');
     str = str.replace(/(ص\s+م|م\s+ص|ص\s+ص|م\s+م)/g, m => m.startsWith('م') ? 'م' : 'ص');
+
+    // Handle full ISO UTC strings (e.g. 2026-09-07T13:41:33.944)
+    if (str.includes('T')) {
+      const fullIso = str.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(str) ? str : str + 'Z';
+      const d = new Date(fullIso);
+      if (!isNaN(d.getTime())) {
+        let h = d.getHours();
+        const m = String(d.getMinutes()).padStart(2, '0');
+        const marker = h >= 12 ? 'PM' : 'AM';
+        h = h % 12 || 12;
+        const padH = String(h).padStart(2, '0');
+        if (this.isArabic()) {
+          const arMarker = marker === 'PM' ? 'م' : 'ص';
+          return `${padH}:${m} ${arMarker}`;
+        } else {
+          return `${padH}:${m} ${marker}`;
+        }
+      }
+    }
 
     const match = str.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM|ص|م)?/i);
     if (match) {
@@ -3853,6 +4036,18 @@ export class LanguageService {
     const trimmed = dateStr.trim();
     if (!trimmed || trimmed.toUpperCase() === 'N/A' || trimmed === '-') {
       return this.isArabic() ? 'غير محدد' : 'N/A';
+    }
+
+    // Handle ISO strings with 'T'
+    if (trimmed.includes('T')) {
+      const fullIso = trimmed.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(trimmed) ? trimmed : trimmed + 'Z';
+      const d = new Date(fullIso);
+      if (!isNaN(d.getTime())) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return this.formatDateLocale(`${y}-${m}-${day}`);
+      }
     }
 
     if (this.isArabic()) {

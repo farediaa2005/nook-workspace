@@ -417,6 +417,12 @@
       </div>
     </div>
 
+    @if (submissionError()) {
+      <div class="alert-error" style="color: #ef4444; margin: 12px 0; font-weight: 500;">
+        {{ submissionError() }}
+      </div>
+    }
+
     <!-- Bottom Action Bar -->
     <div class="booking-actions-bar">
       <a routerLink="/classroom/show-classroom" class="btn btn--ghost">
@@ -425,10 +431,14 @@
       <button
         type="submit"
         class="btn btn--primary btn-confirm-booking"
-        [disabled]="!isFormValid()"
-        [class.btn--disabled]="!isFormValid()"
+        [disabled]="!isFormValid() || isSubmitting()"
+        [class.btn--disabled]="!isFormValid() || isSubmitting()"
       >
-        {{ t().confirmBooking }}
+        @if (isSubmitting()) {
+          <span>{{ t().processing }}</span>
+        } @else {
+          {{ t().confirmBooking }}
+        }
       </button>
     </div>
   </form>

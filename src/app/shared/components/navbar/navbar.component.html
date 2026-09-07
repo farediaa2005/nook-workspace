@@ -6,12 +6,161 @@
       </svg>
     </button>
 
-    <div class="search">
-      <svg viewBox="0 0 24 24" fill="none">
-        <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
-        <path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-      <input type="text" [placeholder]="t().search" />
+    <!-- Universal Search Bar Container -->
+    <div class="search-container" #searchContainer>
+      <div class="search" [class.search--focused]="isDropdownOpen()" (click)="openSearch()">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none">
+          <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+          <path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+
+        <input
+          #searchInput
+          type="text"
+          [placeholder]="t().search"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="onSearchInput($event)"
+          (focus)="onInputFocus()"
+          (keydown)="onKeyDown($event)"
+          autocomplete="off"
+          spellcheck="false"
+        />
+
+        @if (searchQuery()) {
+          <button type="button" class="search-clear-btn" (click)="clearSearch($event)" title="Clear">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M18 6 6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        } @else {
+          <kbd class="search-kbd" title="Press Ctrl+K to search">Ctrl K</kbd>
+        }
+      </div>
+
+      <!-- Live Search Floating Glassmorphic Dropdown -->
+      @if (isDropdownOpen()) {
+        <div class="search-dropdown" (click)="$event.stopPropagation()">
+          @if (groupedResults().length > 0) {
+            <div class="search-dropdown-scroll">
+              @for (group of groupedResults(); track group.key) {
+                <div class="search-group">
+                  <div class="search-group-header">
+                    <span class="search-group-label">{{ group.label }}</span>
+                    <span class="search-group-badge">{{ group.items.length }}</span>
+                  </div>
+
+                  <div class="search-items-list">
+                    @for (item of group.items; track item.id) {
+                      <div
+                        class="search-item"
+                        [class.search-item--active]="item.id === flatResults()[selectedIndex()]?.id"
+                        (click)="selectItem(item)"
+                        (mouseenter)="onItemHover(item.id)"
+                      >
+                        <div class="search-item-icon search-item-icon--{{ item.icon }}">
+                          @switch (item.icon) {
+                            @case ('student') {
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+                                <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+                              </svg>
+                            }
+                            @case ('room') {
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect width="18" height="18" x="3" y="3" rx="2"/>
+                                <path d="M3 9h18M9 21V9"/>
+                              </svg>
+                            }
+                            @case ('product') {
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17 8h1a4 4 0 1 1 0 8h-1M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/>
+                                <line x1="6" x2="6" y1="2" y2="4"/>
+                                <line x1="10" x2="10" y1="2" y2="4"/>
+                                <line x1="14" x2="14" y1="2" y2="4"/>
+                              </svg>
+                            }
+                            @case ('checkin') {
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                                <circle cx="9" cy="7" r="4"/>
+                                <line x1="19" x2="19" y1="8" y2="14"/>
+                                <line x1="22" x2="16" y1="11" y2="11"/>
+                              </svg>
+                            }
+                            @case ('shift') {
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <polyline points="12 6 12 12 16 14"/>
+                              </svg>
+                            }
+                            @case ('package') {
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="m7.5 4.27 9 5.15M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+                                <path d="m3.3 7 8.7 5 8.7-5M12 22V12"/>
+                              </svg>
+                            }
+                            @case ('dashboard') {
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect width="7" height="9" x="3" y="3" rx="1"/>
+                                <rect width="7" height="5" x="14" y="3" rx="1"/>
+                                <rect width="7" height="9" x="14" y="12" rx="1"/>
+                                <rect width="7" height="5" x="3" y="16" rx="1"/>
+                              </svg>
+                            }
+                            @case ('settings') {
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="3"/>
+                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                              </svg>
+                            }
+                            @default {
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+                              </svg>
+                            }
+                          }
+                        </div>
+
+                        <div class="search-item-info">
+                          <span class="search-item-title">{{ item.title }}</span>
+                          <span class="search-item-sub">{{ item.subtitle }}</span>
+                        </div>
+
+                        @if (item.badge) {
+                          <span class="search-item-badge search-item-badge--{{ item.badgeType || 'neutral' }}">
+                            {{ item.badge }}
+                          </span>
+                        }
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+
+            <!-- Footer Keyboard Legend -->
+            <div class="search-dropdown-footer">
+              <span class="footer-hint"><kbd>↑↓</kbd> {{ isArabic() ? 'للتنقل' : 'Navigate' }}</span>
+              <span class="footer-hint"><kbd>Enter</kbd> {{ isArabic() ? 'للاختيار' : 'Select' }}</span>
+              <span class="footer-hint"><kbd>ESC</kbd> {{ isArabic() ? 'للإغلاق' : 'Close' }}</span>
+            </div>
+          } @else {
+            <div class="search-empty-state">
+              <div class="empty-icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <circle cx="11" cy="11" r="7"/>
+                  <path d="m20 20-3.5-3.5"/>
+                </svg>
+              </div>
+              <p class="empty-title">{{ isArabic() ? 'لم يتم العثور على أي نتائج' : 'No results found' }}</p>
+              <p class="empty-desc">
+                {{ isArabic() ? 'جرّب البحث باسم طالب، رقم هاتف، قاعة، منتج أو قسم' : 'Try searching by student name, phone, room, product or section' }}
+              </p>
+            </div>
+          }
+        </div>
+      }
     </div>
   </div>
 
@@ -34,8 +183,6 @@
         </svg>
       }
     </button>
-
-
 
     <!-- User Profile -->
     <div class="user">

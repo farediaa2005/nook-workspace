@@ -71,6 +71,15 @@
   color-scheme: dark;
   --calendar-picker-filter: invert(0.9) brightness(1.2);
   --calendar-picker-opacity: 0.85;
+
+  /* Compatibility aliases for legacy/sub-component tokens */
+  --card-bg: var(--surface);
+  --bg-subtle: var(--surface-2);
+  --text-main: var(--text);
+  --text-muted: var(--text-dim);
+  --input-bg: var(--surface-2);
+  --primary-accent: var(--yellow);
+  --border-color: var(--border);
 }
 
 /* ---------- الوضع النهاري (light) ---------- */
@@ -115,6 +124,15 @@
   color-scheme: light;
   --calendar-picker-filter: invert(0.15) brightness(0.8);
   --calendar-picker-opacity: 0.75;
+
+  /* Compatibility aliases for legacy/sub-component tokens */
+  --card-bg: var(--surface);
+  --bg-subtle: var(--surface-2);
+  --text-main: var(--text);
+  --text-muted: var(--text-dim);
+  --input-bg: var(--surface);
+  --primary-accent: var(--accent);
+  --border-color: var(--border);
 }
 
 * {
@@ -748,5 +766,10 @@ html[data-theme="dark"] .action-menu-btn--danger {
 html[data-theme="light"] .action-menu-btn--danger {
   color: #dc2626 !important;
 }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 
 

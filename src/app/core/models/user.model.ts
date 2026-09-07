@@ -1,118 +1,9 @@
 /**
- * User and authentication models.
- * Matches backend /api/Auth and /api/Accounts endpoints exactly.
+ * User and account models.
+ * Re-exports authentication models from auth.model.ts and defines account entities.
  */
-
-/** Roles used for authentication and route guard checks */
-export type AuthRole = 'admin' | 'user';
-
-/** Backend UserRole enum values (OpenAPI) */
-export enum UserRole {
-  Admin = 1,
-  Staff = 2,
-  Student = 3,
-  Instructor = 4,
-  Parent = 5
-}
-
-/** Staff role options */
-export enum StaffRole {
-  Admin = 1,
-  Receptionist = 2
-}
-
-/** Authenticated user — stored locally in the frontend */
-export interface AuthUser {
-  id?: string;
-  email: string;
-  name: string;
-  role: AuthRole;
-  avatar?: string;
-  /** JWT access token */
-  token?: string;
-  /** JWT refresh token */
-  refreshToken?: string;
-}
-
-/**
- * Backend login/refresh response DTO.
- * Matches AuthResponseDto from /api/Auth/login and /api/Auth/refresh-token.
- */
-export interface AuthResponseDto {
-  accessToken: string;
-  refreshToken: string;
-  expiresAt?: string;
-  account?: AccountDto;
-  // Fallbacks for compatibility
-  token?: string;
-  accountId?: string;
-  username?: string;
-  email?: string;
-  role?: number;
-  roles?: number[];
-  profileId?: string;
-  avatar?: string;
-}
-
-/** Profile info within MeResponseDto */
-export interface ProfileInfoDto {
-  role: UserRole | number;
-  profileId: string;
-  profileName?: string;
-  extraInfo?: string;
-}
-
-/**
- * Backend /api/Auth/me response DTO.
- * Matches MeResponseDto.
- */
-export interface MeResponseDto {
-  id: string;
-  username: string;
-  email?: string;
-  phoneNumber?: string;
-  isActive: boolean;
-  lastLoginAt?: string;
-  roles?: number[];
-  profiles?: ProfileInfoDto[];
-  avatar?: string;
-  // Fallback alias
-  accountId?: string;
-}
-
-/** Profile detail within MeResponseDto / AccountProfileDto */
-export interface ProfileDetailDto {
-  role: number;
-  profileId: string;
-  profileName?: string;
-  phoneNumber?: string;
-  whatsapp?: string;
-  walletBalance?: number;
-  facultyName?: string;
-  parentName?: string;
-  colour?: string;
-  canBook?: boolean;
-  createdAt?: string;
-}
-
-/** Login request DTO — matches /api/Auth/login */
-export interface LoginRequestDto {
-  identifier: string;
-  password: string;
-  email?: string; // Fallback helper
-}
-
-/** Register request DTO — matches /api/Auth/register */
-export interface RegisterRequestDto {
-  username: string;
-  password: string;
-  email?: string;
-  phoneNumber?: string;
-  name: string;
-  whatsapp?: string;
-  facultyId?: string;
-  parentId?: string;
-}
+export * from './auth.model';
+import { ProfileDetailDto, StaffRole } from './auth.model';
 
 /** Application user — used in settings/user management */
 export interface User {
@@ -138,7 +29,6 @@ export interface StaffUser {
   password?: string;
 }
 
-export type MockUser = StaffUser;
 
 /** Account DTO from backend /api/Accounts */
 export interface AccountDto {

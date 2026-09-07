@@ -48,6 +48,7 @@ export const API_ENDPOINTS = {
     LIST: '/api/Workspaces',
     BY_ID: (id: string) => `/api/Workspaces/${id}`,
     CHECKOUT: (id: string) => `/api/Workspaces/${id}/checkout`,
+    WALK_IN: '/api/Workspaces/walk-in',
     CATERING: (workspaceId: string) => `/api/workspaces/${workspaceId}/catering`,
     CATERING_ITEM: (workspaceId: string, itemId: string) =>
       `/api/workspaces/${workspaceId}/catering/${itemId}`,
@@ -166,11 +167,14 @@ export const API_ENDPOINTS = {
     CLOSE: (id: string) => `/api/Shifts/${id}/close`,
     ITEMS: (id: string) => `/api/Shifts/${id}/items`,
     ITEM_BY_ID: (shiftId: string, itemId: string) => `/api/Shifts/${shiftId}/items/${itemId}`,
+    VERIFY_PASSWORD: (shiftId?: string) => (shiftId ? `/api/Shifts/${shiftId}/verify-password` : '/api/Shifts/verify-password'),
   },
 
   STUDENTS: {
     LIST: '/api/Students',
     BY_ID: (id: string) => `/api/Students/${id}`,
+    CHECKOUT: (id: string) => `/api/Students/${id}/checkout`,
+    SEARCH: (term: string) => `/api/Students?search=${encodeURIComponent(term)}`,
   },
 
   PRODUCTS: {
@@ -195,4 +199,58 @@ export const API_ENDPOINTS = {
     TOPUP_REQUEST_BY_ID: (id: string) => `/api/Wallet/topup/requests/${id}`,
     REVIEW_TOPUP_REQUEST: (id: string) => `/api/Wallet/topup/requests/${id}/review`,
   },
+
+  FLOOR_PLANS: {
+    LIST: '/api/FloorPlans',
+    BY_ID: (id: string) => `/api/FloorPlans/${id}`,
+  },
+
+  SEAT_ELEMENTS: {
+    LIST_BY_FLOOR_PLAN: (floorPlanId: string) => `/api/SeatElements/floor-plan/${floorPlanId}`,
+    BY_ID: (id: string) => `/api/SeatElements/${id}`,
+    CREATE: '/api/SeatElements',
+    SYNC: (floorPlanId: string) => `/api/SeatElements/sync/${floorPlanId}`,
+  },
+
+  SEAT_ELEMENT_TYPES: {
+    LIST: '/api/SeatElementTypes',
+    BY_ID: (id: string) => `/api/SeatElementTypes/${id}`,
+    IMAGE: (id: string) => `/api/SeatElementTypes/${id}/image`,
+  },
+
+  MOBILE_INSTRUCTOR: {
+    PROFILE: '/api/mobile/instructor/profile',
+    ROOMS: '/api/mobile/instructor/rooms',
+    ROOM_AVAILABILITY: (roomId: string) => `/api/mobile/instructor/rooms/${roomId}/availability`,
+    CLASSROOMS: '/api/mobile/instructor/classrooms',
+    CLASSROOM_BY_ID: (id: string) => `/api/mobile/instructor/classrooms/${id}`,
+    RESERVATIONS: '/api/mobile/instructor/reservations',
+    RESERVATION_BY_ID: (id: string) => `/api/mobile/instructor/reservations/${id}`,
+    PACKAGES: '/api/mobile/instructor/packages',
+    PRICING_PLANS: '/api/mobile/instructor/pricing-plans',
+    PACKAGE_PRICING_PLANS: '/api/mobile/instructor/package-pricing-plans',
+    NOTIFICATIONS: '/api/mobile/instructor/notifications',
+    READ_NOTIFICATION: (id: string) => `/api/mobile/instructor/notifications/${id}/read`,
+    READ_ALL_NOTIFICATIONS: '/api/mobile/instructor/notifications/read-all',
+  },
+
+  MOBILE_STUDENT: {
+    PROFILE: '/api/mobile/student/profile',
+    ROOMS: '/api/mobile/student/rooms',
+    ROOM_FLOOR_PLAN: (roomId: string) => `/api/mobile/student/rooms/${roomId}/floor-plan`,
+    BOOKINGS: '/api/mobile/student/bookings',
+    BOOKING_BY_ID: (id: string) => `/api/mobile/student/bookings/${id}`,
+    CANCEL_BOOKING: (id: string) => `/api/mobile/student/bookings/${id}/cancel`,
+    WALLET_BALANCE: '/api/mobile/student/wallet/balance',
+    WALLET_TRANSACTIONS: '/api/mobile/student/wallet/transactions',
+    WALLET_TOPUP: '/api/mobile/student/wallet/topup',
+    WALLET_TOPUP_REQUESTS: '/api/mobile/student/wallet/topup-requests',
+    PACKAGES: '/api/mobile/student/packages',
+    PRICING_PLANS: '/api/mobile/student/pricing-plans',
+    PACKAGE_PRICING_PLANS: '/api/mobile/student/package-pricing-plans',
+    NOTIFICATIONS: '/api/mobile/student/notifications',
+    READ_NOTIFICATION: (id: string) => `/api/mobile/student/notifications/${id}/read`,
+    READ_ALL_NOTIFICATIONS: '/api/mobile/student/notifications/read-all',
+  },
 } as const;
+

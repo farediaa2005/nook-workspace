@@ -8,8 +8,18 @@ export interface BackendStudentDto {
   id: string;
   name: string;
   phoneNumber?: string | null;
+  phone?: string | null;
   whatsapp?: string | null;
   canBook: boolean;
+  walletBalance?: number;
+  walletAmount?: number;
+  roomId?: string | null;
+  roomName?: string | null;
+  zone?: number;
+  addedBy?: string | null;
+  status?: string | null;
+  isBlocked?: boolean;
+  blockReason?: string | null;
   facultyName?: string | null;
   parentName?: string | null;
 }
@@ -18,6 +28,10 @@ export interface CreateStudentPayload {
   name: string;
   phoneNumber?: string | null;
   whatsapp?: string | null;
+  roomId?: string | null;
+  zone?: number;
+  addedBy?: string | null;
+  printingPrice?: number;
   facultyId?: string | null;
   parentId?: string | null;
 }
@@ -29,6 +43,25 @@ export interface UpdateStudentPayload {
   facultyId?: string | null;
   parentId?: string | null;
   canBook?: boolean;
+}
+
+export interface StudentCheckoutPayload {
+  studentId: string;
+  checkOutTime?: string;
+  durationHours?: number;
+  totalCost?: number;
+  amountReceived?: number;
+  walletAmount?: number;
+  paymentMethod?: string;
+  shiftId?: string;
+}
+
+export interface StudentCheckoutResponse {
+  id: string;
+  status: string;
+  walletAmount: number;
+  totalCost: number;
+  amountReceived: number;
 }
 
 @Injectable({
@@ -50,6 +83,20 @@ export class StudentApiService extends BaseApiService {
     );
   }
 
+  /** Search students by term with autocomplete and blacklist cross-referencing — GET /api/Students?search={term} */
+  searchStudents(term: string): Observable<BackendStudentDto[]> {
+    return this.get<ApiResponse<BackendStudentDto[] | { items: BackendStudentDto[] }>>(
+      API_ENDPOINTS.STUDENTS.SEARCH(term)
+    ).pipe(
+      map(res => {
+        if (Array.isArray(res.data)) {
+          return res.data;
+        }
+        return (res.data as { items: BackendStudentDto[] })?.items ?? [];
+      })
+    );
+  }
+
   /** Get student by ID */
   getStudentById(id: string): Observable<BackendStudentDto> {
     return this.get<ApiResponse<BackendStudentDto>>(API_ENDPOINTS.STUDENTS.BY_ID(id)).pipe(
@@ -57,9 +104,19 @@ export class StudentApiService extends BaseApiService {
     );
   }
 
-  /** Create a new student */
+  /** Create a new student or start active room session — POST /api/Students */
   createStudent(payload: CreateStudentPayload): Observable<BackendStudentDto> {
     return this.post<ApiResponse<BackendStudentDto>>(API_ENDPOINTS.STUDENTS.LIST, payload).pipe(
+      map(extractData)
+    );
+  }
+
+  /** Student checkout with wallet balance & debt persistence — POST /api/Students/{id}/checkout */
+  checkoutStudent(id: string, payload: StudentCheckoutPayload): Observable<StudentCheckoutResponse> {
+    return this.post<ApiResponse<StudentCheckoutResponse>>(
+      API_ENDPOINTS.STUDENTS.CHECKOUT(id),
+      payload
+    ).pipe(
       map(extractData)
     );
   }

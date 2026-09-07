@@ -10,8 +10,9 @@ import {
   UpdateClassroomDto,
   CheckoutClassroomDto,
   CateringItemDto,
-  AddCateringItemDto
-} from '../../models/classroom-session.model';
+  AddCateringItemDto,
+  UpdateCateringItemDto
+} from '../../models/classroom.model';
 
 @Injectable({
   providedIn: 'root'
@@ -49,11 +50,11 @@ export class ClassroomApiService extends BaseApiService {
   }
 
   /** Create a new classroom booking/session — POST /api/Classrooms */
-  createClassroom(dto: CreateClassroomDto | any): Observable<ClassroomDto> {
+  createClassroom(dto: CreateClassroomDto): Observable<ClassroomDto> {
     const payload: Record<string, any> = {
       date: dto.date || dto.bookingDate || new Date().toISOString(),
-      timeFrom: dto.timeFrom || (dto.startTime ? new Date().toISOString() : new Date().toISOString()),
-      timeTo: dto.timeTo || (dto.endTime ? new Date().toISOString() : null),
+      timeFrom: dto.timeFrom || new Date().toISOString(),
+      timeTo: dto.timeTo || null,
       roomId: dto.roomId || null,
       printing: dto.printing ?? dto.printingCharges ?? 0,
       discount: dto.discount ?? dto.discountPercent ?? 0,
@@ -63,7 +64,8 @@ export class ClassroomApiService extends BaseApiService {
       type: dto.type ?? 1,
       activity: dto.activity || null,
       note: dto.note || dto.instructorName || null,
-      instructorId: dto.instructorId || null
+      instructorId: dto.instructorId || null,
+      instructorName: dto.instructorName || dto.note || null
     };
 
     return this.post<ApiResponse<ClassroomDto>>(API_ENDPOINTS.CLASSROOMS.LIST, payload).pipe(
@@ -72,11 +74,11 @@ export class ClassroomApiService extends BaseApiService {
   }
 
   /** Update classroom session — PUT /api/Classrooms/{id} */
-  updateClassroom(id: string, dto: UpdateClassroomDto | any): Observable<ClassroomDto> {
+  updateClassroom(id: string, dto: UpdateClassroomDto): Observable<ClassroomDto> {
     const payload: Record<string, any> = {
       date: dto.date || null,
-      timeFrom: dto.timeFrom || (dto.startTime ? new Date().toISOString() : null),
-      timeTo: dto.timeTo || (dto.endTime ? new Date().toISOString() : null),
+      timeFrom: dto.timeFrom || null,
+      timeTo: dto.timeTo || null,
       roomId: dto.roomId || null,
       printing: dto.printing ?? 0,
       discount: dto.discount ?? 0,
@@ -86,8 +88,9 @@ export class ClassroomApiService extends BaseApiService {
       discountType: dto.discountType ?? null,
       type: dto.type ?? 1,
       activity: dto.activity || null,
-      note: dto.note || null,
-      instructorId: dto.instructorId || null
+      note: dto.note || (dto as any).instructorName || null,
+      instructorId: dto.instructorId || null,
+      instructorName: (dto as any).instructorName || dto.note || null
     };
 
     return this.put<ApiResponse<ClassroomDto>>(API_ENDPOINTS.CLASSROOMS.BY_ID(id), payload).pipe(
@@ -96,7 +99,7 @@ export class ClassroomApiService extends BaseApiService {
   }
 
   /** Checkout a classroom session — PUT /api/Classrooms/{id}/checkout */
-  checkoutClassroom(id: string, dto: CheckoutClassroomDto | any): Observable<ClassroomDetailDto> {
+  checkoutClassroom(id: string, dto: CheckoutClassroomDto): Observable<ClassroomDetailDto> {
     const payload: Record<string, any> = {
       timeTo: dto.timeTo || new Date().toISOString(),
       reservationCost: dto.reservationCost ?? dto.finalAmount ?? dto.roomRate ?? 0,
@@ -129,6 +132,13 @@ export class ClassroomApiService extends BaseApiService {
   /** Add catering item to classroom session — POST /api/classrooms/{classroomId}/catering */
   addCateringItem(classroomId: string, item: AddCateringItemDto): Observable<any> {
     return this.post<ApiResponse<any>>(API_ENDPOINTS.CLASSROOMS.CATERING(classroomId), item).pipe(
+      map(extractData)
+    );
+  }
+
+  /** Update catering item in a classroom session — PUT /api/classrooms/{classroomId}/catering/{id} */
+  updateCateringItem(classroomId: string, itemId: string, item: UpdateCateringItemDto): Observable<any> {
+    return this.put<ApiResponse<any>>(API_ENDPOINTS.CLASSROOMS.CATERING_ITEM(classroomId, itemId), item).pipe(
       map(extractData)
     );
   }

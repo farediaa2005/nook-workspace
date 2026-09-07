@@ -1,5 +1,6 @@
 import { Component, inject, signal, computed, ChangeDetectorRef, OnInit, HostListener } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { LanguageService } from '../../../core/services/language.service';
 import { PackageService } from '../../../core/services/package.service';
 import {
@@ -12,6 +13,7 @@ import {
 } from '../../../core/models/package.model';
 
 import { SettingsService } from '../../../core/services/settings.service';
+import { getTodayDateISO, addDaysToDateISO } from '../../../core/utils/date-time.util';
 
 @Component({
   selector: 'app-show-student-package',
@@ -25,13 +27,23 @@ export class ShowStudentPackageComponent implements OnInit {
   protected settingsService = inject(SettingsService);
   private cdr = inject(ChangeDetectorRef);
 
+  private route = inject(ActivatedRoute);
+
   ngOnInit(): void {
     this.packageService.syncPackagesFromBackend();
+    this.route.queryParams.subscribe(params => {
+      if (params['id']) {
+        const pkg = this.packageService.getPackageById(params['id']);
+        if (pkg) {
+          this.openDrawer(pkg);
+        }
+      }
+    });
   }
 
   t = this.langService.t;
   isArabic = this.langService.isArabic;
-  todayDate = signal<string>(new Date().toISOString().split('T')[0]);
+  todayDate = signal<string>(getTodayDateISO());
 
   // Search & Filter State
   searchQuery = signal('');
@@ -102,10 +114,8 @@ export class ShowStudentPackageComponent implements OnInit {
 
   // Section 03: Activation & Validity (Custom as first option)
   validityOption = signal<number | 'custom'>('custom');
-  sellStartDate = signal<string>(new Date().toISOString().split('T')[0]);
-  sellExpiryDate = signal<string>(
-    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-  );
+  sellStartDate = signal<string>(getTodayDateISO());
+  sellExpiryDate = signal<string>(addDaysToDateISO(30));
 
   sellValidityDays = computed(() => {
     try {
@@ -340,7 +350,7 @@ export class ShowStudentPackageComponent implements OnInit {
   // SELL MODAL HANDLERS
   // ----------------------------------------------------
   openSellModal(): void {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayDateISO();
     this.todayDate.set(today);
     this.memberSearchQuery.set('');
     this.selectedMembers.set([]);
@@ -354,9 +364,7 @@ export class ShowStudentPackageComponent implements OnInit {
     this.validityOption.set('custom');
 
     this.sellStartDate.set(today);
-    const exp = new Date();
-    exp.setDate(exp.getDate() + 30);
-    this.sellExpiryDate.set(exp.toISOString().split('T')[0]);
+    this.sellExpiryDate.set(addDaysToDateISO(30));
 
     this.isDiscountOpen.set(false);
     this.discountType.set('fixed');
@@ -407,9 +415,7 @@ export class ShowStudentPackageComponent implements OnInit {
       this.validityOption.set('custom');
     } else {
       this.validityOption.set(preset.days);
-      const start = new Date(this.sellStartDate() || new Date());
-      start.setDate(start.getDate() + preset.days);
-      this.sellExpiryDate.set(start.toISOString().split('T')[0]);
+      this.sellExpiryDate.set(addDaysToDateISO(preset.days, this.sellStartDate()));
     }
   }
 
@@ -417,9 +423,7 @@ export class ShowStudentPackageComponent implements OnInit {
     this.sellStartDate.set(dateVal);
     const opt = this.validityOption();
     if (typeof opt === 'number') {
-      const start = new Date(dateVal || new Date());
-      start.setDate(start.getDate() + opt);
-      this.sellExpiryDate.set(start.toISOString().split('T')[0]);
+      this.sellExpiryDate.set(addDaysToDateISO(opt, dateVal));
     } else {
       if (this.sellExpiryDate() < dateVal) {
         this.sellExpiryDate.set(dateVal);
@@ -466,6 +470,46 @@ export class ShowStudentPackageComponent implements OnInit {
       return;
     }
 
+    if (this.sellExpiryDate() < this.sellStartDate()) {
+      this.sellMemberError.set(
+        this.isArabic()
+          ? 'تاريخ الانتهاء لا يمكن أن يكون قبل تاريخ بداية الباقة'
+          : 'Expiry date cannot be before start date'
+      );
+      return;
+    }
+
+    if (this.effectiveHours() <= 0 || isNaN(this.effectiveHours())) {
+      this.sellMemberError.set(
+        this.isArabic()
+          ? 'عدد ساعات الباقة يجب أن يكون أكبر من صفر'
+          : 'Package hours must be greater than zero'
+      );
+      return;
+    }
+
+    if (this.finalTotal() < 0 || isNaN(this.finalTotal())) {
+      this.sellMemberError.set(
+        this.isArabic()
+          ? 'إجمالي تكلفة الباقة لا يمكن أن يكون بالسالب'
+          : 'Total package cost cannot be negative'
+      );
+      return;
+    }
+
+    // Enforce 1 active package business rule
+    for (const member of members) {
+      const activePkg = this.packageService.getActivePackageForMember(member.id, member.phone, 'student');
+      if (activePkg) {
+        this.sellMemberError.set(
+          this.isArabic()
+            ? `الطالب "${member.nameAr || member.nameEn}" لديه باقة نشطة بالفعل! لا يسمح بالاشتراك في أكثر من باقة نشطة في نفس الوقت.`
+            : `Student "${member.nameEn || member.nameAr}" already has an active package!`
+        );
+        return;
+      }
+    }
+
     if (this.sellPaymentMethod() === 'cash' && this.isCashShort()) {
       this.packageService.showToast(
         this.isArabic() ? 'المبلغ المستلم أقل من الإجمالي المطلوب' : 'Received amount is less than total due',
@@ -501,14 +545,10 @@ export class ShowStudentPackageComponent implements OnInit {
       history: []
     }));
 
-    this.packageService.addPackages(packagesToCreate);
-    this.packageService.showToast(
-      this.isArabic()
-        ? `تم تفعيل ${packagesToCreate.length} باقة بنجاح`
-        : `Successfully activated ${packagesToCreate.length} package(s)`,
-      'success'
-    );
-    this.closeSellModal();
+    const ok = this.packageService.addPackages(packagesToCreate);
+    if (ok) {
+      this.closeSellModal();
+    }
   }
 
   // ----------------------------------------------------
@@ -587,7 +627,7 @@ export class ShowStudentPackageComponent implements OnInit {
     }
 
     const now = new Date();
-    const dateFormatted = `${now.toISOString().split('T')[0]} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const dateFormatted = `${getTodayDateISO()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
     this.packageService.recordSessionUsage(pkg.id, {
       date: dateFormatted,
@@ -676,12 +716,31 @@ export class ShowStudentPackageComponent implements OnInit {
     const pkg = this.editingPackage();
     if (!pkg) return;
 
+    const hours = Number(this.editAllocatedHours());
+    const cost = Number(this.editCost());
+    const expiry = this.editExpiryDate();
+
+    if (isNaN(hours) || hours <= 0) {
+      this.packageService.showToast(this.isArabic() ? 'عدد الساعات غير صالح (يجب أن يكون أكبر من 0)' : 'Invalid hours amount (must be > 0)', 'error');
+      return;
+    }
+
+    if (isNaN(cost) || cost < 0) {
+      this.packageService.showToast(this.isArabic() ? 'السعر غير صالح (لا يمكن أن يكون بالسالب)' : 'Invalid cost (cannot be negative)', 'error');
+      return;
+    }
+
+    if (expiry && pkg.purchaseDate && expiry < pkg.purchaseDate) {
+      this.packageService.showToast(this.isArabic() ? 'تاريخ الانتهاء لا يمكن أن يكون قبل تاريخ الشراء' : 'Expiry date cannot be before purchase date', 'error');
+      return;
+    }
+
     this.packageService.updatePackage(pkg.id, {
-      packageNameAr: this.editPackageName(),
-      packageNameEn: this.editPackageName(),
-      allocatedHours: Number(this.editAllocatedHours()) || pkg.allocatedHours,
-      cost: Number(this.editCost()) || pkg.cost,
-      expiryDate: this.editExpiryDate() || pkg.expiryDate,
+      packageNameAr: this.editPackageName().trim() || pkg.packageNameAr,
+      packageNameEn: this.editPackageName().trim() || pkg.packageNameEn,
+      allocatedHours: hours,
+      cost: cost,
+      expiryDate: expiry || pkg.expiryDate,
       notes: this.editNotes()
     });
 

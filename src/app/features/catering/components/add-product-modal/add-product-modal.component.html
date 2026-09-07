@@ -16,6 +16,12 @@
 
     <!-- Form Content -->
     <form (submit)="submitProduct(); $event.preventDefault()" class="modal-form">
+      @if (errorMessage()) {
+        <div class="error-alert" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 0.9rem;">
+          {{ errorMessage() }}
+        </div>
+      }
+
       <!-- Section 1: PRODUCT IDENTITY -->
       <div class="form-section-card">
         <div class="section-header-row">

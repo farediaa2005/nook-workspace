@@ -7,6 +7,7 @@ import { PackageService } from '../../../core/services/package.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { InstructorApiService } from '../../../core/services/api/instructor-api.service';
 import { PackageMemberOption, PaymentMethod, ValidityPresetOption } from '../../../core/models/package.model';
+import { getTodayDateISO, addDaysToDateISO } from '../../../core/utils/date-time.util';
 
 @Component({
   selector: 'app-add-instructor-package',
@@ -24,7 +25,7 @@ export class AddInstructorPackageComponent {
 
   t = this.langService.t;
   isArabic = this.langService.isArabic;
-  todayDate = signal<string>(new Date().toISOString().split('T')[0]);
+  todayDate = signal<string>(getTodayDateISO());
 
   // Quick Add Instructor Modal State
   isQuickAddInstructorModalOpen = signal<boolean>(false);
@@ -95,10 +96,8 @@ export class AddInstructorPackageComponent {
   memberError = signal<string | null>(null);
 
   validityOption = signal<number | 'custom'>('custom');
-  startDate = signal<string>(new Date().toISOString().split('T')[0]);
-  expiryDate = signal<string>(
-    new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-  );
+  startDate = signal<string>(getTodayDateISO());
+  expiryDate = signal<string>(addDaysToDateISO(60));
 
   validityDays = computed(() => {
     try {
@@ -239,9 +238,7 @@ export class AddInstructorPackageComponent {
       this.validityOption.set('custom');
     } else {
       this.validityOption.set(preset.days);
-      const start = new Date(this.startDate() || new Date());
-      start.setDate(start.getDate() + preset.days);
-      this.expiryDate.set(start.toISOString().split('T')[0]);
+      this.expiryDate.set(addDaysToDateISO(preset.days, this.startDate()));
     }
   }
 
@@ -249,9 +246,7 @@ export class AddInstructorPackageComponent {
     this.startDate.set(dateVal);
     const opt = this.validityOption();
     if (typeof opt === 'number') {
-      const start = new Date(dateVal || new Date());
-      start.setDate(start.getDate() + opt);
-      this.expiryDate.set(start.toISOString().split('T')[0]);
+      this.expiryDate.set(addDaysToDateISO(opt, dateVal));
     }
   }
 
@@ -292,6 +287,46 @@ export class AddInstructorPackageComponent {
           : 'Please select at least one instructor or organization'
       );
       return;
+    }
+
+    if (this.expiryDate() < this.startDate()) {
+      this.memberError.set(
+        this.isArabic()
+          ? 'تاريخ الانتهاء لا يمكن أن يكون قبل تاريخ بداية الباقة'
+          : 'Expiry date cannot be before start date'
+      );
+      return;
+    }
+
+    if (this.effectiveHours() <= 0 || isNaN(this.effectiveHours())) {
+      this.memberError.set(
+        this.isArabic()
+          ? 'عدد ساعات الباقة يجب أن يكون أكبر من صفر'
+          : 'Package hours must be greater than zero'
+      );
+      return;
+    }
+
+    if (this.finalTotal() < 0 || isNaN(this.finalTotal())) {
+      this.memberError.set(
+        this.isArabic()
+          ? 'إجمالي تكلفة الباقة لا يمكن أن يكون بالسالب'
+          : 'Total package cost cannot be negative'
+      );
+      return;
+    }
+
+    // Enforce 1 active package rule
+    for (const member of members) {
+      const activePkg = this.packageService.getActivePackageForMember(member.id, member.phone, 'instructor');
+      if (activePkg) {
+        this.memberError.set(
+          this.isArabic()
+            ? `المحاضر "${member.nameAr || member.nameEn}" لديه باقة نشطة بالفعل! لا يسمح بالاشتراك في أكثر من باقة نشطة في نفس الوقت.`
+            : `Instructor "${member.nameEn || member.nameAr}" already has an active package!`
+        );
+        return;
+      }
     }
 
     if (this.paymentMethod() === 'cash') {
@@ -338,8 +373,10 @@ export class AddInstructorPackageComponent {
       history: []
     }));
 
-    this.packageService.addPackages(packagesToCreate);
-    this.router.navigate(['/package/instructor']);
+    const ok = this.packageService.addPackages(packagesToCreate);
+    if (ok) {
+      this.router.navigate(['/package/instructor']);
+    }
   }
 
   openQuickAddInstructorModal(initialName?: string): void {

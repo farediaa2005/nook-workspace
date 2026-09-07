@@ -1,0 +1,15 @@
+{
+  "packageId": "0b1e9398-2a84-465b-94b0-b58793367f28",
+  "originalHours": 15,
+  "updatedHours": 47,
+  "putHttpStatus": 200,
+  "freshGetHttpStatus": 200,
+  "returnedHoursByFreshGet": 47,
+  "purchaseDate": "2026-09-07T00:00:00",
+  "dataPersistedInDb": "YES",
+  "mockDataUsed": "NO",
+  "localStorageUsed": "YES",
+  "sessionStorageUsed": "NO",
+  "fallbackDataUsed": "NO",
+  "finalStatus": "PASS"
+}

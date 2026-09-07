@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -6,9 +6,11 @@ import { ShiftService } from '../../../core/services/shift.service';
 import { LanguageService } from '../../../core/services/language.service';
 import { ShiftHistoryItem } from '../../../core/models/shift.model';
 import { getSafeAvatar } from '../../../core/utils/avatar.util';
+import { exportToCsv } from '../../../core/utils/csv.util';
 import { CustomSelectComponent, SelectOption } from '../../../shared/components/custom-select/custom-select.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 import { DateFilterDropdownComponent, DateFilterOption } from '../../../shared/components/date-filter-dropdown/date-filter-dropdown.component';
+import { getTodayDateISO } from '../../../core/utils/date-time.util';
 
 @Component({
   selector: 'app-search-shift',
@@ -23,7 +25,7 @@ import { DateFilterDropdownComponent, DateFilterOption } from '../../../shared/c
   templateUrl: './search-shift.component.html',
   styleUrl: './search-shift.component.css'
 })
-export class SearchShiftComponent {
+export class SearchShiftComponent implements OnInit {
   private shiftService = inject(ShiftService);
   private langService = inject(LanguageService);
   private router = inject(Router);
@@ -31,8 +33,13 @@ export class SearchShiftComponent {
   t = this.langService.t;
   isArabic = this.langService.isArabic;
   currencyText = computed(() => this.t().currency);
+  isLoadingHistory = this.shiftService.isLoadingHistory;
 
-  readonly todayIso = new Date().toISOString().split('T')[0];
+  ngOnInit(): void {
+    this.shiftService.fetchShiftHistoryFromApi();
+  }
+
+  readonly todayIso = getTodayDateISO();
 
   // Filters State
   searchQuery = signal<string>('');
@@ -159,18 +166,25 @@ export class SearchShiftComponent {
   exportExcel(): void {
     const data = this.filteredList();
     const curr = this.currencyText();
-    const csvContent = 'data:text/csv;charset=utf-8,' +
-      ['Shift ID,Staff,Date,Shift Time,Cash In,Cash Out,Final Total,Variance,Status']
-      .concat(data.map(i => `"${i.id}","${i.staffName}","${i.date}","${i.startTime} - ${i.endTime}",${i.cashIn} ${curr},${i.cashOut} ${curr},${i.finalTotal} ${curr},${i.variance} ${curr},"${i.status}"`))
-      .join('\n');
+    const isAr = this.isArabic();
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `nook_shifts_search_${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const headers = isAr
+      ? ['معرف الوردية', 'الموظف', 'التاريخ', 'فترة الوردية', 'الوارد النقدي', 'المصروفات', 'الرصيد النهائي', 'الفارق', 'الحالة']
+      : ['Shift ID', 'Staff', 'Date', 'Shift Time', 'Cash In', 'Cash Out', 'Final Total', 'Variance', 'Status'];
+
+    const rows = data.map(i => [
+      i.id,
+      i.staffName,
+      i.date,
+      `${i.startTime} - ${i.endTime}`,
+      `${i.cashIn} ${curr}`,
+      `${i.cashOut} ${curr}`,
+      `${i.finalTotal} ${curr}`,
+      `${i.variance} ${curr}`,
+      i.status
+    ]);
+
+    exportToCsv(`nook_shifts_search_${Date.now()}.csv`, headers, rows);
   }
 
   getStaffAvatar(item: ShiftHistoryItem): string {

@@ -1,4 +1,5 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
@@ -18,13 +19,17 @@ export class ActiveShiftComponent implements OnInit {
   private langService = inject(LanguageService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private destroyRef = inject(DestroyRef);
 
   t = this.langService.t;
   isArabic = this.langService.isArabic;
   hasActiveShift = this.shiftService.hasActiveShift;
+  isLoading = this.shiftService.isLoading;
 
   ngOnInit(): void {
-    this.route.queryParams.subscribe(params => {
+    this.shiftService.fetchCurrentShiftFromApi();
+
+    this.route.queryParams.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
       if (params['openClose'] === 'true' || params['close'] === 'true') {
         setTimeout(() => this.openCloseShiftModal(), 80);
       }

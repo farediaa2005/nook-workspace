@@ -1,4 +1,5 @@
-import { Component, input, output, inject, signal, OnInit } from '@angular/core';
+import { Component, input, output, inject, signal, OnInit, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink, RouterLinkActive, Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
@@ -17,6 +18,7 @@ export class SidebarComponent implements OnInit {
   private shiftService = inject(ShiftService);
   private langService = inject(LanguageService);
   private router = inject(Router);
+  private destroyRef = inject(DestroyRef);
 
   isOpen = input<boolean>(false);
   closeSidebar = output<void>();
@@ -42,7 +44,8 @@ export class SidebarComponent implements OnInit {
   ngOnInit(): void {
     this.autoExpandActiveMenu(this.router.url);
     this.router.events.pipe(
-      filter((event): event is NavigationEnd => event instanceof NavigationEnd)
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+      takeUntilDestroyed(this.destroyRef)
     ).subscribe((event: NavigationEnd) => {
       this.autoExpandActiveMenu(event.urlAfterRedirects || event.url);
     });

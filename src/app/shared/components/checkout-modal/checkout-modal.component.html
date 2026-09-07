@@ -22,13 +22,18 @@
       <div class="modal-col">
         <!-- 1. Session Details Card -->
         <div class="modal-section-card">
-          <h3 class="section-card-title">{{ isArabic() ? 'تفاصيل السيشن' : 'SESSION DETAILS' }}</h3>
+          <h3 class="section-card-title">{{ isArabic() ? 'تفاصيل الجلسة' : 'SESSION DETAILS' }}</h3>
 
           <div class="session-box">
             <div class="session-header-row">
               <div class="activity-info">
-                <span class="tiny-label">{{ isArabic() ? 'النشاط' : 'ACTIVITY' }}</span>
-                <strong class="activity-title">{{ data().session.activity }}</strong>
+                <span class="tiny-label">{{ isArabic() ? 'الاسم' : 'NAME' }}</span>
+                <strong class="activity-title">{{ data().session.studentName || data().session.activity }}</strong>
+                @if (data().session.roomName) {
+                  <span class="activity-room-tag" style="font-size: 0.76rem; color: var(--text-dim); display: block; margin-top: 2px;">
+                    {{ data().session.roomName }}
+                  </span>
+                }
               </div>
               <span
                 class="status-pill"
@@ -37,9 +42,9 @@
               >
                 @if (data().session.status === 'active') {
                   <span class="status-dot"></span>
-                  <span>{{ isArabic() ? 'قاعد جوه' : 'Active' }}</span>
+                  <span>{{ isArabic() ? 'نشط' : 'Active' }}</span>
                 } @else {
-                  <span>{{ isArabic() ? 'خلصت خلاص' : 'Completed' }}</span>
+                  <span>{{ isArabic() ? 'مكتمل' : 'Completed' }}</span>
                 }
               </span>
             </div>
@@ -62,7 +67,7 @@
               </div>
 
               <div class="meta-item">
-                <span class="tiny-label">{{ isArabic() ? 'الوقت كله' : 'TOTAL DURATION' }}</span>
+                <span class="tiny-label">{{ isArabic() ? 'إجمالي المدة' : 'TOTAL DURATION' }}</span>
                 <strong class="duration-val">{{ formatTime(data().session.duration) }}</strong>
               </div>
             </div>
@@ -159,7 +164,7 @@
 
             <!-- Subtotal Line -->
             <div class="breakdown-line subtotal-row">
-              <strong class="line-title">{{ isArabic() ? 'الحساب المبدئي' : 'Subtotal' }}</strong>
+              <strong class="line-title">{{ isArabic() ? 'المجموع الفرعي' : 'Subtotal' }}</strong>
               <div class="line-amount">
                 <span class="amount-number">{{ data().financialBreakdown.subtotal.toFixed(2) }}</span>
                 <span class="currency-symbol">{{ t().currency }}</span>
@@ -169,7 +174,7 @@
             <!-- Discount Presets & Coupon Input -->
             <div class="discount-actions-bar">
               <div class="discount-preset-pills">
-                <span class="pills-label">{{ isArabic() ? 'الديسكاونت:' : 'Discount:' }}</span>
+                <span class="pills-label">{{ isArabic() ? 'الخصم:' : 'Discount:' }}</span>
                 <button
                   type="button"
                   class="btn-pill"
@@ -203,7 +208,7 @@
                   min="0"
                   class="coupon-dialog-input"
                   style="max-width: 120px; padding: 4px 8px; font-size: 0.80rem;"
-                  [placeholder]="isArabic() ? 'ديسكاونت مخصص' : 'Custom discount'"
+                  [placeholder]="isArabic() ? 'خصم مخصص' : 'Custom discount'"
                   [value]="customDiscountInput() !== null ? customDiscountInput() : ''"
                   (input)="customDiscountInput.set(+$any($event.target).value); onCustomDiscountInput($any($event.target).value)"
                 />
@@ -229,7 +234,7 @@
                 <input
                   type="text"
                   class="coupon-dialog-input"
-                  [placeholder]="isArabic() ? 'كوبون (مثلاً: NOOK10)' : 'Coupon (e.g. NOOK10)'"
+                  [placeholder]="isArabic() ? 'كود الخصم (مثال: NOOK10)' : 'Coupon (e.g. NOOK10)'"
                   [ngModel]="localCouponInput()"
                   (ngModelChange)="localCouponInput.set($event)"
                 />
@@ -238,20 +243,59 @@
                   class="btn-apply-coupon"
                   (click)="onApplyCoupon()"
                 >
-                  {{ isArabic() ? 'أبّلاي' : 'Apply' }}
+                  {{ isArabic() ? 'تطبيق' : 'Apply' }}
                 </button>
               </div>
             </div>
+
           </div>
         </div>
       </div>
 
-      <!-- RIGHT COLUMN: Payment Processing -->
+      <!-- RIGHT COLUMN: Payment Processing & Wallet (Appears on the LEFT in RTL) -->
       <div class="modal-col">
         <div class="modal-section-card">
-          <h3 class="section-card-title">{{ isArabic() ? 'هيدفع إزاي؟' : 'PAYMENT METHOD' }}</h3>
+          <!-- 1. Header Summaries (Total Due & Previous Wallet Balance) -->
+          <div class="checkout-summary-cards">
+            <!-- Final Total Row -->
+            <div class="summary-total-banner">
+              <div class="banner-desc">
+                <strong class="banner-title">{{ isArabic() ? 'إجمالي الحساب المطلوب' : 'Total Amount Due' }}</strong>
+                <span class="banner-sub">{{ isArabic() ? 'شامل الجلسة والخدمات والخصومات' : 'Includes session, services & discounts' }}</span>
+              </div>
+              <div class="banner-amount">
+                <span class="banner-amount-val">{{ data().financialBreakdown.finalTotal.toFixed(2) }}</span>
+                <span class="banner-currency">{{ t().currency }}</span>
+              </div>
+            </div>
 
-          <!-- 2x2 Payment Method Grid -->
+            <!-- Current / Previous Wallet Balance -->
+            <div class="summary-wallet-banner">
+              <div class="banner-desc">
+                <div class="banner-title-with-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="wallet-icon">
+                    <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                    <path d="M7 15h0M2 9.5h20"></path>
+                  </svg>
+                  <strong class="banner-title">{{ isArabic() ? 'رصيد المحفظة السابق' : 'Previous Wallet Balance' }}</strong>
+                </div>
+                <span class="banner-sub">{{ isArabic() ? 'الرصيد المسجل قبل هذه الجلسة' : 'Recorded before this session' }}</span>
+              </div>
+              <div class="banner-amount">
+                <span
+                  class="banner-amount-val"
+                  [class.text-danger]="(data().financialBreakdown.walletBalance || 0) < 0"
+                  [class.text-success]="(data().financialBreakdown.walletBalance || 0) > 0"
+                >
+                  {{ data().financialBreakdown.walletBalance || 0 }}
+                </span>
+                <span class="banner-currency">{{ t().currency }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Payment Methods Grid -->
+          <h3 class="section-card-title">{{ isArabic() ? 'طريقة الدفع' : 'PAYMENT METHOD' }}</h3>
           <div class="payment-methods-grid">
             <!-- Cash -->
             <div
@@ -264,7 +308,7 @@
                 <circle cx="12" cy="12" r="3"></circle>
                 <path d="M6 12h.01M18 12h.01"></path>
               </svg>
-              <span class="pay-name">{{ isArabic() ? 'كاش' : 'Cash' }}</span>
+              <span class="pay-name">{{ t().cashText }}</span>
             </div>
 
             <!-- Vodafone Cash -->
@@ -277,7 +321,7 @@
                 <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
                 <line x1="12" y1="18" x2="12.01" y2="18"></line>
               </svg>
-              <span class="pay-name">{{ isArabic() ? 'فودافون كاش' : 'Vodafone Cash' }}</span>
+              <span class="pay-name">{{ t().vodafoneCashText }}</span>
             </div>
 
             <!-- Fawry -->
@@ -290,7 +334,7 @@
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
               </svg>
-              <span class="pay-name">{{ isArabic() ? 'فوري' : 'Fawry' }}</span>
+              <span class="pay-name">{{ t().fawryText }}</span>
             </div>
 
             <!-- InstaPay -->
@@ -303,17 +347,22 @@
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                 <polyline points="9 22 9 12 15 12 15 22"></polyline>
               </svg>
-              <span class="pay-name">{{ isArabic() ? 'إنستاباي' : 'InstaPay' }}</span>
+              <span class="pay-name">{{ t().instaPayText }}</span>
             </div>
           </div>
 
-          <!-- Amount Received Input -->
+          <!-- 3. Amount Received Input -->
           <div class="field-wrap">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <label class="field-label" style="margin: 0;">{{ isArabic() ? 'الكاش اللي استلمته' : 'AMOUNT RECEIVED' }}</label>
-              @if (isInsufficient()) {
-                <span class="insufficient-alert-pill">
-                  {{ isArabic() ? 'الفلوس مش مكفية' : 'Insufficient Amount' }}
+              <label class="field-label" style="margin: 0;">{{ isArabic() ? 'المبلغ المستلم' : 'AMOUNT RECEIVED' }}</label>
+              @if (netCashDue() <= 0) {
+                <span class="cash-covered-hint">
+                  ✓ {{ isArabic() ? 'مغطى بالكامل عبر المحفظة' : 'Covered by Wallet' }}
+                </span>
+              } @else {
+                <span class="cash-due-hint">
+                  {{ isArabic() ? 'المطلوب نقداً: ' : 'Cash Due: ' }}
+                  <strong>{{ netCashDue().toFixed(2) }} {{ t().currency }}</strong>
                 </span>
               }
             </div>
@@ -323,48 +372,177 @@
                 min="0"
                 step="5"
                 class="amount-received-input"
-                [placeholder]="isArabic() ? '0.00 ج.م' : 'EGP 0.00'"
+                [placeholder]="netCashDue() <= 0 ? (isArabic() ? '0.00 ج.م (اختياري)' : '0.00 EGP (Optional)') : (isArabic() ? netCashDue().toFixed(2) + ' ج.م' : 'EGP ' + netCashDue().toFixed(2))"
                 [value]="data().payment.amountReceived !== null ? data().payment.amountReceived : ''"
                 (input)="onAmountInput($any($event.target).value)"
               />
             </div>
             @if (isInsufficient()) {
               <span class="insufficient-error-text">
-                {{ isArabic() ? 'اكتب المبلغ اللي استلمته' : 'Please enter received amount' }}
+                {{ isArabic() ? 'يرجى إدخال المبلغ المستلم' : 'Please enter received amount' }}
               </span>
             }
             @if (isPartialPayment()) {
               <div class="partial-notice-badge" style="margin-top: 8px; padding: 8px 12px; background: rgba(245, 185, 33, 0.14); border: 1px solid rgba(245, 185, 33, 0.45); border-radius: 8px; font-size: 0.82rem; color: var(--yellow); display: flex; justify-content: space-between; align-items: center;">
-                <span>⚠️ {{ isArabic() ? 'دفع جزء: باقي فلوس هتتسجل دين على الستيودنت' : 'Partial payment: Remaining balance due' }}</span>
-                <strong>{{ remainingBalance().toFixed(2) }} {{ isArabic() ? 'ج.م' : 'EGP' }}</strong>
+                <span>⚠️ {{ isArabic() ? 'سداد جزئي: سيتم تسجيل المبلغ المتبقي كمديونية على الطالب' : 'Partial payment: Remaining balance due' }}</span>
+                <strong>{{ remainingBalance().toFixed(2) }} {{ t().currency }}</strong>
               </div>
             }
           </div>
 
-          <!-- Change Due Box -->
+          <!-- 4. Change Due Box -->
           <div class="change-due-box">
-            <span class="change-label">{{ isArabic() ? 'باقي فلوسه (الفكة)' : 'Change Due' }}</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="change-label">{{ isArabic() ? 'المتبقي للعميل' : 'Change Due' }}</span>
+              @if (effectiveChangeDue() > 0 && walletMode() !== 'credit') {
+                <button
+                  type="button"
+                  class="btn-deposit-change-mini"
+                  (click)="depositChangeToWallet()"
+                  title="إيداع هذا المبلغ في محفظة الطالب"
+                >
+                  + {{ isArabic() ? 'تحويل للمحفظة' : 'To Wallet' }}
+                </button>
+              }
+            </div>
             <strong class="change-amount">
-              {{ (isInsufficient() || isPartialPayment() ? 0 : data().payment.changeDue).toFixed(2) }} {{ isArabic() ? 'ج.م' : 'EGP' }}
+              {{ effectiveChangeDue().toFixed(2) }} {{ t().currency }}
             </strong>
           </div>
 
-          <!-- Process Payment Button -->
+          <!-- 5. Interactive Wallet Adjustment Section (ليه / عليه / بدون) -->
+          <div class="wallet-interaction-card">
+            <div class="wallet-card-header">
+              <span class="wallet-card-title">{{ isArabic() ? 'حركة المحفظة (الوليت)' : 'WALLET ADJUSTMENT' }}</span>
+            </div>
+
+            <!-- Mode Selector: عليه (خصم/مديونية) | ليه (إضافة رصيد) | بدون حركة -->
+            <div class="wallet-mode-pills">
+              <button
+                type="button"
+                class="wallet-pill wallet-pill--debit"
+                [class.wallet-pill--active]="walletMode() === 'debit'"
+                (click)="setWalletMode('debit')"
+              >
+                <span>{{ isArabic() ? 'عليه (- خصم)' : 'Debit (-)' }}</span>
+              </button>
+              <button
+                type="button"
+                class="wallet-pill wallet-pill--credit"
+                [class.wallet-pill--active]="walletMode() === 'credit'"
+                (click)="setWalletMode('credit')"
+              >
+                <span>{{ isArabic() ? 'ليه (+ إضافة)' : 'Credit (+)' }}</span>
+              </button>
+              <button
+                type="button"
+                class="wallet-pill wallet-pill--none"
+                [class.wallet-pill--active]="walletMode() === 'none'"
+                (click)="clearWalletAdjustment()"
+              >
+                <span>{{ isArabic() ? 'بدون حركة' : 'None' }}</span>
+              </button>
+            </div>
+
+            <!-- Editable Amount Input & Helpers when debit or credit -->
+            @if (walletMode() !== 'none') {
+              <div class="wallet-input-row">
+                <div class="wallet-input-wrap">
+                  <input
+                    type="number"
+                    min="0"
+                    step="5"
+                    class="wallet-number-input"
+                    [placeholder]="isArabic() ? (walletMode() === 'debit' ? 'المبلغ المطلوب خصمه (مثال: 50)' : 'المبلغ المراد إضافته (مثال: 20)') : 'Amount'"
+                    [value]="walletInputAmount() !== null ? walletInputAmount() : ''"
+                    (input)="onWalletAmountInput($any($event.target).value)"
+                  />
+                  <span class="wallet-input-currency">{{ t().currency }}</span>
+                </div>
+                @if (walletInputAmount() !== null && walletInputAmount()! > 0) {
+                  <button type="button" class="btn-clear-wallet" (click)="walletInputAmount.set(0)" title="تصفير">✕</button>
+                }
+              </div>
+
+              <!-- Helper Quick Buttons -->
+              <div class="wallet-helpers-row">
+                @if (walletMode() === 'debit') {
+                  <button
+                    type="button"
+                    class="btn-wallet-helper btn-wallet-helper--highlight"
+                    (click)="applyFullBillToWallet()"
+                  >
+                    ⚡ {{ isArabic() ? 'خصم الفاتورة بالكامل (' + data().financialBreakdown.finalTotal + ' ج.م)' : 'Full Bill (' + data().financialBreakdown.finalTotal + ')' }}
+                  </button>
+                  @if ((data().financialBreakdown.walletBalance || 0) > 0) {
+                    <button
+                      type="button"
+                      class="btn-wallet-helper"
+                      (click)="applyAvailableWalletBalance()"
+                    >
+                      {{ isArabic() ? 'استخدام الرصيد المتاح (' + data().financialBreakdown.walletBalance + ' ج.م)' : 'Use Available (' + data().financialBreakdown.walletBalance + ')' }}
+                    </button>
+                  }
+                } @else if (walletMode() === 'credit') {
+                  @if (effectiveChangeDue() > 0) {
+                    <button
+                      type="button"
+                      class="btn-wallet-helper btn-wallet-helper--highlight"
+                      (click)="depositChangeToWallet()"
+                    >
+                      ⚡ {{ isArabic() ? 'إيداع باقي الحساب (' + effectiveChangeDue() + ' ج.م)' : 'Deposit Change (' + effectiveChangeDue() + ')' }}
+                    </button>
+                  }
+                  <button type="button" class="btn-wallet-helper" (click)="quickAddCredit(10)">+10</button>
+                  <button type="button" class="btn-wallet-helper" (click)="quickAddCredit(20)">+20</button>
+                  <button type="button" class="btn-wallet-helper" (click)="quickAddCredit(50)">+50</button>
+                }
+              </div>
+            }
+
+            <!-- Live New Wallet Balance Box -->
+            <div
+              class="wallet-live-badge"
+              [class.wallet-live-badge--debt]="newWalletBalance() < 0"
+              [class.wallet-live-badge--credit]="newWalletBalance() > 0"
+              [class.wallet-live-badge--neutral]="newWalletBalance() === 0"
+            >
+              <div class="badge-text">
+                <span class="badge-title">{{ isArabic() ? 'رصيد المحفظة بعد العملية:' : 'New Wallet Balance:' }}</span>
+                <span class="badge-sub">
+                  @if (newWalletBalance() < 0) {
+                    {{ isArabic() ? 'مديونية مستحقة على الطالب (عليه)' : 'Outstanding debt on student' }}
+                  } @else if (newWalletBalance() > 0) {
+                    {{ isArabic() ? 'رصيد دائن متاح للطالب (ليه)' : 'Credit balance available' }}
+                  } @else {
+                    {{ isArabic() ? 'تم تسوية الرصيد بالكامل (0.00)' : 'Account fully settled (0.00)' }}
+                  }
+                </span>
+              </div>
+              <strong class="badge-value">
+                {{ newWalletBalance() }} {{ t().currency }}
+              </strong>
+            </div>
+          </div>
+
+          <!-- 6. Process Payment Button -->
           <button
             type="button"
             class="btn-process-checkout"
             [disabled]="data().payment.isProcessing || isInsufficient()"
             (click)="onProcessPayment()"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-check-icon">
               <circle cx="12" cy="12" r="10"></circle>
               <polyline points="8 12 11 15 16 9"></polyline>
             </svg>
-            <span>
-              @if (isPartialPayment()) {
-                {{ isArabic() ? '✓ تحصيل جزء وتقفيل (' + data().payment.amountReceived + ' ج.م)' : '✓ Collect Partial & Free Room (' + data().payment.amountReceived + ' EGP)' }}
+            <span class="btn-text">
+              @if (netCashDue() <= 0 && walletMode() === 'debit') {
+                {{ isArabic() ? 'خصم من المحفظة وإنهاء الجلسة' : 'Charge to Wallet & Finish Session' }}
+              } @else if (isPartialPayment()) {
+                {{ isArabic() ? 'تحصيل جزئي وإنهاء الجلسة (' + (data().payment.amountReceived || 0) + ' ' + t().currency + ')' : 'Collect Partial & Free Room' }}
               } @else {
-                {{ data().payment.buttonText || (isArabic() ? 'تحصيل وتقفيل السيشن' : 'Process Payment & Free Room') }}
+                {{ data().payment.buttonText || (isArabic() ? 'تحصيل وإنهاء الجلسة' : 'Process Payment & Free Room') }}
               }
             </span>
           </button>

@@ -109,4 +109,22 @@ export class ShiftApiService extends BaseApiService {
       map(extractData)
     );
   }
+
+  /**
+   * Verify password of staff who opened the shift before sensitive actions (e.g. deleting student)
+   * POST /api/Shifts/{shiftId}/verify-password or POST /api/Shifts/verify-password
+   */
+  verifyShiftPassword(dto: { password: string; shiftId?: string; staffIdentifier?: string }): Observable<{ success: boolean; verified: boolean; message?: string }> {
+    const url = API_ENDPOINTS.SHIFTS.VERIFY_PASSWORD(dto.shiftId);
+    return this.post<ApiResponse<any>>(url, dto).pipe(
+      map(res => {
+        const verified = res?.data?.verified ?? res?.success ?? false;
+        return {
+          success: res?.success ?? verified,
+          verified: !!verified,
+          message: res?.message || (res as any)?.messageAr || (res as any)?.messageEn
+        };
+      })
+    );
+  }
 }

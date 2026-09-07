@@ -1,4 +1,5 @@
-import { Component, signal, computed, inject, OnInit } from '@angular/core';
+import { Component, signal, computed, inject, OnInit, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterOutlet, NavigationEnd } from '@angular/router';
@@ -21,6 +22,7 @@ export class MainLayoutComponent implements OnInit {
   private authService = inject(AuthService);
   private langService = inject(LanguageService);
   private router = inject(Router);
+  private destroyRef = inject(DestroyRef);
 
   isSidebarOpen = signal<boolean>(false);
   currentUrl = signal<string>(this.router.url);
@@ -61,7 +63,8 @@ export class MainLayoutComponent implements OnInit {
 
   ngOnInit(): void {
     this.router.events.pipe(
-      filter((event): event is NavigationEnd => event instanceof NavigationEnd)
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+      takeUntilDestroyed(this.destroyRef)
     ).subscribe((event: NavigationEnd) => {
       this.currentUrl.set(event.urlAfterRedirects || event.url);
     });
@@ -131,16 +134,33 @@ export class MainLayoutComponent implements OnInit {
     const vf = Number(this.startVodafone()) || 0;
     const ip = Number(this.startInstaPay()) || 0;
     const fw = Number(this.startFawry()) || 0;
+
+    if (vf < 0 || ip < 0 || fw < 0) {
+      this.errorMessage.set(
+        this.isArabic()
+          ? 'لا يمكن أن تكون أرصدة المحافظ الرقمية الافتتاحية سالبة'
+          : 'Digital channel opening amounts cannot be negative'
+      );
+      return;
+    }
+
     const noteText = this.notes().trim() || undefined;
 
-    this.shiftService.startShift(cash, vf, ip, fw, noteText);
-    this.isSubmitting.set(false);
-    this.startCash.set('');
-    this.startVodafone.set('');
-    this.startInstaPay.set('');
-    this.startFawry.set('');
-    this.notes.set('');
-    this.router.navigate(['/dashboard']);
+    this.shiftService.startShift(cash, vf, ip, fw, noteText, (success, errorMsg) => {
+      this.isSubmitting.set(false);
+      if (success) {
+        this.startCash.set('');
+        this.startVodafone.set('');
+        this.startInstaPay.set('');
+        this.startFawry.set('');
+        this.notes.set('');
+        this.router.navigate(['/dashboard']);
+      } else {
+        this.errorMessage.set(
+          errorMsg || (this.isArabic() ? 'تعذر بدء الوردية، يرجى المحاولة مرة أخرى' : 'Failed to start shift, please try again')
+        );
+      }
+    });
   }
 
   /**

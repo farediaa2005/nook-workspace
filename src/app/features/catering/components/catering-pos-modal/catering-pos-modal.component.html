@@ -234,14 +234,47 @@
                   </span>
                 }
 
-                @if (product.image) {
-                  <img [src]="product.image" [alt]="product.name" class="product-img" loading="lazy" />
+                @if (getProductImage(product.image, product.id) && !isImageFailed(product.id)) {
+                  <img
+                    [src]="getProductImage(product.image, product.id)"
+                    alt=""
+                    class="product-img"
+                    loading="lazy"
+                    (error)="onImageError(product.id)"
+                  />
                 } @else {
-                  <div class="product-media-fallback">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                      <path d="M8 2h8v3H8z"></path>
-                      <path d="M9 5v3l-3 4v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9l-3-4V5"></path>
-                    </svg>
+                  <div class="product-media-fallback fallback--{{ getProductType(product) }}">
+                    <div class="fallback-icon-wrap">
+                      @switch (getProductType(product)) {
+                        @case ('water') {
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+                          </svg>
+                        }
+                        @case ('coffee') {
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M17 8h1a4 4 0 1 1 0 8h-1M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/>
+                            <line x1="6" x2="6" y1="2" y2="4"/>
+                            <line x1="10" x2="10" y1="2" y2="4"/>
+                            <line x1="14" x2="14" y1="2" y2="4"/>
+                          </svg>
+                        }
+                        @case ('beverage') {
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M8 2h8v3H8z"/>
+                            <path d="M9 5v3l-3 4v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9l-3-4V5"/>
+                          </svg>
+                        }
+                        @default {
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/>
+                            <path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/>
+                            <path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"/>
+                          </svg>
+                        }
+                      }
+                    </div>
+                    <span class="fallback-cat-hint">{{ isArabic() ? (product.categoryAr || product.category) : product.category }}</span>
                   </div>
                 }
 
@@ -327,8 +360,8 @@
           @for (item of cartItems(); track item.product.id) {
             <div class="order-item-row">
               <div class="order-item-thumb">
-                @if (item.product.image) {
-                  <img [src]="item.product.image" [alt]="item.product.name" class="item-img" />
+                @if (getProductImage(item.product.image, item.product.id)) {
+                  <img [src]="getProductImage(item.product.image, item.product.id)" [alt]="item.product.name" class="item-img" />
                 } @else {
                   <div class="item-fallback-icon">☕</div>
                 }

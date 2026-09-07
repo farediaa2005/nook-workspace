@@ -10,7 +10,7 @@ import {
   UpdateWorkspaceDto,
   CheckoutWorkspaceDto
 } from '../../models/workspace-session.model';
-import { CateringItemDto, AddCateringItemDto } from '../../models/classroom-session.model';
+import { CateringItemDto, AddCateringItemDto, UpdateCateringItemDto } from '../../models/classroom-session.model';
 
 @Injectable({
   providedIn: 'root'
@@ -70,10 +70,41 @@ export class WorkspaceApiService extends BaseApiService {
       discountType: dto.discountType ?? null,
       note: dto.note || null,
       studentId: dto.studentId || null,
-      seatElementId: dto.seatElementId || null
+      seatElementId: dto.seatElementId || null,
+      roomId: dto.roomId || null
     };
 
     return this.post<ApiResponse<WorkspaceDto>>(API_ENDPOINTS.WORKSPACES.LIST, payload).pipe(
+      map(extractData)
+    );
+  }
+
+  /**
+   * Fast check-in / walk-in student workspace session — POST /api/Workspaces/walk-in
+   * Finds existing student by phone or creates a new student on the spot and immediately starts a workspace session.
+   */
+  walkIn(dto: {
+    studentName: string;
+    phoneNumber: string;
+    whatsapp?: string;
+    facultyId?: string;
+    roomId: string;
+    seatElementId?: string;
+    timeFrom?: string;
+    notes?: string;
+  }): Observable<WorkspaceDto> {
+    const payload = {
+      studentName: dto.studentName,
+      phoneNumber: dto.phoneNumber,
+      whatsapp: dto.whatsapp || dto.phoneNumber,
+      facultyId: dto.facultyId || null,
+      roomId: dto.roomId,
+      seatElementId: dto.seatElementId || null,
+      timeFrom: dto.timeFrom || new Date().toISOString(),
+      notes: dto.notes || null
+    };
+
+    return this.post<ApiResponse<WorkspaceDto>>(API_ENDPOINTS.WORKSPACES.WALK_IN, payload).pipe(
       map(extractData)
     );
   }
@@ -87,7 +118,7 @@ export class WorkspaceApiService extends BaseApiService {
 
   /**
    * Check out a student session — PUT /api/Workspaces/{id}/checkout
-   * API expects: CheckoutWorkspaceDto
+   * API expects: CheckoutWorkspaceDto (supports paymentMethod: Cash/Visa/Wallet/Free, package, discounts)
    */
   checkOut(id: string, dto: CheckoutWorkspaceDto | any): Observable<WorkspaceDetailDto> {
     const payload: Record<string, any> = {
@@ -99,6 +130,11 @@ export class WorkspaceApiService extends BaseApiService {
       discountType: dto.discountType ?? null,
       wallet: dto.wallet ?? 0,
       payWay: dto.payWay ?? 1,
+      paymentMethod: dto.paymentMethod || (dto.payWay === 3 ? 'Wallet' : (dto.payWay === 2 ? 'Visa' : 'Cash')),
+      usePackageHours: dto.usePackageHours != null ? dto.usePackageHours : null,
+      packageId: dto.packageId || null,
+      discountId: dto.discountId || null,
+      couponCode: dto.couponCode || null,
       note: dto.note || null
     };
 
@@ -128,6 +164,13 @@ export class WorkspaceApiService extends BaseApiService {
     );
   }
 
+  /** Update catering item in a workspace session — PUT /api/workspaces/{workspaceId}/catering/{id} */
+  updateCateringItem(workspaceId: string, itemId: string, item: UpdateCateringItemDto): Observable<any> {
+    return this.put<ApiResponse<any>>(API_ENDPOINTS.WORKSPACES.CATERING_ITEM(workspaceId, itemId), item).pipe(
+      map(extractData)
+    );
+  }
+
   /** Remove catering item from a workspace session — DELETE /api/workspaces/{workspaceId}/catering/{id} */
   removeCateringItem(workspaceId: string, itemId: string): Observable<boolean> {
     return this.delete<ApiResponse<boolean>>(API_ENDPOINTS.WORKSPACES.CATERING_ITEM(workspaceId, itemId)).pipe(
@@ -135,4 +178,5 @@ export class WorkspaceApiService extends BaseApiService {
     );
   }
 }
+
 

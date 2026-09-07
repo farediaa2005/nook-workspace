@@ -100,12 +100,21 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
   readonly rowHeight = 48; // 48px per hour
   readonly gridStartHour = 0; // Starts at 00:00 (12:00 AM)
 
-  // Computed reservations mapped from classroomService cards
+  // Computed reservations mapped from classroomService backend reservations & cards
   reservations = computed<AdminReservation[]>(() => {
-    return (this.classroomService.cards() || [])
+    const backendRes = this.classroomService.reservations() || [];
+    const cardRes = (this.classroomService.cards() || [])
       .filter(c => c && c.status !== 'available')
       .map(c => this.mapCardToReservation(c))
       .filter((r): r is AdminReservation => r !== null && !!r.startTime);
+
+    const combined = [...backendRes];
+    for (const cr of cardRes) {
+      if (!combined.some(b => b.id === cr.id)) {
+        combined.push(cr);
+      }
+    }
+    return combined;
   });
 
   // Computed reservations filtered for the table by currently selected date
@@ -304,6 +313,8 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
 
   ngOnInit(): void {
     document.addEventListener('keydown', this.handleKeyDown);
+    this.classroomService.loadRooms().subscribe();
+    this.classroomService.loadReservations().subscribe();
     this.timerHandle = setInterval(() => {
       this.classroomService.refreshCardsStatus(this.isArabic());
     }, 5000);
@@ -522,28 +533,38 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
           hourlyRate: this.resHourlyRate(),
           rental: +(durHours * this.resHourlyRate()).toFixed(2),
           status: isOngoing ? 'active' : 'scheduled'
+        }).subscribe({
+          error: (e) => console.error('Failed to update card:', e)
+        });
+      } else {
+        this.classroomService.updateReservation(this.resId(), {
+          roomName: this.resRoomName(),
+          instructorName: instructor,
+          activity,
+          dateFrom: this.resDate(),
+          timeFrom: this.resStartTime(),
+          timeTo: this.resEndTime(),
+          reservationCost: +(durHours * this.resHourlyRate()).toFixed(2)
+        }).subscribe({
+          error: (e) => console.error('Failed to update reservation:', e)
         });
       }
     } else {
       // New or Duplicate
-      const newCard: ClassroomCard = {
-        id: 'res-' + Date.now(),
-        name: this.resRoomName(),
-        instructor,
+      const roomMatch = this.rooms().find(r => r.name.toLowerCase() === this.resRoomName().toLowerCase());
+      this.classroomService.createReservation({
+        roomId: roomMatch?.id,
+        roomName: this.resRoomName(),
+        instructorName: instructor,
         activity,
-        bookingDate: this.resDate(),
-        startTime: this.resStartTime(),
-        endTime: this.resEndTime(),
-        durationHours: durHours,
-        hourlyRate: this.resHourlyRate(),
-        rental: +(durHours * this.resHourlyRate()).toFixed(2),
-        status: isOngoing ? 'active' : 'scheduled',
-        image: '',
-        colorTheme: 'blue',
-        catering: 0,
-        printingCharges: 0
-      };
-      this.classroomService.addBooking(newCard);
+        dateFrom: this.resDate(),
+        dateTo: this.resDate(),
+        timeFrom: this.resStartTime(),
+        timeTo: this.resEndTime(),
+        reservationCost: +(durHours * this.resHourlyRate()).toFixed(2)
+      }).subscribe({
+        error: (e) => console.error('Failed to create reservation:', e)
+      });
     }
 
     this.isReservationModalOpen.set(false);
@@ -552,7 +573,13 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
   deleteReservation(res: AdminReservation): void {
     const promptMsg = `${this.t().confirmDeleteBookingPrompt}\n("${res.activity}" - ${res.instructor})`;
     if (confirm(promptMsg)) {
-      this.classroomService.deleteBooking(res.id);
+      this.classroomService.deleteBooking(res.id).subscribe({
+        error: () => {
+          this.classroomService.deleteReservation(res.id).subscribe({
+            error: (e) => console.error('Failed to delete reservation:', e)
+          });
+        }
+      });
     }
   }
 

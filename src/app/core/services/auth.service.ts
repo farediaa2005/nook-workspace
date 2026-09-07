@@ -22,7 +22,7 @@ export class AuthService {
 
   public static readonly TOKEN_KEY = 'nook_access_token';
   public static readonly REFRESH_KEY = 'nook_refresh_token';
-  public static readonly USER_KEY = 'nook_current_user';
+  public static readonly USER_KEY = 'nook_user_data';
 
   constructor() {
     this.restoreSession();
@@ -33,7 +33,7 @@ export class AuthService {
     if (!token) return true;
     try {
       const parts = token.split('.');
-      if (parts.length !== 3) return false;
+      if (parts.length !== 3) return true;
       const payloadBase64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
       const payloadJson = decodeURIComponent(
         atob(payloadBase64)
@@ -46,38 +46,40 @@ export class AuthService {
         // Tolerant expiration check to prevent clock-skew false positives
         return Date.now() >= payload.exp * 1000;
       }
-      return false;
+      return true;
     } catch {
-      return false;
+      return true;
     }
   }
 
   private restoreSession(): void {
+    if (typeof window === 'undefined') {
+      this.accessToken = null;
+      this.refreshToken = null;
+      return;
+    }
+
     try {
-      if (typeof window === 'undefined' || !window.localStorage) return;
+      const token = localStorage.getItem(AuthService.TOKEN_KEY);
+      const refreshToken = localStorage.getItem(AuthService.REFRESH_KEY);
+      const userJson = localStorage.getItem(AuthService.USER_KEY);
 
-      const savedToken = localStorage.getItem(AuthService.TOKEN_KEY) ||
-                         localStorage.getItem('token') ||
-                         localStorage.getItem('accessToken');
-      const savedRefresh = localStorage.getItem(AuthService.REFRESH_KEY) ||
-                           localStorage.getItem('refreshToken');
-      const savedUserStr = localStorage.getItem(AuthService.USER_KEY);
-
-      if (savedToken) {
-        this.accessToken = savedToken;
-      }
-      if (savedRefresh) {
-        this.refreshToken = savedRefresh;
-      }
-      if (savedUserStr) {
-        const parsed: AuthUser = JSON.parse(savedUserStr);
-        if (parsed) {
-          parsed.avatar = getSafeAvatar(parsed.avatar, parsed.name);
-          this.currentUser.set(parsed);
+      if (token && !this.isJwtExpired(token)) {
+        this.accessToken = token;
+        this.refreshToken = refreshToken;
+        if (userJson) {
+          try {
+            const user = JSON.parse(userJson);
+            this.currentUser.set(user);
+          } catch {
+            // malformed user json
+          }
         }
+      } else {
+        this.clearAuthState();
       }
-    } catch (e) {
-      console.warn('[AuthService] Error restoring session:', e);
+    } catch {
+      this.clearAuthState();
     }
   }
 
@@ -97,51 +99,36 @@ export class AuthService {
     return this.currentUser()?.role ?? null;
   }
 
-  /** Get the stored access token */
+  /** Get the stored access token (pure in-memory) */
   getToken(): string | null {
-    if (this.accessToken) return this.accessToken;
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const saved = localStorage.getItem(AuthService.TOKEN_KEY) ||
-                      localStorage.getItem('token') ||
-                      localStorage.getItem('accessToken');
-        if (saved) {
-          this.accessToken = saved;
-          return saved;
-        }
-      }
-    } catch {}
-    return null;
+    return this.accessToken;
   }
 
+  /** Get the stored refresh token (pure in-memory) */
   getRefreshToken(): string | null {
-    if (this.refreshToken) return this.refreshToken;
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const saved = localStorage.getItem(AuthService.REFRESH_KEY) ||
-                      localStorage.getItem('refreshToken');
-        if (saved) {
-          this.refreshToken = saved;
-          return saved;
-        }
-      }
-    } catch {}
-    return null;
+    return this.refreshToken;
   }
 
+  /** Update authentication tokens */
   updateTokens(accessToken: string, refreshToken?: string): void {
     this.accessToken = accessToken;
-    try {
-      localStorage.setItem(AuthService.TOKEN_KEY, accessToken);
-      localStorage.setItem('token', accessToken);
-      localStorage.setItem('accessToken', accessToken);
-    } catch {}
+    if (typeof window !== 'undefined') {
+      try {
+        if (accessToken) {
+          localStorage.setItem(AuthService.TOKEN_KEY, accessToken);
+        } else {
+          localStorage.removeItem(AuthService.TOKEN_KEY);
+        }
+      } catch {}
+    }
+
     if (refreshToken) {
       this.refreshToken = refreshToken;
-      try {
-        localStorage.setItem(AuthService.REFRESH_KEY, refreshToken);
-        localStorage.setItem('refreshToken', refreshToken);
-      } catch {}
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(AuthService.REFRESH_KEY, refreshToken);
+        } catch {}
+      }
     }
   }
 
@@ -195,16 +182,24 @@ export class AuthService {
       map(res => res.data),
       tap(me => {
         const existing = this.currentUser();
-        const isAdmin = (me.roles || []).some(r => r === 1); // UserRole.Admin = 1
+        const isAdmin = (me.roles || []).some((r: any) => r === 1); // UserRole.Admin = 1
         const userName = me.username || existing?.name || 'User';
-        this.currentUser.set({
+        const updatedUser: AuthUser = {
           id: me.id || me.accountId || '',
           email: me.email || '',
           name: userName,
           role: isAdmin ? 'admin' : 'user',
           avatar: getSafeAvatar((me as any)?.avatar || existing?.avatar, userName),
-          token: existing?.token
-        });
+          token: existing?.token,
+          refreshToken: existing?.refreshToken
+        };
+        this.currentUser.set(updatedUser);
+
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(AuthService.USER_KEY, JSON.stringify(updatedUser));
+          } catch {}
+        }
       }),
       catchError(err => {
         console.error('[AuthService] fetchCurrentUser failed:', err);
@@ -224,20 +219,6 @@ export class AuthService {
     }
     this.clearAuthState();
     this.router.navigate(['/auth/login']);
-  }
-
-  /**
-   * Compatibility: used by old LoginComponent.
-   * @deprecated Use login() instead.
-   */
-  loginUser(user: AuthUser): void {
-    const safeUser: AuthUser = {
-      ...user,
-      avatar: getSafeAvatar(user.avatar, user.name)
-    };
-    this.currentUser.set(safeUser);
-    this.accessToken = user.token ?? null;
-    this.refreshToken = user.refreshToken ?? null;
   }
 
   /**
@@ -265,22 +246,25 @@ export class AuthService {
     };
 
     this.currentUser.set(user);
-    try {
-      localStorage.setItem(AuthService.USER_KEY, JSON.stringify(user));
-    } catch {}
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(AuthService.USER_KEY, JSON.stringify(user));
+      } catch {}
+    }
   }
 
   public clearAuthState(): void {
     this.currentUser.set(null);
     this.accessToken = null;
     this.refreshToken = null;
-    try {
-      localStorage.removeItem(AuthService.TOKEN_KEY);
-      localStorage.removeItem(AuthService.REFRESH_KEY);
-      localStorage.removeItem(AuthService.USER_KEY);
-      localStorage.removeItem('token');
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-    } catch {}
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(AuthService.TOKEN_KEY);
+        localStorage.removeItem(AuthService.REFRESH_KEY);
+        localStorage.removeItem(AuthService.USER_KEY);
+      } catch {}
+    }
   }
 }

@@ -4042,3 +4042,125 @@ tr.row--menu-open .cell-actions-td {
   width: 14px;
   height: 14px;
 }
+
+/* Responsive Media Queries */
+@media (max-width: 1024px) {
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 14px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-container {
+    padding: 16px 12px;
+  }
+  .show-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  .head-controls {
+    width: 100%;
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .head-controls app-primary-button {
+    width: 100%;
+    display: block;
+  }
+  :host ::ng-deep .head-controls app-primary-button .btn-primary-action {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    justify-content: center !important;
+    height: 44px !important;
+  }
+  .btn-export-data {
+    width: 100%;
+    justify-content: center;
+    height: 42px;
+  }
+  .metrics-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .view-tabs-toggle {
+    width: 100%;
+    display: flex;
+    box-sizing: border-box;
+    gap: 4px;
+  }
+  .tab-btn {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 576px) {
+  .page-title {
+    font-size: 1.35rem;
+  }
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .metrics-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ========================================================================= */
+/* STUDENT PAGE BUSINESS LOGIC ENHANCEMENT STYLES                           */
+/* ========================================================================= */
+
+.pill-blocked-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(239, 68, 68, 0.16) !important;
+  color: #ef4444 !important;
+  border: 1px solid rgba(239, 68, 68, 0.4) !important;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.shift-password-box {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  transition: border-color 0.2s ease;
+}
+
+.shift-password-box:focus-within {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+}
+
+.delete-password-input {
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.btn-edit-print-price {
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-edit-print-price:hover {
+  background: var(--yellow) !important;
+  color: #111 !important;
+}

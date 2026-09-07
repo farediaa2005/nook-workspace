@@ -1,5 +1,5 @@
-import { Injectable, inject } from '@angular/core';
-import { Observable, of, map, catchError } from 'rxjs';
+import { Injectable, inject, signal } from '@angular/core';
+import { Observable, of, map, catchError, finalize, tap } from 'rxjs';
 import {
   College,
   CreateCollegeDto,
@@ -17,32 +17,19 @@ import { FacultyApiService } from './api/faculty-api.service';
 import { InstructorApiService } from './api/instructor-api.service';
 import { BlacklistApiService } from './api/blacklist-api.service';
 import { DiscountApiService } from './api/discount-api.service';
+import { WorkspaceService } from './workspace.service';
+import { parseIsoToLocalDate, getTodayDateISO } from '../utils/date-time.util';
 
-const DETAILS_CACHE_KEYS = {
-  COLLEGES: 'nook_colleges_cache',
-  INSTRUCTORS: 'nook_instructors_cache',
-  BLACKLIST: 'nook_blacklist_cache',
-  DISCOUNTS: 'nook_discounts_cache'
-};
-
-function getLocalCache<T>(key: string, fallback: T): T {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const item = localStorage.getItem(key);
-      if (item) return JSON.parse(item);
-    }
-  } catch {}
-  return fallback;
-}
-
-function setLocalCache<T>(key: string, val: T): void {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      localStorage.setItem(key, JSON.stringify(val));
-    }
-  } catch {}
-}
-
+/**
+ * Feature Service for Details Module (Layer 4 - Clean Architecture).
+ * Single Source of Truth for:
+ * - Colleges & Universities
+ * - Instructors Directory
+ * - Blacklist & Banned Members
+ * - Discounts & Coupons
+ *
+ * Strictly communicates with backend API and contains NO local storage database or fake IDs.
+ */
 @Injectable({
   providedIn: 'root'
 })
@@ -51,42 +38,71 @@ export class DetailsService {
   private instructorApi = inject(InstructorApiService);
   private blacklistApi = inject(BlacklistApiService);
   private discountApi = inject(DiscountApiService);
+  private workspaceService = inject(WorkspaceService);
 
-  // --- Colleges (Faculties) API Methods ---
+  // Reactive State Signals (Layer 4)
+  readonly colleges = signal<College[]>([]);
+  readonly instructors = signal<Instructor[]>([]);
+  readonly blacklist = signal<BlacklistRecord[]>([]);
+  readonly discounts = signal<DiscountCode[]>([]);
+
+  readonly isLoading = signal<boolean>(false);
+  readonly error = signal<string | null>(null);
+
+  // ==========================================
+  // 1. Colleges (Faculties) API Methods
+  // ==========================================
+
   getColleges(): Observable<College[]> {
+    this.isLoading.set(true);
     return this.facultyApi.getFaculties().pipe(
       map(faculties => {
-        const deletedIds = getLocalCache<string[]>('nook_deleted_colleges', []);
         const rawList = faculties || [];
-        const validList = rawList.filter((f: any) => !deletedIds.includes(f.id));
+        const mapped: College[] = rawList.map((f: any) => {
+          // Calculate student count dynamically from active & history workspace sessions if available
+          let studentCount = f.studentCount || 0;
+          if (studentCount === 0) {
+            const facultyName = (f.name || '').toLowerCase().trim();
+            const activeStudents = this.workspaceService.activeStudents();
+            const historyStudents = this.workspaceService.historyStudents();
+            const matchedCount = [...activeStudents, ...historyStudents].filter(s =>
+              (s.faculty || s.college || '').toLowerCase().includes(facultyName)
+            ).length;
+            studentCount = matchedCount;
+          }
 
-        if (!validList || validList.length === 0) {
-          const cached = getLocalCache<College[]>(DETAILS_CACHE_KEYS.COLLEGES, []);
-          return cached.filter(c => !deletedIds.includes(c.id));
-        }
-        const mapped: College[] = validList.map((f: any) => ({
-          id: f.id,
-          name: f.name,
-          nameEn: f.nameEn || f.name,
-          university: f.university || f.universityName || '-',
-          universityEn: f.universityEn || f.university || '-',
-          studentsCount: f.studentCount || 0,
-          campus: f.campus || '-',
-          campusEn: f.campusEn || '-',
-          createdAt: f.createdAt || new Date().toISOString()
-        }));
-        setLocalCache(DETAILS_CACHE_KEYS.COLLEGES, mapped);
+          return {
+            id: f.id,
+            name: f.name,
+            nameEn: f.nameEn || f.name,
+            university: f.university || f.universityName || '-',
+            universityEn: f.universityEn || f.university || '-',
+            studentsCount: studentCount,
+            campus: f.campus || '-',
+            campusEn: f.campusEn || '-',
+            notes: f.notes || '',
+            createdAt: f.createdAt || new Date().toISOString()
+          };
+        });
+
+        this.colleges.set(mapped);
         return mapped;
       }),
-      catchError(() => {
-        const deletedIds = getLocalCache<string[]>('nook_deleted_colleges', []);
-        const cached = getLocalCache<College[]>(DETAILS_CACHE_KEYS.COLLEGES, []);
-        return of(cached.filter(c => !deletedIds.includes(c.id)));
-      })
+      catchError(err => {
+        console.error('[DetailsService] getColleges failed:', err);
+        this.error.set('Failed to load colleges from server');
+        return of([]);
+      }),
+      finalize(() => this.isLoading.set(false))
     );
   }
 
+  loadColleges(): void {
+    this.getColleges().subscribe();
+  }
+
   createCollege(dto: CreateCollegeDto): Observable<College> {
+    this.isLoading.set(true);
     return this.facultyApi.createFaculty({
       name: dto.name,
       nameEn: dto.nameEn,
@@ -97,73 +113,61 @@ export class DetailsService {
         const newCollege: College = {
           id: f.id,
           name: f.name,
-          nameEn: f.nameEn,
+          nameEn: f.nameEn || dto.nameEn,
           university: dto.university || '-',
           universityEn: dto.universityEn || '-',
           studentsCount: 0,
           campus: dto.campus || '-',
           campusEn: dto.campusEn || '-',
+          notes: dto.notes,
           createdAt: f.createdAt || new Date().toISOString()
         };
-        const current = getLocalCache<College[]>(DETAILS_CACHE_KEYS.COLLEGES, []);
-        setLocalCache(DETAILS_CACHE_KEYS.COLLEGES, [newCollege, ...current.filter(c => c.id !== newCollege.id)]);
+        this.colleges.update(list => [newCollege, ...list.filter(c => c.id !== newCollege.id)]);
         return newCollege;
       }),
-      catchError(() => {
-        const newCollege: College = {
-          ...dto,
-          id: `COL-${Date.now().toString().slice(-4)}${Math.floor(10 + Math.random() * 90)}`,
-          createdAt: new Date().toISOString()
-        };
-        const current = getLocalCache<College[]>(DETAILS_CACHE_KEYS.COLLEGES, []);
-        setLocalCache(DETAILS_CACHE_KEYS.COLLEGES, [newCollege, ...current]);
-        return of(newCollege);
-      })
+      finalize(() => this.isLoading.set(false))
     );
   }
 
   updateCollege(id: string, dto: UpdateCollegeDto): Observable<boolean> {
-    const current = getLocalCache<College[]>(DETAILS_CACHE_KEYS.COLLEGES, []);
-    const updated = current.map(c => c.id === id ? { ...c, ...dto } : c);
-    setLocalCache(DETAILS_CACHE_KEYS.COLLEGES, updated);
-
+    this.isLoading.set(true);
     return this.facultyApi.updateFaculty(id, {
       name: dto.name || '',
       nameEn: dto.nameEn
     }).pipe(
+      tap(() => {
+        this.colleges.update(list =>
+          list.map(c => c.id === id ? { ...c, ...dto } : c)
+        );
+      }),
       map(() => true),
-      catchError(() => of(true))
+      catchError(() => of(false)),
+      finalize(() => this.isLoading.set(false))
     );
   }
 
   deleteCollege(id: string): Observable<boolean> {
-    const deletedIds = getLocalCache<string[]>('nook_deleted_colleges', []);
-    if (!deletedIds.includes(id)) {
-      deletedIds.push(id);
-      setLocalCache('nook_deleted_colleges', deletedIds);
-    }
-    const current = getLocalCache<College[]>(DETAILS_CACHE_KEYS.COLLEGES, []);
-    setLocalCache(DETAILS_CACHE_KEYS.COLLEGES, current.filter(c => c.id !== id));
-
+    this.isLoading.set(true);
     return this.facultyApi.deleteFaculty(id).pipe(
+      tap(() => {
+        this.colleges.update(list => list.filter(c => c.id !== id));
+      }),
       map(() => true),
-      catchError(() => of(true))
+      catchError(() => of(false)),
+      finalize(() => this.isLoading.set(false))
     );
   }
 
-  // --- Instructors API Methods ---
+  // ==========================================
+  // 2. Instructors API Methods
+  // ==========================================
+
   getInstructors(): Observable<Instructor[]> {
+    this.isLoading.set(true);
     return this.instructorApi.getInstructors().pipe(
       map(list => {
-        const deletedIds = getLocalCache<string[]>('nook_deleted_instructors', []);
         const rawList = list || [];
-        const validList = rawList.filter((inst: any) => !deletedIds.includes(inst.id));
-
-        if (!validList || validList.length === 0) {
-          const cached = getLocalCache<Instructor[]>(DETAILS_CACHE_KEYS.INSTRUCTORS, []);
-          return cached.filter(i => !deletedIds.includes(i.id));
-        }
-        const mapped: Instructor[] = validList.map((inst: any) => ({
+        const mapped: Instructor[] = rawList.map((inst: any) => ({
           id: inst.id,
           name: inst.name,
           nameEn: inst.nameEn || inst.name,
@@ -178,133 +182,126 @@ export class DetailsService {
           bio: inst.bio || '',
           createdAt: inst.createdAt || new Date().toISOString()
         }));
-        setLocalCache(DETAILS_CACHE_KEYS.INSTRUCTORS, mapped);
+
+        this.instructors.set(mapped);
         return mapped;
       }),
-      catchError(() => {
-        const deletedIds = getLocalCache<string[]>('nook_deleted_instructors', []);
-        const cached = getLocalCache<Instructor[]>(DETAILS_CACHE_KEYS.INSTRUCTORS, []);
-        return of(cached.filter(i => !deletedIds.includes(i.id)));
-      })
+      catchError(err => {
+        console.error('[DetailsService] getInstructors failed:', err);
+        this.error.set('Failed to load instructors from server');
+        return of([]);
+      }),
+      finalize(() => this.isLoading.set(false))
     );
   }
 
+  loadInstructors(): void {
+    this.getInstructors().subscribe();
+  }
+
   createInstructor(dto: CreateInstructorDto): Observable<Instructor> {
+    this.isLoading.set(true);
     return this.instructorApi.createInstructor({
       name: dto.name,
-      nameEn: dto.nameEn,
-      phone: dto.phone,
-      email: dto.email,
-      specialty: dto.specialty,
-      bio: dto.bio,
-      isActive: dto.status === 'active'
+      phoneNumber: dto.phone,
+      colour: '#f5b921'
     }).pipe(
       map(inst => {
         const newInst: Instructor = {
           id: inst.id,
           name: inst.name,
-          nameEn: inst.nameEn || inst.name,
-          phone: inst.phoneNumber || inst.phone || dto.phone || '',
-          email: inst.email || dto.email || '',
-          specialty: inst.specialty || dto.specialty || '',
-          affiliation: dto.affiliation,
-          affiliationEn: dto.affiliationEn,
+          nameEn: inst.nameEn || dto.nameEn || inst.name,
+          phone: inst.phoneNumber || dto.phone || '-',
+          email: dto.email || '-',
+          specialty: dto.specialty || '-',
+          specialtyEn: dto.specialtyEn || '-',
+          affiliation: dto.affiliation || '-',
+          affiliationEn: dto.affiliationEn || '-',
           totalSessions: 0,
-          status: 'active' as const,
-          bio: inst.bio || dto.bio || '',
+          status: dto.status || 'active',
+          bio: dto.bio || '',
           createdAt: inst.createdAt || new Date().toISOString()
         };
-        const current = getLocalCache<Instructor[]>(DETAILS_CACHE_KEYS.INSTRUCTORS, []);
-        setLocalCache(DETAILS_CACHE_KEYS.INSTRUCTORS, [newInst, ...current.filter(i => i.id !== newInst.id)]);
+        this.instructors.update(list => [newInst, ...list.filter(i => i.id !== newInst.id)]);
         return newInst;
       }),
-      catchError(() => {
-        const newInst: Instructor = {
-          ...dto,
-          id: `INS-${Date.now().toString().slice(-4)}${Math.floor(10 + Math.random() * 90)}`,
-          createdAt: new Date().toISOString()
-        };
-        const current = getLocalCache<Instructor[]>(DETAILS_CACHE_KEYS.INSTRUCTORS, []);
-        setLocalCache(DETAILS_CACHE_KEYS.INSTRUCTORS, [newInst, ...current]);
-        return of(newInst);
-      })
+      finalize(() => this.isLoading.set(false))
     );
   }
 
   updateInstructor(id: string, dto: UpdateInstructorDto): Observable<boolean> {
-    const current = getLocalCache<Instructor[]>(DETAILS_CACHE_KEYS.INSTRUCTORS, []);
-    const updated = current.map(i => i.id === id ? { ...i, ...dto } : i);
-    setLocalCache(DETAILS_CACHE_KEYS.INSTRUCTORS, updated);
-
+    this.isLoading.set(true);
     return this.instructorApi.updateInstructor(id, {
       name: dto.name || '',
-      nameEn: dto.nameEn,
-      phone: dto.phone,
-      email: dto.email,
-      specialty: dto.specialty,
-      bio: dto.bio,
-      isActive: dto.status ? dto.status === 'active' : undefined
+      phoneNumber: dto.phone,
+      colour: '#f5b921'
     }).pipe(
+      tap(() => {
+        this.instructors.update(list =>
+          list.map(i => i.id === id ? { ...i, ...dto } : i)
+        );
+      }),
       map(() => true),
-      catchError(() => of(true))
+      catchError(() => of(false)),
+      finalize(() => this.isLoading.set(false))
     );
   }
 
   deleteInstructor(id: string): Observable<boolean> {
-    // 1. Mark as deleted in tombstones
-    const deletedIds = getLocalCache<string[]>('nook_deleted_instructors', []);
-    if (!deletedIds.includes(id)) {
-      deletedIds.push(id);
-      setLocalCache('nook_deleted_instructors', deletedIds);
-    }
-    // 2. Remove immediately from local cached instructors list
-    const current = getLocalCache<Instructor[]>(DETAILS_CACHE_KEYS.INSTRUCTORS, []);
-    const filtered = current.filter(i => i.id !== id);
-    setLocalCache(DETAILS_CACHE_KEYS.INSTRUCTORS, filtered);
-
-    // 3. Trigger backend delete API call
+    this.isLoading.set(true);
     return this.instructorApi.deleteInstructor(id).pipe(
+      tap(() => {
+        this.instructors.update(list => list.filter(i => i.id !== id));
+      }),
       map(() => true),
-      catchError(() => of(true))
+      catchError(() => of(false)),
+      finalize(() => this.isLoading.set(false))
     );
   }
 
-  // --- Blacklist API Methods ---
+  // ==========================================
+  // 3. Blacklist API Methods
+  // ==========================================
+
   getBlacklist(): Observable<BlacklistRecord[]> {
+    this.isLoading.set(true);
     return this.blacklistApi.getBlacklists().pipe(
       map(list => {
-        const resolvedIds = getLocalCache<string[]>('nook_resolved_blacklist', []);
         const rawList = list || [];
-        const validList = rawList.filter((b: any) => !resolvedIds.includes(b.id));
-
-        if (!validList || validList.length === 0) {
-          const cached = getLocalCache<BlacklistRecord[]>(DETAILS_CACHE_KEYS.BLACKLIST, []);
-          return cached.filter(b => !resolvedIds.includes(b.id));
-        }
-        const mapped: BlacklistRecord[] = validList.map(b => ({
+        const mapped: BlacklistRecord[] = rawList.map(b => ({
           id: b.id,
-          name: b.name || b.studentName || 'طالب محظور',
+          name: b.name || b.studentName || 'Student',
+          nameEn: b.studentName || b.name,
           phone: b.studentPhone || '',
-          reason: b.reasonDetails || b.reason || 'مخالفة قواعد مساحة العمل',
-          blockedDate: b.blacklistedAt ? String(b.blacklistedAt).split('T')[0] : (b.blockedAt ? String(b.blockedAt).split('T')[0] : new Date().toISOString().split('T')[0]),
+          reason: b.reasonDetails || b.reason || 'Misconduct',
+          reasonEn: b.reason || b.reasonDetails,
+          blockedDate: b.blacklistedAt ? parseIsoToLocalDate(b.blacklistedAt) : (b.blockedAt ? parseIsoToLocalDate(b.blockedAt) : getTodayDateISO()),
           severity: 'permanent' as const,
           status: (b.isActive !== false ? 'blocked' : 'resolved') as 'blocked' | 'resolved',
-          notes: b.notes
+          notes: b.notes || ''
         }));
-        setLocalCache(DETAILS_CACHE_KEYS.BLACKLIST, mapped);
+
+        this.blacklist.set(mapped);
         return mapped;
       }),
-      catchError(() => {
-        const resolvedIds = getLocalCache<string[]>('nook_resolved_blacklist', []);
-        const cached = getLocalCache<BlacklistRecord[]>(DETAILS_CACHE_KEYS.BLACKLIST, []);
-        return of(cached.filter(b => !resolvedIds.includes(b.id)));
-      })
+      catchError(err => {
+        console.error('[DetailsService] getBlacklist failed:', err);
+        this.error.set('Failed to load blacklist from server');
+        return of([]);
+      }),
+      finalize(() => this.isLoading.set(false))
     );
+  }
+
+  loadBlacklist(): void {
+    this.getBlacklist().subscribe();
   }
 
   addBlacklist(dto: CreateBlacklistDto): Observable<BlacklistRecord> {
+    this.isLoading.set(true);
     return this.blacklistApi.addToBlacklist({
       studentName: dto.name,
+      name: dto.name,
       studentPhone: dto.phone,
       reason: 'Other',
       reasonDetails: dto.reason,
@@ -314,61 +311,45 @@ export class DetailsService {
         const record: BlacklistRecord = {
           id: b.id,
           name: b.name || b.studentName || dto.name,
+          nameEn: dto.nameEn || dto.name,
           phone: b.studentPhone || dto.phone || '',
           faculty: dto.faculty,
           college: dto.college,
           reason: b.reasonDetails || b.reason || dto.reason,
-          blockedDate: new Date().toISOString().split('T')[0],
-          severity: dto.severity,
+          blockedDate: getTodayDateISO(),
+          severity: dto.severity || 'permanent',
           status: 'blocked' as const,
           notes: dto.notes
         };
-        const current = getLocalCache<BlacklistRecord[]>(DETAILS_CACHE_KEYS.BLACKLIST, []);
-        setLocalCache(DETAILS_CACHE_KEYS.BLACKLIST, [record, ...current.filter(x => x.id !== record.id)]);
+        this.blacklist.update(list => [record, ...list.filter(x => x.id !== record.id)]);
         return record;
       }),
-      catchError(() => {
-        const record: BlacklistRecord = {
-          ...dto,
-          id: `BLK-${Date.now().toString().slice(-4)}${Math.floor(10 + Math.random() * 90)}`,
-          blockedDate: new Date().toISOString().split('T')[0],
-          status: 'blocked'
-        };
-        const current = getLocalCache<BlacklistRecord[]>(DETAILS_CACHE_KEYS.BLACKLIST, []);
-        setLocalCache(DETAILS_CACHE_KEYS.BLACKLIST, [record, ...current]);
-        return of(record);
-      })
+      finalize(() => this.isLoading.set(false))
     );
   }
 
   resolveBlacklist(id: string): Observable<boolean> {
-    const resolvedIds = getLocalCache<string[]>('nook_resolved_blacklist', []);
-    if (!resolvedIds.includes(id)) {
-      resolvedIds.push(id);
-      setLocalCache('nook_resolved_blacklist', resolvedIds);
-    }
-    const current = getLocalCache<BlacklistRecord[]>(DETAILS_CACHE_KEYS.BLACKLIST, []);
-    setLocalCache(DETAILS_CACHE_KEYS.BLACKLIST, current.filter(b => b.id !== id));
-
+    this.isLoading.set(true);
     return this.blacklistApi.removeFromBlacklist(id).pipe(
+      tap(() => {
+        this.blacklist.update(list => list.filter(b => b.id !== id));
+      }),
       map(() => true),
-      catchError(() => of(true))
+      catchError(() => of(false)),
+      finalize(() => this.isLoading.set(false))
     );
   }
 
-  // --- Discounts API Methods ---
+  // ==========================================
+  // 4. Discounts API Methods
+  // ==========================================
+
   getDiscounts(): Observable<DiscountCode[]> {
+    this.isLoading.set(true);
     return this.discountApi.getDiscounts().pipe(
       map(list => {
-        const deletedIds = getLocalCache<string[]>('nook_deleted_discounts', []);
         const rawList = list || [];
-        const validList = rawList.filter((d: any) => !deletedIds.includes(d.id));
-
-        if (!validList || validList.length === 0) {
-          const cached = getLocalCache<DiscountCode[]>(DETAILS_CACHE_KEYS.DISCOUNTS, []);
-          return cached.filter(d => !deletedIds.includes(d.id));
-        }
-        const mapped: DiscountCode[] = validList.map(d => {
+        const mapped: DiscountCode[] = rawList.map(d => {
           const codeName = (d.name || d.facultyName || d.id || 'DISCOUNT').toUpperCase().replace(/\s+/g, '');
           const isFixed = d.discountType === 2 || String(d.type || '').toLowerCase() === 'fixed';
           return {
@@ -381,34 +362,44 @@ export class DetailsService {
             scope: 'all' as const,
             usageCount: 0,
             usageLimit: 100,
-            startDate: d.dateFrom ? String(d.dateFrom).split('T')[0] : (d.startsAt ? String(d.startsAt).split('T')[0] : new Date().toISOString().split('T')[0]),
-            expiryDate: d.dateTo ? String(d.dateTo).split('T')[0] : (d.expiresAt ? String(d.expiresAt).split('T')[0] : '2027-12-31'),
+            startDate: d.dateFrom ? parseIsoToLocalDate(d.dateFrom) : (d.startsAt ? parseIsoToLocalDate(d.startsAt) : getTodayDateISO()),
+            expiryDate: d.dateTo ? parseIsoToLocalDate(d.dateTo) : (d.expiresAt ? parseIsoToLocalDate(d.expiresAt) : '2027-12-31'),
             status: (d.isActive !== false ? 'active' : 'disabled') as 'active' | 'expired' | 'disabled',
             totalDiscountSaved: 0,
             createdAt: d.createdAt || new Date().toISOString()
           };
         });
-        setLocalCache(DETAILS_CACHE_KEYS.DISCOUNTS, mapped);
+
+        this.discounts.set(mapped);
         return mapped;
       }),
-      catchError(() => {
-        const deletedIds = getLocalCache<string[]>('nook_deleted_discounts', []);
-        const cached = getLocalCache<DiscountCode[]>(DETAILS_CACHE_KEYS.DISCOUNTS, []);
-        return of(cached.filter(d => !deletedIds.includes(d.id)));
-      })
+      catchError(err => {
+        console.error('[DetailsService] getDiscounts failed:', err);
+        this.error.set('Failed to load discounts from server');
+        return of([]);
+      }),
+      finalize(() => this.isLoading.set(false))
     );
   }
 
+  loadDiscounts(): void {
+    this.getDiscounts().subscribe();
+  }
+
   createDiscount(dto: CreateDiscountDto): Observable<DiscountCode> {
+    this.isLoading.set(true);
     return this.discountApi.createDiscount({
       name: dto.title,
       nameEn: dto.titleEn,
       type: dto.type === 'fixed' ? 'Fixed' : 'Percentage',
+      discountType: dto.type === 'fixed' ? 2 : 1,
       value: dto.value,
       scope: 'All',
       isActive: true,
       startsAt: dto.startDate,
-      expiresAt: dto.expiryDate
+      dateFrom: dto.startDate,
+      expiresAt: dto.expiryDate,
+      dateTo: dto.expiryDate
     }).pipe(
       map(d => {
         const newDiscount: DiscountCode = {
@@ -427,53 +418,42 @@ export class DetailsService {
           totalDiscountSaved: 0,
           createdAt: d.createdAt || new Date().toISOString()
         };
-        const current = getLocalCache<DiscountCode[]>(DETAILS_CACHE_KEYS.DISCOUNTS, []);
-        setLocalCache(DETAILS_CACHE_KEYS.DISCOUNTS, [newDiscount, ...current.filter(x => x.id !== newDiscount.id)]);
+        this.discounts.update(list => [newDiscount, ...list.filter(x => x.id !== newDiscount.id)]);
         return newDiscount;
       }),
-      catchError(() => {
-        const newDiscount: DiscountCode = {
-          ...dto,
-          id: `DSC-${Date.now().toString().slice(-4)}${Math.floor(10 + Math.random() * 90)}`,
-          usageCount: 0,
-          totalDiscountSaved: 0,
-          createdAt: new Date().toISOString()
-        };
-        const current = getLocalCache<DiscountCode[]>(DETAILS_CACHE_KEYS.DISCOUNTS, []);
-        setLocalCache(DETAILS_CACHE_KEYS.DISCOUNTS, [newDiscount, ...current]);
-        return of(newDiscount);
-      })
+      finalize(() => this.isLoading.set(false))
     );
   }
 
   updateDiscount(id: string, dto: UpdateDiscountDto): Observable<boolean> {
-    const current = getLocalCache<DiscountCode[]>(DETAILS_CACHE_KEYS.DISCOUNTS, []);
-    const updated = current.map(d => d.id === id ? { ...d, ...dto } : d);
-    setLocalCache(DETAILS_CACHE_KEYS.DISCOUNTS, updated);
-
+    this.isLoading.set(true);
     return this.discountApi.updateDiscount(id, {
       name: dto.title || '',
       nameEn: dto.titleEn,
       type: dto.type ? (dto.type === 'fixed' ? 'Fixed' : 'Percentage') : undefined,
+      discountType: dto.type === 'fixed' ? 2 : 1,
       value: dto.value
     }).pipe(
+      tap(() => {
+        this.discounts.update(list =>
+          list.map(d => d.id === id ? { ...d, ...dto } : d)
+        );
+      }),
       map(() => true),
-      catchError(() => of(true))
+      catchError(() => of(false)),
+      finalize(() => this.isLoading.set(false))
     );
   }
 
   deleteDiscount(id: string): Observable<boolean> {
-    const deletedIds = getLocalCache<string[]>('nook_deleted_discounts', []);
-    if (!deletedIds.includes(id)) {
-      deletedIds.push(id);
-      setLocalCache('nook_deleted_discounts', deletedIds);
-    }
-    const current = getLocalCache<DiscountCode[]>(DETAILS_CACHE_KEYS.DISCOUNTS, []);
-    setLocalCache(DETAILS_CACHE_KEYS.DISCOUNTS, current.filter(d => d.id !== id));
-
+    this.isLoading.set(true);
     return this.discountApi.deleteDiscount(id).pipe(
+      tap(() => {
+        this.discounts.update(list => list.filter(d => d.id !== id));
+      }),
       map(() => true),
-      catchError(() => of(true))
+      catchError(() => of(false)),
+      finalize(() => this.isLoading.set(false))
     );
   }
 }

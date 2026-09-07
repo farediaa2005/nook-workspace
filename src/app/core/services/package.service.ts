@@ -1,24 +1,23 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
-import { Observable, of, catchError } from 'rxjs';
+import { Observable, of, forkJoin, catchError, finalize } from 'rxjs';
 import {
   PackageItem,
   PackageMemberOption,
   PackageStatus,
+  PaymentMethod,
   CreatePackageDto,
   UpdatePackageDto,
-  PackageUsageDto,
   UsageHistory,
   ValidityPresetOption,
   PresetPackageOption
 } from '../models/package.model';
 import { WorkspacePackageApiService } from './api/workspace-package-api.service';
 import { ClassroomPackageApiService } from './api/classroom-package-api.service';
-// [MOCK DATA DISABLED FOR LIVE API - Uncomment below for offline presentation/testing]
-// import { MOCK_PACKAGE_MEMBERS, MOCK_PACKAGES } from '../../../testing/mocks/packages.mock';
 import { StudentApiService } from './api/student-api.service';
 import { InstructorApiService } from './api/instructor-api.service';
 import { ShiftService } from './shift.service';
 import { AuthService } from './auth.service';
+import { parseIsoToLocalDate, getTodayDateISO } from '../utils/date-time.util';
 
 export interface ToastNotification {
   id: string;
@@ -26,13 +25,33 @@ export interface ToastNotification {
   type: 'success' | 'info' | 'error';
 }
 
-const STORAGE_KEYS = {
-  PACKAGES: 'nook_packages_v3',
-  MEMBERS: 'nook_package_members_v3'
-};
+function paymentMethodToPayWay(method: PaymentMethod | string | undefined): number {
+  switch (method) {
+    case 'vodafone':
+      return 2;
+    case 'fawry':
+      return 3;
+    case 'instapay':
+      return 4;
+    case 'cash':
+    default:
+      return 1;
+  }
+}
 
-export const INITIAL_MEMBER_OPTIONS: PackageMemberOption[] = [];
-export const INITIAL_PACKAGES: PackageItem[] = [];
+function payWayToPaymentMethod(payWay: number | undefined): PaymentMethod {
+  switch (payWay) {
+    case 2:
+      return 'vodafone';
+    case 3:
+      return 'fawry';
+    case 4:
+      return 'instapay';
+    case 1:
+    default:
+      return 'cash';
+  }
+}
 
 @Injectable({
   providedIn: 'root'
@@ -48,9 +67,13 @@ export class PackageService {
   private studentMap = new Map<string, any>();
   private instructorMap = new Map<string, any>();
 
-  private packagesState = signal<PackageItem[]>(this.getStoredItem(STORAGE_KEYS.PACKAGES, []));
+  // Reactive State (Signals only - ZERO localStorage)
+  private packagesState = signal<PackageItem[]>([]);
+  private memberOptionsState = signal<PackageMemberOption[]>([]);
 
-  private memberOptionsState = signal<PackageMemberOption[]>(this.getStoredItem(STORAGE_KEYS.MEMBERS, []));
+  // Loading & Error State
+  readonly isLoading = signal<boolean>(false);
+  readonly error = signal<string | null>(null);
 
   // Toast Notification State
   readonly toast = signal<ToastNotification | null>(null);
@@ -89,7 +112,7 @@ export class PackageService {
     { id: 'pkg-inst-100', nameAr: 'باكيدج الشركات والمؤسسات', nameEn: 'Corporate Enterprise Pack', hours: 100, rate: 80, price: 8000, badgeAr: 'مؤسسية', badgeEn: 'Enterprise' }
   ]);
 
-  /** Compute dynamic package status based on remaining hours and expiry date (BUG-24) */
+  /** Compute dynamic package status based on remaining hours and expiry date */
   computePackageStatus(expiryDateStr: string | undefined, remainingHours: number, currentStatus?: string): PackageStatus {
     if (remainingHours <= 0) {
       return 'exhausted';
@@ -129,6 +152,7 @@ export class PackageService {
       status: this.computePackageStatus(pkg.expiryDate, pkg.remainingHours, pkg.status)
     }))
   );
+
   readonly memberOptions = this.memberOptionsState.asReadonly();
 
   // Filtered by Type
@@ -190,14 +214,30 @@ export class PackageService {
     }
   }
 
+  /**
+   * Synchronize packages and members live from Backend API.
+   * Completely live without local database emulation.
+   */
   public syncPackagesFromBackend(): void {
     if (!this.authService.isAuthenticated()) return;
-    // 1. Sync Students for Member Options
-    this.studentApi.getStudents().pipe(
-      catchError(() => of([]))
-    ).subscribe({
-      next: (students) => {
+
+    this.isLoading.set(true);
+    this.error.set(null);
+
+    // Step 1: Fetch Students and Instructors in parallel to populate member lookup maps
+    forkJoin({
+      students: this.studentApi.getStudents().pipe(catchError(() => of([]))),
+      instructors: this.instructorApi.getInstructors().pipe(catchError(() => of([])))
+    }).subscribe({
+      next: ({ students, instructors }) => {
+        // Cache in memory maps for joining
+        this.studentMap.clear();
         (students || []).forEach(s => this.studentMap.set(s.id, s));
+
+        this.instructorMap.clear();
+        (instructors || []).forEach(ins => this.instructorMap.set(ins.id, ins));
+
+        // Build member options for dropdowns
         const studentMembers: PackageMemberOption[] = (students || []).map((s: any) => ({
           id: s.id,
           nameAr: s.name,
@@ -208,32 +248,8 @@ export class PackageService {
           email: s.email || '',
           type: 'student' as const
         }));
-        this.memberOptionsState.update(existing => {
-          const nonStudents = existing.filter(e => e.type !== 'student');
-          const merged = [...studentMembers, ...nonStudents];
-          this.setStoredItem(STORAGE_KEYS.MEMBERS, merged);
-          return merged;
-        });
 
-        // After loading students, fetch student packages
-        this.fetchStudentPackages();
-      }
-    });
-
-    // 2. Sync Instructors for Member Options
-    this.instructorApi.getInstructors().pipe(
-      catchError(() => of([]))
-    ).subscribe({
-      next: (instructors) => {
-        let deletedIds: string[] = [];
-        try {
-          if (typeof window !== 'undefined' && window.localStorage) {
-            deletedIds = JSON.parse(localStorage.getItem('nook_deleted_instructors') || '[]');
-          }
-        } catch {}
-        const validInstructors = (instructors || []).filter(ins => !deletedIds.includes(ins.id));
-        validInstructors.forEach(ins => this.instructorMap.set(ins.id, ins));
-        const instMembers: PackageMemberOption[] = validInstructors.map((ins: any) => ({
+        const instMembers: PackageMemberOption[] = (instructors || []).map((ins: any) => ({
           id: ins.id,
           nameAr: ins.name,
           nameEn: ins.name,
@@ -243,127 +259,111 @@ export class PackageService {
           email: ins.email || '',
           type: 'instructor' as const
         }));
-        this.memberOptionsState.update(existing => {
-          const nonInstructors = existing.filter(e => e.type !== 'instructor');
-          const merged = [...nonInstructors, ...instMembers];
-          this.setStoredItem(STORAGE_KEYS.MEMBERS, merged);
-          return merged;
-        });
 
-        // After loading instructors, fetch instructor packages
-        this.fetchInstructorPackages();
-      }
-    });
-  }
+        this.memberOptionsState.set([...studentMembers, ...instMembers]);
 
-  private fetchStudentPackages(): void {
-    this.wpApi.getPackages().pipe(
-      catchError(() => of([]))
-    ).subscribe({
-      next: (studentPks) => {
-        if (studentPks && studentPks.length > 0) {
-          const mapped: PackageItem[] = studentPks.map((p: any) => {
-            const student = p.studentId ? this.studentMap.get(p.studentId) : null;
-            const sName = student?.name || p.studentName || p.name || '-';
-            const sPhone = student?.phoneNumber || student?.whatsapp || p.studentPhone || '-';
-            const totalHours = p.hours || p.totalHours || 0;
-            const remainingHours = p.remainingHours != null && p.remainingHours > 0 ? p.remainingHours : totalHours;
-            const cost = p.paidAmount || p.cost || p.price || 0;
-            const hourlyRate = p.hourlyRate || (totalHours > 0 ? Math.round(cost / totalHours) : 0);
-            const rawExp = p.expireDate || p.dateTo || p.expiryDate;
-            const rawPurch = p.createdAt || p.dateFrom || p.purchasedAt || p.purchaseDate;
-            const expDate = rawExp ? String(rawExp).split('T')[0] : '';
-            const purchaseDate = rawPurch ? String(rawPurch).split('T')[0] : new Date().toISOString().split('T')[0];
-            const status = this.computePackageStatus(expDate, remainingHours, p.status);
+        // Step 2: Fetch Workspace Packages & Classroom Packages in parallel
+        forkJoin({
+          studentPks: this.wpApi.getPackages().pipe(catchError(() => of([]))),
+          instructorPks: this.cpApi.getPackages().pipe(catchError(() => of([])))
+        })
+          .pipe(
+            finalize(() => {
+              this.isLoading.set(false);
+            })
+          )
+          .subscribe({
+            next: ({ studentPks, instructorPks }) => {
+              const mappedStudents: PackageItem[] = (studentPks || []).map((p: any) => {
+                const student = p.studentId ? this.studentMap.get(p.studentId) : null;
+                const sName = student?.name || p.studentName || p.name || 'طالب';
+                const sPhone = student?.phoneNumber || student?.whatsapp || p.studentPhone || '-';
+                const totalHours = p.hours || p.totalHours || 0;
+                const remainingHours = p.remainingHours != null ? p.remainingHours : totalHours;
+                const cost = p.cost || p.paidAmount || p.price || 0;
+                const hourlyRate = p.hourlyRate || (totalHours > 0 ? Math.round(cost / totalHours) : 0);
+                const rawExp = p.dateTo || p.expireDate || p.expiryDate;
+                const rawPurch = p.dateFrom || p.purchasedAt || p.createdAt || p.purchaseDate;
+                const expDate = rawExp ? parseIsoToLocalDate(rawExp) : '';
+                const purchaseDate = rawPurch ? parseIsoToLocalDate(rawPurch) : getTodayDateISO();
+                const status = this.computePackageStatus(expDate, remainingHours, p.status);
 
-            return {
-              id: p.id,
-              memberId: p.studentId || '',
-              memberNameAr: sName,
-              memberNameEn: sName,
-              memberSubAr: student?.facultyName || '-',
-              memberSubEn: student?.facultyName || '-',
-              memberPhone: sPhone,
-              type: 'student',
-              packageNameAr: p.packageName || p.name || '-',
-              packageNameEn: p.packageNameEn || p.packageName || p.name || '-',
-              allocatedHours: totalHours,
-              usedHours: Math.max(0, totalHours - remainingHours),
-              remainingHours: remainingHours,
-              cost: cost,
-              hourlyRate: hourlyRate,
-              purchaseDate: purchaseDate,
-              expiryDate: expDate,
-              paymentMethod: (p.payWay === 2 || String(p.paymentMethod).toLowerCase().includes('vodafone') ? 'vodafone' : (p.payWay === 3 ? 'fawry' : (p.payWay === 4 ? 'instapay' : 'cash'))) as any,
-              status,
-              history: [],
-              createdAt: rawPurch || new Date().toISOString()
-            };
+                return {
+                  id: p.id,
+                  memberId: p.studentId || '',
+                  memberNameAr: sName,
+                  memberNameEn: sName,
+                  memberSubAr: student?.facultyName || '-',
+                  memberSubEn: student?.facultyName || '-',
+                  memberPhone: sPhone,
+                  type: 'student',
+                  packageNameAr: p.packageName || p.name || `باقة ${totalHours} ساعة`,
+                  packageNameEn: p.packageNameEn || p.packageName || p.name || `${totalHours} Hours Pass`,
+                  allocatedHours: totalHours,
+                  usedHours: Math.max(0, totalHours - remainingHours),
+                  remainingHours: remainingHours,
+                  cost: cost,
+                  hourlyRate: hourlyRate,
+                  purchaseDate: purchaseDate,
+                  expiryDate: expDate,
+                  paymentMethod: payWayToPaymentMethod(p.payWay),
+                  status,
+                  history: [],
+                  createdAt: rawPurch || new Date().toISOString()
+                };
+              });
+
+              const mappedInstructors: PackageItem[] = (instructorPks || []).map((p: any) => {
+                const instructor = p.instructorId ? this.instructorMap.get(p.instructorId) : null;
+                const insName = instructor?.name || p.instructorName || p.name || 'محاضر';
+                const insPhone = instructor?.phoneNumber || p.instructorPhone || '-';
+                const totalHours = p.hours || p.totalHours || 0;
+                const remainingHours = p.remainingHours != null ? p.remainingHours : totalHours;
+                const cost = p.cost || p.paidAmount || p.price || 0;
+                const hourlyRate = p.hourlyRate || (totalHours > 0 ? Math.round(cost / totalHours) : 0);
+                const rawExp = p.dateTo || p.expireDate || p.expiryDate;
+                const rawPurch = p.dateFrom || p.purchasedAt || p.createdAt || p.purchaseDate;
+                const expDate = rawExp ? parseIsoToLocalDate(rawExp) : '';
+                const purchaseDate = rawPurch ? parseIsoToLocalDate(rawPurch) : getTodayDateISO();
+                const status = this.computePackageStatus(expDate, remainingHours, p.status);
+
+                return {
+                  id: p.id,
+                  memberId: p.instructorId || '',
+                  memberNameAr: insName,
+                  memberNameEn: insName,
+                  memberSubAr: instructor?.specialty || '-',
+                  memberSubEn: instructor?.specialty || '-',
+                  memberPhone: insPhone,
+                  type: 'instructor',
+                  packageNameAr: p.packageName || p.name || `باقة قاعات ${totalHours} ساعة`,
+                  packageNameEn: p.packageNameEn || p.packageName || p.name || `${totalHours} Hours Classroom Pass`,
+                  allocatedHours: totalHours,
+                  usedHours: Math.max(0, totalHours - remainingHours),
+                  remainingHours: remainingHours,
+                  cost: cost,
+                  hourlyRate: hourlyRate,
+                  purchaseDate: purchaseDate,
+                  expiryDate: expDate,
+                  paymentMethod: payWayToPaymentMethod(p.payWay),
+                  status,
+                  history: [],
+                  createdAt: rawPurch || new Date().toISOString()
+                };
+              });
+
+              // Set clean, pure API data into signals (clearing all previous data)
+              this.packagesState.set([...mappedStudents, ...mappedInstructors]);
+            },
+            error: (err) => {
+              this.error.set('فشل في تحميل الباقات من السيرفر');
+              this.isLoading.set(false);
+            }
           });
-
-          this.packagesState.update(existing => {
-            const nonStudents = existing.filter(e => e.type !== 'student');
-            const merged = [...mapped, ...nonStudents];
-            this.setStoredItem(STORAGE_KEYS.PACKAGES, merged);
-            return merged;
-          });
-        }
-      }
-    });
-  }
-
-  private fetchInstructorPackages(): void {
-    this.cpApi.getPackages().pipe(
-      catchError(() => of([]))
-    ).subscribe({
-      next: (instructorPks) => {
-        if (instructorPks && instructorPks.length > 0) {
-          const mapped: PackageItem[] = instructorPks.map((p: any) => {
-            const instructor = p.instructorId ? this.instructorMap.get(p.instructorId) : null;
-            const insName = instructor?.name || p.instructorName || p.name || '-';
-            const insPhone = instructor?.phoneNumber || p.instructorPhone || '-';
-            const totalHours = p.hours || p.totalHours || 0;
-            const remainingHours = p.remainingHours != null && p.remainingHours > 0 ? p.remainingHours : totalHours;
-            const cost = p.paidAmount || p.cost || p.price || 0;
-            const hourlyRate = p.hourlyRate || (totalHours > 0 ? Math.round(cost / totalHours) : 0);
-            const rawExp = p.expireDate || p.dateTo || p.expiryDate;
-            const rawPurch = p.createdAt || p.dateFrom || p.purchasedAt || p.purchaseDate;
-            const expDate = rawExp ? String(rawExp).split('T')[0] : '';
-            const purchaseDate = rawPurch ? String(rawPurch).split('T')[0] : new Date().toISOString().split('T')[0];
-            const status = this.computePackageStatus(expDate, remainingHours, p.status);
-
-            return {
-              id: p.id,
-              memberId: p.instructorId || '',
-              memberNameAr: insName,
-              memberNameEn: insName,
-              memberSubAr: instructor?.specialty || '-',
-              memberSubEn: instructor?.specialtyEn || instructor?.specialty || '-',
-              memberPhone: insPhone,
-              type: 'instructor',
-              packageNameAr: p.packageName || p.name || '-',
-              packageNameEn: p.packageNameEn || p.packageName || p.name || '-',
-              allocatedHours: totalHours,
-              usedHours: Math.max(0, totalHours - remainingHours),
-              remainingHours: remainingHours,
-              cost: cost,
-              hourlyRate: hourlyRate,
-              purchaseDate: purchaseDate,
-              expiryDate: expDate,
-              paymentMethod: (p.payWay === 2 || String(p.paymentMethod).toLowerCase().includes('vodafone') ? 'vodafone' : (p.payWay === 3 ? 'fawry' : (p.payWay === 4 ? 'instapay' : 'cash'))) as any,
-              status,
-              history: [],
-              createdAt: rawPurch || new Date().toISOString()
-            };
-          });
-
-          this.packagesState.update(existing => {
-            const nonInstructors = existing.filter(e => e.type !== 'instructor');
-            const merged = [...nonInstructors, ...mapped];
-            this.setStoredItem(STORAGE_KEYS.PACKAGES, merged);
-            return merged;
-          });
-        }
+      },
+      error: () => {
+        this.isLoading.set(false);
+        this.error.set('فشل في تحميل قائمة الأعضاء');
       }
     });
   }
@@ -386,33 +386,39 @@ export class PackageService {
     };
   }
 
-  /** Add a New Package */
-  addPackage(dto: CreatePackageDto): void {
+  /** Check if a member (student or instructor) already has an active or near_expiry package */
+  getActivePackageForMember(memberId?: string, memberPhone?: string, type: 'student' | 'instructor' = 'student'): PackageItem | undefined {
+    const list = this.packagesState();
+    return list.find(p => {
+      if (p.type !== type) return false;
+      const isSameMember = (memberId && p.memberId && p.memberId === memberId) ||
+                           (memberPhone && p.memberPhone && p.memberPhone === memberPhone && memberPhone !== '-');
+      if (!isSameMember) return false;
+      const currentStatus = this.computePackageStatus(p.expiryDate, p.remainingHours, p.status);
+      return currentStatus === 'active' || currentStatus === 'near_expiry';
+    });
+  }
+
+  /**
+   * Add a New Package (calls Backend API directly)
+   */
+  addPackage(dto: CreatePackageDto): boolean {
+    const activePkg = this.getActivePackageForMember(dto.memberId, dto.memberPhone, dto.type);
+    if (activePkg) {
+      const memberName = dto.memberNameAr || dto.memberNameEn || 'العضو المحدد';
+      const typeLabel = dto.type === 'student' ? 'الطالب' : 'المحاضر';
+      this.showToast(
+        `خطأ: ${typeLabel} (${memberName}) لديه باقة نشطة بالفعل! لا يمكن إضافة أكثر من باقة نشطة في نفس الوقت.`,
+        'error'
+      );
+      return false;
+    }
+
     const allocated = dto.allocatedHours || 0;
     const used = dto.usedHours || 0;
     const remainingHours = Math.max(0, allocated - used);
     const status = this.computePackageStatus(dto.expiryDate, remainingHours, dto.status);
-
-    const newPackage: PackageItem = {
-      ...dto,
-      id: `PKG-${Date.now().toString().slice(-4)}${Math.floor(10 + Math.random() * 90)}`,
-      remainingHours,
-      status,
-      createdAt: new Date().toISOString()
-    };
-
-    this.packagesState.update(list => {
-      const updated = [newPackage, ...list];
-      this.setStoredItem(STORAGE_KEYS.PACKAGES, updated);
-      return updated;
-    });
-
-    this.showToast(
-      dto.type === 'student'
-        ? 'تم بيع واشتراك باقة الطالب بنجاح!'
-        : 'تم بيع واشتراك باقة المحاضر بنجاح!',
-      'success'
-    );
+    const payWay = paymentMethodToPayWay(dto.paymentMethod);
 
     // Record shift transaction
     const pkgPayMethod = (dto.paymentMethod === 'vodafone' ? 'vodafone' : (dto.paymentMethod === 'instapay' ? 'instapay' : (dto.paymentMethod === 'fawry' ? 'fawry' : 'cash')));
@@ -423,7 +429,6 @@ export class PackageService {
       details: `شراء باقة - ${dto.packageNameAr || dto.packageNameEn || 'باقة'} (${dto.memberNameAr || dto.memberNameEn || ''})`
     });
 
-    // Call API with real foreign key IDs
     if (dto.type === 'student') {
       const studentId = dto.memberId || Array.from(this.studentMap.keys())[0] || '';
       this.wpApi.createPackage({
@@ -431,22 +436,33 @@ export class PackageService {
         studentName: dto.memberNameAr || dto.memberNameEn || '',
         studentPhone: dto.memberPhone || '',
         packageName: dto.packageNameAr || dto.packageNameEn || 'باقة ساعات دراسية',
+        hours: allocated,
         totalHours: allocated,
+        cost: dto.cost || 0,
         price: dto.cost || 0,
         hourlyRate: dto.hourlyRate || 20,
-        expiryDate: dto.expiryDate,
-        paymentMethod: (dto.paymentMethod?.toUpperCase() === 'CASH' ? 'Cash' : 'Vodafone') as any
+        purchasedAt: dto.purchaseDate ? `${dto.purchaseDate}T00:00:00Z` : new Date().toISOString(),
+        dateFrom: dto.purchaseDate ? `${dto.purchaseDate}T00:00:00Z` : new Date().toISOString(),
+        dateTo: dto.expiryDate ? `${dto.expiryDate}T23:59:59Z` : null,
+        payWay
       }).subscribe({
         next: (created) => {
-          if (created && created.id) {
-            this.packagesState.update(list => {
-              const next = list.map(p => p.id === newPackage.id ? { ...p, id: created.id } : p);
-              this.setStoredItem(STORAGE_KEYS.PACKAGES, next);
-              return next;
-            });
-          }
+          const newItem: PackageItem = {
+            ...dto,
+            id: created.id,
+            remainingHours: created.remainingHours != null ? created.remainingHours : remainingHours,
+            allocatedHours: created.hours || allocated,
+            cost: created.cost || dto.cost,
+            status,
+            createdAt: created.purchasedAt || new Date().toISOString(),
+            history: []
+          };
+          this.packagesState.update(list => [newItem, ...list]);
+          this.showToast('تم بيع واشتراك باقة الطالب بنجاح عبر السيرفر!', 'success');
         },
-        error: () => {}
+        error: () => {
+          this.showToast('حدث خطأ أثناء حفظ باقة الطالب في السيرفر', 'error');
+        }
       });
     } else {
       const instructorId = dto.memberId || Array.from(this.instructorMap.keys())[0] || '';
@@ -455,33 +471,50 @@ export class PackageService {
         instructorName: dto.memberNameAr || dto.memberNameEn || '',
         instructorPhone: dto.memberPhone || '',
         packageName: dto.packageNameAr || dto.packageNameEn || 'باقة ورش القاعات',
+        hours: allocated,
         totalHours: allocated,
+        cost: dto.cost || 0,
         price: dto.cost || 0,
         hourlyRate: dto.hourlyRate || 90,
-        expiryDate: dto.expiryDate,
-        paymentMethod: (dto.paymentMethod?.toUpperCase() === 'CASH' ? 'Cash' : 'Vodafone') as any
+        purchasedAt: dto.purchaseDate ? `${dto.purchaseDate}T00:00:00Z` : new Date().toISOString(),
+        dateFrom: dto.purchaseDate ? `${dto.purchaseDate}T00:00:00Z` : new Date().toISOString(),
+        dateTo: dto.expiryDate ? `${dto.expiryDate}T23:59:59Z` : null,
+        payWay
       }).subscribe({
         next: (created) => {
-          if (created && created.id) {
-            this.packagesState.update(list => {
-              const next = list.map(p => p.id === newPackage.id ? { ...p, id: created.id } : p);
-              this.setStoredItem(STORAGE_KEYS.PACKAGES, next);
-              return next;
-            });
-          }
+          const newItem: PackageItem = {
+            ...dto,
+            id: created.id,
+            remainingHours: created.remainingHours != null ? created.remainingHours : remainingHours,
+            allocatedHours: created.hours || allocated,
+            cost: created.cost || dto.cost,
+            status,
+            createdAt: created.purchasedAt || new Date().toISOString(),
+            history: []
+          };
+          this.packagesState.update(list => [newItem, ...list]);
+          this.showToast('تم بيع واشتراك باقة المحاضر بنجاح عبر السيرفر!', 'success');
         },
-        error: () => {}
+        error: () => {
+          this.showToast('حدث خطأ أثناء حفظ باقة المحاضر في السيرفر', 'error');
+        }
       });
     }
+    return true;
   }
 
   /** Add Multiple Packages */
-  addPackages(dtos: CreatePackageDto[]): void {
-    if (!dtos || dtos.length === 0) return;
-    dtos.forEach(dto => this.addPackage(dto));
+  addPackages(dtos: CreatePackageDto[]): boolean {
+    if (!dtos || dtos.length === 0) return false;
+    let allSuccess = true;
+    for (const dto of dtos) {
+      const ok = this.addPackage(dto);
+      if (!ok) allSuccess = false;
+    }
+    return allSuccess;
   }
 
-  /** Add or Update a Member in the Database */
+  /** Add or Update a Member in memory options */
   addOrUpdateMember(member: Partial<PackageMemberOption> & { nameAr?: string; nameEn?: string; type: 'student' | 'instructor' }): PackageMemberOption {
     const list = this.memberOptionsState();
     const cleanName = (member.nameAr || member.nameEn || '').trim();
@@ -502,10 +535,7 @@ export class PackageService {
         subAr: member.subAr || existing.subAr,
         subEn: member.subEn || existing.subEn
       };
-      this.memberOptionsState.update(items => {
-        const next = items.map(i => i.id === existing.id ? updated : i);
-        return next;
-      });
+      this.memberOptionsState.update(items => items.map(i => (i.id === existing.id ? updated : i)));
       return updated;
     }
 
@@ -521,138 +551,130 @@ export class PackageService {
       type: member.type
     };
 
-    this.memberOptionsState.update(items => {
-      const next = [newMember, ...items];
-      return next;
-    });
-
+    this.memberOptionsState.update(items => [newMember, ...items]);
     return newMember;
   }
 
-  /** Update an Existing Package */
+  /** Update an Existing Package via API */
   updatePackage(id: string, dto: UpdatePackageDto): void {
-    this.packagesState.update(list => {
-      const updated = list.map(pkg => {
-        if (pkg.id !== id) return pkg;
+    const existing = this.getPackageById(id);
+    if (!existing) return;
 
-        const allocatedHours =
-          dto.allocatedHours !== undefined ? dto.allocatedHours : pkg.allocatedHours;
-        const usedHours = dto.usedHours !== undefined ? dto.usedHours : pkg.usedHours;
-        const remainingHours = Math.max(0, allocatedHours - usedHours);
-        const expiryDate = dto.expiryDate !== undefined ? dto.expiryDate : pkg.expiryDate;
-        const status = this.computePackageStatus(expiryDate, remainingHours, dto.status || pkg.status);
+    const allocatedHours = dto.allocatedHours !== undefined ? dto.allocatedHours : existing.allocatedHours;
+    const usedHours = dto.usedHours !== undefined ? dto.usedHours : existing.usedHours;
+    const remainingHours = Math.max(0, allocatedHours - usedHours);
+    const expiryDate = dto.expiryDate !== undefined ? dto.expiryDate : existing.expiryDate;
+    const status = this.computePackageStatus(expiryDate, remainingHours, dto.status || existing.status);
 
-        return {
-          ...pkg,
-          ...dto,
-          allocatedHours,
-          usedHours,
-          remainingHours,
-          status
-        };
-      });
+    const updatePayload = {
+      hours: allocatedHours,
+      remainingHours,
+      cost: dto.cost !== undefined ? dto.cost : existing.cost,
+      dateTo: expiryDate ? `${expiryDate}T23:59:59Z` : null,
+      payWay: paymentMethodToPayWay(dto.paymentMethod || existing.paymentMethod)
+    };
 
-      this.setStoredItem(STORAGE_KEYS.PACKAGES, updated);
-      return updated;
+    const updateCall$: Observable<any> = existing.type === 'student'
+      ? this.wpApi.updatePackage(id, { ...updatePayload, studentId: existing.memberId })
+      : this.cpApi.updatePackage(id, { ...updatePayload, instructorId: existing.memberId });
+
+    updateCall$.subscribe({
+      next: () => {
+        this.packagesState.update(list =>
+          list.map(pkg => {
+            if (pkg.id !== id) return pkg;
+            return {
+              ...pkg,
+              ...dto,
+              allocatedHours,
+              usedHours,
+              remainingHours,
+              status
+            };
+          })
+        );
+        this.showToast('تم حفظ تعديلات الباقة في السيرفر بنجاح!', 'success');
+      },
+      error: () => {
+        this.showToast('حدث خطأ أثناء حفظ التعديلات في السيرفر', 'error');
+      }
     });
-
-    this.showToast('تم حفظ تعديلات الباقة بنجاح!', 'success');
   }
 
-  /** Record Session Usage (Deduct Hours) */
+  /** Record Session Usage (Deduct Hours) via API */
   recordSessionUsage(id: string, usage: Omit<UsageHistory, 'id'>): void {
+    const pkg = this.getPackageById(id);
+    if (!pkg) return;
+
     const historyItem: UsageHistory = {
       ...usage,
       id: `USG-${Date.now().toString().slice(-4)}${Math.floor(10 + Math.random() * 90)}`
     };
 
-    this.packagesState.update(list => {
-      const updated = list.map(pkg => {
-        if (pkg.id !== id) return pkg;
+    const useHoursCall$: Observable<any> = pkg.type === 'student'
+      ? this.wpApi.useHours(id, { hours: usage.duration })
+      : this.cpApi.useHours(id, { hours: usage.duration });
 
-        const newUsed = (pkg.usedHours || 0) + usage.duration;
-        const newRemaining = Math.max(0, (pkg.allocatedHours || 0) - newUsed);
-        const newStatus = this.computePackageStatus(pkg.expiryDate, newRemaining, pkg.status);
-
-        return {
-          ...pkg,
-          usedHours: newUsed,
-          remainingHours: newRemaining,
-          status: newStatus,
-          history: [historyItem, ...(pkg.history || [])]
-        };
-      });
-
-      this.setStoredItem(STORAGE_KEYS.PACKAGES, updated);
-      return updated;
+    useHoursCall$.subscribe({
+      next: () => {
+        this.packagesState.update(list =>
+          list.map(p => {
+            if (p.id !== id) return p;
+            const newUsed = (p.usedHours || 0) + usage.duration;
+            const newRemaining = Math.max(0, (p.allocatedHours || 0) - newUsed);
+            const newStatus = this.computePackageStatus(p.expiryDate, newRemaining, p.status);
+            return {
+              ...p,
+              usedHours: newUsed,
+              remainingHours: newRemaining,
+              status: newStatus,
+              history: [historyItem, ...(p.history || [])]
+            };
+          })
+        );
+        this.showToast(`تم تسجيل استهلاك ${usage.duration} ساعة بنجاح!`, 'success');
+      },
+      error: () => {
+        this.showToast('حدث خطأ أثناء تسجيل استهلاك الساعات في السيرفر', 'error');
+      }
     });
-
-    this.showToast(`تم تسجيل استهلاك ${usage.duration} ساعة بنجاح!`, 'success');
   }
 
+  /** Helper for workspace checkout hour deduction */
   deductStudentPackageHours(phoneOrId: string, hours: number): void {
     const pkg = this.packagesState().find(
       p => p.id === phoneOrId || p.memberPhone === phoneOrId || (p.memberNameAr && p.memberNameAr.includes(phoneOrId))
     );
     if (pkg) {
       this.recordSessionUsage(pkg.id, {
-        date: new Date().toISOString().split('T')[0],
+        date: getTodayDateISO(),
         duration: hours,
         sessionAr: 'خصم ساعات جلسة مساحة العمل',
         sessionEn: 'Workspace Session Check-Out Deduction',
         roomOrDesk: 'Main Co-Working Zone'
       });
-      this.wpApi.useHours(pkg.id, { hours }).subscribe({ error: () => {} });
     } else {
       this.showToast(`تم خصم ${hours} ساعة من باقة الطالب.`, 'info');
     }
   }
 
-  /** Delete Package */
+  /** Delete Package via API */
   deletePackage(id: string): void {
     const pkg = this.getPackageById(id);
-    this.packagesState.update(list => {
-      const updated = list.filter(p => p.id !== id);
-      this.setStoredItem(STORAGE_KEYS.PACKAGES, updated);
-      return updated;
+    if (!pkg) return;
+
+    const deleteCall$ = pkg.type === 'student'
+      ? this.wpApi.deletePackage(id)
+      : this.cpApi.deletePackage(id);
+
+    deleteCall$.subscribe({
+      next: () => {
+        this.packagesState.update(list => list.filter(p => p.id !== id));
+        this.showToast('تم حذف الباقة بنجاح من السيرفر!', 'info');
+      },
+      error: () => {
+        this.showToast('حدث خطأ أثناء حذف الباقة من السيرفر', 'error');
+      }
     });
-
-    this.showToast('تم حذف الباقة بنجاح!', 'info');
-
-    if (pkg?.type === 'student') {
-      this.wpApi.deletePackage(id).subscribe({ error: () => {} });
-    } else if (pkg?.type === 'instructor') {
-      this.cpApi.deletePackage(id).subscribe({ error: () => {} });
-    }
-  }
-
-  // Local Storage Helpers
-  private getStoredItem<T>(key: string, fallback: T): T {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const item = localStorage.getItem(key);
-        if (item) {
-          const parsed = JSON.parse(item);
-          if (Array.isArray(parsed)) {
-            const mockPkgIds = new Set(['PKG-101', 'PKG-102', 'PKG-103', 'PKG-201', 'PKG-202', 'PKG-203', 'MEM-101', 'MEM-102', 'MEM-103']);
-            const cleaned = parsed.filter((p: any) => !mockPkgIds.has(p?.id));
-            if (cleaned.length !== parsed.length) {
-              localStorage.setItem(key, JSON.stringify(cleaned));
-            }
-            return cleaned as T;
-          }
-          return parsed;
-        }
-      }
-    } catch {}
-    return fallback;
-  }
-
-  private setStoredItem<T>(key: string, value: T): void {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.setItem(key, JSON.stringify(value));
-      }
-    } catch {}
   }
 }

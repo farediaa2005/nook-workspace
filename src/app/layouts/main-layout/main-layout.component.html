@@ -94,7 +94,8 @@
           <div class="input-wrapper">
             <input
               type="number"
-              [(ngModel)]="startCash"
+              [ngModel]="startCash()"
+              (ngModelChange)="startCash.set($event)"
               placeholder="0.00"
               class="currency-input"
               (input)="clearError()"
@@ -112,7 +113,8 @@
           <div class="input-wrapper">
             <input
               type="number"
-              [(ngModel)]="startVodafone"
+              [ngModel]="startVodafone()"
+              (ngModelChange)="startVodafone.set($event)"
               placeholder="0.00"
               class="currency-input"
               min="0"
@@ -128,7 +130,8 @@
           <div class="input-wrapper">
             <input
               type="number"
-              [(ngModel)]="startInstaPay"
+              [ngModel]="startInstaPay()"
+              (ngModelChange)="startInstaPay.set($event)"
               placeholder="0.00"
               class="currency-input"
               min="0"
@@ -144,7 +147,8 @@
           <div class="input-wrapper">
             <input
               type="number"
-              [(ngModel)]="startFawry"
+              [ngModel]="startFawry()"
+              (ngModelChange)="startFawry.set($event)"
               placeholder="0.00"
               class="currency-input"
               min="0"

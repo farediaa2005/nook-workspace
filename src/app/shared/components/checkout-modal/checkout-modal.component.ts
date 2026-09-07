@@ -42,28 +42,76 @@ export class CheckoutModalComponent {
   customDiscountMode = signal<'percentage' | 'fixed'>('percentage');
   customDiscountInput = signal<number | null>(null);
 
+  // Wallet Interaction State ('debit' = عليه / خصم أو مديونية, 'credit' = ليه / إضافة رصيد, 'none' = بدون)
+  walletMode = signal<'none' | 'debit' | 'credit'>('none');
+  walletInputAmount = signal<number | null>(null);
+
+  // Net cash required from student after wallet deduction / credit
+  netCashDue = computed(() => {
+    const finalTotal = this.data().financialBreakdown.finalTotal || 0;
+    const mode = this.walletMode();
+    const amt = this.walletInputAmount() || 0;
+
+    if (mode === 'debit') {
+      return Math.max(0, +(finalTotal - amt).toFixed(2));
+    } else if (mode === 'credit') {
+      return +(finalTotal + amt).toFixed(2);
+    }
+    return finalTotal;
+  });
+
+  // Resulting wallet balance after checkout (supports negative balance as debt)
+  newWalletBalance = computed(() => {
+    const d = this.data();
+    const prevWallet = d.financialBreakdown.walletBalance || 0;
+    const mode = this.walletMode();
+    const amt = this.walletInputAmount() || 0;
+
+    if (mode === 'debit') {
+      // عليه: خصم من المحفظة حتى لو بالسالب كمديونية
+      return +(prevWallet - amt).toFixed(2);
+    } else if (mode === 'credit') {
+      // ليه: إضافة للمحفظة
+      return +(prevWallet + amt).toFixed(2);
+    }
+
+    // Default mode 'none'
+    const finalTotal = d.financialBreakdown.finalTotal || 0;
+    const received = d.payment.amountReceived !== null && !isNaN(d.payment.amountReceived) ? d.payment.amountReceived : 0;
+    return +(prevWallet + received - finalTotal).toFixed(2);
+  });
+
+  // Effective change due to customer
+  effectiveChangeDue = computed(() => {
+    const cashDue = this.netCashDue();
+    const received = this.data().payment.amountReceived;
+    if (received === null || isNaN(received) || received <= cashDue) return 0;
+    return Math.max(0, +(received - cashDue).toFixed(2));
+  });
+
   isInsufficient = computed(() => {
     const d = this.data();
     if (d.payment.selectedMethod === 'package') return false;
-    const finalTotal = d.financialBreakdown.finalTotal;
-    if (finalTotal <= 0) return false;
+    const cashDue = this.netCashDue();
+    // If cash due is 0 (fully covered or charged to wallet), it's never insufficient
+    if (cashDue <= 0) return false;
     const received = d.payment.amountReceived;
-    return received === null || isNaN(received) || received <= 0;
+    return received === null || isNaN(received) || received < 0;
   });
 
   isPartialPayment = computed(() => {
     const d = this.data();
     if (d.payment.selectedMethod === 'package') return false;
-    const finalTotal = d.financialBreakdown.finalTotal;
+    const cashDue = this.netCashDue();
+    if (cashDue <= 0) return false;
     const received = d.payment.amountReceived;
-    return received !== null && !isNaN(received) && received > 0 && received < finalTotal;
+    return received !== null && !isNaN(received) && received >= 0 && received < cashDue;
   });
 
   remainingBalance = computed(() => {
-    const d = this.data();
-    const finalTotal = d.financialBreakdown.finalTotal;
-    const received = d.payment.amountReceived || 0;
-    return Math.max(0, +(finalTotal - received).toFixed(2));
+    const cashDue = this.netCashDue();
+    const received = this.data().payment.amountReceived || 0;
+    return Math.max(0, +(cashDue - received).toFixed(2));
   });
 
   onCustomDiscountInput(val: string): void {
@@ -109,16 +157,86 @@ export class CheckoutModalComponent {
     }
   }
 
+  // Wallet Actions
+  setWalletMode(mode: 'none' | 'debit' | 'credit'): void {
+    if (this.walletMode() === mode) {
+      this.walletMode.set('none');
+      this.walletInputAmount.set(null);
+      return;
+    }
+    this.walletMode.set(mode);
+    if (mode === 'debit') {
+      if (this.walletInputAmount() === null || this.walletInputAmount() === 0) {
+        this.walletInputAmount.set(this.data().financialBreakdown.finalTotal);
+      }
+    } else if (mode === 'credit') {
+      if (this.walletInputAmount() === null || this.walletInputAmount() === 0) {
+        const change = this.effectiveChangeDue();
+        this.walletInputAmount.set(change > 0 ? change : null);
+      }
+    } else {
+      this.walletInputAmount.set(null);
+    }
+  }
+
+  onWalletAmountInput(val: string): void {
+    const parsed = val !== null && val !== '' ? parseFloat(val) : null;
+    const num = parsed !== null && !isNaN(parsed) ? Math.max(0, parsed) : null;
+    this.walletInputAmount.set(num);
+    if (num !== null && num > 0 && this.walletMode() === 'none') {
+      this.walletMode.set('debit');
+    }
+  }
+
+  applyFullBillToWallet(): void {
+    this.walletMode.set('debit');
+    this.walletInputAmount.set(this.data().financialBreakdown.finalTotal);
+  }
+
+  applyAvailableWalletBalance(): void {
+    this.walletMode.set('debit');
+    const bal = Math.max(0, this.data().financialBreakdown.walletBalance || 0);
+    this.walletInputAmount.set(bal);
+  }
+
+  depositChangeToWallet(): void {
+    const change = this.effectiveChangeDue();
+    if (change > 0) {
+      this.walletMode.set('credit');
+      this.walletInputAmount.set(change);
+    }
+  }
+
+  quickAddCredit(amt: number): void {
+    this.walletMode.set('credit');
+    const cur = this.walletInputAmount() || 0;
+    this.walletInputAmount.set(cur + amt);
+  }
+
+  clearWalletAdjustment(): void {
+    this.walletMode.set('none');
+    this.walletInputAmount.set(null);
+  }
+
   onProcessPayment(): void {
     if (this.isInsufficient()) return;
     const d = this.data();
+    const cashDue = this.netCashDue();
+    const received = d.payment.amountReceived !== null && !isNaN(d.payment.amountReceived)
+      ? d.payment.amountReceived
+      : (cashDue <= 0 ? 0 : d.payment.amountReceived);
+
     this.processPayment.emit({
       paymentMethod: d.payment.selectedMethod,
-      amountReceived: d.payment.amountReceived,
-      changeDue: d.payment.changeDue,
+      amountReceived: received,
+      changeDue: this.effectiveChangeDue(),
       finalTotal: d.financialBreakdown.finalTotal,
       discountPercent: d.financialBreakdown.discountPercent,
-      couponCode: d.financialBreakdown.couponCode
+      couponCode: d.financialBreakdown.couponCode,
+      walletMode: this.walletMode(),
+      walletAdjustment: this.walletInputAmount() || 0,
+      newWalletBalance: this.newWalletBalance(),
+      netCashDue: cashDue
     });
   }
 }

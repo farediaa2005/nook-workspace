@@ -170,3 +170,39 @@ export interface CheckoutWorkspaceDto {
 /** Alias for CheckoutWorkspaceDto */
 export type CheckoutWorkspaceSessionDto = CheckoutWorkspaceDto;
 
+/** Catering line item for workspace sessions */
+export interface CateringLineItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity?: number;
+}
+
+/** Student directory item for workspace directory view */
+export interface StudentDirectoryItem {
+  id: string;
+  studentId?: string;
+  name: string;
+  avatar?: string;
+  phone: string;
+  whatsapp: string;
+  email: string;
+  faculty: string;
+  college: string;
+  currentStatus: 'active' | 'offline' | 'blocked';
+  activeSession?: any;
+  packageInfo?: {
+    hasPackage: boolean;
+    packageName?: string;
+    packageNameAr?: string;
+    packageNameEn?: string;
+    remainingHours?: number;
+    totalHours?: number;
+    status?: string;
+  };
+  totalVisits: number;
+  lastVisitDate?: string;
+  lastVisitTime?: string;
+  totalSpent: number;
+}
+

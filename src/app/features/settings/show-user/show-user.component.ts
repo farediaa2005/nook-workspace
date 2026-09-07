@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LanguageService } from '../../../core/services/language.service';
 import { UserService } from '../../../core/services/user.service';
-import { MockUser } from '../../../core/models/user.model';
+import { StaffUser } from '../../../core/models/user.model';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { SearchBoxComponent } from '../../../shared/components/search-box/search-box.component';
 import { PrimaryButtonComponent } from '../../../shared/components/primary-button/primary-button.component';
@@ -11,8 +11,10 @@ import { MetricCardComponent } from '../../../shared/components/metric-card/metr
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 import { ModalComponent } from '../../../shared/components/modal/modal.component';
 import { CustomSelectComponent, SelectOption } from '../../../shared/components/custom-select/custom-select.component';
-
+import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
+import { NotificationService } from '../../../core/services/notification.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { getTodayDateISO } from '../../../core/utils/date-time.util';
 
 @Component({
   selector: 'app-show-user',
@@ -26,7 +28,8 @@ import { AuthService } from '../../../core/services/auth.service';
     MetricCardComponent,
     PaginationComponent,
     ModalComponent,
-    CustomSelectComponent
+    CustomSelectComponent,
+    ConfirmDialogComponent
   ],
   templateUrl: './show-user.component.html',
   styleUrl: './show-user.component.css'
@@ -35,6 +38,7 @@ export class ShowUserComponent implements OnInit {
   private langService = inject(LanguageService);
   protected userService = inject(UserService);
   private authService = inject(AuthService);
+  private notification = inject(NotificationService);
   private cdr = inject(ChangeDetectorRef);
 
   t = this.langService.t;
@@ -63,7 +67,7 @@ export class ShowUserComponent implements OnInit {
   );
 
   // Check if target user is the currently logged-in account (BUG-03)
-  isCurrentLoggedUser(u: MockUser): boolean {
+  isCurrentLoggedUser(u: StaffUser): boolean {
     const current = this.authService.getUser();
     if (!current) return false;
     return (!!current.id && current.id === u.id) ||
@@ -78,6 +82,7 @@ export class ShowUserComponent implements OnInit {
 
   // Form Signals
   formName = signal<string>('');
+  formNameAr = signal<string>('');
   formUsername = signal<string>('');
   formPhone = signal<string>('');
   formEmail = signal<string>('');
@@ -85,6 +90,21 @@ export class ShowUserComponent implements OnInit {
   formRole = signal<'Admin / Manager' | 'Receptionist'>('Admin / Manager');
   formStatus = signal<'active' | 'inactive'>('active');
   formError = signal<string | null>(null);
+
+  // In-app Delete Confirmation (BUG-019)
+  userToDelete = signal<StaffUser | null>(null);
+  deleteConfirmMessage = computed<string>(() => {
+    const u = this.userToDelete();
+    if (!u) return '';
+    if (this.isAdminUser(u)) {
+      return this.isArabic()
+        ? `⚠️ تحذير: هذا الحساب مسؤول (Admin). هل أنت متأكد من رغبتك في حذف "${u.name}"؟`
+        : `⚠️ Warning: This is an Administrator account. Are you sure you want to delete "${u.name}"?`;
+    }
+    return this.isArabic()
+      ? `هل أنت متأكد من رغبتك في حذف حساب "${u.name}"؟`
+      : `Are you sure you want to delete user "${u.name}"?`;
+  });
 
   roleOptions = computed<SelectOption[]>(() => [
     { label: this.t().adminManagerRole, value: 'Admin / Manager' },
@@ -154,6 +174,7 @@ export class ShowUserComponent implements OnInit {
     this.modalMode.set('add');
     this.editingUserId.set(null);
     this.formName.set('');
+    this.formNameAr.set('');
     this.formUsername.set('');
     this.formPhone.set('');
     this.formEmail.set('');
@@ -164,10 +185,11 @@ export class ShowUserComponent implements OnInit {
     this.isModalOpen.set(true);
   }
 
-  openEditModal(u: MockUser): void {
+  openEditModal(u: StaffUser): void {
     this.modalMode.set('edit');
     this.editingUserId.set(u.id);
     this.formName.set(u.name);
+    this.formNameAr.set(u.nameAr || u.name);
     this.formUsername.set(u.username || '');
     this.formPhone.set(u.phone || '');
     this.formEmail.set(u.email);
@@ -195,17 +217,34 @@ export class ShowUserComponent implements OnInit {
       this.formError.set(this.t().threeWordsNameRequired);
       return;
     }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      this.formError.set(this.isArabic()
+        ? 'يرجى إدخال عنوان بريد إلكتروني صحيح'
+        : 'Please enter a valid email address');
+      return;
+    }
+
+    // BUG-007: Password required and min length 8 for new users
+    const pwd = this.formPassword().trim();
+    if (this.modalMode() === 'add') {
+      if (!pwd || pwd.length < 8) {
+        this.formError.set(this.isArabic()
+          ? 'كلمة المرور مطلوبة للمستخدم الجديد ويجب أن تكون من 8 أحرف على الأقل.'
+          : 'Password is required for new users and must be at least 8 characters long.');
+        return;
+      }
+    } else if (pwd && pwd.length < 8) {
+      this.formError.set(this.isArabic()
+        ? 'كلمة المرور الجديدة يجب أن تكون من 8 أحرف على الأقل.'
+        : 'New password must be at least 8 characters long.');
+      return;
+    }
 
     if (!username || username.length < 2) {
       this.formError.set(this.isArabic()
         ? 'يرجى إدخال اسم مستخدم صالح (حرفين على الأقل)'
         : 'Username must be at least 2 characters');
-      return;
-    }
-
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!email || !emailRegex.test(email)) {
-      this.formError.set(this.t().validEmailFormatRequired);
       return;
     }
 
@@ -232,13 +271,14 @@ export class ShowUserComponent implements OnInit {
       roleAr = 'مسؤول / مدير';
     }
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getTodayDateISO();
+    const nameAr = this.formNameAr().trim() || name;
 
     if (this.modalMode() === 'add') {
-      const newUser: MockUser = {
+      const newUser: StaffUser = {
         id: `USR-${Date.now().toString().slice(-4)}`,
         name,
-        nameAr: name,
+        nameAr,
         username,
         phone: phone || '-',
         email,
@@ -253,10 +293,10 @@ export class ShowUserComponent implements OnInit {
       const id = this.editingUserId();
       if (id) {
         const existing = this.users().find(u => u.id === id);
-        const updatedUser: MockUser = {
+        const updatedUser: StaffUser = {
           id,
           name,
-          nameAr: name,
+          nameAr,
           username,
           phone: phone || existing?.phone || '-',
           email,
@@ -273,16 +313,16 @@ export class ShowUserComponent implements OnInit {
     this.closeModal();
   }
 
-  isAdminUser(u: MockUser): boolean {
+  isAdminUser(u: StaffUser): boolean {
     const roleLower = (u.role || '').toLowerCase();
     const roleAr = u.roleAr || '';
     return roleLower.includes('admin') || roleLower.includes('manager') || roleAr.includes('مدير') || roleAr.includes('مسؤول');
   }
 
-  toggleUserStatus(u: MockUser): void {
+  toggleUserStatus(u: StaffUser): void {
     // BUG-01: Strict RBAC check to forbid deactivating Admin accounts
     if (this.isAdminUser(u)) {
-      alert(this.isArabic()
+      this.notification.warning(this.isArabic()
         ? '⚠️ تنبيه أمني: لا يمكن تعطيل أو حظر حسابات المسؤولين (Admin).'
         : '⚠️ Security Alert: Cannot deactivate or suspend Admin accounts.');
       return;
@@ -290,10 +330,10 @@ export class ShowUserComponent implements OnInit {
     this.userService.toggleStatus(u.id);
   }
 
-  deleteUser(u: MockUser): void {
+  deleteUser(u: StaffUser): void {
     // BUG-03: Protect logged-in user from deleting own account
     if (this.isCurrentLoggedUser(u)) {
-      alert(this.isArabic()
+      this.notification.warning(this.isArabic()
         ? '⚠️ تنبيه أمني: لا يمكنك حذف حسابك الحالي أثناء تسجيل الدخول به.'
         : '⚠️ Security Alert: You cannot delete your own active account while logged in.');
       return;
@@ -301,25 +341,25 @@ export class ShowUserComponent implements OnInit {
 
     // BUG-02: Protect last active Admin account from deletion
     if (this.isAdminUser(u) && this.activeAdminCount() <= 1) {
-      alert(this.isArabic()
+      this.notification.warning(this.isArabic()
         ? '⚠️ تنبيه أمني: لا يمكن حذف آخر مسؤول (Admin) نشط متبقٍ في النظام.'
         : '⚠️ Security Alert: Cannot delete the last remaining active Admin in the system.');
       return;
     }
 
-    // General Admin confirmation
-    if (this.isAdminUser(u)) {
-      if (!confirm(this.isArabic()
-        ? `⚠️ تحذير: هذا الحساب مسؤول (Admin). هل أنت متأكد تماماً من رغبتك في حذف ${u.name}؟`
-        : `⚠️ Warning: This is an Admin account. Are you sure you want to delete ${u.name}?`)) {
-        return;
-      }
-    } else {
-      if (!confirm(this.isArabic() ? `هل أنت متأكد من حذف حساب ${u.name}؟` : `Are you sure you want to delete ${u.name}?`)) {
-        return;
-      }
-    }
+    // Open in-app confirm dialog (BUG-019)
+    this.userToDelete.set(u);
+  }
 
-    this.userService.deleteUser(u.id);
+  confirmDelete(): void {
+    const u = this.userToDelete();
+    if (u) {
+      this.userService.deleteUser(u.id);
+      this.userToDelete.set(null);
+    }
+  }
+
+  cancelDelete(): void {
+    this.userToDelete.set(null);
   }
 }

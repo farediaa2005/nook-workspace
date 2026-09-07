@@ -145,9 +145,13 @@ export class EndOfShiftModalComponent implements OnInit {
       this.actualVodafone(), 
       this.actualInstaPay(), 
       this.actualFawry(), 
-      this.notes().trim() || undefined
+      this.notes().trim() || undefined,
+      (success) => {
+        this.isSubmitting.set(false);
+        if (success) {
+          this.closed.emit();
+        }
+      }
     );
-    this.isSubmitting.set(false);
-    this.closed.emit();
   }
 }

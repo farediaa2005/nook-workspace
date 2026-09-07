@@ -6,15 +6,29 @@ export type Theme = 'dark' | 'light';
   providedIn: 'root'
 })
 export class ThemeService {
-  currentTheme = signal<Theme>('dark');
-  isDark = computed(() => this.currentTheme() === 'dark');
+  public static readonly THEME_KEY = 'nook_theme';
+
+  private static getInitialTheme(): Theme {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(ThemeService.THEME_KEY);
+        if (saved === 'light' || saved === 'dark') {
+          return saved;
+        }
+      } catch {}
+    }
+    return 'dark';
+  }
+
+  readonly currentTheme = signal<Theme>(ThemeService.getInitialTheme());
+  readonly isDark = computed(() => this.currentTheme() === 'dark');
 
   constructor() {
     this.initTheme();
   }
 
   private initTheme(): void {
-    this.setTheme(this.currentTheme());
+    this.applyThemeToDom(this.currentTheme());
   }
 
   toggleTheme(): void {
@@ -24,6 +38,17 @@ export class ThemeService {
 
   setTheme(theme: Theme): void {
     this.currentTheme.set(theme);
-    document.documentElement.setAttribute('data-theme', theme);
+    this.applyThemeToDom(theme);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(ThemeService.THEME_KEY, theme);
+      } catch {}
+    }
+  }
+
+  private applyThemeToDom(theme: Theme): void {
+    if (typeof window !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', theme);
+    }
   }
 }

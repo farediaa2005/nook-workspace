@@ -153,7 +153,17 @@
           </tr>
         </thead>
         <tbody>
-          @for (item of paginatedList(); track item.id) {
+          @if (isLoadingHistory()) {
+            <tr>
+              <td colspan="9" class="text-center" style="padding: 48px;">
+                <div style="display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--text-dim);">
+                  <span style="display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite;"></span>
+                  <span>{{ t().loadingShiftHistory }}</span>
+                </div>
+              </td>
+            </tr>
+          } @else {
+            @for (item of paginatedList(); track item.id) {
             <tr>
               <!-- Staff -->
               <td class="cell-staff">
@@ -258,6 +268,7 @@
               </td>
             </tr>
           }
+        }
         </tbody>
       </table>
     </div>

@@ -1,4 +1,11 @@
 <div class="dashboard-container" [class.dashboard-container--rtl]="isArabic()">
+  @if (isLoading()) {
+    <div class="dashboard-loading-bar">
+      <div class="loading-bar-spinner"></div>
+      <span>{{ t().loadingDashboard }}</span>
+    </div>
+  }
+
   <!-- 1. Hero Welcome Banner -->
   <div class="welcome-banner">
     <div class="welcome-main">
@@ -20,7 +27,7 @@
   <!-- 2. Action Cards Grid (4 Quick Action Cards) -->
   <div class="dashboard-action-cards-grid">
     <!-- Card 1: Add Discount (Yellow) -->
-    <a routerLink="/details/add-discount" [queryParams]="{ openAdd: 'true' }" class="dash-action-card dash-action-card--yellow">
+    <a routerLink="/settings/discounts" [queryParams]="{ openAdd: 'true' }" class="dash-action-card dash-action-card--yellow">
       <div class="dash-card-top">
         <div class="dash-card-top-left">
           <div class="dash-card-icon-wrap dash-card-icon-wrap--yellow">

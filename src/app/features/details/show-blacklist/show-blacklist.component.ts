@@ -13,6 +13,7 @@ import { CustomSelectComponent, SelectOption } from '../../../shared/components/
 
 import { DetailsService } from '../../../core/services/details.service';
 import { BlacklistRecord } from '../../../core/models/details.model';
+import { getTodayDateISO } from '../../../core/utils/date-time.util';
 // [MOCK DATA DISABLED FOR LIVE API - See src/testing/mocks/details.mock.ts for offline presentation/testing]
 
 export type { BlacklistRecord };
@@ -184,7 +185,7 @@ export class ShowBlacklistComponent implements OnInit {
   );
 
   blockedThisMonthCount = computed(() => {
-    const currentMonthPrefix = new Date().toISOString().slice(0, 7); // e.g. '2026-08'
+    const currentMonthPrefix = getTodayDateISO().slice(0, 7); // e.g. '2026-08'
     return this.blacklist().filter(r => r.blockedDate.startsWith(currentMonthPrefix) && r.status === 'blocked').length;
   });
 
@@ -259,8 +260,7 @@ export class ShowBlacklistComponent implements OnInit {
       return;
     }
 
-    const todayStr = new Date().toISOString().split('T')[0];
-    const studentId = this.selectedStudentId() || `STU-${Date.now().toString().slice(-4)}`;
+    const studentId = this.selectedStudentId() || undefined;
 
     this.detailsService.addBlacklist({
       name,

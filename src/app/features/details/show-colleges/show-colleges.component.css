@@ -71,10 +71,14 @@
 }
 
 .tab-btn {
+  flex: 1 1 0px;
+  min-width: max-content;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  text-align: center;
   gap: 8px;
-  padding: 8px 16px;
+  padding: 8px 18px;
   border-radius: 10px;
   border: none;
   background: transparent;
@@ -1028,24 +1032,57 @@ app-primary-button.colleges-add-btn,
 
 @media (max-width: 768px) {
   .page-container {
-    padding: 16px;
+    padding: 16px 12px;
   }
   .show-head {
     flex-direction: column;
     align-items: stretch;
+    gap: 16px;
+  }
+  .head-title-wrap {
+    width: 100%;
   }
   .head-controls-row {
     width: 100%;
     flex-direction: column;
     align-items: stretch;
+    gap: 12px;
   }
   .view-tabs-toggle {
     width: 100%;
-    justify-content: center;
+    display: flex;
+    align-items: stretch;
+    box-sizing: border-box;
+    gap: 4px;
   }
   .tab-btn {
-    flex: 1;
+    flex: 1 1 0px;
+    min-width: 0;
+    padding: 10px 8px;
+    font-size: 0.82rem;
+    display: inline-flex;
+    align-items: center;
     justify-content: center;
+    text-align: center;
+    white-space: normal;
+    word-break: break-word;
+    height: auto;
+  }
+  .tab-btn span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  app-primary-button.colleges-add-btn,
+  .colleges-add-btn {
+    width: 100%;
+    display: block;
+  }
+  :host ::ng-deep .colleges-add-btn .btn-primary-action {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    justify-content: center !important;
+    height: 44px !important;
   }
   .analytics-metrics-strip {
     grid-template-columns: 1fr;
@@ -1058,5 +1095,27 @@ app-primary-button.colleges-add-btn,
   }
   .field-group.full-width {
     grid-column: span 1;
+  }
+}
+
+@media (max-width: 576px) {
+  .page-title {
+    font-size: 1.35rem;
+  }
+  .view-tabs-toggle {
+    align-items: stretch;
+  }
+  .tab-btn {
+    padding: 8px 6px;
+    font-size: 0.78rem;
+    gap: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .tab-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
   }
 }

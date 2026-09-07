@@ -1,6 +1,13 @@
 <div class="active-shift-container" [class.rtl]="isArabic()">
   
-  @if (!hasActiveShift()) {
+  @if (isLoading()) {
+    <div class="empty-shift-wrapper" style="min-height: 50vh; display: flex; align-items: center; justify-content: center;">
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; color: var(--text-dim);">
+        <span style="display: inline-block; width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite;"></span>
+        <span>{{ t().checkingActiveShift }}</span>
+      </div>
+    </div>
+  } @else if (!hasActiveShift()) {
     <div class="empty-shift-wrapper">
       <div class="empty-shift-card">
         <div class="empty-shift-icon-wrap">

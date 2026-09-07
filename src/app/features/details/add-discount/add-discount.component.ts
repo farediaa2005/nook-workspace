@@ -1,4 +1,5 @@
-import { Component, inject, signal, computed, ChangeDetectorRef, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, ChangeDetectorRef, OnInit, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -13,6 +14,7 @@ import { CustomSelectComponent, SelectOption } from '../../../shared/components/
 
 import { DetailsService } from '../../../core/services/details.service';
 import { DiscountCode } from '../../../core/models/details.model';
+import { getTodayDateISO, addDaysToDateISO } from '../../../core/utils/date-time.util';
 // [MOCK DATA DISABLED FOR LIVE API - See src/testing/mocks/details.mock.ts for offline presentation/testing]
 
 export type { DiscountCode };
@@ -39,12 +41,13 @@ export class AddDiscountComponent implements OnInit {
   private detailsService = inject(DetailsService);
   private cdr = inject(ChangeDetectorRef);
   private route = inject(ActivatedRoute);
+  private destroyRef = inject(DestroyRef);
 
   t = this.langService.t;
   isArabic = this.langService.isArabic;
 
   // Strict Date Constraint
-  readonly todayDate = new Date().toISOString().split('T')[0];
+  readonly todayDate = getTodayDateISO();
 
   // Master State
   discounts = signal<DiscountCode[]>([]);
@@ -69,7 +72,7 @@ export class AddDiscountComponent implements OnInit {
   formValue = signal<number>(10);
   formScope = signal<'all' | 'students' | 'instructors' | 'packages'>('all');
   formUsageLimit = signal<number>(100);
-  formStartDate = signal<string>(new Date().toISOString().split('T')[0]);
+  formStartDate = signal<string>(getTodayDateISO());
   formExpiryDate = signal<string>('');
   formStatus = signal<'active' | 'disabled'>('active');
   formError = signal<string | null>(null);
@@ -93,7 +96,7 @@ export class AddDiscountComponent implements OnInit {
   ngOnInit(): void {
     this.loadDiscounts();
 
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
       if (params['openAdd'] === 'true' || params['new'] === 'true' || params['add'] === 'true') {
         setTimeout(() => this.openAddModal(), 80);
       }
@@ -196,12 +199,10 @@ export class AddDiscountComponent implements OnInit {
     this.formValue.set(15);
     this.formScope.set('all');
     this.formUsageLimit.set(100);
-    this.formStartDate.set(new Date().toISOString().split('T')[0]);
+    this.formStartDate.set(getTodayDateISO());
     
     // Default 30 days expiry
-    const exp = new Date();
-    exp.setDate(exp.getDate() + 30);
-    this.formExpiryDate.set(exp.toISOString().split('T')[0]);
+    this.formExpiryDate.set(addDaysToDateISO(30));
     
     this.formStatus.set('active');
     this.formError.set(null);
@@ -268,7 +269,7 @@ export class AddDiscountComponent implements OnInit {
         value,
         scope,
         usageLimit,
-        startDate: startDate || new Date().toISOString().split('T')[0],
+        startDate: startDate || getTodayDateISO(),
         expiryDate,
         status: status as 'active' | 'disabled'
       }).subscribe({

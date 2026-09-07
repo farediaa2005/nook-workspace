@@ -976,3 +976,68 @@
   gap: 12px;
 }
 
+/* Responsive Media Queries */
+@media (max-width: 768px) {
+  .page-container {
+    padding: 16px 12px;
+  }
+  .page-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  .page-head__titles {
+    width: 100%;
+  }
+  .page-head__actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .page-head__actions app-primary-button {
+    width: 100%;
+    display: block;
+    order: -1;
+  }
+  :host ::ng-deep .page-head__actions app-primary-button .btn-primary-action {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    justify-content: center !important;
+    height: 44px !important;
+  }
+  .btn-pos-launch,
+  .btn-export-products {
+    width: 100%;
+    justify-content: center;
+    height: 42px;
+  }
+  .filters-bar {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .search-input-wrap,
+  .category-select-wrap {
+    width: 100%;
+    max-width: 100%;
+  }
+  .products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+}
+
+@media (max-width: 576px) {
+  .page-title {
+    font-size: 1.35rem;
+  }
+  .products-grid {
+    grid-template-columns: 1fr;
+  }
+  .form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+

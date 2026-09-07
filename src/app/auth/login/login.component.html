@@ -1,24 +1,30 @@
-<button class="theme-btn" (click)="toggleTheme()" aria-label="Toggle day/night">
-  @if (isDarkTheme()) {
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="5"/>
-      <line x1="12" y1="1" x2="12" y2="3"/>
-      <line x1="12" y1="21" x2="12" y2="23"/>
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-      <line x1="1" y1="12" x2="3" y2="12"/>
-      <line x1="21" y1="12" x2="23" y2="12"/>
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-    </svg>
-  } @else {
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-    </svg>
-  }
-</button>
+<div class="top-nav-actions">
+  <button class="lang-btn" (click)="toggleLanguage()" aria-label="Toggle language">
+    <span>{{ isArabic() ? 'English' : 'عربي' }}</span>
+  </button>
 
-<div class="wrap">
+  <button class="theme-btn" (click)="toggleTheme()" aria-label="Toggle day/night">
+    @if (isDarkTheme()) {
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"/>
+        <line x1="12" y1="1" x2="12" y2="3"/>
+        <line x1="12" y1="21" x2="12" y2="23"/>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+        <line x1="1" y1="12" x2="3" y2="12"/>
+        <line x1="21" y1="12" x2="23" y2="12"/>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>
+    } @else {
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    }
+  </button>
+</div>
+
+<div class="wrap" [dir]="isArabic() ? 'rtl' : 'ltr'">
   <div class="card">
     <!-- Top Lamp Fixture -->
     <div class="lamp" [class.on]="isLampOn()">
@@ -39,7 +45,7 @@
     />
 
     <div class="head">
-      <p>Light up your Nook</p>
+      <p>{{ t().loginSubtitle }}</p>
     </div>
 
     @if (errorMessage()) {
@@ -50,7 +56,7 @@
     <form (ngSubmit)="onSubmit()" autocomplete="off">
       <!-- Identifier Field (Username or Email) -->
       <div class="field" [class.active]="isEmailActive()">
-        <label for="email">Username or Email</label>
+        <label for="email">{{ t().loginIdentifierLabel }}</label>
         <div class="boxf">
           <span class="lead">
             <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -66,7 +72,7 @@
             (ngModelChange)="email.set($event)"
             (focus)="onFocus('email')"
             (blur)="onBlur()"
-            placeholder="Username or Email"
+            [placeholder]="t().loginIdentifierLabel"
             autocomplete="username"
           />
         </div>
@@ -74,7 +80,7 @@
 
       <!-- Password Field -->
       <div class="field" [class.active]="isPasswordActive()">
-        <label for="password">Password</label>
+        <label for="password">{{ t().loginPasswordLabel }}</label>
         <div class="boxf">
           <span class="lead">
             <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -111,18 +117,18 @@
 
       <!-- Forgot Password -->
       <div class="row">
-        <a class="forgot">Forgot password?</a>
+        <a class="forgot" role="button" tabindex="0" (click)="onForgotPassword()" (keydown.enter)="onForgotPassword()">{{ t().loginForgotPassword }}</a>
       </div>
 
       <!-- Submit Button -->
       <button type="submit" class="enter" [disabled]="isLoading()">
         @if (isLoading()) {
-          <span>LOGGING IN...</span>
+          <span>{{ t().loginLoadingBtn }}</span>
           <svg class="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="12" stroke-linecap="round"/>
           </svg>
         } @else {
-          <span>ENTER NOOK</span>
+          <span>{{ t().loginEnterBtn }}</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="5" y1="12" x2="19" y2="12"/>
             <polyline points="12 5 19 12 12 19"/>
@@ -132,11 +138,11 @@
     </form>
 
     <!-- Divider -->
-    <div class="divi">Follow us on</div>
+    <div class="divi">{{ t().loginFollowUs }}</div>
 
     <!-- Social Buttons -->
     <div class="sso">
-      <a class="ssobtn" href="https://instagram.com" target="_blank" rel="noopener" aria-label="NOOK on Instagram">
+      <a class="ssobtn" href="https://www.instagram.com/nook.space" target="_blank" rel="noopener" aria-label="NOOK on Instagram">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
           <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
@@ -145,7 +151,7 @@
         <span>Instagram</span>
       </a>
 
-      <a class="ssobtn" href="https://tiktok.com" target="_blank" rel="noopener" aria-label="NOOK on TikTok">
+      <a class="ssobtn" href="https://www.tiktok.com/@nook.space" target="_blank" rel="noopener" aria-label="NOOK on TikTok">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/>
         </svg>
@@ -155,7 +161,7 @@
 
     <!-- Footer Tagline -->
     <div class="foot">
-      <div class="tag">FIND YOUR SPACE. <em>CREATE</em> YOUR STORY.</div>
+      <div class="tag">{{ t().loginTagline }}</div>
     </div>
   </div>
 </div>

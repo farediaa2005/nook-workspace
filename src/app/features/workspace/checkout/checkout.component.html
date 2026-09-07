@@ -6,13 +6,23 @@
       <p class="page-subtitle">{{ t().checkoutDesc }}</p>
     </div>
 
-    <a routerLink="/workspace/show-student" class="btn-cancel-checkout">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <line x1="18" y1="6" x2="6" y2="18" />
-        <line x1="6" y1="6" x2="18" y2="18" />
-      </svg>
-      <span>{{ t().cancel }}</span>
-    </a>
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <button type="button" class="btn-action-link" (click)="openEditModal()" style="padding: 8px 16px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--surface-2); color: var(--yellow); font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </svg>
+        <span>{{ isArabic() ? 'تعديل الجلسة' : 'Edit Session' }}</span>
+      </button>
+
+      <a routerLink="/workspace/show-student" class="btn-cancel-checkout">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+        <span>{{ t().cancel }}</span>
+      </a>
+    </div>
   </div>
 
   <!-- Main 2-Column Grid -->
@@ -210,6 +220,13 @@
           <strong class="summary-val summary-val--discount">-{{ totalDiscounts().toFixed(2) }} {{ t().egp }}</strong>
         </div>
 
+        @if (walletDeduction() > 0) {
+        <div class="summary-row">
+          <span class="summary-label" style="color: #10b981;">خصم المحفظة</span>
+          <strong class="summary-val" style="color: #10b981;">-{{ walletDeduction().toFixed(2) }} {{ t().egp }}</strong>
+        </div>
+        }
+
         <div class="summary-divider"></div>
 
         <div class="final-amount-wrap">
@@ -299,7 +316,48 @@
             </div>
             <span class="pm-label">{{ t().studentPackageMethod }}</span>
           </button>
+
+          <!-- Student Wallet Payment Card -->
+          <button type="button" class="payment-method-card"
+            [class.payment-method-card--active]="selectedPaymentMethod() === 'wallet' || useWallet()"
+            (click)="selectPaymentMethod('wallet')">
+            <div class="pm-icon-wrap" style="color: #10b981;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+                <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+                <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
+              </svg>
+            </div>
+            <span class="pm-label">{{ isArabic() ? 'المحفظة الذكية' : 'Student Wallet' }}</span>
+          </button>
         </div>
+
+        <!-- Student Wallet Balance Section -->
+        <div style="margin-top: 14px; padding: 12px; background: rgba(16, 185, 129, 0.08); border: 1px dashed rgba(16, 185, 129, 0.3); border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" style="width: 18px; height: 18px;">
+              <rect x="2" y="6" width="20" height="12" rx="2" />
+              <circle cx="12" cy="12" r="2" />
+            </svg>
+            <span style="font-size: 0.85rem; font-weight: 600; color: var(--text);">
+              {{ isArabic() ? 'رصيد محفظة الطالب:' : 'Student Wallet Balance:' }}
+            </span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <strong style="color: #10b981; font-weight: 800; font-size: 0.95rem;">
+              {{ walletBalance().toFixed(2) }} {{ t().egp }}
+            </strong>
+            <button type="button" (click)="toggleUseWallet()" style="padding: 4px 10px; border-radius: 6px; font-size: 0.76rem; font-weight: 700; cursor: pointer; border: none; background: #10b981; color: #fff;">
+              {{ useWallet() ? (isArabic() ? 'إلغاء الخصم' : 'Cancel') : (isArabic() ? 'خصم من المحفظة' : 'Deduct Wallet') }}
+            </button>
+          </div>
+        </div>
+
+        @if (walletDeduction() > 0) {
+          <div style="margin-top: 8px; font-size: 0.78rem; color: #10b981; font-weight: 600; text-align: right;">
+            {{ isArabic() ? 'سيتم خصم' : 'Deduction:' }} {{ walletDeduction().toFixed(2) }} {{ t().egp }} {{ isArabic() ? 'من المحفظة عند الخروج' : 'from wallet' }}
+          </div>
+        }
 
         <!-- Amount Received Field -->
         <div class="amount-received-group">
@@ -335,6 +393,63 @@
       </div>
     </div>
   </div>
+
+  <!-- EDIT SESSION MODAL -->
+  @if (showEditModal()) {
+  <div class="modal-overlay" (click)="closeEditModal()">
+    <div class="modal-card modal-card--md" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h3 class="modal-title">{{ isArabic() ? 'تعديل بيانات الجلسة' : 'Edit Session Details' }}</h3>
+        <button type="button" class="modal-close-btn" (click)="closeEditModal()">&times;</button>
+      </div>
+      <div class="modal-form-body">
+        @if (editError()) {
+          <div style="background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 0.85rem; font-weight: 600;">
+            {{ editError() }}
+          </div>
+        }
+
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+          <div class="modal-field-group">
+            <label class="modal-label">{{ t().studentName }}</label>
+            <input type="text" class="modal-input" [value]="editStudentName()" (input)="editStudentName.set($any($event.target).value)" />
+          </div>
+          <div class="modal-field-group">
+            <label class="modal-label">{{ t().phone }}</label>
+            <input type="text" class="modal-input" [value]="editPhone()" (input)="editPhone.set($any($event.target).value)" />
+          </div>
+          <div class="modal-field-group">
+            <label class="modal-label">{{ t().faculty }}</label>
+            <input type="text" class="modal-input" [value]="editFaculty()" (input)="editFaculty.set($any($event.target).value)" />
+          </div>
+          <div class="modal-field-group">
+            <label class="modal-label">{{ t().checkIn }}</label>
+            <input type="text" class="modal-input" [value]="editCheckInTime()" (input)="editCheckInTime.set($any($event.target).value)" />
+          </div>
+          <div class="modal-field-group">
+            <label class="modal-label">{{ t().ratePerHour }} ({{ t().egp }})</label>
+            <input type="number" min="0" class="modal-input" [value]="editHourlyRate()" (input)="editHourlyRate.set(+$any($event.target).value)" />
+          </div>
+          <div class="modal-field-group">
+            <label class="modal-label">{{ t().paidDeposit }} ({{ t().egp }})</label>
+            <input type="number" min="0" class="modal-input" [value]="editDepositAmount()" (input)="editDepositAmount.set(+$any($event.target).value)" />
+          </div>
+          <div class="modal-field-group" style="grid-column: span 2;">
+            <label class="modal-label">{{ t().printingLabel }} (عدد الصفحات)</label>
+            <input type="number" min="0" class="modal-input" [value]="editPrintingPages()" (input)="editPrintingPages.set(+$any($event.target).value)" />
+          </div>
+        </div>
+
+        <div class="modal-actions-footer" style="margin-top: 18px;">
+          <button type="button" class="modal-btn-cancel" [disabled]="isSavingEdit()" (click)="closeEditModal()">{{ t().cancel }}</button>
+          <button type="button" class="modal-btn-save" [disabled]="isSavingEdit()" (click)="saveEditSession()">
+            {{ isSavingEdit() ? (isArabic() ? 'جاري الحفظ...' : 'Saving...') : t().saveChanges }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  }
 
   <!-- ADD / EDIT DISCOUNT MODAL -->
   @if (showAddDiscountModal()) {

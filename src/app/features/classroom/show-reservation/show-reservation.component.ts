@@ -37,6 +37,11 @@ export class ShowReservationComponent implements OnInit {
         this.selectedReservation.set(this.mapCardToReservation(card));
         return;
       }
+      const res = this.classroomService.reservations().find(r => r.id === id);
+      if (res) {
+        this.selectedReservation.set(res);
+        return;
+      }
     }
 
     // Fallback to first available non-empty booking card if no id

@@ -2,12 +2,14 @@ import { Component, inject, signal, computed, ChangeDetectorRef, OnInit } from '
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LanguageService } from '../../core/services/language.service';
+import { AuthService } from '../../core/services/auth.service';
 import {
   SettingsService,
   StudentPricingTier,
   RoomEntity,
   QuickPackagePreset
 } from '../../core/services/settings.service';
+import { RouterLink } from '@angular/router';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { PrimaryButtonComponent } from '../../shared/components/primary-button/primary-button.component';
 import { MetricCardComponent } from '../../shared/components/metric-card/metric-card.component';
@@ -20,6 +22,7 @@ import { CustomSelectComponent, SelectOption } from '../../shared/components/cus
   imports: [
     CommonModule,
     FormsModule,
+    RouterLink,
     PageHeaderComponent,
     PrimaryButtonComponent,
     ModalComponent,
@@ -31,10 +34,12 @@ import { CustomSelectComponent, SelectOption } from '../../shared/components/cus
 export class SettingsComponent implements OnInit {
   private langService = inject(LanguageService);
   protected settingsService = inject(SettingsService);
+  private authService = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
 
   t = this.langService.t;
   isArabic = this.langService.isArabic;
+  currentUser = this.authService.user;
 
   // Active Tab State ('pricing' | 'rooms' | 'packages' | 'roles')
   activeTab = signal<'pricing' | 'rooms' | 'packages' | 'roles'>('pricing');
@@ -134,6 +139,8 @@ export class SettingsComponent implements OnInit {
   formRoomImage = signal<string>('');
   formRoomActive = signal<boolean>(true);
   roomFormError = signal<string | null>(null);
+  selectedRoomImageFile = signal<File | null>(null);
+  isSavingRoom = signal<boolean>(false);
 
   // 3. Quick Package Preset Modal State & Filter
   packageFilter = signal<'all' | 'student' | 'instructor'>('all');
@@ -255,9 +262,9 @@ export class SettingsComponent implements OnInit {
   openAddTierModal(): void {
     this.tierModalMode.set('add');
     this.editingTierId.set(null);
-    this.formFromHours.set(0);
-    this.formToHours.set(2);
-    this.formPriceEgp.set(20);
+    this.formFromHours.set(null as any);
+    this.formToHours.set(null as any);
+    this.formPriceEgp.set(null as any);
     this.formTierLabelAr.set('');
     this.formTierLabelEn.set('');
     this.tierFormError.set(null);
@@ -332,11 +339,13 @@ export class SettingsComponent implements OnInit {
     this.editingRoomId.set(null);
     this.formRoomName.set('');
     this.formRoomType.set('Classroom');
-    this.formRoomCapacity.set(30);
-    this.formRoomPrice.set(100);
+    this.formRoomCapacity.set(null as any);
+    this.formRoomPrice.set(null as any);
     this.formRoomImage.set('');
+    this.selectedRoomImageFile.set(null);
     this.formRoomActive.set(true);
     this.roomFormError.set(null);
+    this.isSavingRoom.set(false);
     this.isRoomModalOpen.set(true);
   }
 
@@ -348,8 +357,10 @@ export class SettingsComponent implements OnInit {
     this.formRoomCapacity.set(room.capacity);
     this.formRoomPrice.set(room.hourlyPrice);
     this.formRoomImage.set(room.imageUrl || '');
+    this.selectedRoomImageFile.set(null);
     this.formRoomActive.set(room.isActive);
     this.roomFormError.set(null);
+    this.isSavingRoom.set(false);
     this.isRoomModalOpen.set(true);
   }
 
@@ -357,6 +368,7 @@ export class SettingsComponent implements OnInit {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files[0]) {
       const file = input.files[0];
+      this.selectedRoomImageFile.set(file);
       const reader = new FileReader();
       reader.onload = (e) => {
         const result = e.target?.result as string;
@@ -368,6 +380,7 @@ export class SettingsComponent implements OnInit {
 
   removeRoomImage(): void {
     this.formRoomImage.set('');
+    this.selectedRoomImageFile.set(null);
   }
 
   saveRoom(): void {
@@ -377,6 +390,7 @@ export class SettingsComponent implements OnInit {
     const price = type === 'Classroom' ? Number(this.formRoomPrice()) : 0;
     const imageUrl = this.formRoomImage().trim();
     const isActive = this.formRoomActive();
+    const imageFile = this.selectedRoomImageFile() || undefined;
 
     if (!name) {
       this.roomFormError.set(this.t().roomNameRequired);
@@ -391,24 +405,16 @@ export class SettingsComponent implements OnInit {
       return;
     }
 
-    // BUG-04: Reject negative capacity
-    if (isNaN(cap) || cap <= 0) {
+    // Capacity validation (optional, but if provided must be positive integer)
+    if (this.formRoomCapacity() && (isNaN(cap) || cap <= 0 || !Number.isInteger(cap))) {
       this.roomFormError.set(this.isArabic()
-        ? 'يجب أن تكون سعة القاعة عدداً موجباً أكبر من صفر (أفراد).'
-        : 'Room capacity must be a positive number greater than zero (people).');
+        ? 'يجب أن تكون سعة القاعة عدداً صحيحاً موجباً أكبر من صفر.'
+        : 'Room capacity must be a positive integer greater than zero.');
       return;
     }
 
-    // BUG-05: Reject decimal capacity
-    if (!Number.isInteger(cap)) {
-      this.roomFormError.set(this.isArabic()
-        ? 'يجب أن تكون سعة القاعة رقماً صحيحاً بدون كسور أو أرقام عشرية.'
-        : 'Room capacity must be a whole integer without decimals.');
-      return;
-    }
-
-    // BUG-06: Hourly price validation only applies to Classrooms
-    if (type === 'Classroom') {
+    // Hourly price validation only applies to Classrooms
+    if (type === 'Classroom' && this.formRoomPrice()) {
       if (isNaN(price) || price < 0) {
         this.roomFormError.set(this.isArabic()
           ? 'يجب أن يكون سعر الإيجار صفراً أو قيمة مالية موجبة.'
@@ -416,6 +422,9 @@ export class SettingsComponent implements OnInit {
         return;
       }
     }
+
+    this.isSavingRoom.set(true);
+    this.roomFormError.set(null);
 
     if (this.roomModalMode() === 'add') {
       this.settingsService.addRoom({
@@ -426,6 +435,24 @@ export class SettingsComponent implements OnInit {
         hourlyPrice: price,
         imageUrl,
         isActive
+      }, imageFile).subscribe({
+        next: () => {
+          this.isSavingRoom.set(false);
+          this.isRoomModalOpen.set(false);
+          this.selectedRoomImageFile.set(null);
+        },
+        error: (err) => {
+          this.isSavingRoom.set(false);
+          let msg = err?.error?.messageAr || err?.error?.message || err?.error?.messageEn;
+          if (!msg && err?.error?.errors && typeof err.error.errors === 'object') {
+            const fieldErrors = Object.values(err.error.errors).flat() as string[];
+            if (fieldErrors.length > 0) msg = fieldErrors.join(' | ');
+          }
+          if (!msg) {
+            msg = err?.message || (this.isArabic() ? 'فشل إضافة القاعة. يرجى مراجعة البيانات والمحاولة مرة أخرى.' : 'Failed to add room. Please try again.');
+          }
+          this.roomFormError.set(msg);
+        }
       });
     } else {
       const id = this.editingRoomId();
@@ -439,11 +466,27 @@ export class SettingsComponent implements OnInit {
           hourlyPrice: price,
           imageUrl,
           isActive
+        }, imageFile).subscribe({
+          next: () => {
+            this.isSavingRoom.set(false);
+            this.isRoomModalOpen.set(false);
+            this.selectedRoomImageFile.set(null);
+          },
+          error: (err) => {
+            this.isSavingRoom.set(false);
+            let msg = err?.error?.messageAr || err?.error?.message || err?.error?.messageEn;
+            if (!msg && err?.error?.errors && typeof err.error.errors === 'object') {
+              const fieldErrors = Object.values(err.error.errors).flat() as string[];
+              if (fieldErrors.length > 0) msg = fieldErrors.join(' | ');
+            }
+            if (!msg) {
+              msg = err?.message || (this.isArabic() ? 'فشل تعديل القاعة. يرجى مراجعة البيانات والمحاولة مرة أخرى.' : 'Failed to update room. Please try again.');
+            }
+            this.roomFormError.set(msg);
+          }
         });
       }
     }
-
-    this.isRoomModalOpen.set(false);
   }
 
   toggleRoomActive(id: string): void {
@@ -454,23 +497,14 @@ export class SettingsComponent implements OnInit {
     this.settingsService.deleteRoom(id);
   }
 
-  getRoomImage(imageUrl?: string | null, type?: string): string {
-    if (imageUrl && imageUrl.trim()) return imageUrl.trim();
-    if (type === 'Silent Zone') return '/images/rooms/room-design.jpg';
-    if (type === 'Shared Space') return '/images/rooms/room-studio.jpg';
-    return '/images/rooms/room-workshop.jpg';
+  getRoomImage(imageUrl?: string | null): string {
+    return (imageUrl && imageUrl.trim()) ? imageUrl.trim() : '';
   }
 
-  onImageError(event: Event, type?: string): void {
+  onImageError(event: Event): void {
     const img = event.target as HTMLImageElement;
     if (img) {
-      if (type === 'Silent Zone') {
-        img.src = '/images/rooms/room-design.jpg';
-      } else if (type === 'Shared Space') {
-        img.src = '/images/rooms/room-studio.jpg';
-      } else {
-        img.src = '/images/rooms/room-workshop.jpg';
-      }
+      img.style.display = 'none';
     }
   }
 
@@ -479,11 +513,11 @@ export class SettingsComponent implements OnInit {
     this.packageModalMode.set('add');
     this.editingPackageId.set(null);
     this.formPkgType.set(this.packageFilter() === 'instructor' ? 'instructor' : 'student');
-    this.formPkgHours.set(15);
-    this.formPkgPrice.set(300);
+    this.formPkgHours.set(null as any);
+    this.formPkgPrice.set(null as any);
     this.formPkgValiditySelection.set('30');
     this.formPkgValidity.set(30);
-    this.customValidityDays.set(30);
+    this.customValidityDays.set(null as any);
     this.formPkgNameAr.set('');
     this.packageFormError.set(null);
     this.isPackageModalOpen.set(true);

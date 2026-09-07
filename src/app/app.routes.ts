@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { MainLayoutComponent } from './layouts/main-layout/main-layout.component';
 import { AuthLayoutComponent } from './layouts/auth-layout/auth-layout.component';
 import { authGuard } from './core/guards/auth.guard';
+import { adminGuard } from './core/guards/admin.guard';
 
 export const routes: Routes = [
   // Auth Layout
@@ -151,10 +152,8 @@ export const routes: Routes = [
           },
           {
             path: 'add-reservation',
-            loadComponent: () =>
-              import('./features/classroom/add-reservation/add-reservation.component').then(
-                (m) => m.AddReservationComponent
-              ),
+            redirectTo: 'add-classroom',
+            pathMatch: 'full',
           },
           {
             path: 'show-reservation/:id',
@@ -269,24 +268,22 @@ export const routes: Routes = [
           },
           {
             path: 'add-discount',
-            loadComponent: () =>
-              import('./features/details/add-discount/add-discount.component').then(
-                (m) => m.AddDiscountComponent
-              ),
+            redirectTo: '/settings/discounts',
+            pathMatch: 'full',
           },
           {
             path: 'show-discount',
-            redirectTo: 'add-discount',
+            redirectTo: '/settings/discounts',
             pathMatch: 'full',
           },
           {
             path: 'show-discounts',
-            redirectTo: 'add-discount',
+            redirectTo: '/settings/discounts',
             pathMatch: 'full',
           },
           {
             path: 'discounts',
-            redirectTo: 'add-discount',
+            redirectTo: '/settings/discounts',
             pathMatch: 'full',
           },
           {
@@ -348,23 +345,42 @@ export const routes: Routes = [
           { path: '', redirectTo: 'general', pathMatch: 'full' },
           {
             path: 'general',
+            canActivate: [adminGuard],
             loadComponent: () =>
               import('./features/settings/settings.component').then(
                 (m) => m.SettingsComponent
               ),
           },
           {
-            path: 'add-user',
+            path: 'discounts',
             loadComponent: () =>
-              import('./features/settings/add-user/add-user.component').then(
-                (m) => m.AddUserComponent
+              import('./features/details/add-discount/add-discount.component').then(
+                (m) => m.AddDiscountComponent
               ),
           },
           {
+            path: 'add-discount',
+            redirectTo: 'discounts',
+            pathMatch: 'full',
+          },
+          {
+            path: 'add-user',
+            redirectTo: 'show-user',
+            pathMatch: 'full',
+          },
+          {
             path: 'show-user',
+            canActivate: [adminGuard],
             loadComponent: () =>
               import('./features/settings/show-user/show-user.component').then(
                 (m) => m.ShowUserComponent
+              ),
+          },
+          {
+            path: 'profile',
+            loadComponent: () =>
+              import('./features/settings/profile/profile.component').then(
+                (m) => m.ProfileComponent
               ),
           },
         ],
@@ -379,8 +395,24 @@ export const routes: Routes = [
         redirectTo: 'settings/show-user',
         pathMatch: 'full',
       },
+      {
+        path: 'profile',
+        redirectTo: 'settings/profile',
+        pathMatch: 'full',
+      },
+      {
+        path: 'discounts',
+        redirectTo: 'settings/discounts',
+        pathMatch: 'full',
+      },
     ],
   },
 
-  { path: '**', redirectTo: 'dashboard' },
+  {
+    path: '**',
+    loadComponent: () =>
+      import('./features/not-found/not-found.component').then(
+        (m) => m.NotFoundComponent
+      ),
+  },
 ];

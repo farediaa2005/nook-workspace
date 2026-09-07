@@ -1,8 +1,11 @@
-import { Injectable, signal, computed, inject, Signal } from '@angular/core';
-import { catchError, of } from 'rxjs';
+import { Injectable, signal, computed, inject } from '@angular/core';
+import { catchError, of, finalize } from 'rxjs';
 import { AccountApiService } from './api/account-api.service';
 import { AuthService } from './auth.service';
-import { AccountDto, MockUser } from '../models/user.model';
+import { NotificationService } from './notification.service';
+import { LanguageService } from './language.service';
+import { AccountDto, StaffUser } from '../models/user.model';
+import { parseIsoToLocalDate } from '../utils/date-time.util';
 
 @Injectable({
   providedIn: 'root'
@@ -10,9 +13,16 @@ import { AccountDto, MockUser } from '../models/user.model';
 export class UserService {
   private accountApi = inject(AccountApiService);
   private authService = inject(AuthService);
-  private usersState = signal<MockUser[]>(this.loadUsers());
+  private notification = inject(NotificationService);
+  private langService = inject(LanguageService);
 
+  // Pure in-memory reactive state (Clean Architecture - NO localStorage database)
+  private usersState = signal<StaffUser[]>([]);
   readonly users = this.usersState.asReadonly();
+
+  readonly isLoading = signal<boolean>(false);
+  readonly error = signal<string | null>(null);
+
   readonly activeCount = computed(() => this.usersState().filter(u => u.status === 'active').length);
   readonly totalCount = computed(() => this.usersState().length);
 
@@ -22,35 +32,40 @@ export class UserService {
     }
   }
 
-  private static readonly STORAGE_KEY = 'nook_users_cache';
-
+  /**
+   * Fetch all system accounts from Backend API
+   * GET /api/Accounts
+   */
   syncUsersFromBackend(): void {
     if (!this.authService.isAuthenticated()) return;
+    this.isLoading.set(true);
+    this.error.set(null);
+
     this.accountApi.getAccounts().pipe(
       catchError((err) => {
         if (err?.status === 403) {
           console.info('[UserService] Accounts API requires elevated role (403 Forbidden).');
+          this.error.set('Accounts API requires elevated role (403 Forbidden)');
         } else {
           console.warn('[UserService] Could not sync accounts from API:', err?.message || err);
+          this.error.set(err?.message || 'Failed to load accounts');
         }
         return of([] as AccountDto[]);
-      })
+      }),
+      finalize(() => this.isLoading.set(false))
     ).subscribe({
       next: (accounts) => {
         if (accounts && accounts.length > 0) {
-          const mapped: MockUser[] = accounts.map(a => this.mapAccountDtoToUser(a));
+          const mapped: StaffUser[] = accounts.map(a => this.mapAccountDtoToUser(a));
           this.usersState.set(mapped);
-          try {
-            if (typeof window !== 'undefined' && window.localStorage) {
-              localStorage.setItem(UserService.STORAGE_KEY, JSON.stringify(mapped));
-            }
-          } catch {}
+        } else {
+          this.usersState.set([]);
         }
       }
     });
   }
 
-  private mapAccountDtoToUser(dto: AccountDto | any): MockUser {
+  private mapAccountDtoToUser(dto: AccountDto | any): StaffUser {
     const rawUsername = dto.username || dto.userName || '-';
     const roles = Array.isArray(dto.roles) ? dto.roles : (dto.role ? [dto.role] : []);
     const isAdmin = roles.some((r: any) =>
@@ -70,83 +85,165 @@ export class UserService {
       role: roleDisplay,
       roleAr: roleAr,
       status: dto.isActive ? 'active' : 'inactive',
-      createdAt: dto.createdAt ? dto.createdAt.split('T')[0] : (dto.lastLoginAt ? dto.lastLoginAt.split('T')[0] : '-')
+      createdAt: dto.createdAt ? parseIsoToLocalDate(dto.createdAt) : (dto.lastLoginAt ? parseIsoToLocalDate(dto.lastLoginAt) : '-')
     };
   }
 
-  private loadUsers(): MockUser[] {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const saved = localStorage.getItem(UserService.STORAGE_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) return parsed;
-        }
-      }
-    } catch {}
-    return [];
-  }
-
-  addUser(user: MockUser): void {
-    const id = user.id || `USR-${Date.now()}`;
-    const newUser = { ...user, id };
-
-    this.usersState.update(list => {
-      const updated = [newUser, ...list];
-      return updated;
-    });
-
+  /**
+   * Create account in Backend API
+   * POST /api/Accounts
+   * Followed optionally by POST /api/Accounts/{id}/link-staff
+   */
+  addUser(user: StaffUser): void {
     const apiRole = user.role.includes('Admin') ? 1 : 2;
+    this.isLoading.set(true);
+
     this.accountApi.createAccount({
       username: (user.username || user.name || '').replace(/\s+/g, '_').toLowerCase(),
-      password: user.password || 'Nook@123456',
+      password: user.password || '',
       email: user.email || undefined,
       phoneNumber: user.phone && user.phone !== '-' ? user.phone : undefined
-    }).subscribe({
+    }).pipe(
+      finalize(() => this.isLoading.set(false))
+    ).subscribe({
       next: (created) => {
         if (created && created.id) {
-          this.usersState.update(list => list.map(u => u.id === id ? { ...u, id: created.id } : u));
+          const mappedUser: StaffUser = {
+            ...user,
+            id: created.id,
+            status: created.isActive ? 'active' : 'inactive'
+          };
+          this.usersState.update(list => [mappedUser, ...list]);
+
           // Link Staff Profile
           this.accountApi.linkStaffProfile(created.id, {
             name: user.name,
             staffRole: apiRole
-          }).subscribe({ error: () => {} });
+          }).subscribe({
+            error: () => {}
+          });
+
+          this.notification.success(
+            this.langService.isArabic()
+              ? `تم إنشاء حساب المستخدم "${user.name}" بنجاح!`
+              : `User "${user.name}" created successfully!`
+          );
+        } else {
+          this.syncUsersFromBackend();
+          this.notification.success(
+            this.langService.isArabic()
+              ? `تم إنشاء حساب المستخدم "${user.name}" بنجاح!`
+              : `User "${user.name}" created successfully!`
+          );
         }
       },
-      error: () => {}
+      error: (err) => {
+        console.error('[UserService] Failed to create account:', err);
+        const errorMsg = err?.error?.message || err?.message || (
+          this.langService.isArabic()
+            ? 'فشل إنشاء حساب المستخدم. يرجى المحاولة مرة أخرى.'
+            : 'Failed to create user account. Please try again.'
+        );
+        this.notification.error(errorMsg);
+      }
     });
   }
 
-  updateUser(user: MockUser): void {
-    this.usersState.update(list => {
-      const updated = list.map(u => (u.id === user.id ? user : u));
-      return updated;
-    });
-
+  /**
+   * Update account in Backend API
+   * PUT /api/Accounts/{id}
+   */
+  updateUser(user: StaffUser): void {
     const apiRole = user.role.includes('Admin') ? 1 : 2;
+    this.isLoading.set(true);
+
     this.accountApi.updateAccount(user.id, {
       username: user.username || user.name,
       userName: user.username || user.name,
       email: user.email,
       role: apiRole
-    }).subscribe({ error: () => {} });
+    }).pipe(
+      finalize(() => this.isLoading.set(false))
+    ).subscribe({
+      next: () => {
+        this.usersState.update(list => list.map(u => (u.id === user.id ? user : u)));
+        this.notification.success(
+          this.langService.isArabic()
+            ? `تم تحديث بيانات المستخدم "${user.name}" بنجاح!`
+            : `User "${user.name}" updated successfully!`
+        );
+      },
+      error: (err) => {
+        console.error('[UserService] Failed to update account:', err);
+        const errorMsg = err?.error?.message || err?.message || (
+          this.langService.isArabic()
+            ? 'فشل تحديث بيانات المستخدم.'
+            : 'Failed to update user account.'
+        );
+        this.notification.error(errorMsg);
+      }
+    });
   }
 
+  /**
+   * Delete account in Backend API
+   * DELETE /api/Accounts/{id}
+   */
   deleteUser(id: string): void {
-    this.usersState.update(list => {
-      const updated = list.filter(u => u.id !== id);
-      return updated;
-    });
+    this.isLoading.set(true);
 
-    this.accountApi.deleteAccount(id).subscribe({ error: () => {} });
+    this.accountApi.deleteAccount(id).pipe(
+      finalize(() => this.isLoading.set(false))
+    ).subscribe({
+      next: () => {
+        this.usersState.update(list => list.filter(u => u.id !== id));
+        this.notification.info(
+          this.langService.isArabic()
+            ? 'تم حذف الحساب بنجاح.'
+            : 'User account deleted successfully.'
+        );
+      },
+      error: (err) => {
+        console.error('[UserService] Failed to delete account:', err);
+        const errorMsg = err?.error?.message || err?.message || (
+          this.langService.isArabic()
+            ? 'فشل حذف الحساب. يرجى المحاولة لاحقاً.'
+            : 'Failed to delete user account.'
+        );
+        this.notification.error(errorMsg);
+      }
+    });
   }
 
+  /**
+   * Toggle account active status in Backend API
+   * PUT /api/Accounts/{id}/toggle-active
+   */
   toggleStatus(id: string): void {
-    this.usersState.update(list => {
-      const updated = list.map(u => (u.id === id ? { ...u, status: u.status === 'active' ? 'inactive' : 'active' } : u));
-      return updated;
-    });
+    this.isLoading.set(true);
 
-    this.accountApi.toggleActive(id).subscribe({ error: () => {} });
+    this.accountApi.toggleActive(id).pipe(
+      finalize(() => this.isLoading.set(false))
+    ).subscribe({
+      next: () => {
+        this.usersState.update(list =>
+          list.map(u => (u.id === id ? { ...u, status: u.status === 'active' ? 'inactive' : 'active' } : u))
+        );
+        this.notification.success(
+          this.langService.isArabic()
+            ? 'تم تحديث حالة الحساب بنجاح.'
+            : 'Account status updated successfully.'
+        );
+      },
+      error: (err) => {
+        console.error('[UserService] Failed to toggle account status:', err);
+        const errorMsg = err?.error?.message || err?.message || (
+          this.langService.isArabic()
+            ? 'فشل تغيير حالة الحساب.'
+            : 'Failed to update account status.'
+        );
+        this.notification.error(errorMsg);
+      }
+    });
   }
 }

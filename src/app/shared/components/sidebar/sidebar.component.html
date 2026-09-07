@@ -85,8 +85,8 @@
 
       @if (isMenuOpen('package')) {
         <div class="sub-nav">
-          <a routerLink="/package/student" routerLinkActive="sub-item--active" (click)="closeSidebar.emit()" class="sub-item">{{ t().showStudentPackage || (isArabic() ? 'باكيدجات الستيودنتس' : 'Student Packages') }}</a>
-          <a routerLink="/package/instructor" routerLinkActive="sub-item--active" (click)="closeSidebar.emit()" class="sub-item">{{ t().showInstructorPackage || (isArabic() ? 'باكيدجات الإنستراكتورز' : 'Instructor Packages') }}</a>
+          <a routerLink="/package/student" routerLinkActive="sub-item--active" (click)="closeSidebar.emit()" class="sub-item">{{ t().showStudentPackage }}</a>
+          <a routerLink="/package/instructor" routerLinkActive="sub-item--active" (click)="closeSidebar.emit()" class="sub-item">{{ t().showInstructorPackage }}</a>
         </div>
       }
     </div>
@@ -107,10 +107,10 @@
       @if (isMenuOpen('shift')) {
         <div class="sub-nav">
           <a routerLink="/shift/active" routerLinkActive="sub-item--active" (click)="closeSidebar.emit()" class="sub-item">
-            {{ t().activeShift || (isArabic() ? 'الشفت الشغال' : 'Active Shift') }}
+            {{ t().activeShift }}
           </a>
           <a routerLink="/shift/history" routerLinkActive="sub-item--active" (click)="closeSidebar.emit()" class="sub-item">
-            {{ t().shiftHistory || (isArabic() ? 'سجل الشفتات' : 'Shift History') }}
+            {{ t().shiftHistory }}
           </a>
         </div>
       }
@@ -133,9 +133,8 @@
 
       @if (isMenuOpen('details')) {
         <div class="sub-nav">
-          <a routerLink="/details/show-students" routerLinkActive="sub-item--active" (click)="closeSidebar.emit()" class="sub-item">{{ isArabic() ? 'الستيودنتس' : 'Students' }}</a>
+          <a routerLink="/details/show-students" routerLinkActive="sub-item--active" (click)="closeSidebar.emit()" class="sub-item">{{ t().showStudents }}</a>
           <a routerLink="/details/show-instructors" routerLinkActive="sub-item--active" (click)="closeSidebar.emit()" class="sub-item">{{ t().showInstructors }}</a>
-          <a routerLink="/details/add-discount" routerLinkActive="sub-item--active" (click)="closeSidebar.emit()" class="sub-item">{{ t().addDiscount }}</a>
           <a routerLink="/details/show-colleges" routerLinkActive="sub-item--active" (click)="closeSidebar.emit()" class="sub-item">{{ t().showColleges }}</a>
           <a routerLink="/details/show-blacklist" routerLinkActive="sub-item--active" (click)="closeSidebar.emit()" class="sub-item">{{ t().showBlacklist }}</a>
         </div>
@@ -148,9 +147,9 @@
         <svg class="item-icon" viewBox="0 0 24 24" fill="none">
           <path d="M18 8h1a4 4 0 0 1 0 8h-1" stroke="currentColor" stroke-width="2"/>
           <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" stroke="currentColor" stroke-width="2"/>
-          <line x1="6" y1="1" x2="6" y2="4" stroke="currentColor" stroke-width="2"/>
-          <line x1="10" y1="1" x2="10" y2="4" stroke="currentColor" stroke-width="2"/>
-          <line x1="14" y1="1" x2="14" y2="4" stroke="currentColor" stroke-width="2"/>
+          <line x1="6" y1="1" x2="6" y2="4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="10" y1="1" x2="10" y2="4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="14" y1="1" x2="14" y2="4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         </svg>
         <span class="parent-title">{{ t().catering }}</span>
         <svg class="chevron" viewBox="0 0 24 24" fill="none">
@@ -160,8 +159,8 @@
 
       @if (isMenuOpen('catering')) {
         <div class="sub-nav">
-          <a routerLink="/catering/product-graph" routerLinkActive="sub-item--active" (click)="closeSidebar.emit()" class="sub-item">{{ t().productGraph }}</a>
           <a routerLink="/catering/show-products" routerLinkActive="sub-item--active" (click)="closeSidebar.emit()" class="sub-item">{{ t().showProducts }}</a>
+          <a routerLink="/catering/product-graph" routerLinkActive="sub-item--active" (click)="closeSidebar.emit()" class="sub-item">{{ t().salesStats }}</a>
         </div>
       }
     </div>
@@ -190,9 +189,18 @@
             (click)="closeSidebar.emit()"
             class="sub-item"
           >
-            {{ isArabic() ? 'تظبيط السيستم والأماكن' : 'System Configuration' }}
+            {{ isArabic() ? 'إعدادات النظام والأماكن' : 'System Configuration' }}
+          </a>
+          <a
+            routerLink="/settings/discounts"
+            routerLinkActive="sub-item--active"
+            (click)="closeSidebar.emit()"
+            class="sub-item"
+          >
+            {{ t().addDiscount }}
           </a>
           <a routerLink="/settings/show-user" routerLinkActive="sub-item--active" (click)="closeSidebar.emit()" class="sub-item">{{ t().showUsers }}</a>
+          <a routerLink="/settings/profile" routerLinkActive="sub-item--active" (click)="closeSidebar.emit()" class="sub-item">{{ t().profileSettingsTab }}</a>
         </div>
       }
     </div>

@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { RouterLink, ActivatedRoute } from '@angular/router';
 import { LanguageService } from '../../../core/services/language.service';
 import { CateringService } from '../../../core/services/catering.service';
 import { PrimaryButtonComponent } from '../../../shared/components/primary-button/primary-button.component';
@@ -11,6 +11,9 @@ import { AddProductModalComponent } from '../components/add-product-modal/add-pr
 import { ProductSuccessModalComponent } from '../components/product-success-modal/product-success-modal.component';
 import { CateringPosModalComponent } from '../components/catering-pos-modal/catering-pos-modal.component';
 import { CateringProduct } from '../../../core/models/catering.model';
+import { exportToCsv } from '../../../core/utils/csv.util';
+import { getTodayDateISO, parseIsoToLocalDate } from '../../../core/utils/date-time.util';
+import { resolveImageUrl } from '../../../core/utils/image-url.util';
 
 export type CategoryFilterTab = 'all' | 'Snacks' | 'Merchandise' | 'Beverages' | 'Coffee' | 'Meals';
 
@@ -33,14 +36,23 @@ export type CategoryFilterTab = 'all' | 'Snacks' | 'Merchandise' | 'Beverages' |
 export class ShowProductsComponent implements OnInit {
   private langService = inject(LanguageService);
   private cateringService = inject(CateringService);
+  private route = inject(ActivatedRoute);
 
   t = this.langService.t;
   isArabic = this.langService.isArabic;
   formatDate = (str?: string) => this.langService.formatDateLocale(str);
 
   ngOnInit(): void {
-    this.cateringService.syncWithBackend();
+    this.cateringService.getProducts().subscribe();
+    this.route.queryParams.subscribe(params => {
+      if (params['search']) {
+        this.searchQuery.set(params['search']);
+      }
+    });
   }
+
+  readonly isLoading = this.cateringService.isLoading;
+  readonly errorMessage = this.cateringService.errorMessage;
 
   // Modal States
   isAddModalOpen = signal<boolean>(false);
@@ -51,6 +63,27 @@ export class ShowProductsComponent implements OnInit {
   // Filter & Search State
   searchQuery = signal<string>('');
   selectedCategory = signal<string>('all');
+  failedImages = signal<Set<string>>(new Set<string>());
+
+  onImageError(productId: string): void {
+    this.failedImages.update(set => new Set(set).add(productId));
+  }
+
+  isImageFailed(productId: string): boolean {
+    return this.failedImages().has(productId);
+  }
+
+  getProductImage(img?: string | null, id?: string): string {
+    const resolved = resolveImageUrl(img);
+    if (resolved) return resolved;
+    if (id) {
+      try {
+        const cached = localStorage.getItem('nook_product_img_' + id);
+        if (cached) return cached;
+      } catch {}
+    }
+    return '';
+  }
 
   // Category Dropdown Options matching site styling
   categoryOptions = computed<SelectOption[]>(() => [
@@ -127,7 +160,7 @@ export class ShowProductsComponent implements OnInit {
   });
 
   // Date State for Edit Modal
-  minExpirationDate = new Date().toISOString().split('T')[0];
+  minExpirationDate = getTodayDateISO();
   editHasNoExpiration = signal<boolean>(false);
   editSelectedDateValue = signal<string>('');
 
@@ -175,7 +208,7 @@ export class ShowProductsComponent implements OnInit {
       this.editSelectedDateValue.set('');
       this.editExpirationDate.set('N/A');
     } else {
-      const datePart = exp.includes('T') ? exp.split('T')[0] : exp;
+      const datePart = parseIsoToLocalDate(exp);
       this.editHasNoExpiration.set(false);
       this.editSelectedDateValue.set(datePart);
       this.editExpirationDate.set(datePart);
@@ -212,8 +245,14 @@ export class ShowProductsComponent implements OnInit {
       status: stockVal === 0 ? 'low_stock' : stockVal <= 10 ? 'low_stock' : 'healthy'
     };
 
-    this.cateringService.updateProduct(updated);
-    this.closeEditModal();
+    this.cateringService.updateProduct(updated).subscribe({
+      next: () => {
+        this.closeEditModal();
+      },
+      error: (err) => {
+        alert(err?.error?.message || err?.message || this.t().failedToUpdateProduct);
+      }
+    });
   }
 
   exportProductsToCSV(): void {
@@ -223,31 +262,27 @@ export class ShowProductsComponent implements OnInit {
     const headers = ['ID', 'Name', 'Category', 'Selling Price', 'Cost Price', 'Stock', 'Expiration', 'Sold Qty', 'Revenue', 'Status'];
     const rows = prods.map((p: CateringProduct) => [
       p.id,
-      `"${p.name}"`,
-      `"${p.category}"`,
+      p.name,
+      p.category,
       p.sellingPrice,
       p.costPrice,
       p.stock,
-      `"${p.expirationDate || 'N/A'}"`,
+      p.expirationDate || 'N/A',
       p.soldCount || 0,
       p.totalRevenue || 0,
       p.status
     ]);
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r: (string | number)[]) => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `nook_products_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportToCsv(`nook_products_${getTodayDateISO()}.csv`, headers, rows);
   }
 
   // Delete product
   deleteProduct(id: string): void {
     if (confirm(this.t().confirmDeleteProduct)) {
-      this.cateringService.deleteProduct(id);
+      this.cateringService.deleteProduct(id).subscribe({
+        error: (err) => {
+          alert(err?.error?.message || err?.message || this.t().failedToDeleteProduct);
+        }
+      });
     }
   }
 
@@ -265,11 +300,6 @@ export class ShowProductsComponent implements OnInit {
   }
 
   onProductCreated(product: CateringProduct): void {
-    try {
-      this.cateringService.addProduct(product);
-    } catch (err) {
-      console.warn('[ShowProducts] Add product warning:', err);
-    }
     this.lastCreatedProduct.set(product);
     this.isAddModalOpen.set(false);
     this.isSuccessModalOpen.set(true);

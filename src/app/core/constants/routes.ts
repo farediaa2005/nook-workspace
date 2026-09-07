@@ -45,7 +45,7 @@ export const ROUTES = {
 
   DETAILS: {
     ROOT: 'details',
-    ADD_DISCOUNT: 'details/add-discount',
+    ADD_DISCOUNT: 'settings/discounts',
     SHOW_COLLEGES: 'details/show-colleges',
     SHOW_BLACKLIST: 'details/show-blacklist',
     SHOW_INSTRUCTORS: 'details/show-instructors',
@@ -60,7 +60,11 @@ export const ROUTES = {
 
   SETTINGS: {
     ROOT: 'settings',
+    GENERAL: 'settings/general',
+    DISCOUNTS: 'settings/discounts',
+    ADD_DISCOUNT: 'settings/discounts',
     ADD_USER: 'settings/add-user',
     SHOW_USER: 'settings/show-user',
+    PROFILE: 'settings/profile',
   },
 } as const;

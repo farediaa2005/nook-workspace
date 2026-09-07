@@ -2,6 +2,7 @@ import { Component, input, output, signal, inject, computed } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LanguageService } from '../../../core/services/language.service';
+import { getTodayDateISO } from '../../../core/utils/date-time.util';
 
 export type DateFilterOption = 'today' | 'yesterday' | 'all' | 'custom';
 
@@ -18,7 +19,7 @@ export class DateFilterDropdownComponent {
 
   selectedOption = input<DateFilterOption>('today');
   customDate = input<string>('');
-  maxDate = input<string>(new Date().toISOString().split('T')[0]);
+  maxDate = input<string>(getTodayDateISO());
 
   optionChange = output<DateFilterOption>();
   customDateChange = output<string>();
@@ -26,7 +27,7 @@ export class DateFilterDropdownComponent {
   isOpen = signal<boolean>(false);
 
   // Today's date YYYY-MM-DD for max date restraint (no future dates)
-  todayDateIso = computed(() => new Date().toISOString().split('T')[0]);
+  todayDateIso = computed(() => getTodayDateISO());
 
   toggleDropdown(): void {
     this.isOpen.update(v => !v);

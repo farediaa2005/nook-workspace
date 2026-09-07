@@ -269,12 +269,15 @@ export class AddClassroomComponent {
     return hasInstructor && hasActivity && hasDate && hasHourlyRate && hasTimes && validRange && noOverlap && validPhone && validEmail;
   });
 
+  isSubmitting = signal(false);
+  submissionError = signal<string | null>(null);
+
   onSubmit(): void {
     this.saveClassroomBooking();
   }
 
   saveClassroomBooking(): void {
-    if (!this.isFormValid()) return;
+    if (!this.isFormValid() || this.isSubmitting()) return;
 
     const selectedRoom = this.rooms().find(r => r.id === this.selectedRoomId()) || this.rooms()[0];
     const duration = this.durationHours();
@@ -285,7 +288,8 @@ export class AddClassroomComponent {
       : `${duration}h session`;
 
     const newCard: ClassroomCard = {
-      id: 'room-' + Date.now(),
+      id: '',
+      roomId: selectedRoom?.id,
       name: selectedRoom?.name || '',
       activity: this.activitySubject(),
       instructor: this.instructor(),
@@ -306,7 +310,18 @@ export class AddClassroomComponent {
       catering: 0
     };
 
-    this.classroomService.addBooking(newCard);
-    this.router.navigate(['/classroom/show-classroom']);
+    this.isSubmitting.set(true);
+    this.submissionError.set(null);
+
+    this.classroomService.addBooking(newCard).subscribe({
+      next: () => {
+        this.isSubmitting.set(false);
+        this.router.navigate(['/classroom/show-classroom']);
+      },
+      error: (err) => {
+        this.isSubmitting.set(false);
+        this.submissionError.set(err?.message || this.t().failedToCreateBooking);
+      }
+    });
   }
 }

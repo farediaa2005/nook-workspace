@@ -18,6 +18,12 @@
     <div class="form-card">
       <h2 class="section-title">{{ t().productDetails }}</h2>
 
+      @if (errorMessage()) {
+        <div class="error-alert" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; font-size: 0.9rem;">
+          {{ errorMessage() }}
+        </div>
+      }
+
       <div class="form-grid">
         <!-- Product Name (English) -->
         <div class="field-wrap full-col">

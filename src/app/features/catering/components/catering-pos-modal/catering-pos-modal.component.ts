@@ -5,6 +5,7 @@ import { LanguageService } from '../../../../core/services/language.service';
 import { CateringService } from '../../../../core/services/catering.service';
 import { ShiftService } from '../../../../core/services/shift.service';
 import { CateringProduct, PosCartItem } from '../../../../core/models/catering.model';
+import { resolveImageUrl } from '../../../../core/utils/image-url.util';
 
 export type PosCategoryTab = 'all' | 'Coffee' | 'Snacks' | 'Meals' | 'Beverages' | 'Merchandise' | string;
 
@@ -156,6 +157,36 @@ export class CateringPosModalComponent {
       }
     }
     return false;
+  }
+
+  failedImages = signal<Set<string>>(new Set<string>());
+
+  onImageError(productId: string): void {
+    this.failedImages.update(set => new Set(set).add(productId));
+  }
+
+  isImageFailed(productId: string): boolean {
+    return this.failedImages().has(productId);
+  }
+
+  getProductImage(img?: string | null, id?: string): string {
+    const resolved = resolveImageUrl(img);
+    if (resolved) return resolved;
+    if (id) {
+      try {
+        const cached = localStorage.getItem('nook_product_img_' + id);
+        if (cached) return cached;
+      } catch {}
+    }
+    return '';
+  }
+
+  getProductType(product: CateringProduct): 'coffee' | 'water' | 'beverage' | 'snack' {
+    const text = `${product.name} ${product.nameAr || ''} ${product.category || ''} ${product.categoryAr || ''}`.toLowerCase();
+    if (text.includes('مياه') || text.includes('water') || text.includes('معدنية')) return 'water';
+    if (text.includes('قهوة') || text.includes('نسكافيه') || text.includes('كابتشينو') || text.includes('لاتيه') || text.includes('coffee') || text.includes('tea') || text.includes('شاي') || text.includes('اسبريسو')) return 'coffee';
+    if (text.includes('عصير') || text.includes('بيبسي') || text.includes('كولا') || text.includes('صودا') || text.includes('ريد بول') || text.includes('سفن') || text.includes('beverage') || text.includes('drink') || text.includes('مشروب')) return 'beverage';
+    return 'snack';
   }
 
   getAvailableStock(product: CateringProduct): number {

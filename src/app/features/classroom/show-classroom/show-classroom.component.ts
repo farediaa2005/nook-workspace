@@ -1,4 +1,5 @@
-import { Component, computed, inject, signal, HostListener, OnInit, OnDestroy } from '@angular/core';
+import { Component, computed, inject, signal, HostListener, OnInit, OnDestroy, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LanguageService } from '../../../core/services/language.service';
@@ -41,6 +42,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   protected shiftService = inject(ShiftService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private destroyRef = inject(DestroyRef);
 
   Math = Math;
   t = this.langService.t;
@@ -99,10 +101,10 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
         const isToday = !card.bookingDate ||
                         card.bookingDate === 'Today' ||
                         card.bookingDate === todayISO ||
-                        (card.bookingDate || '').split('T')[0] === todayISO;
+                        this.classroomService.parseIsoToLocalDate(card.bookingDate) === todayISO;
         return isToday || card.status === 'active';
       } else if (dateOpt === 'custom' && customDate) {
-        return card.bookingDate === customDate || (card.bookingDate || '').split('T')[0] === customDate;
+        return card.bookingDate === customDate || this.classroomService.parseIsoToLocalDate(card.bookingDate) === customDate;
       }
       return true;
     });
@@ -158,6 +160,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   editingCardId = signal<string | null>(null);
 
   bookingInstructor = signal('');
+  selectedInstructorId = signal<string>('');
   bookingActivity = signal('');
   bookingPhone = signal('');
   bookingEmail = signal('');
@@ -284,28 +287,84 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     });
   });
 
-  bookingPaymentMode = signal<'package' | 'cash'>('package');
+  isGenericInstructorName(name?: string | null): boolean {
+    if (!name) return true;
+    const n = name.trim().toLowerCase();
+    if (n.length < 3) return true;
+    const genericList = [
+      '-',
+      'محاضر',
+      'المحاضر',
+      'انستراكتور',
+      'إنستراكتور',
+      'instructor',
+      'the instructor',
+      'قاعة',
+      'القاعة',
+      'room',
+      'the room',
+      'عميل',
+      'العميل',
+      'طالب',
+      'الطالب',
+      'student',
+      'the student',
+      'ورشة',
+      'ورشة عمل',
+      'workshop',
+      'new room',
+      'class',
+      'classroom'
+    ];
+    return genericList.includes(n);
+  }
+
+  isCardPackage(card: ClassroomCard): boolean {
+    return card.paymentMode === 'package' && ((card.packageCoveredHours || 0) > 0 || !!card.packageName);
+  }
+
+  bookingPaymentMode = signal<'package' | 'cash'>('cash');
 
   matchedInstructorPackage = computed<PackageItem | null>(() => {
     const instructorName = this.bookingInstructor().trim().toLowerCase();
-    const phone = this.bookingPhone().trim();
+    const phone = this.bookingPhone().trim().replace(/\D/g, '');
     const email = this.bookingEmail().trim().toLowerCase();
+    const selectedInsId = this.selectedInstructorId();
 
     const packages = this.packageService.instructorPackages();
 
-    if (!instructorName && !phone && !email) {
+    if (!selectedInsId && !instructorName && !phone && !email) {
       return null;
     }
 
     return packages.find(pkg => {
       if (pkg.status !== 'active' && pkg.status !== 'near_expiry') return false;
-      if (phone && pkg.memberPhone && pkg.memberPhone.includes(phone)) return true;
-      if (email && pkg.memberEmail && pkg.memberEmail.toLowerCase() === email) return true;
-      if (instructorName && instructorName.length >= 2) {
-        const ar = (pkg.memberNameAr || '').toLowerCase();
-        const en = (pkg.memberNameEn || '').toLowerCase();
-        return ar.includes(instructorName) || en.includes(instructorName) || instructorName.includes(ar) || instructorName.includes(en);
+      if ((pkg.remainingHours || 0) <= 0) return false;
+
+      // 1. Direct ID match
+      if (selectedInsId && pkg.memberId && selectedInsId === pkg.memberId) {
+        return true;
       }
+
+      // 2. Phone match (exact digits, min 7 chars)
+      const pkgPhone = (pkg.memberPhone || '').replace(/\D/g, '');
+      if (phone.length >= 7 && pkgPhone.length >= 7 && (phone === pkgPhone || phone.endsWith(pkgPhone) || pkgPhone.endsWith(phone))) {
+        return true;
+      }
+
+      // 3. Email match
+      if (email.length >= 5 && email.includes('@') && pkg.memberEmail && pkg.memberEmail.toLowerCase() === email) {
+        return true;
+      }
+
+      // 4. Exact name match (non-generic names only, min 3 chars)
+      if (!this.isGenericInstructorName(instructorName)) {
+        const ar = (pkg.memberNameAr || '').trim().toLowerCase();
+        const en = (pkg.memberNameEn || '').trim().toLowerCase();
+        if (ar && !this.isGenericInstructorName(ar) && ar === instructorName) return true;
+        if (en && !this.isGenericInstructorName(en) && en === instructorName) return true;
+      }
+
       return false;
     }) || null;
   });
@@ -414,7 +473,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     }, 5000);
 
     // Watch query parameter to auto-open edit modal or checkout modal when redirected from reservations calendar
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
       const editId = params['edit'];
       if (editId) {
         const card = this.classroomService.getCardById(editId);
@@ -461,6 +520,8 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   // ============================================================
   openBookingModal(roomName?: string): void {
     this.editingCardId.set(null);
+    this.bookingInstructor.set('');
+    this.selectedInstructorId.set('');
     this.isEditingBookingRate.set(false);
     this.couponCode.set('');
     this.appliedCoupon.set(null);
@@ -479,7 +540,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     this.bookingPhone.set('');
     this.bookingEmail.set('');
     this.bookingPrintingCharges.set(0);
-    this.bookingDate.set('');
+    this.bookingDate.set(this.todayDate());
     this.startHour.set('');
     this.startMinute.set('');
     this.startPeriod.set('PM');
@@ -488,6 +549,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     this.endPeriod.set('PM');
     this.isDiscountApplied.set(false);
     this.isBookingDiscountSectionOpen.set(false);
+    this.bookingPaymentMode.set('cash');
 
     this.isBookingModalOpen.set(true);
     document.body.style.overflow = 'hidden';
@@ -500,6 +562,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       this.selectedRoomId.set(match.id);
     }
     this.bookingInstructor.set(card.instructor || '');
+    this.selectedInstructorId.set(card.instructorId || '');
     this.bookingActivity.set(card.activity || '');
     this.bookingPhone.set(card.phone || '');
     this.bookingEmail.set(card.email || '');
@@ -523,6 +586,9 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
         this.endPeriod.set((matchEnd[3]?.toUpperCase() as 'AM' | 'PM') || 'PM');
       }
     }
+
+    const hasPkg = (card.paymentMode === 'package' && (card.packageCoveredHours || 0) > 0);
+    this.bookingPaymentMode.set(hasPkg ? 'package' : 'cash');
 
     this.isBookingModalOpen.set(true);
     document.body.style.overflow = 'hidden';
@@ -575,6 +641,9 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     const cleaned = input.value.replace(/[^a-zA-Z\s\u0600-\u06FF.]/g, '').substring(0, 50);
     input.value = cleaned;
     this.bookingInstructor.set(cleaned);
+    if (!this.matchedInstructorPackage()) {
+      this.bookingPaymentMode.set('cash');
+    }
   }
 
   onActivityInput(event: Event): void {
@@ -601,41 +670,72 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   isInstructorDropdownOpen = signal(false);
 
   allSearchableMembers = computed<PackageMemberOption[]>(() => {
-    const list: PackageMemberOption[] = [...this.packageService.memberOptions()];
+    const list: PackageMemberOption[] = [];
     const seen = new Set<string>();
-    list.forEach(m => {
-      const key = `${m.type}_${(m.nameAr || m.nameEn || '').toLowerCase()}_${m.phone || ''}`;
-      seen.add(key);
-    });
 
-    // Add students from workspace active/history/backend
-    const extraStudents: { name: string; phone?: string; faculty?: string; email?: string }[] = [];
-    this.workspaceService.activeStudents().forEach(s => {
-      extraStudents.push({ name: s.name, phone: s.phone, faculty: s.faculty });
-    });
-    this.workspaceService.historyStudents().forEach(s => {
-      extraStudents.push({ name: s.name, phone: s.phone, faculty: s.faculty });
-    });
-    this.workspaceService.backendStudents().forEach(s => {
-      extraStudents.push({ name: s.name, phone: s.phone || s.whatsapp, faculty: s.faculty || s.college, email: s.email });
-    });
-
-    for (const st of extraStudents) {
-      if (!st.name) continue;
-      const key = `student_${st.name.toLowerCase()}_${st.phone || ''}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        list.push({
-          id: `ws-student-${st.name}-${st.phone || ''}`,
-          nameAr: st.name,
-          nameEn: st.name,
-          subAr: st.faculty || (this.isArabic() ? 'طالب' : 'Student'),
-          subEn: st.faculty || 'Student',
-          phone: st.phone || '',
-          email: st.email || '',
-          type: 'student'
-        });
+    const addMember = (m: PackageMemberOption) => {
+      const name = (m.nameAr || m.nameEn || '').trim().toLowerCase();
+      if (!name || this.isGenericInstructorName(name)) return;
+      const cleanPhone = (m.phone || '').replace(/\D/g, '');
+      const key = `${name}_${cleanPhone}`;
+      if (seen.has(key) || (m.id && seen.has(m.id))) {
+        return;
       }
+      seen.add(key);
+      if (m.id) seen.add(m.id);
+      list.push(m);
+    };
+
+    // 1. All member options from packageService (includes both instructors and students)
+    for (const m of this.packageService.memberOptions()) {
+      addMember(m);
+    }
+
+    // 2. Members holding an instructor package (Classroom Package)
+    for (const pkg of this.packageService.instructorPackages()) {
+      const name = pkg.memberNameAr || pkg.memberNameEn || '';
+      addMember({
+        id: pkg.memberId || pkg.id,
+        nameAr: pkg.memberNameAr,
+        nameEn: pkg.memberNameEn,
+        subAr: pkg.memberSubAr || (this.isArabic() ? 'محاضر معتمد' : 'Certified Instructor'),
+        subEn: pkg.memberSubEn || 'Certified Instructor',
+        phone: pkg.memberPhone || '',
+        email: pkg.memberEmail || '',
+        type: 'instructor'
+      });
+    }
+
+    // 3. Students from backend workspace directory
+    for (const s of this.workspaceService.backendStudents()) {
+      const name = (s.name || '').trim();
+      const phone = s.phone || s.whatsapp || '';
+      addMember({
+        id: s.id || (phone ? `STU-${phone.replace(/\D/g, '').slice(-4)}` : undefined) || `STU-${Date.now()}`,
+        nameAr: name,
+        nameEn: name,
+        subAr: s.faculty || s.college || (this.isArabic() ? 'طالب' : 'Student'),
+        subEn: s.faculty || s.college || 'Student',
+        phone: phone,
+        email: s.email || '',
+        type: 'student'
+      });
+    }
+
+    // 4. Students active in workspace
+    for (const s of this.workspaceService.activeStudents()) {
+      const name = (s.name || '').trim();
+      const phone = s.phone || s.whatsapp || '';
+      addMember({
+        id: s.studentId || s.id,
+        nameAr: name,
+        nameEn: name,
+        subAr: s.faculty || s.college || (this.isArabic() ? 'طالب' : 'Student'),
+        subEn: s.faculty || s.college || 'Student',
+        phone: phone,
+        email: s.email || '',
+        type: 'student'
+      });
     }
 
     return list;
@@ -684,25 +784,46 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   }
 
   hasInstructorActivePackage(member: PackageMemberOption): boolean {
-    const packages = member.type === 'student'
-      ? this.packageService.studentPackages()
-      : this.packageService.instructorPackages();
-    return packages.some(p =>
-      (p.status === 'active' || p.status === 'near_expiry') &&
-      p.remainingHours > 0 &&
-      (
-        p.memberId === member.id ||
-        (member.phone && p.memberPhone === member.phone) ||
-        (member.email && p.memberEmail === member.email) ||
-        (p.memberNameAr && member.nameAr && p.memberNameAr.includes(member.nameAr)) ||
-        (p.memberNameEn && member.nameEn && p.memberNameEn.toLowerCase().includes(member.nameEn.toLowerCase()))
-      )
-    );
+    const packages = this.packageService.instructorPackages();
+    const mPhone = (member.phone || '').replace(/\D/g, '');
+    const mEmail = (member.email || '').trim().toLowerCase();
+    const mAr = (member.nameAr || '').trim().toLowerCase();
+    const mEn = (member.nameEn || '').trim().toLowerCase();
+
+    return packages.some(p => {
+      if (p.type !== 'instructor') return false;
+      if (p.status !== 'active' && p.status !== 'near_expiry') return false;
+      if ((p.remainingHours || 0) <= 0) return false;
+
+      if (p.memberId && member.id && p.memberId === member.id) return true;
+
+      const pPhone = (p.memberPhone || '').replace(/\D/g, '');
+      if (mPhone.length >= 7 && pPhone.length >= 7 && (mPhone === pPhone || mPhone.endsWith(pPhone) || pPhone.endsWith(mPhone))) {
+        return true;
+      }
+
+      if (mEmail.length >= 5 && mEmail.includes('@') && p.memberEmail && p.memberEmail.toLowerCase() === mEmail) {
+        return true;
+      }
+
+      if (!this.isGenericInstructorName(mAr)) {
+        const pAr = (p.memberNameAr || '').trim().toLowerCase();
+        if (pAr && !this.isGenericInstructorName(pAr) && pAr === mAr) return true;
+      }
+
+      if (!this.isGenericInstructorName(mEn)) {
+        const pEn = (p.memberNameEn || '').trim().toLowerCase();
+        if (pEn && !this.isGenericInstructorName(pEn) && pEn === mEn) return true;
+      }
+
+      return false;
+    });
   }
 
   selectInstructor(member: PackageMemberOption): void {
     const name = this.isArabic() ? member.nameAr : member.nameEn;
     this.bookingInstructor.set(name);
+    this.selectedInstructorId.set(member.id);
     if (member.phone) {
       this.bookingPhone.set(member.phone);
     }
@@ -723,6 +844,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
 
   clearBookingInstructor(): void {
     this.bookingInstructor.set('');
+    this.selectedInstructorId.set('');
     this.isInstructorDropdownOpen.set(false);
   }
 
@@ -770,14 +892,15 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       this.couponError.set(this.t().pleaseEnterCoupon);
       return;
     }
-    const coupon = this.classroomService.validateCoupon(code);
-    if (coupon) {
-      this.appliedCoupon.set(coupon);
-      this.couponError.set('');
-      this.isBookingDiscountSectionOpen.set(false);
-    } else {
-      this.couponError.set(this.t().invalidCoupon);
-    }
+    this.classroomService.validateCoupon(code).subscribe(coupon => {
+      if (coupon) {
+        this.appliedCoupon.set(coupon);
+        this.couponError.set('');
+        this.isBookingDiscountSectionOpen.set(false);
+      } else {
+        this.couponError.set(this.t().invalidCoupon);
+      }
+    });
   }
 
   removeCoupon(): void {
@@ -822,22 +945,32 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       : `${duration}h session`;
 
     const pkg = this.matchedInstructorPackage();
-    const isPkg = this.bookingPaymentMode() === 'package' && !!pkg;
+    const isPkg = this.bookingPaymentMode() === 'package' && !!pkg && (pkg.remainingHours || 0) > 0;
     const coveredHours = isPkg ? this.packageCoveredHours() : 0;
     const extraHours = isPkg ? this.packageExtraHours() : 0;
+    const paymentModeToSave: 'package' | 'cash' = isPkg ? 'package' : 'cash';
     const rentalAmount = this.bookingRoomRentalTotal();
 
     // Auto-save/update instructor in the database
     const instructorName = this.bookingInstructor().trim();
     if (instructorName) {
+      const existingMember = this.packageService.memberOptions().find(m =>
+        (this.selectedInstructorId() && m.id === this.selectedInstructorId()) ||
+        (this.bookingPhone().trim() && m.phone === this.bookingPhone().trim()) ||
+        (m.nameAr && m.nameAr.toLowerCase() === instructorName.toLowerCase()) ||
+        (m.nameEn && m.nameEn.toLowerCase() === instructorName.toLowerCase())
+      );
+      const memberType = existingMember?.type || 'instructor';
+
       this.packageService.addOrUpdateMember({
+        id: this.selectedInstructorId() || undefined,
         nameAr: instructorName,
         nameEn: instructorName,
         phone: this.bookingPhone().trim(),
         email: this.bookingEmail().trim(),
-        subAr: this.bookingActivity().trim() || 'محاضر',
-        subEn: this.bookingActivity().trim() || 'Instructor',
-        type: 'instructor'
+        subAr: this.bookingActivity().trim() || (memberType === 'student' ? 'طالب' : 'محاضر'),
+        subEn: this.bookingActivity().trim() || (memberType === 'student' ? 'Student' : 'Instructor'),
+        type: memberType
       });
     }
 
@@ -848,13 +981,14 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
         this.classroomService.updateCard({
           ...existing,
           roomId: selectedRoom ? selectedRoom.id : existing.roomId,
+          instructorId: this.selectedInstructorId() || existing.instructorId || undefined,
           name: selectedRoom ? selectedRoom.name : existing.name,
           activity: this.bookingActivity() || existing.activity,
           instructor: instructorName || existing.instructor,
           phone: this.bookingPhone() || existing.phone,
           email: this.bookingEmail() || existing.email,
-          paymentMode: this.bookingPaymentMode(),
-          packageName: isPkg ? (this.isArabic() ? pkg.packageNameAr : pkg.packageNameEn) : undefined,
+          paymentMode: paymentModeToSave,
+          packageName: isPkg && pkg ? (this.isArabic() ? pkg.packageNameAr : pkg.packageNameEn) : undefined,
           packageCoveredHours: coveredHours,
           packageExtraHours: extraHours,
           status: cardStatus,
@@ -863,19 +997,22 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
           bookingDate: this.bookingDate(),
           elapsed: initialElapsed,
           rental: rentalAmount
+        }).subscribe({
+          error: (err) => console.error('Failed to update classroom booking:', err)
         });
       }
     } else {
       const newCard: ClassroomCard = {
-        id: 'room-' + Date.now(),
+        id: '',
         roomId: selectedRoom?.id,
+        instructorId: this.selectedInstructorId() || undefined,
         name: selectedRoom ? selectedRoom.name : 'New Room',
         activity: this.bookingActivity() || 'Workshop',
         instructor: instructorName || 'Instructor',
         phone: this.bookingPhone(),
         email: this.bookingEmail(),
-        paymentMode: this.bookingPaymentMode(),
-        packageName: isPkg ? (this.isArabic() ? pkg.packageNameAr : pkg.packageNameEn) : undefined,
+        paymentMode: paymentModeToSave,
+        packageName: isPkg && pkg ? (this.isArabic() ? pkg.packageNameAr : pkg.packageNameEn) : undefined,
         packageCoveredHours: coveredHours,
         packageExtraHours: extraHours,
         status: cardStatus,
@@ -892,7 +1029,9 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
         rental: rentalAmount,
         catering: 0
       };
-      this.classroomService.addBooking(newCard);
+      this.classroomService.addBooking(newCard).subscribe({
+        error: (err) => console.error('Failed to create classroom booking:', err)
+      });
     }
 
     // Deduct actual covered hours from package
@@ -910,7 +1049,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   }
 
   // Checkout Billing Mode ('package' | 'cash')
-  checkoutBillingMode = signal<'package' | 'cash'>('package');
+  checkoutBillingMode = signal<'package' | 'cash'>('cash');
 
   // Find matching instructor package for active checkout card
   checkoutMatchedPackage = computed<PackageItem | null>(() => {
@@ -918,31 +1057,72 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     if (!card) return null;
 
     const instructorName = (card.instructor || '').trim().toLowerCase();
-    const phone = (card.phone || '').trim();
+    const phone = (card.phone || '').trim().replace(/\D/g, '');
     const email = (card.email || '').trim().toLowerCase();
 
     const packages = this.packageService.instructorPackages();
 
     return packages.find(pkg => {
       if (pkg.status !== 'active' && pkg.status !== 'near_expiry') return false;
-      if (phone && pkg.memberPhone && pkg.memberPhone.includes(phone)) return true;
-      if (email && pkg.memberEmail && pkg.memberEmail.toLowerCase() === email) return true;
-      if (instructorName && instructorName.length >= 2) {
-        const ar = (pkg.memberNameAr || '').toLowerCase();
-        const en = (pkg.memberNameEn || '').toLowerCase();
-        return ar.includes(instructorName) || en.includes(instructorName) || instructorName.includes(ar) || instructorName.includes(en);
+      if ((pkg.remainingHours || 0) <= 0) return false;
+
+      // 1. Direct ID match
+      if (card.instructorId && pkg.memberId && card.instructorId === pkg.memberId) {
+        return true;
       }
+
+      // 2. Phone match (min 7 digits)
+      const pkgPhone = (pkg.memberPhone || '').replace(/\D/g, '');
+      if (phone.length >= 7 && pkgPhone.length >= 7 && (phone === pkgPhone || phone.endsWith(pkgPhone) || pkgPhone.endsWith(phone))) {
+        return true;
+      }
+
+      // 3. Email match
+      if (email.length >= 5 && email.includes('@') && pkg.memberEmail && pkg.memberEmail.toLowerCase() === email) {
+        return true;
+      }
+
+      // 4. Exact name match (non-generic names only, min 3 chars)
+      if (!this.isGenericInstructorName(instructorName)) {
+        const ar = (pkg.memberNameAr || '').trim().toLowerCase();
+        const en = (pkg.memberNameEn || '').trim().toLowerCase();
+        if (ar && !this.isGenericInstructorName(ar) && ar === instructorName) return true;
+        if (en && !this.isGenericInstructorName(en) && en === instructorName) return true;
+      }
+
       return false;
     }) || null;
   });
 
+  hasPackageAvailableForCheckout = computed(() => {
+    const card = this.activeCheckoutCard();
+    if (!card) return false;
+    const matchedPkg = this.checkoutMatchedPackage();
+    return !!matchedPkg && (matchedPkg.remainingHours || 0) > 0;
+  });
+
+  toggleCheckoutBillingMode(): void {
+    if (!this.hasPackageAvailableForCheckout()) {
+      this.checkoutBillingMode.set('cash');
+      return;
+    }
+    const current = this.checkoutBillingMode();
+    this.checkoutBillingMode.set(current === 'package' ? 'cash' : 'package');
+  }
+
   isCheckoutPackage = computed(() => {
     const card = this.activeCheckoutCard();
     if (!card) return false;
-    if (this.checkoutBillingMode() === 'package') {
-      return !!this.checkoutMatchedPackage() || card.paymentMode === 'package';
-    }
-    return false;
+    if (this.checkoutBillingMode() !== 'package') return false;
+
+    // Has a valid active package with remaining hours
+    const matchedPkg = this.checkoutMatchedPackage();
+    const hasValidPkg = !!matchedPkg && (matchedPkg.remainingHours || 0) > 0;
+
+    // OR was booked and package hours were already deducted at booking time
+    const hadBookedPkg = (card.packageCoveredHours || 0) > 0 || (card.paymentMode === 'package' && !!card.packageName);
+
+    return hasValidPkg || hadBookedPkg;
   });
 
   checkoutPackageCoveredHours = computed(() => {
@@ -951,7 +1131,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     const dur = this.checkoutDurationHours();
     const card = this.activeCheckoutCard();
 
-    const remaining = pkg ? (pkg.remainingHours || 0) : (card?.packageCoveredHours || dur);
+    const remaining = pkg ? (pkg.remainingHours || 0) : (card?.packageCoveredHours || 0);
     return Math.min(dur, Math.max(0, remaining));
   });
 
@@ -1019,8 +1199,8 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
             icon: 'clock',
             title: this.t().roomRental,
             subtitle: isPkg
-              ? (card.packageCoveredHours
-                  ? `${card.packageCoveredHours} ${this.t().hrs} ${this.t().deductedFromPackage}${Math.max(0, this.checkoutDurationHours() - card.packageCoveredHours) > 0 ? ` + ${Math.max(0, this.checkoutDurationHours() - card.packageCoveredHours)} ${this.t().hrs} (${this.checkoutRoomRate()} ${this.t().currency})` : ''}`
+              ? (this.checkoutPackageCoveredHours() > 0
+                  ? `${this.checkoutPackageCoveredHours()} ${this.t().hrs} ${this.t().deductedFromPackage}${this.checkoutPackageExtraHours() > 0 ? ` + ${this.checkoutPackageExtraHours()} ${this.t().hrs} (${this.checkoutRoomRate()} ${this.t().currency})` : ''}`
                   : this.t().deductedFromPackage)
               : `${this.checkoutRoomRate()} ${this.t().currency}/${this.t().hrs} × ${this.checkoutDurationHours()} ${this.t().hrs}`,
             amount: this.checkoutRoomRentalTotal(),
@@ -1095,8 +1275,12 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     this.checkoutLoyaltyDiscount.set(0);
     this.checkoutAmountReceived.set(0);
 
-    // Auto-detect if card was booked as package or if instructor has an active package
-    const hasPackage = card.paymentMode === 'package' || !!this.checkoutMatchedPackage();
+    // Auto-detect if instructor has an active package with remaining hours or card booked with package hours
+    const matchedPkg = this.checkoutMatchedPackage();
+    const hasValidPkg = !!matchedPkg && (matchedPkg.remainingHours || 0) > 0;
+    const hadBookedPkg = (card.packageCoveredHours || 0) > 0 || (card.paymentMode === 'package' && !!card.packageName);
+
+    const hasPackage = hasValidPkg || hadBookedPkg;
     this.checkoutBillingMode.set(hasPackage ? 'package' : 'cash');
 
     this.isCheckoutModalOpen.set(true);
@@ -1122,23 +1306,34 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   }
 
   onAddToRoomSession(event: { roomId: string; items: any[]; total: number }): void {
-    const formattedItems = (event.items || []).map(i => ({
-      name: i.product?.name || i.name || 'منتج كاترنج',
-      nameAr: i.product?.nameAr || i.nameAr,
-      price: i.unitPrice || i.price || 0,
-      quantity: i.quantity || 1,
-      total: i.totalPrice || i.total || (i.price * i.quantity),
-      time: this.t().now
-    }));
+    const formattedItems = (event.items || []).map(i => {
+      const prodId = i.productId || i.product?.id || i.id;
+      const unitPrice = Number(i.unitPrice ?? i.price ?? i.product?.sellingPrice ?? i.product?.piecePrice ?? 0);
+      const qty = Number(i.quantity || 1);
+      const totalPrice = Number(i.totalPrice ?? i.total ?? (unitPrice * qty));
+      return {
+        id: i.id || prodId || `${Date.now()}_${Math.random()}`,
+        productId: prodId,
+        product: i.product,
+        name: i.product?.name || i.name || 'منتج كاترنج',
+        nameAr: i.product?.nameAr || i.nameAr || i.product?.name || i.name,
+        unitPrice: unitPrice,
+        price: unitPrice,
+        quantity: qty,
+        totalPrice: totalPrice,
+        total: totalPrice,
+        time: this.t().now
+      };
+    });
 
     if (event.roomId) {
       this.classroomService.addCatering(event.roomId, event.total, formattedItems);
     }
     if (this.isCheckoutModalOpen()) {
-      this.checkoutCateringAmount.update(amt => amt + event.total);
+      this.checkoutCateringAmount.update(amt => +(amt + event.total).toFixed(2));
       this.activeCheckoutCard.update(c => c ? {
         ...c,
-        catering: (c.catering || 0) + event.total,
+        catering: +((c.catering || 0) + event.total).toFixed(2),
         cateringItems: [...(c.cateringItems || []), ...formattedItems]
       } : c);
     }
@@ -1179,7 +1374,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       if (isPkg && coveredHours > 0 && matchedPkg) {
         this.packageService.recordSessionUsage(matchedPkg.id, {
           duration: coveredHours,
-          date: new Date().toISOString().split('T')[0],
+          date: this.classroomService.getTodayDateISO(),
           sessionAr: `جلسة قاعة ${currentCard.name} (${currentCard.activity || 'ورشة عمل'})`,
           sessionEn: `Classroom session: ${currentCard.name} (${currentCard.activity || 'Workshop'})`,
           roomOrDesk: currentCard.name
@@ -1200,6 +1395,8 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
         amountReceived: received,
         finalAmount: finalAmt,
         changeDue: this.checkoutChangeDue()
+      }).subscribe({
+        error: (err) => console.error('Failed to checkout room:', err)
       });
 
       // 3. Log transaction in active cashier shift

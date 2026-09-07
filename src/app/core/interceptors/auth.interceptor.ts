@@ -1,7 +1,7 @@
 import { HttpInterceptorFn, HttpRequest, HttpHandlerFn, HttpErrorResponse, HttpClient } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, switchMap, throwError } from 'rxjs';
+import { BehaviorSubject, catchError, filter, switchMap, take, throwError } from 'rxjs';
 import { API_BASE_URL, API_ENDPOINTS } from '../constants/api-endpoints';
 import { AuthService } from '../services/auth.service';
 
@@ -14,6 +14,10 @@ const PUBLIC_ENDPOINTS = [
   '/api/Auth/reset-password',
   '/api/Auth/refresh-token',
 ];
+
+/** State for managing concurrent refresh token requests */
+let isRefreshing = false;
+const refreshTokenSubject = new BehaviorSubject<string | null>(null);
 
 function isPublicEndpoint(url: string): boolean {
   const lowerUrl = url.toLowerCase();
@@ -54,33 +58,50 @@ export const authInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>, ne
         const currentAccessToken = authService.getToken();
 
         if (currentRefreshToken && currentAccessToken) {
-          // Backend API expects { accessToken, refreshToken }
-          const refreshPayload = {
-            accessToken: currentAccessToken,
-            refreshToken: currentRefreshToken
-          };
-          return http.post<any>(
-            `${API_BASE_URL}${API_ENDPOINTS.AUTH.REFRESH_TOKEN}`,
-            refreshPayload
-          ).pipe(
-            switchMap((res) => {
-              const resData = res?.data || res;
-              const newToken = resData?.accessToken || resData?.token;
-              const newRefresh = resData?.refreshToken || currentRefreshToken;
-              if (newToken) {
-                authService.updateTokens(newToken, newRefresh);
-                return next(attachToken(req, newToken));
-              }
-              authService.clearAuthState();
-              router.navigate(['/auth/login']);
-              return throwError(() => error);
-            }),
-            catchError((refreshErr) => {
-              authService.clearAuthState();
-              router.navigate(['/auth/login']);
-              return throwError(() => refreshErr || error);
-            })
-          );
+          if (!isRefreshing) {
+            isRefreshing = true;
+            refreshTokenSubject.next(null);
+
+            // Backend API expects { accessToken, refreshToken }
+            const refreshPayload = {
+              accessToken: currentAccessToken,
+              refreshToken: currentRefreshToken
+            };
+
+            return http.post<any>(
+              `${API_BASE_URL}${API_ENDPOINTS.AUTH.REFRESH_TOKEN}`,
+              refreshPayload
+            ).pipe(
+              switchMap((res) => {
+                isRefreshing = false;
+                const resData = res?.data || res;
+                const newToken = resData?.accessToken || resData?.token;
+                const newRefresh = resData?.refreshToken || currentRefreshToken;
+                if (newToken) {
+                  authService.updateTokens(newToken, newRefresh);
+                  refreshTokenSubject.next(newToken);
+                  return next(attachToken(req, newToken));
+                }
+                authService.clearAuthState();
+                router.navigate(['/auth/login']);
+                return throwError(() => error);
+              }),
+              catchError((refreshErr) => {
+                isRefreshing = false;
+                refreshTokenSubject.next(null);
+                authService.clearAuthState();
+                router.navigate(['/auth/login']);
+                return throwError(() => refreshErr || error);
+              })
+            );
+          } else {
+            // Wait until the ongoing refresh completes and replay with new token
+            return refreshTokenSubject.pipe(
+              filter((token): token is string => token !== null),
+              take(1),
+              switchMap((newToken) => next(attachToken(req, newToken)))
+            );
+          }
         } else {
           // No valid tokens — clear and redirect
           authService.clearAuthState();

@@ -457,6 +457,25 @@
   line-height: 1.25;
 }
 
+.meta-row--clickable {
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  transition: all 0.2s ease;
+}
+
+.meta-row--clickable:hover {
+  background: rgba(245, 185, 33, 0.08);
+}
+
+.meta-value--unassigned {
+  color: var(--text-dim) !important;
+  font-style: italic;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+}
+
 /* Financial Metrics Grid */
 .metrics-grid {
   display: grid;

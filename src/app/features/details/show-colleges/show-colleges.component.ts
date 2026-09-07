@@ -12,6 +12,7 @@ import { DetailsService } from '../../../core/services/details.service';
 import { WorkspaceService, parseDurationMinutes } from '../../../core/services/workspace.service';
 import { PackageService } from '../../../core/services/package.service';
 import { College } from '../../../core/models/details.model';
+import { getTodayDateISO, parseIsoToLocalDate } from '../../../core/utils/date-time.util';
 
 export type { College };
 
@@ -111,7 +112,7 @@ export class ShowCollegesComponent implements OnInit {
 
   // Analytics Date Filter State
   dateFrom = signal<string>('2024-10-01');
-  dateTo = signal<string>(new Date().toISOString().split('T')[0]);
+  dateTo = signal<string>(getTodayDateISO());
   datePreset = signal<'all' | 'today' | 'week' | 'month' | 'year' | 'custom'>('all');
 
   // Hovered item in table or chart
@@ -157,8 +158,7 @@ export class ShowCollegesComponent implements OnInit {
   // --- Date Preset Actions ---
   setDatePreset(preset: 'all' | 'today' | 'week' | 'month' | 'year' | 'custom'): void {
     this.datePreset.set(preset);
-    const now = new Date();
-    const todayISO = now.toISOString().split('T')[0];
+    const todayISO = getTodayDateISO();
 
     if (preset === 'all') {
       this.dateFrom.set('');
@@ -169,15 +169,20 @@ export class ShowCollegesComponent implements OnInit {
     } else if (preset === 'week') {
       const past = new Date();
       past.setDate(past.getDate() - 7);
-      this.dateFrom.set(past.toISOString().split('T')[0]);
+      const y = past.getFullYear();
+      const m = String(past.getMonth() + 1).padStart(2, '0');
+      const d = String(past.getDate()).padStart(2, '0');
+      this.dateFrom.set(`${y}-${m}-${d}`);
       this.dateTo.set(todayISO);
     } else if (preset === 'month') {
-      const past = new Date(now.getFullYear(), now.getMonth(), 1);
-      this.dateFrom.set(past.toISOString().split('T')[0]);
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      this.dateFrom.set(`${y}-${m}-01`);
       this.dateTo.set(todayISO);
     } else if (preset === 'year') {
-      const past = new Date(now.getFullYear(), 0, 1);
-      this.dateFrom.set(past.toISOString().split('T')[0]);
+      const now = new Date();
+      this.dateFrom.set(`${now.getFullYear()}-01-01`);
       this.dateTo.set(todayISO);
     }
   }
@@ -202,7 +207,7 @@ export class ShowCollegesComponent implements OnInit {
     // Filter sessions by date
     const filteredSessions = allSessions.filter(s => {
       if (!from && !to) return true;
-      const sDate = s.date ? String(s.date).split('T')[0] : '';
+      const sDate = s.date ? parseIsoToLocalDate(s.date) : '';
       if (!sDate) return true;
       if (from && sDate < from) return false;
       if (to && sDate > to) return false;
@@ -212,7 +217,7 @@ export class ShowCollegesComponent implements OnInit {
     // Filter packages by date
     const filteredPackages = packages.filter(p => {
       if (!from && !to) return true;
-      const pDate = p.purchaseDate ? String(p.purchaseDate).split('T')[0] : '';
+      const pDate = p.purchaseDate ? parseIsoToLocalDate(p.purchaseDate) : '';
       if (!pDate) return true;
       if (from && pDate < from) return false;
       if (to && pDate > to) return false;

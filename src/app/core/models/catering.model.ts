@@ -1,3 +1,71 @@
+/**
+ * Catering & Products Domain Models and DTOs
+ * Following Angular Clean Architecture Layer 1: [1. Model / DTO]
+ */
+
+// ==========================================
+// 1️⃣ Backend DTOs (Data Transfer Objects from /api/Products)
+// ==========================================
+
+export interface ProductDto {
+  id: string;
+  name: string;
+  imageUrl?: string | null;
+  serialNo?: string | null;
+  piecePrice: number;
+  quantity: number;
+  cost: number;
+  restockDate?: string | null;
+  expireDate?: string | null;
+}
+
+export interface CreateProductDto {
+  Name: string;
+  name?: string;
+  ImageUrl?: string;
+  imageUrl?: string;
+  SerialNo?: string;
+  serialNo?: string;
+  PiecePrice: number;
+  piecePrice?: number;
+  Quantity: number;
+  quantity?: number;
+  Cost: number;
+  cost?: number;
+  RestockDate?: string;
+  restockDate?: string;
+  ExpireDate?: string;
+  expireDate?: string;
+}
+
+export interface UpdateProductDto {
+  Name?: string;
+  name?: string;
+  ImageUrl?: string;
+  imageUrl?: string;
+  SerialNo?: string;
+  serialNo?: string;
+  PiecePrice?: number;
+  piecePrice?: number;
+  Quantity?: number;
+  quantity?: number;
+  Cost?: number;
+  cost?: number;
+  RestockDate?: string;
+  restockDate?: string;
+  ExpireDate?: string;
+  expireDate?: string;
+}
+
+// Backward compatibility alias
+export type BackendProductDto = ProductDto;
+export type CreateProductPayload = CreateProductDto;
+export type UpdateProductPayload = UpdateProductDto;
+
+// ==========================================
+// 2️⃣ Frontend Domain Models (UI State)
+// ==========================================
+
 export type ProductStatus = 'healthy' | 'low_stock' | 'expiring_soon' | 'expired';
 
 export interface CateringProduct {

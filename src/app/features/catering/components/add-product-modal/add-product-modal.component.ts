@@ -5,6 +5,7 @@ import { LanguageService } from '../../../../core/services/language.service';
 import { CateringService } from '../../../../core/services/catering.service';
 import { CateringProduct, ProductStatus } from '../../../../core/models/catering.model';
 import { CustomSelectComponent, SelectOption } from '../../../../shared/components/custom-select/custom-select.component';
+import { getTodayDateISO } from '../../../../core/utils/date-time.util';
 
 @Component({
   selector: 'app-add-product-modal',
@@ -46,7 +47,7 @@ export class AddProductModalComponent {
   newCategoryName = signal<string>('');
 
   // Date State with Min Date (Today)
-  minExpirationDate = new Date().toISOString().split('T')[0];
+  minExpirationDate = getTodayDateISO();
   selectedDateValue = signal<string>('');
   hasNoExpiration = signal<boolean>(false);
   expirationDate = signal<string>('');
@@ -197,32 +198,26 @@ export class AddProductModalComponent {
     this.productImage.set('');
   }
 
+  errorMessage = signal<string | null>(null);
+
   submitProduct(): void {
     if (!this.isFormValid() || this.isSubmitting()) return;
     this.isSubmitting.set(true);
+    this.errorMessage.set(null);
 
     const selling = Number(this.sellingPrice()) || 0;
     const cost = Number(this.costPrice()) || 0;
     const stockVal = Number(this.initialStock()) || 0;
     const reorderVal = this.reorderLevel() !== null ? Number(this.reorderLevel()) : 10;
-    const margin = selling > 0 ? Math.round(((selling - cost) / selling) * 100) : 0;
-    const isExp = this.expirationDate() !== '' && this.expirationDate().toLowerCase().includes('expired');
-
-    let status: ProductStatus = 'healthy';
-    if (stockVal <= reorderVal && stockVal > 0) {
-      status = 'low_stock';
-    } else if (stockVal === 0) {
-      status = 'low_stock';
-    } else if (isExp) {
-      status = 'expired';
-    }
+    const expDate = this.hasNoExpiration() || !this.expirationDate().trim() || this.expirationDate() === 'N/A'
+      ? undefined
+      : this.expirationDate().trim();
 
     const cat = this.category();
     const catObj = this.cateringService.categories().find(c => c.value === cat);
     const catAr = catObj ? catObj.labelAr : cat;
 
-    const newProduct: CateringProduct = {
-      id: `PROD-${Date.now().toString().slice(-4)}`,
+    this.cateringService.addProduct({
       name: this.productName().trim(),
       nameAr: this.productName().trim(),
       category: cat,
@@ -232,16 +227,19 @@ export class AddProductModalComponent {
       costPrice: cost,
       stock: stockVal,
       reorderLevel: reorderVal,
-      expirationDate: this.expirationDate().trim() || 'N/A',
-      isExpired: isExp,
-      status: status,
-      marginPercent: margin,
-      soldCount: 0,
-      totalRevenue: 0,
-      image: this.productImage() || undefined,
-      imageFile: this.selectedImageFile() || undefined
-    };
-
-    this.productCreated.emit(newProduct);
+      expirationDate: expDate,
+      imageFile: this.selectedImageFile() || null,
+      image: this.productImage() || null
+    }).subscribe({
+      next: (createdProduct) => {
+        this.isSubmitting.set(false);
+        this.productCreated.emit(createdProduct);
+      },
+      error: (err) => {
+        this.isSubmitting.set(false);
+        const msg = err?.error?.message || err?.message || this.t().failedToSaveProduct;
+        this.errorMessage.set(msg);
+      }
+    });
   }
 }
