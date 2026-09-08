@@ -142,10 +142,8 @@ export class ShowCollegesComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadColleges();
-    this.workspaceService.getStudents().subscribe();
-    this.workspaceService.getActiveStudents().subscribe();
-    this.workspaceService.getHistoryStudents().subscribe();
-    this.packageService.getStudentPackages().subscribe();
+    this.workspaceService.loadFromBackend();
+    this.packageService.syncPackagesFromBackend();
   }
 
   loadColleges(): void {
