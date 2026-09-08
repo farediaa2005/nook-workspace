@@ -3,6 +3,7 @@ import { catchError, of, finalize, Observable, map } from 'rxjs';
 import { ShiftRecord, ShiftTransaction, ShiftHistoryItem, ShiftPaymentMethod } from '../models/shift.model';
 import { AuthService } from './auth.service';
 import { ShiftApiService } from './api/shift-api.service';
+import { AccountApiService } from './api/account-api.service';
 import { LanguageService } from './language.service';
 import { NotificationService } from './notification.service';
 import { ShiftDto, CreateShiftItemDto } from '../models/shift-api.model';
@@ -15,6 +16,7 @@ import { parseIsoToLocal12h, parseIsoToLocalDate, getTodayDateISO } from '../uti
 export class ShiftService implements OnDestroy {
   private authService = inject(AuthService);
   private shiftApi = inject(ShiftApiService);
+  private accountApi = inject(AccountApiService);
   private langService = inject(LanguageService);
   private notification = inject(NotificationService);
 
@@ -172,10 +174,9 @@ export class ShiftService implements OnDestroy {
     this.isLoading.set(true);
     this.error.set(null);
 
-    const user = this.authService.getUser();
-    const params: any = user?.id && user.id.length > 10 ? { userId: user.id } : undefined;
+    const existingActive = this.currentShift();
 
-    this.shiftApi.getShifts(params).pipe(
+    this.shiftApi.getShifts().pipe(
       catchError((err) => {
         if (err?.status === 403) {
           console.info('[ShiftService] Shift API requires elevated role (403 Forbidden).');
@@ -188,14 +189,24 @@ export class ShiftService implements OnDestroy {
     ).subscribe({
       next: (apiShifts) => {
         if (Array.isArray(apiShifts) && apiShifts.length > 0) {
-          // Look for an active shift (status === 1 or timeTo is null/empty)
-          const activeDto = apiShifts.find((s: any) => s.status === 1 || !s.timeTo);
+          // Look for an active shift (status === 1 or (!timeTo && status !== 2))
+          const activeDto = apiShifts.find((s: any) => s.status === 1 || (!s.timeTo && s.status !== 2));
           if (activeDto) {
             const record = this.mapDtoToShiftRecord(activeDto);
+            if (existingActive && existingActive.status === 'active') {
+              record.startVodafoneCash = existingActive.startVodafoneCash || record.startVodafoneCash;
+              record.startInstapay = existingActive.startInstapay || record.startInstapay;
+              record.startFawry = existingActive.startFawry || record.startFawry;
+              record.staffName = existingActive.staffName || record.staffName;
+            }
             this.currentShift.set(record);
+          } else if (existingActive && existingActive.status === 'active') {
+            this.currentShift.set(existingActive);
           } else {
             this.currentShift.set(null);
           }
+        } else if (existingActive && existingActive.status === 'active') {
+          this.currentShift.set(existingActive);
         } else {
           this.currentShift.set(null);
         }
@@ -209,6 +220,8 @@ export class ShiftService implements OnDestroy {
   public syncShiftsFromBackend(): void {
     if (!this.authService.isAuthenticated()) return;
     this.isLoadingHistory.set(true);
+
+    const existingActive = this.currentShift();
 
     this.shiftApi.getShifts().pipe(
       catchError((err) => {
@@ -224,10 +237,18 @@ export class ShiftService implements OnDestroy {
       next: (apiShifts) => {
         if (Array.isArray(apiShifts)) {
           // Active shift
-          const activeDto = apiShifts.find((s: any) => s.status === 1 || !s.timeTo);
+          const activeDto = apiShifts.find((s: any) => s.status === 1 || (!s.timeTo && s.status !== 2));
           if (activeDto) {
             const mappedActive = this.mapDtoToShiftRecord(activeDto);
+            if (existingActive && existingActive.status === 'active') {
+              mappedActive.startVodafoneCash = existingActive.startVodafoneCash || mappedActive.startVodafoneCash;
+              mappedActive.startInstapay = existingActive.startInstapay || mappedActive.startInstapay;
+              mappedActive.startFawry = existingActive.startFawry || mappedActive.startFawry;
+              mappedActive.staffName = existingActive.staffName || mappedActive.staffName;
+            }
             this.currentShift.set(mappedActive);
+          } else if (existingActive && existingActive.status === 'active') {
+            this.currentShift.set(existingActive);
           }
 
           // Closed shifts
@@ -268,16 +289,18 @@ export class ShiftService implements OnDestroy {
 
     this.isLoading.set(true);
 
-    this.shiftApi.startShift({
-      date: nowIso,
-      timeFrom: nowIso,
-      previousTotal: initialCash,
-      userId: targetUserId
-    }).pipe(
-      finalize(() => this.isLoading.set(false))
-    ).subscribe({
-      next: (apiShift) => {
-        const id = apiShift?.id || `SHIFT-${Date.now().toString().slice(-4)}`;
+    const createSuccessShift = (apiShift?: any) => {
+      if (apiShift) {
+        const record = this.mapDtoToShiftRecord(apiShift);
+        record.startVodafoneCash = startVodafone;
+        record.startInstapay = startInstaPay;
+        record.startFawry = startFawry;
+        if (!record.staffName || record.staffName === 'موظف الاستقبال') {
+          record.staffName = targetStaffName;
+        }
+        this.currentShift.set(record);
+      } else {
+        const id = `SHIFT-${Date.now().toString().slice(-4)}`;
         const newShift: ShiftRecord = {
           id: id,
           staffName: targetStaffName,
@@ -317,16 +340,99 @@ export class ShiftService implements OnDestroy {
             }
           ]
         };
-
         this.currentShift.set(newShift);
-        if (onComplete) onComplete(true);
-      },
-      error: (err) => {
-        console.error('[ShiftService] Failed to start shift on API:', err);
-        const errorMsg = err?.error?.message || err?.message || 'Failed to start shift';
-        if (onComplete) onComplete(false, errorMsg);
       }
-    });
+
+      this.isLoading.set(false);
+      this.syncShiftsFromBackend();
+      if (onComplete) onComplete(true);
+    };
+
+    const attemptStart = (userIdToSend?: string, hasRetried: boolean = false) => {
+      this.shiftApi.startShift({
+        date: nowIso,
+        timeFrom: nowIso,
+        previousTotal: initialCash,
+        userId: userIdToSend
+      }).subscribe({
+        next: (apiShift) => {
+          createSuccessShift(apiShift);
+        },
+        error: (err) => {
+          console.warn('[ShiftService] Failed to start shift on API:', err);
+          const errorMsg: string = err?.error?.message || err?.message || '';
+
+          // If still failing with employee error and haven't tried without userId yet:
+          if (!hasRetried && userIdToSend) {
+            console.info('[ShiftService] Retrying shift start without userId parameter...');
+            attemptStart(undefined, true);
+            return;
+          }
+
+          // If tried without userId and failed, try auto-linking staff profile
+          if (!hasRetried && !userIdToSend && targetUserId) {
+            this.accountApi.linkStaffProfile(targetUserId, {
+              name: targetStaffName,
+              staffRole: 1
+            }).subscribe({
+              next: (res: any) => {
+                const linkedProfiles: any[] = res?.profiles || [];
+                const staff = linkedProfiles.find(p => p.role === 1 || p.role === 2 || p.role === 'Staff' || p.role === 'Admin') || linkedProfiles[0];
+                const resolvedId = staff?.profileId || res?.profileId || targetUserId;
+                attemptStart(resolvedId, true);
+              },
+              error: () => {
+                this.isLoading.set(false);
+                const finalMsg = errorMsg || (this.langService.isArabic() ? 'فشل فتح الشفت' : 'Failed to start shift');
+                if (onComplete) onComplete(false, finalMsg);
+              }
+            });
+            return;
+          }
+
+          this.isLoading.set(false);
+          const finalMsg = errorMsg || (this.langService.isArabic() ? 'فشل فتح الشفت' : 'Failed to start shift');
+          if (onComplete) onComplete(false, finalMsg);
+        }
+      });
+    };
+
+    // Step 1: Check if we have an account ID, resolve its Staff profile ID first
+    if (targetUserId && /^[0-9a-fA-F-]{36}$/.test(targetUserId)) {
+      this.accountApi.getAccountProfile(targetUserId).subscribe({
+        next: (profileData: any) => {
+          const profiles: any[] = profileData?.profiles || [];
+          const staffProfile = profiles.find(p => p.role === 1 || p.role === 2 || p.role === 'Staff' || p.role === 'Admin') || profiles[0];
+          const staffId = staffProfile?.profileId;
+
+          if (staffId && /^[0-9a-fA-F-]{36}$/.test(staffId)) {
+            // Found existing staff profileId!
+            attemptStart(staffId);
+          } else {
+            // Account has no linked Staff profile yet -> Link now
+            this.accountApi.linkStaffProfile(targetUserId, {
+              name: targetStaffName,
+              staffRole: 1
+            }).subscribe({
+              next: (linkRes: any) => {
+                const linkedProfiles: any[] = linkRes?.profiles || [];
+                const newStaff = linkedProfiles.find(p => p.role === 1 || p.role === 2 || p.role === 'Staff' || p.role === 'Admin') || linkedProfiles[0];
+                const newStaffId = newStaff?.profileId || linkRes?.profileId;
+                attemptStart(newStaffId || targetUserId);
+              },
+              error: () => {
+                attemptStart(targetUserId);
+              }
+            });
+          }
+        },
+        error: () => {
+          attemptStart(targetUserId);
+        }
+      });
+    } else {
+      attemptStart(undefined);
+    }
   }
 
   /**
