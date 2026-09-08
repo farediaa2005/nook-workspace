@@ -516,7 +516,7 @@ export class DashboardService {
         instructor: c.instructor || '-',
         instructorAr: this.langService.formatNameLocale(c.instructor || '-'),
         timeSlot: `${this.langService.formatTimeLocale(c.startTime || '')} - ${this.langService.formatTimeLocale(c.endTime || '')}`,
-        attendees: (c as any).studentsCount || (c as any).capacity || (c as any).attendees || 0,
+        attendees: (c as any).studentsCount || (c as any).capacity || (c as any).maxCapacity || (c as any).attendees || 20,
         status: c.status === 'active' ? 'in_progress' : 'upcoming'
       }));
     }

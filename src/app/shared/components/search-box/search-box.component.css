@@ -20,10 +20,14 @@
   transition: stroke 0.15s ease;
 }
 
+:host-context(.rtl) .search-icon,
+:host-context([class*="rtl"]) .search-icon,
 :host-context([dir="rtl"]) .search-icon,
+.rtl .search-icon,
+[class*="rtl"] .search-icon,
 [dir="rtl"] .search-icon {
-  left: auto;
-  right: 14px;
+  left: auto !important;
+  right: 14px !important;
 }
 
 .search-input {
@@ -42,10 +46,15 @@
   box-sizing: border-box;
 }
 
+:host-context(.rtl) .search-input,
+:host-context([class*="rtl"]) .search-input,
 :host-context([dir="rtl"]) .search-input,
+.rtl .search-input,
+[class*="rtl"] .search-input,
 [dir="rtl"] .search-input {
-  text-align: right;
-  padding: 0 40px 0 38px;
+  text-align: right !important;
+  direction: rtl !important;
+  padding: 0 40px 0 38px !important;
 }
 
 .search-input:focus {
@@ -79,10 +88,14 @@
   transition: color 0.15s ease;
 }
 
+:host-context(.rtl) .btn-clear-search,
+:host-context([class*="rtl"]) .btn-clear-search,
 :host-context([dir="rtl"]) .btn-clear-search,
+.rtl .btn-clear-search,
+[class*="rtl"] .btn-clear-search,
 [dir="rtl"] .btn-clear-search {
-  right: auto;
-  left: 12px;
+  right: auto !important;
+  left: 12px !important;
 }
 
 .btn-clear-search:hover {

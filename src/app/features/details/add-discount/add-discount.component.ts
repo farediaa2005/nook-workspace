@@ -289,7 +289,8 @@ export class AddDiscountComponent implements OnInit {
         title,
         titleEn: title,
         type,
-        value
+        value,
+        status: status as 'active' | 'disabled'
       }).subscribe({
         next: () => {
           const updated = this.discounts().map(d => {
@@ -324,7 +325,8 @@ export class AddDiscountComponent implements OnInit {
     this.detailsService.updateDiscount(discount.id, {
       title: discount.title,
       type: discount.type,
-      value: discount.value
+      value: discount.value,
+      status: newStatus
     }).subscribe({
       next: () => {
         const updated = this.discounts().map(d => {

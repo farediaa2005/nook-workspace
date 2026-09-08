@@ -145,6 +145,18 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
+.metric-card--gold {
+  border-top: 3px solid #f5b921;
+}
+
+.metric-card--blue {
+  border-top: 3px solid #3b82f6;
+}
+
+.metric-card--green {
+  border-top: 3px solid #10b981;
+}
+
 .metric-card__header {
   display: flex;
   align-items: center;
@@ -445,6 +457,63 @@
   bottom: 0;
 }
 
+/* Bottom Category Legend Row with Color Squares */
+.category-legend-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  margin-top: 10px;
+}
+
+.category-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--surface-2, rgba(255, 255, 255, 0.04));
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.category-legend-item:hover {
+  border-color: var(--border-focus, #3f3f46);
+  transform: translateY(-1px);
+}
+
+.legend-color-box {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.legend-category-name {
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.legend-category-val {
+  color: var(--text-dim);
+  font-size: 0.76rem;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+.analytics-page--rtl .legend-category-val {
+  margin-left: 0;
+  margin-right: 4px;
+}
+
 /* Donut Chart (Matching Dashboard Colors) */
 .donut-chart-container {
   display: flex;
@@ -706,7 +775,14 @@
 /* Responsive Queries */
 @media (max-width: 992px) {
   .metrics-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .metrics-grid > *:nth-child(3):last-child,
+  .metrics-grid > .metric-card:nth-child(3) {
+    grid-column: 1 / -1;
+    width: 100%;
   }
 
   .charts-grid {
@@ -736,4 +812,25 @@
   .bar-fill {
     width: 32px;
   }
+
+  .bar-label {
+    font-size: 0.68rem;
+    max-width: 42px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .category-legend-row {
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  .category-legend-item {
+    flex: 1 1 calc(50% - 8px);
+    font-size: 0.76rem;
+    padding: 5px 8px;
+    justify-content: flex-start;
+  }
+}
 }

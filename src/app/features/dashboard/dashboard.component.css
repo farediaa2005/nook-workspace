@@ -1021,6 +1021,13 @@
 
 .meta-instructor {
   color: var(--text-dim);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a.meta-instructor:hover {
+  color: var(--yellow-primary, #f5b921);
+  text-decoration: underline;
 }
 
 .meta-attendees {
@@ -1123,6 +1130,11 @@
     gap: 10px;
   }
 
+  .dashboard-metrics-grid > *:nth-child(3):last-child,
+  .flow-metrics-strip > *:nth-child(3):last-child {
+    grid-column: 1 / -1;
+  }
+
   .operational-grid {
     grid-template-columns: 1fr 1fr;
     gap: 12px;
@@ -1140,13 +1152,19 @@
     gap: 8px;
   }
 
+  .dashboard-metrics-grid > *:nth-child(3):last-child,
+  .flow-metrics-strip > *:nth-child(3):last-child {
+    grid-column: 1 / -1;
+  }
+
   .operational-grid {
     grid-template-columns: 1fr;
     gap: 12px;
   }
 
   .flow-metrics-strip {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
   }
 
   .welcome-title {

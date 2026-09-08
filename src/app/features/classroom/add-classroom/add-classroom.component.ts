@@ -46,7 +46,7 @@ export class AddClassroomComponent {
 
   isActivityValid = computed(() => {
     const val = this.activitySubject().trim();
-    return val.length >= 3 && val.length <= 60;
+    return val.length >= 2 && val.length <= 60;
   });
 
   isPhoneValid = computed(() => {
@@ -316,6 +316,7 @@ export class AddClassroomComponent {
     this.classroomService.addBooking(newCard).subscribe({
       next: () => {
         this.isSubmitting.set(false);
+        this.classroomService.syncWithBackend();
         this.router.navigate(['/classroom/show-classroom']);
       },
       error: (err) => {

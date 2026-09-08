@@ -40,7 +40,7 @@
 }
 
 .btn-back:hover {
-  color: var(--primary-accent, #6366f1);
+  color: #f5b921;
 }
 
 .rtl .back-icon {
@@ -84,7 +84,7 @@
 
 .btn-export:hover {
   background: rgba(255, 255, 255, 0.05);
-  border-color: var(--primary-accent, #6366f1);
+  border-color: #f5b921;
 }
 
 .btn-export--excel:hover { border-color: #10b981; color: #34d399; }

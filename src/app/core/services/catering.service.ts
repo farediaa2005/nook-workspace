@@ -1,4 +1,4 @@
-import { Injectable, signal, computed, inject } from '@angular/core';
+import { Injectable, signal, computed, inject, Injector } from '@angular/core';
 import { Observable, catchError, of, map, tap, switchMap } from 'rxjs';
 import {
   ProductDto,
@@ -12,6 +12,8 @@ import {
 } from '../models/catering.model';
 import { ProductApiService } from './api/product-api.service';
 import { AuthService } from './auth.service';
+import { WorkspaceService } from './workspace.service';
+import { ClassroomService } from './classroom.service';
 import { parseIsoToLocalDate, parseIsoToLocalDateObj } from '../utils/date-time.util';
 import { resolveImageUrl, getProductImageCache, setProductImageCache } from '../utils/image-url.util';
 
@@ -22,6 +24,55 @@ export const DEFAULT_CATEGORIES: { value: string; labelEn: string; labelAr: stri
   { value: 'Meals', labelEn: 'Meals', labelAr: 'وجبات وسندوتشات' },
   { value: 'Merchandise', labelEn: 'Merchandise', labelAr: 'ميرش ومنتجات NOOK' }
 ];
+
+export function inferCategoryFromName(name: string): { category: string; categoryAr: string } {
+  if (!name) return { category: 'Snacks', categoryAr: 'سناكس ومخبوزات' };
+  const lower = name.toLowerCase().trim();
+
+  // 1. Coffee & Hot Drinks
+  const coffeeKeywords = [
+    'coffee', 'latte', 'cappuccino', 'espresso', 'tea', 'nescafe', 'americano',
+    'mocha', 'macchiato', 'hot chocolate', 'herbal', 'anise', 'mint', 'karak',
+    'sahlab', 'matcha', 'cortado', 'flat white', 'cold brew', 'v60', 'chemex', 'drip', 'turkish',
+    'قهوة', 'شاي', 'لاتيه', 'كابتشينو', 'اسبريسو', 'نسكافيه', 'امريكانو', 'موكا',
+    'ماكياتو', 'هوت شوكولاتة', 'نعناع', 'ينسون', 'كركديه', 'أعشاب', 'اعشاب', 'سحلب', 'كرك', 'تركية', 'فرنساوي'
+  ];
+  if (coffeeKeywords.some(k => lower.includes(k))) {
+    return { category: 'Coffee', categoryAr: 'قهوة وهوت درينكس' };
+  }
+
+  // 2. Beverages
+  const bevKeywords = [
+    'water', 'pepsi', 'coke', 'coca-cola', 'sprite', '7up', 'seven up', 'juice', 'soda', 'red bull', 'redbull',
+    'v7', 'schweppes', 'fanta', 'energy', 'smoothie', 'milkshake', 'ice tea', 'iced tea', 'can',
+    'عصير', 'عصائر', 'مياه', 'بيبسي', 'كوكاكولا', 'سبرايت', 'سفن', 'فانتا', 'مشروب', 'شويبس', 'ريدبول', 'ريد بول', 'كانز', 'سموثي', 'ميلك شيك'
+  ];
+  if (bevKeywords.some(k => lower.includes(k))) {
+    return { category: 'Beverages', categoryAr: 'مشروبات وعصائر' };
+  }
+
+  // 3. Meals & Sandwiches
+  const mealKeywords = [
+    'sandwich', 'burger', 'pizza', 'meal', 'wrap', 'toast', 'panini', 'pasta', 'salad', 'fries',
+    'chicken', 'beef', 'shawarma', 'crepe', 'hotdog', 'tuna', 'omelette',
+    'وجبة', 'وجبات', 'سندوتش', 'ساندوتش', 'برجر', 'بيتزا', 'توست', 'باستا', 'سلاطة', 'سلطة', 'بطاطس', 'فراخ', 'دجاج', 'لحمة', 'شاورما', 'كريب', 'تونة', 'اومليت'
+  ];
+  if (mealKeywords.some(k => lower.includes(k))) {
+    return { category: 'Meals', categoryAr: 'وجبات وسندوتشات' };
+  }
+
+  // 4. Merchandise
+  const merchKeywords = [
+    'notebook', 'pen', 'sticker', 'mug', 'bottle', 't-shirt', 'hoodie', 'bag', 'book', 'nook', 'badge', 'lanyard',
+    'مفكرة', 'نوت بوك', 'قلم', 'ستيكر', 'استيكر', 'مج', 'زجاجة', 'تيشيرت', 'هودي', 'حقيبة', 'شنطة', 'كتاب', 'ميرش', 'بادج', 'نوك'
+  ];
+  if (merchKeywords.some(k => lower.includes(k))) {
+    return { category: 'Merchandise', categoryAr: 'ميرش ومنتجات NOOK' };
+  }
+
+  // 5. Snacks (Default fallback)
+  return { category: 'Snacks', categoryAr: 'سناكس ومخبوزات' };
+}
 
 function base64ToFile(dataUrl: string, filename: string): File | null {
   try {
@@ -70,6 +121,7 @@ export interface CreateProductInput {
 export class CateringService {
   private productApi = inject(ProductApiService);
   private authService = inject(AuthService);
+  private injector = inject(Injector);
 
   // Private State Signals
   private productsState = signal<CateringProduct[]>([]);
@@ -83,43 +135,169 @@ export class CateringService {
 
   readonly categories = signal<{ value: string; labelEn: string; labelAr: string }[]>([...DEFAULT_CATEGORIES]);
 
-  // Dynamic Top Selling Products based on actual sales
+  // Dynamic Top Selling Products based on actual sales and active session orders
   readonly topProducts = computed<TopSellingProduct[]>(() => {
-    const list = this.productsState().filter(p => (p.soldCount || 0) > 0 || (p.totalRevenue || 0) > 0);
-    if (list.length === 0) return [];
+    const map = new Map<string, { name: string; nameAr: string; category: string; categoryAr: string; qty: number; revenue: number; icon: string }>();
 
-    list.sort((a, b) => {
-      const bRev = b.totalRevenue ?? ((b.soldCount ?? 0) * b.sellingPrice);
-      const aRev = a.totalRevenue ?? ((a.soldCount ?? 0) * a.sellingPrice);
-      return bRev - aRev;
-    });
+    for (const p of this.productsState()) {
+      const qty = p.soldCount || 0;
+      const rev = p.totalRevenue ?? (qty * p.sellingPrice);
+      if (qty > 0 || rev > 0) {
+        let cat = p.category || 'Snacks';
+        let catAr = p.categoryAr || 'سناكس ومخبوزات';
+        if (!p.category || p.category === 'Snacks') {
+          const inferred = inferCategoryFromName(p.name);
+          cat = inferred.category;
+          catAr = inferred.categoryAr;
+        }
+        map.set(p.name.toLowerCase().trim(), {
+          name: p.name,
+          nameAr: p.nameAr || p.name,
+          category: cat,
+          categoryAr: catAr,
+          qty,
+          revenue: rev,
+          icon: p.icon || 'coffee'
+        });
+      }
+    }
+
+    try {
+      const ws = this.injector.get(WorkspaceService, null);
+      const cs = this.injector.get(ClassroomService, null);
+      const sessionItems: any[] = [];
+
+      if (ws) {
+        const activeSt = ws.activeStudents() || [];
+        const historySt = ws.historyStudents() || [];
+        [...activeSt, ...historySt].forEach(s => {
+          sessionItems.push(...(s.cateringItems || (s as any).canteenOrders || []));
+        });
+      }
+
+      if (cs) {
+        (cs.cards() || []).forEach(c => {
+          sessionItems.push(...(c.cateringItems || []));
+        });
+      }
+
+      for (const item of sessionItems) {
+        const name = item.name || item.nameAr || item.product?.name || item.product?.nameAr;
+        if (!name) continue;
+
+        const qty = Number(item.quantity || item.qty || 1);
+        const itemPrice = Number(item.unitPrice || item.price || item.product?.sellingPrice || 0);
+        const rev = Number(item.totalPrice || item.total || (itemPrice * qty) || 0);
+
+        const key = name.toLowerCase().trim();
+        const existing = map.get(key);
+        if (existing) {
+          existing.qty += qty;
+          existing.revenue += rev;
+        } else {
+          const inferred = inferCategoryFromName(name);
+          map.set(key, {
+            name: name,
+            nameAr: item.nameAr || item.product?.nameAr || name,
+            category: item.product?.category || inferred.category,
+            categoryAr: item.product?.categoryAr || inferred.categoryAr,
+            qty,
+            revenue: rev,
+            icon: 'coffee'
+          });
+        }
+      }
+    } catch {}
+
+    const list = Array.from(map.values()).filter(x => x.qty > 0 || x.revenue > 0);
+    list.sort((a, b) => b.revenue - a.revenue);
 
     return list.slice(0, 5).map((p, idx) => ({
       rank: idx + 1,
       name: p.name,
-      nameAr: p.nameAr || p.name,
+      nameAr: p.nameAr,
       category: p.category,
-      categoryAr: p.categoryAr || p.category,
-      icon: p.icon || 'coffee',
-      qty: p.soldCount ?? 0,
-      revenue: p.totalRevenue ?? ((p.soldCount ?? 0) * p.sellingPrice)
+      categoryAr: p.categoryAr,
+      icon: p.icon,
+      qty: p.qty,
+      revenue: p.revenue
     }));
   });
 
-  // Dynamic Category Revenue Breakdown based on actual product revenue
+  // Dynamic Category Revenue Breakdown based on actual product & session catering revenue
   readonly categoryRevenue = computed<CategoryRevenue[]>(() => {
-    const list = this.productsState().filter(p => (p.totalRevenue ?? ((p.soldCount ?? 0) * p.sellingPrice)) > 0);
-    if (list.length === 0) return [];
-
     const map = new Map<string, { amount: number; nameAr: string }>();
 
-    for (const p of list) {
-      const cat = p.category || 'Snacks';
-      const catAr = p.categoryAr || 'سناكس ومخبوزات';
+    const catLabels: Record<string, string> = {
+      'Snacks': 'سناكس ومخبوزات',
+      'Beverages': 'مشروبات وعصائر',
+      'Coffee': 'قهوة وهوت درينكس',
+      'Meals': 'وجبات وسندوتشات',
+      'Merchandise': 'ميرش ومنتجات NOOK'
+    };
+
+    // 1. Direct products sales
+    for (const p of this.productsState()) {
       const rev = p.totalRevenue ?? ((p.soldCount ?? 0) * p.sellingPrice);
-      const existing = map.get(cat) || { amount: 0, nameAr: catAr };
-      existing.amount += rev;
-      map.set(cat, existing);
+      if (rev > 0) {
+        let cat = p.category || 'Snacks';
+        let catAr = p.categoryAr || 'سناكس ومخبوزات';
+        if (!p.category || p.category === 'Snacks') {
+          const inferred = inferCategoryFromName(p.name);
+          cat = inferred.category;
+          catAr = inferred.categoryAr;
+        }
+        const existing = map.get(cat) || { amount: 0, nameAr: catAr };
+        existing.amount += rev;
+        map.set(cat, existing);
+      }
+    }
+
+    // 2. Student & Classroom Session Catering Items
+    try {
+      const ws = this.injector.get(WorkspaceService, null);
+      const cs = this.injector.get(ClassroomService, null);
+      const sessionItems: any[] = [];
+
+      if (ws) {
+        const activeSt = ws.activeStudents() || [];
+        const historySt = ws.historyStudents() || [];
+        [...activeSt, ...historySt].forEach(s => {
+          sessionItems.push(...(s.cateringItems || (s as any).canteenOrders || []));
+        });
+      }
+
+      if (cs) {
+        (cs.cards() || []).forEach(c => {
+          sessionItems.push(...(c.cateringItems || []));
+        });
+      }
+
+      for (const item of sessionItems) {
+        const itemName = item.name || item.nameAr || item.product?.name || item.product?.nameAr || '';
+        const qty = Number(item.quantity || item.qty || 1);
+        const itemPrice = Number(item.unitPrice || item.price || item.product?.sellingPrice || 0);
+        const rev = Number(item.totalPrice || item.total || (itemPrice * qty) || 0);
+
+        if (rev > 0 && itemName) {
+          let cat = item.product?.category || item.category;
+          let catAr = item.product?.categoryAr || item.categoryAr;
+
+          if (!cat || cat === 'Snacks') {
+            const inferred = inferCategoryFromName(itemName);
+            cat = inferred.category;
+            catAr = inferred.categoryAr;
+          } else if (!catAr) {
+            catAr = catLabels[cat] || cat;
+          }
+
+          const existing = map.get(cat) || { amount: 0, nameAr: catAr };
+          existing.amount += rev;
+          map.set(cat, existing);
+        }
+      }
+    } catch (e) {
+      console.warn('[CateringService] Could not aggregate session items:', e);
     }
 
     let maxVal = 0;
@@ -133,7 +311,7 @@ export class CateringService {
     map.forEach((val, cat) => {
       result.push({
         category: cat,
-        categoryAr: val.nameAr,
+        categoryAr: val.nameAr || catLabels[cat] || cat,
         amount: Math.round(val.amount),
         maxAmount: Math.ceil(maxVal * 1.1),
         percentage: Math.min(100, Math.round((val.amount / maxVal) * 100))
@@ -143,9 +321,36 @@ export class CateringService {
     return result;
   });
 
-  // Dynamic Total Revenue
+  // Dynamic Total Revenue including session items
   readonly totalRevenue = computed(() => {
-    return this.productsState().reduce((sum, p) => sum + (p.totalRevenue ?? ((p.soldCount ?? 0) * p.sellingPrice)), 0);
+    let sum = this.productsState().reduce((acc, p) => acc + (p.totalRevenue ?? ((p.soldCount ?? 0) * p.sellingPrice)), 0);
+
+    try {
+      const ws = this.injector.get(WorkspaceService, null);
+      const cs = this.injector.get(ClassroomService, null);
+
+      if (ws) {
+        const activeSt = ws.activeStudents() || [];
+        const historySt = ws.historyStudents() || [];
+        [...activeSt, ...historySt].forEach(s => {
+          (s.cateringItems || (s as any).canteenOrders || []).forEach((it: any) => {
+            const rev = Number(it.totalPrice || it.total || ((it.unitPrice || it.price || 0) * (it.quantity || 1)) || 0);
+            sum += rev;
+          });
+        });
+      }
+
+      if (cs) {
+        (cs.cards() || []).forEach(c => {
+          (c.cateringItems || []).forEach((it: any) => {
+            const rev = Number(it.totalPrice || it.total || ((it.unitPrice || it.price || 0) * (it.quantity || 1)) || 0);
+            sum += rev;
+          });
+        });
+      }
+    } catch {}
+
+    return sum;
   });
 
   // Payment Breakdown
@@ -228,18 +433,33 @@ export class CateringService {
       resolvedImage = getProductImageCache(dto.id) || '';
     }
 
+    const existingProd = this.productsState().find(p => p.id === dto.id);
+    const soldCount = (dto as any).soldCount ?? (dto as any).salesCount ?? (dto as any).totalSales ?? existingProd?.soldCount ?? 0;
+    const totalRevenue = (dto as any).totalRevenue ?? (dto as any).revenue ?? existingProd?.totalRevenue ?? (soldCount * dto.piecePrice);
+
+    const rawCat = (dto as any).category || existingProd?.category;
+    const rawCatAr = (dto as any).categoryAr || existingProd?.categoryAr;
+
+    let category = rawCat;
+    let categoryAr = rawCatAr;
+    if (!category || category === 'Snacks' || !categoryAr || categoryAr === 'سناكس ومخبوزات') {
+      const inferred = inferCategoryFromName(dto.name);
+      category = inferred.category;
+      categoryAr = inferred.categoryAr;
+    }
+
     return {
       id: dto.id,
       name: dto.name,
       nameAr: dto.name,
-      category: 'Snacks',
-      categoryAr: 'سناكس ومخبوزات',
+      category,
+      categoryAr,
       sellingPrice: dto.piecePrice,
       costPrice: dto.cost,
       stock: dto.quantity,
       reorderLevel: 10,
-      soldCount: 0,
-      totalRevenue: 0,
+      soldCount: soldCount,
+      totalRevenue: totalRevenue,
       status: status,
       marginPercent: margin,
       barcode: dto.serialNo || '',
@@ -280,51 +500,34 @@ export class CateringService {
 
     const file = input.imageFile || (input.image?.startsWith('data:') ? base64ToFile(input.image, 'product.png') : null);
 
-    let api$: Observable<ProductDto>;
+    const formData = new FormData();
+    formData.append('Name', nameVal);
+    formData.append('name', nameVal);
+    formData.append('PiecePrice', String(input.sellingPrice || 0));
+    formData.append('piecePrice', String(input.sellingPrice || 0));
+    formData.append('Cost', String(input.costPrice || 0));
+    formData.append('cost', String(input.costPrice || 0));
+    formData.append('Quantity', String(input.stock || 0));
+    formData.append('quantity', String(input.stock || 0));
+    if (input.barcode && input.barcode.trim()) {
+      formData.append('SerialNo', input.barcode.trim());
+      formData.append('serialNo', input.barcode.trim());
+    }
+    if (expireDateIso) {
+      formData.append('ExpireDate', expireDateIso);
+      formData.append('expireDate', expireDateIso);
+    }
     if (file) {
-      const formData = new FormData();
-      formData.append('Name', nameVal);
-      formData.append('name', nameVal);
-      formData.append('PiecePrice', String(input.sellingPrice || 0));
-      formData.append('piecePrice', String(input.sellingPrice || 0));
-      formData.append('Cost', String(input.costPrice || 0));
-      formData.append('cost', String(input.costPrice || 0));
-      formData.append('Quantity', String(input.stock || 0));
-      formData.append('quantity', String(input.stock || 0));
-      if (input.barcode && input.barcode.trim()) {
-        formData.append('SerialNo', input.barcode.trim());
-        formData.append('serialNo', input.barcode.trim());
-      }
-      if (expireDateIso) {
-        formData.append('ExpireDate', expireDateIso);
-        formData.append('expireDate', expireDateIso);
-      }
       formData.append('imageFile', file, file.name);
       formData.append('file', file, file.name);
       formData.append('image', file, file.name);
       formData.append('Image', file, file.name);
-
-      api$ = this.productApi.createProduct(formData);
-    } else {
-      const plainDto: CreateProductDto = {
-        Name: nameVal,
-        name: nameVal,
-        PiecePrice: input.sellingPrice || 0,
-        piecePrice: input.sellingPrice || 0,
-        Cost: input.costPrice || 0,
-        cost: input.costPrice || 0,
-        Quantity: input.stock || 0,
-        quantity: input.stock || 0,
-        SerialNo: input.barcode?.trim() || undefined,
-        serialNo: input.barcode?.trim() || undefined,
-        ImageUrl: input.image && !input.image.startsWith('data:') ? input.image : undefined,
-        imageUrl: input.image && !input.image.startsWith('data:') ? input.image : undefined,
-        ExpireDate: expireDateIso,
-        expireDate: expireDateIso
-      };
-
-      api$ = this.productApi.createProduct(plainDto);
+    } else if (input.image && typeof input.image === 'string' && !input.image.startsWith('data:')) {
+      formData.append('ImageUrl', input.image);
+      formData.append('imageUrl', input.image);
     }
+
+    const api$ = this.productApi.createProduct(formData);
 
     return api$.pipe(
       switchMap(resDto => {
@@ -388,51 +591,34 @@ export class CateringService {
 
     const file = updated.imageFile || (updated.image?.startsWith('data:') ? base64ToFile(updated.image, 'product.png') : null);
 
-    let api$: Observable<ProductDto>;
+    const formData = new FormData();
+    formData.append('Name', nameVal);
+    formData.append('name', nameVal);
+    formData.append('PiecePrice', String(updated.sellingPrice || 0));
+    formData.append('piecePrice', String(updated.sellingPrice || 0));
+    formData.append('Cost', String(updated.costPrice || 0));
+    formData.append('cost', String(updated.costPrice || 0));
+    formData.append('Quantity', String(updated.stock || 0));
+    formData.append('quantity', String(updated.stock || 0));
+    if (updated.barcode && updated.barcode.trim()) {
+      formData.append('SerialNo', updated.barcode.trim());
+      formData.append('serialNo', updated.barcode.trim());
+    }
+    if (expireDateIso) {
+      formData.append('ExpireDate', expireDateIso);
+      formData.append('expireDate', expireDateIso);
+    }
     if (file) {
-      const formData = new FormData();
-      formData.append('Name', nameVal);
-      formData.append('name', nameVal);
-      formData.append('PiecePrice', String(updated.sellingPrice || 0));
-      formData.append('piecePrice', String(updated.sellingPrice || 0));
-      formData.append('Cost', String(updated.costPrice || 0));
-      formData.append('cost', String(updated.costPrice || 0));
-      formData.append('Quantity', String(updated.stock || 0));
-      formData.append('quantity', String(updated.stock || 0));
-      if (updated.barcode && updated.barcode.trim()) {
-        formData.append('SerialNo', updated.barcode.trim());
-        formData.append('serialNo', updated.barcode.trim());
-      }
-      if (expireDateIso) {
-        formData.append('ExpireDate', expireDateIso);
-        formData.append('expireDate', expireDateIso);
-      }
       formData.append('imageFile', file, file.name);
       formData.append('file', file, file.name);
       formData.append('image', file, file.name);
       formData.append('Image', file, file.name);
-
-      api$ = this.productApi.updateProduct(updated.id, formData);
-    } else {
-      const plainDto: UpdateProductDto = {
-        Name: nameVal,
-        name: nameVal,
-        PiecePrice: updated.sellingPrice || 0,
-        piecePrice: updated.sellingPrice || 0,
-        Cost: updated.costPrice || 0,
-        cost: updated.costPrice || 0,
-        Quantity: updated.stock || 0,
-        quantity: updated.stock || 0,
-        SerialNo: updated.barcode?.trim() || undefined,
-        serialNo: updated.barcode?.trim() || undefined,
-        ImageUrl: updated.image && !updated.image.startsWith('data:') ? updated.image : undefined,
-        imageUrl: updated.image && !updated.image.startsWith('data:') ? updated.image : undefined,
-        ExpireDate: expireDateIso,
-        expireDate: expireDateIso
-      };
-
-      api$ = this.productApi.updateProduct(updated.id, plainDto);
+    } else if (updated.image && typeof updated.image === 'string' && !updated.image.startsWith('data:')) {
+      formData.append('ImageUrl', updated.image);
+      formData.append('imageUrl', updated.image);
     }
+
+    const api$ = this.productApi.updateProduct(updated.id, formData);
 
     return api$.pipe(
       switchMap(resDto => {

@@ -767,8 +767,71 @@ html[data-theme="light"] .action-menu-btn--danger {
   color: #dc2626 !important;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+/* ============================================================
+   GLOBAL RTL & ARABIC TEXT ALIGNMENT OVERRIDES
+   ============================================================ */
+:root[dir="rtl"],
+body.rtl,
+[dir="rtl"],
+[class*="rtl"],
+.rtl,
+:host-context(.rtl),
+:host-context([class*="rtl"]) {
+  direction: rtl;
+  text-align: right;
+}
+
+body.rtl input,
+body.rtl select,
+body.rtl textarea,
+body.rtl button,
+[dir="rtl"] input,
+[dir="rtl"] select,
+[dir="rtl"] textarea,
+[dir="rtl"] button,
+[class*="rtl"] input,
+[class*="rtl"] select,
+[class*="rtl"] textarea,
+[class*="rtl"] button,
+.rtl input,
+.rtl select,
+.rtl textarea,
+.rtl button,
+.search-input,
+.top-search-input,
+.filter-select,
+.select-input,
+.form-control,
+.form-select,
+.custom-select-trigger,
+.date-filter-dropdown,
+.select-display-text,
+.date-display-text {
+  text-align: right;
+}
+
+body.rtl input::placeholder,
+[dir="rtl"] input::placeholder,
+[class*="rtl"] input::placeholder,
+.rtl input::placeholder,
+.search-input::placeholder,
+.top-search-input::placeholder {
+  text-align: right !important;
+  direction: rtl !important;
+}
+
+.rtl .select-display-text,
+[class*="rtl"] .select-display-text,
+[dir="rtl"] .select-display-text {
+  text-align: right !important;
+  direction: rtl !important;
+}
+
+.rtl .date-display-text,
+[class*="rtl"] .date-display-text,
+[dir="rtl"] .date-display-text {
+  text-align: right !important;
+  direction: rtl !important;
 }
 
 

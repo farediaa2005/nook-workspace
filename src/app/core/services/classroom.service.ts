@@ -1,7 +1,8 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
-import { Observable, of, map, catchError, tap, switchMap } from 'rxjs';
+import { Observable, of, map, catchError, tap, switchMap, forkJoin } from 'rxjs';
 import {
   ClassroomCard,
+  ClassroomStatus,
   SelectableRoom,
   CateringProductItem,
   ClassroomCoupon,
@@ -206,11 +207,20 @@ export class ClassroomService {
   /** Complete backend data synchronization */
   public syncWithBackend(): void {
     if (!this.authService.isAuthenticated()) return;
-    this.loadInstructors().subscribe(() => {
-      this.loadRooms().subscribe(() => {
+    forkJoin([
+      this.loadInstructors(),
+      this.loadRooms()
+    ]).subscribe({
+      next: () => {
+        forkJoin([
+          this.loadClassrooms(),
+          this.loadReservations()
+        ]).subscribe();
+      },
+      error: () => {
         this.loadClassrooms().subscribe();
         this.loadReservations().subscribe();
-      });
+      }
     });
   }
 
@@ -1114,34 +1124,49 @@ export class ClassroomService {
     const todayISO = this.getTodayDateISO();
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-    this.cardsState.update(cards =>
-      (cards || []).map(card => {
-        if (!card || !card.startTime || card.status === 'available' || card.status === 'completed') {
-          return card;
-        }
+    let hasChanges = false;
+    const currentCards = this.cardsState() || [];
+    const newCards = currentCards.map(card => {
+      if (!card || !card.startTime || card.status === 'available' || card.status === 'completed') {
+        return card;
+      }
 
-        const isToday = !card.bookingDate || card.bookingDate === todayISO;
-        const startMins = this.parseTimeToMinutes(card.startTime);
-        const isOngoing = this.isSessionActive(card.startTime, card.endTime, card.bookingDate);
-        const newStatus = (isOngoing || (isToday && nowMinutes >= startMins)) ? 'active' : 'scheduled';
+      const isToday = !card.bookingDate || card.bookingDate === todayISO;
+      const startMins = this.parseTimeToMinutes(card.startTime);
+      const isOngoing = this.isSessionActive(card.startTime, card.endTime, card.bookingDate);
+      const newStatus: ClassroomStatus = (isOngoing || (isToday && nowMinutes >= startMins)) ? 'active' : 'scheduled';
 
-        const overtimeInfo = this.calculateOvertimeAndAlerts(card, isArabic);
+      const overtimeInfo = this.calculateOvertimeAndAlerts(card, isArabic);
 
-        let newElapsed = card.elapsed;
-        if (isOngoing || (isToday && nowMinutes >= startMins)) {
-          newElapsed = this.calculateElapsed(card.startTime, card.bookingDate);
-        }
+      let newElapsed = card.elapsed;
+      if (isOngoing || (isToday && nowMinutes >= startMins)) {
+        newElapsed = this.calculateElapsed(card.startTime, card.bookingDate);
+      }
 
-        return {
-          ...card,
-          status: newStatus,
-          elapsed: newElapsed,
-          timeAlertStatus: overtimeInfo.alertStatus,
-          timeAlertMessage: overtimeInfo.alertMessage,
-          overdueMinutes: overtimeInfo.overdueMinutes
-        };
-      })
-    );
+      if (
+        card.status === newStatus &&
+        card.elapsed === newElapsed &&
+        card.timeAlertStatus === overtimeInfo.alertStatus &&
+        card.timeAlertMessage === overtimeInfo.alertMessage &&
+        card.overdueMinutes === overtimeInfo.overdueMinutes
+      ) {
+        return card;
+      }
+
+      hasChanges = true;
+      return {
+        ...card,
+        status: newStatus,
+        elapsed: newElapsed,
+        timeAlertStatus: overtimeInfo.alertStatus,
+        timeAlertMessage: overtimeInfo.alertMessage,
+        overdueMinutes: overtimeInfo.overdueMinutes
+      };
+    });
+
+    if (hasChanges) {
+      this.cardsState.set(newCards);
+    }
   }
 
   /** Today ISO string helper */

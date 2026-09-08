@@ -21,6 +21,7 @@ import { PackageService } from '../../../core/services/package.service';
 import { StudentApiService, BackendStudentDto } from '../../../core/services/api/student-api.service';
 import { generateAvatarSvg, getSafeAvatar } from '../../../core/utils/avatar.util';
 import { exportToCsv } from '../../../core/utils/csv.util';
+import { CouponApiService } from '../../../core/services/api/coupon-api.service';
 import { getTodayDateISO, parseIsoToLocal12h, parseIsoToLocalDate } from '../../../core/utils/date-time.util';
 
 import { CustomSelectComponent, SelectOption } from '../../../shared/components/custom-select/custom-select.component';
@@ -83,6 +84,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   private cateringService = inject(CateringService);
   private settingsService = inject(SettingsService);
   private packageService = inject(PackageService);
+  private couponApi = inject(CouponApiService);
   private route = inject(ActivatedRoute);
   private destroyRef = inject(DestroyRef);
 
@@ -900,16 +902,26 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   applyCheckInCoupon(): void {
     const code = this.ciCouponCode().trim().toUpperCase();
     if (!code) return;
-    if (code === 'NOOK20' || code === 'PROMO20' || code === 'SAVE20') {
-      this.ciCouponDiscountPercent.set(20);
-      this.ciCouponApplied.set(true);
-    } else if (code === 'NOOK50' || code === 'HALF') {
-      this.ciCouponDiscountPercent.set(50);
-      this.ciCouponApplied.set(true);
-    } else {
-      this.ciCouponDiscountPercent.set(15);
-      this.ciCouponApplied.set(true);
-    }
+
+    this.couponApi.getCouponByCode(code).subscribe({
+      next: (coupon) => {
+        if (coupon && coupon.isActive !== false) {
+          const isExpired = coupon.expiryDate ? new Date(coupon.expiryDate) < new Date() : false;
+          if (isExpired) {
+            this.workspaceService.showToast(this.isArabic() ? 'كود الكوبون منتهي الصلاحية' : 'Coupon code expired', 'error');
+            return;
+          }
+          const discountPercent = coupon.discountType === 1 ? (coupon.value || 15) : 15;
+          this.ciCouponDiscountPercent.set(discountPercent);
+          this.ciCouponApplied.set(true);
+        } else {
+          this.workspaceService.showToast(this.isArabic() ? 'كود الكوبون غير صالح' : 'Invalid coupon code', 'error');
+        }
+      },
+      error: () => {
+        this.workspaceService.showToast(this.isArabic() ? 'كود الكوبون غير موجود' : 'Coupon code not found', 'error');
+      }
+    });
   }
 
   removeCheckInCoupon(): void {
@@ -1136,7 +1148,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
 
   // Discounts
   coDiscountPercent = signal(0);
-  coDiscountAmount = computed(() => +((this.coBaseCost() * this.coDiscountPercent()) / 100).toFixed(2));
+  coDiscountAmount = computed(() => +((this.coSubtotal() * this.coDiscountPercent()) / 100).toFixed(2));
   coCouponInput = signal('');
   coCouponDiscount = signal(0);
   coCouponApplied = signal(false);
@@ -1148,9 +1160,12 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   );
 
   // Printing in Checkout
+  coPrintingPages = signal<number>(0);
+  isEditPrintingOpen = signal(false);
+  editPrintingPagesInput = signal<number>(0);
+
   coPrintingTotal = computed(() => {
-    const pages = this.studentToCheckout()?.printingCount || 0;
-    return +(pages * 1.5).toFixed(2);
+    return +(this.coPrintingPages() * 1.5).toFixed(2);
   });
 
   // Financial Breakdown Computations
@@ -1594,6 +1609,9 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
 
     // Requirement 11: Amount Received must be entered by user, never prefilled
     this.coAmountReceived.set(null);
+
+    // Initialize printing pages from student record
+    this.coPrintingPages.set(student.printingCount || (student as any).printingPages || 0);
   }
 
   openEditBaseCostModal(): void {
@@ -1612,6 +1630,25 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       this.coHourlyRate.set(Math.round(val / Math.max(0.1, this.coDurationHours())));
     }
     this.closeEditBaseCostModal();
+  }
+
+  openEditPrintingModal(): void {
+    this.editPrintingPagesInput.set(this.coPrintingPages());
+    this.isEditPrintingOpen.set(true);
+  }
+
+  closeEditPrintingModal(): void {
+    this.isEditPrintingOpen.set(false);
+  }
+
+  savePrintingPages(): void {
+    const pages = Math.max(0, +this.editPrintingPagesInput());
+    this.coPrintingPages.set(pages);
+    const student = this.studentToCheckout();
+    if (student) {
+      student.printingCount = pages;
+    }
+    this.closeEditPrintingModal();
   }
 
   exportStudentsToCSV(): void {
@@ -1841,19 +1878,35 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     const code = this.coCouponInput().trim().toUpperCase();
     if (!code) return;
 
-    if (code === 'NOOK10' || code === 'SAVE10' || code === 'STUDENT') {
-      this.coCouponDiscount.set(10);
-      this.coCouponApplied.set(true);
-      this.workspaceService.showToast(
-        this.isArabic() ? `تم تطبيق الكوبون "${code}": خصم 10 ج.م` : `Coupon "${code}" applied: 10 EGP off!`,
-        'success'
-      );
-    } else {
-      this.workspaceService.showToast(
-        this.isArabic() ? 'كود الكوبون غير صالح' : 'Invalid coupon code',
-        'error'
-      );
-    }
+    this.couponApi.getCouponByCode(code).subscribe({
+      next: (coupon) => {
+        if (coupon && coupon.isActive !== false) {
+          const isExpired = coupon.expiryDate ? new Date(coupon.expiryDate) < new Date() : false;
+          if (isExpired) {
+            this.workspaceService.showToast(this.isArabic() ? 'كود الكوبون منتهي الصلاحية' : 'Coupon code expired', 'error');
+            return;
+          }
+          const discountVal = coupon.value || 10;
+          this.coCouponDiscount.set(discountVal);
+          this.coCouponApplied.set(true);
+          this.workspaceService.showToast(
+            this.isArabic() ? `تم تطبيق الكوبون "${code}": خصم ${discountVal} ج.م` : `Coupon "${code}" applied: ${discountVal} EGP off!`,
+            'success'
+          );
+        } else {
+          this.workspaceService.showToast(
+            this.isArabic() ? 'كود الكوبون غير صالح أو غير مفعل' : 'Invalid or inactive coupon code',
+            'error'
+          );
+        }
+      },
+      error: () => {
+        this.workspaceService.showToast(
+          this.isArabic() ? 'كود الكوبون غير موجود' : 'Coupon code not found',
+          'error'
+        );
+      }
+    });
   }
 
   openStudentCateringModal(student: ActiveStudentSession): void {

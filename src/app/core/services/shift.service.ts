@@ -263,7 +263,7 @@ export class ShiftService implements OnDestroy {
     const user = this.authService.getUser();
     const nowIso = new Date().toISOString();
     const formattedStart = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const targetUserId = chosenUserId || (user?.id && user.id.length > 10 ? user.id : undefined);
+    const targetUserId = chosenUserId || user?.id || (user as any)?.userId || (user as any)?.sub || undefined;
     const targetStaffName = chosenStaffName || user?.name || (this.langService.isArabic() ? 'موظف الاستقبال' : 'Receptionist');
 
     this.isLoading.set(true);

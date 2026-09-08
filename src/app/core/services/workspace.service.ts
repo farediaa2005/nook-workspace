@@ -553,19 +553,26 @@ export class WorkspaceService {
         });
         this.backendStudentsState.set(profileList);
 
-        // 3. Populate blacklist state
-        const blacklistRecords: BlacklistRecord[] = (blacklists || []).map(b => {
+        // 3. Populate blacklist state (deduplicated by studentId/phone/name)
+        const uniqueBlacklistMap = new Map<string, BlacklistRecord>();
+        (blacklists || []).forEach(b => {
           const matchedSt = b.studentId ? this.studentMap.get(b.studentId) : null;
-          return {
-            id: b.id,
-            studentId: b.studentId || b.id,
-            name: b.name || matchedSt?.name || 'طالب محظور',
-            phone: matchedSt?.phoneNumber || matchedSt?.whatsapp || '',
-            reason: b.reason || 'مخالفة القواعد',
-            blockedDate: b.blacklistedAt ? parseIsoToLocalDate(b.blacklistedAt) : getTodayDateISO()
-          };
+          const name = b.name || matchedSt?.name || 'طالب محظور';
+          const phone = matchedSt?.phoneNumber || matchedSt?.whatsapp || '';
+          const key = (b.studentId || phone || name).trim().toLowerCase();
+
+          if (!uniqueBlacklistMap.has(key)) {
+            uniqueBlacklistMap.set(key, {
+              id: b.id,
+              studentId: b.studentId || b.id,
+              name,
+              phone,
+              reason: b.reason || 'مخالفة القواعد',
+              blockedDate: b.blacklistedAt ? parseIsoToLocalDate(b.blacklistedAt) : getTodayDateISO()
+            });
+          }
         });
-        this.blacklistState.set(blacklistRecords);
+        this.blacklistState.set(Array.from(uniqueBlacklistMap.values()));
 
         // 4. Fetch live workspace sessions
         this.fetchSessions();
@@ -1156,6 +1163,22 @@ export class WorkspaceService {
     }
 
     const targetStudentId = student.studentId || student.id;
+    const targetPhone = student.phone ? student.phone.trim() : '';
+    const targetName = student.name ? student.name.trim().toLowerCase() : '';
+
+    // Prevent blacklisting an ALREADY blacklisted student
+    const isAlreadyBlacklisted = this.blacklistState().some(r => {
+      const matchId = !!(r.studentId && (r.studentId === student.id || r.studentId === student.studentId || r.id === student.id));
+      const matchPhone = !!(targetPhone && r.phone && r.phone.trim() === targetPhone);
+      const matchName = !!(targetName && r.name && r.name.trim().toLowerCase() === targetName);
+      return matchId || matchPhone || matchName;
+    });
+
+    if (isAlreadyBlacklisted) {
+      this.showToast(`الطالب "${student.name}" مضاف بالفعل في القائمة السوداء (Blacklist)!`, 'error');
+      return;
+    }
+
     const blockReason = reason || 'مخالفة قواعد وقوانين مساحة العمل';
 
     // 2. Requirement 8: Blocked students MUST NOT appear in active students; they belong in history

@@ -39,7 +39,10 @@ export class InstructorApiService extends BaseApiService {
     const payload = {
       name: dto.name,
       phoneNumber: dto.phoneNumber || dto.phone || null,
-      colour: dto.colour || null
+      email: dto.email || null,
+      specialty: dto.specialty || dto.specialization || null,
+      affiliation: dto.affiliation || dto.workplace || null,
+      colour: dto.colour || '#f5b921'
     };
     return this.post<ApiResponse<InstructorDto>>(API_ENDPOINTS.INSTRUCTORS.LIST, payload).pipe(
       map(extractData)
@@ -51,7 +54,10 @@ export class InstructorApiService extends BaseApiService {
     const payload = {
       name: dto.name,
       phoneNumber: dto.phoneNumber || dto.phone || null,
-      colour: dto.colour || null
+      email: dto.email || null,
+      specialty: dto.specialty || dto.specialization || null,
+      affiliation: dto.affiliation || dto.workplace || null,
+      colour: dto.colour || '#f5b921'
     };
     return this.put<ApiResponse<InstructorDto>>(API_ENDPOINTS.INSTRUCTORS.BY_ID(id), payload).pipe(
       map(extractData)

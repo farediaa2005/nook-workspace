@@ -153,7 +153,16 @@ export class ShowBlacklistComponent implements OnInit {
   loadBlacklist(): void {
     this.detailsService.getBlacklist().subscribe({
       next: (list) => {
-        this.blacklist.set(list || []);
+        const seenKeys = new Set<string>();
+        const deduped: BlacklistRecord[] = [];
+        (list || []).forEach(item => {
+          const key = (item.phone || item.name || item.id).trim().toLowerCase();
+          if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            deduped.push(item);
+          }
+        });
+        this.blacklist.set(deduped);
       },
       error: () => {
         this.blacklist.set([]);
@@ -257,6 +266,20 @@ export class ShowBlacklistComponent implements OnInit {
 
     if (!reason) {
       this.formError.set(this.t().blockReasonRequired);
+      return;
+    }
+
+    // Check if student is ALREADY in active blacklist
+    const normName = name.toLowerCase();
+    const isAlreadyBlocked = this.blacklist().some(r =>
+      r.status !== 'resolved' && (
+        (phone && r.phone && r.phone.trim() === phone) ||
+        (name && r.name && r.name.trim().toLowerCase() === normName)
+      )
+    );
+
+    if (isAlreadyBlocked) {
+      this.formError.set(this.isArabic() ? 'هذا الطالب مضاف بالفعل في القائمة السوداء (Blacklist)!' : 'This student is already in the blacklist!');
       return;
     }
 

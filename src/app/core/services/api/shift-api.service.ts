@@ -57,7 +57,7 @@ export class ShiftApiService extends BaseApiService {
       timeFrom: dto.timeFrom || now,
       previousTotal: dto.previousTotal ?? dto.startCash ?? 0
     };
-    if (dto.userId && typeof dto.userId === 'string' && dto.userId.length > 10) {
+    if (dto.userId && typeof dto.userId === 'string' && dto.userId.trim().length > 0) {
       payload.userId = dto.userId;
     }
     return this.post<ApiResponse<ShiftDto>>(API_ENDPOINTS.SHIFTS.LIST, payload).pipe(

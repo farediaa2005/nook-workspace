@@ -347,9 +347,9 @@
 }
 
 .btn-action-view:hover {
-  background: var(--primary-accent, #6366f1);
-  color: #fff;
-  border-color: var(--primary-accent, #6366f1);
+  background: #f5b921;
+  color: #16130a;
+  border-color: #f5b921;
 }
 
 /* Empty State */

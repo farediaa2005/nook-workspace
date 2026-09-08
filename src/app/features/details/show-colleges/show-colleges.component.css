@@ -5,6 +5,9 @@
 :host {
   display: block;
   width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .page-container {
@@ -14,6 +17,8 @@
   gap: 24px;
   max-width: 1600px;
   margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* 1. Header & Title */
@@ -333,6 +338,9 @@ app-primary-button.colleges-add-btn,
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 :host-context([data-theme="light"]) .college-table-panel,
@@ -512,12 +520,18 @@ app-primary-button.colleges-add-btn,
   justify-content: center;
   gap: 16px;
   position: relative;
-  min-height: 420px;
+  min-height: 380px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .pie-svg {
   width: 280px;
-  height: 280px;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
   filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.25));
   overflow: visible;
 }
@@ -551,6 +565,9 @@ app-primary-button.colleges-add-btn,
 /* Hover Detail Card */
 .chart-active-card {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
   background: var(--surface-2, rgba(255, 255, 255, 0.03));
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -1024,6 +1041,7 @@ app-primary-button.colleges-add-btn,
 @media (max-width: 1200px) {
   .college-graph-layout {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
   .analytics-metrics-strip {
     grid-template-columns: repeat(2, 1fr);
@@ -1032,12 +1050,13 @@ app-primary-button.colleges-add-btn,
 
 @media (max-width: 768px) {
   .page-container {
-    padding: 16px 12px;
+    padding: 14px 10px;
+    gap: 16px;
   }
   .show-head {
     flex-direction: column;
     align-items: stretch;
-    gap: 16px;
+    gap: 14px;
   }
   .head-title-wrap {
     width: 100%;
@@ -1084,11 +1103,65 @@ app-primary-button.colleges-add-btn,
     justify-content: center !important;
     height: 44px !important;
   }
-  .analytics-metrics-strip {
-    grid-template-columns: 1fr;
-  }
+  .analytics-metrics-strip,
   .metrics-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .analytics-metrics-strip > *:nth-child(3):last-child,
+  .metrics-grid > *:nth-child(3):last-child {
+    grid-column: 1 / -1;
+  }
+  .college-table-panel,
+  .college-chart-panel {
+    padding: 12px;
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .graph-table-wrap {
+    overflow-x: auto;
+    width: 100%;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
+  }
+  .graph-table {
+    min-width: 480px;
+    width: 100%;
+  }
+  .graph-table th,
+  .graph-table td {
+    padding: 8px 10px;
+    font-size: 0.80rem;
+  }
+  .pie-chart-container {
+    min-height: auto;
+    width: 100%;
+    padding: 8px 0;
+    overflow: hidden;
+  }
+  .pie-svg {
+    width: 100%;
+    max-width: 230px;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    display: block;
+    margin: 0 auto;
+  }
+  .active-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+  .kpi-mini-card {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    padding: 12px 10px;
+  }
+  .kpi-mini-val {
+    font-size: 1.15rem;
   }
   .form-grid {
     grid-template-columns: 1fr;
@@ -1117,5 +1190,8 @@ app-primary-button.colleges-add-btn,
     width: 14px;
     height: 14px;
     flex-shrink: 0;
+  }
+  .pie-svg {
+    max-width: 210px;
   }
 }

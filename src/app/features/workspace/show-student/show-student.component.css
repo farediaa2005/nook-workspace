@@ -4109,11 +4109,18 @@ tr.row--menu-open .cell-actions-td {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 8px !important;
   }
+  .metrics-grid > *:nth-child(3):last-child {
+    grid-column: 1 / -1 !important;
+  }
 }
 
 @media (max-width: 420px) {
   .metrics-grid {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 6px !important;
+  }
+  .metrics-grid > *:nth-child(3):last-child {
+    grid-column: 1 / -1 !important;
   }
 }
 

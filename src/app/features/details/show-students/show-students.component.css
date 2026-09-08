@@ -919,4 +919,14 @@ app-primary-button.students-add-btn,
   .filter-item {
     width: 100%;
   }
+
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  .metrics-grid > *:nth-child(3):last-child,
+  .metrics-grid > app-metric-card:nth-child(3) {
+    grid-column: 1 / -1 !important;
+  }
 }

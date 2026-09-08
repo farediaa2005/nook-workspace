@@ -7,6 +7,7 @@ import { PackageService } from '../../../core/services/package.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { StudentApiService } from '../../../core/services/api/student-api.service';
 import { FacultyApiService } from '../../../core/services/api/faculty-api.service';
+import { CouponApiService } from '../../../core/services/api/coupon-api.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { FacultyDto } from '../../../core/models/faculty.model';
 import { PackageMemberOption, PaymentMethod, ValidityPresetOption } from '../../../core/models/package.model';
@@ -23,6 +24,7 @@ export class AddStudentPackageComponent implements OnInit {
   private langService = inject(LanguageService);
   protected packageService = inject(PackageService);
   protected settingsService = inject(SettingsService);
+  private couponApi = inject(CouponApiService);
   private studentApi = inject(StudentApiService);
   private facultyApi = inject(FacultyApiService);
   private workspaceService = inject(WorkspaceService);
@@ -273,17 +275,25 @@ export class AddStudentPackageComponent implements OnInit {
   applyCoupon(): void {
     const code = this.couponCode().trim().toUpperCase();
     if (!code) return;
-    if (code === 'STUDENT10' || code === 'NOOK10') {
-      this.discountType.set('percentage');
-      this.discountValue.set(10);
-      this.packageService.showToast(this.isArabic() ? 'تم تطبيق خصم 10%' : '10% discount applied!', 'success');
-    } else if (code === 'WELCOME50' || code === 'STUDENT50') {
-      this.discountType.set('fixed');
-      this.discountValue.set(50);
-      this.packageService.showToast(this.isArabic() ? 'تم تطبيق خصم 50 ج.م' : '50 EGP discount applied!', 'success');
-    } else {
-      this.packageService.showToast(this.isArabic() ? 'كود الخصم غير صالح' : 'Invalid coupon code', 'error');
-    }
+    this.couponApi.getCouponByCode(code).subscribe({
+      next: (coupon) => {
+        if (coupon && coupon.isActive !== false) {
+          if (coupon.discountType === 2) {
+            this.discountType.set('fixed');
+            this.discountValue.set(coupon.value || 0);
+          } else {
+            this.discountType.set('percentage');
+            this.discountValue.set(coupon.value || 0);
+          }
+          this.packageService.showToast(this.isArabic() ? `تم تطبيق الكوبون "${code}"!` : `Coupon "${code}" applied!`, 'success');
+        } else {
+          this.packageService.showToast(this.isArabic() ? 'كود الخصم غير صالح' : 'Invalid coupon code', 'error');
+        }
+      },
+      error: () => {
+        this.packageService.showToast(this.isArabic() ? 'كود الخصم غير صالح' : 'Invalid coupon code', 'error');
+      }
+    });
   }
 
   onAmountReceivedInput(val: string): void {

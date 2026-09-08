@@ -433,7 +433,7 @@
               <strong class="booking-event-title">{{ isArabic() ? res.titleAr : res.title }}</strong>
               <span class="booking-room-tag">{{ isArabic() ? res.roomNameAr : res.roomName }}</span>
               <div class="booking-meta-line">
-                <span class="meta-instructor">{{ isArabic() ? res.instructorAr : res.instructor }}</span>
+                <a routerLink="/details/show-instructors" class="meta-instructor instructor-link">{{ isArabic() ? res.instructorAr : res.instructor }}</a>
                 <span class="meta-dot">•</span>
                 <span class="meta-attendees">{{ res.attendees }} {{ t().seatsLabel }}</span>
               </div>

@@ -81,7 +81,7 @@ export class WorkspaceCheckoutComponent implements OnInit {
   discountValue = signal<number>(0);
   discountAmount = computed(() => {
     if (this.discountMode() === 'percent') {
-      return +((this.baseCost() * this.discountValue()) / 100).toFixed(2);
+      return +((this.subtotal() * this.discountValue()) / 100).toFixed(2);
     }
     return +(this.discountValue()).toFixed(2);
   });
@@ -327,23 +327,22 @@ export class WorkspaceCheckoutComponent implements OnInit {
 
     this.couponApi.getCouponByCode(code).subscribe({
       next: (coupon) => {
-        if (coupon) {
+        if (coupon && coupon.isActive !== false) {
+          const isExpired = coupon.expiryDate ? new Date(coupon.expiryDate) < new Date() : false;
+          if (isExpired) {
+            this.workspaceService.showToast('كود الكوبون منتهي الصلاحية', 'error');
+            return;
+          }
           const discountVal = coupon.value || 10;
           this.couponDiscount.set(discountVal);
           this.couponApplied.set(true);
           this.workspaceService.showToast(`تم تطبيق الكوبون "${code}": ${discountVal} ج.م!`, 'success');
         } else {
-          this.workspaceService.showToast('كود الكوبون غير صالح أو منتهي الصلاحية', 'error');
+          this.workspaceService.showToast('كود الكوبون غير صالح أو غير مفعل', 'error');
         }
       },
       error: () => {
-        if (code === 'NOOK10' || code === 'SAVE10') {
-          this.couponDiscount.set(20.00);
-          this.couponApplied.set(true);
-          this.workspaceService.showToast('تم تطبيق خصم الكوبون: 20 ج.م!', 'success');
-        } else {
-          this.workspaceService.showToast('كود الكوبون غير موجود في النظام', 'error');
-        }
+        this.workspaceService.showToast('كود الكوبون غير موجود في النظام', 'error');
       }
     });
   }

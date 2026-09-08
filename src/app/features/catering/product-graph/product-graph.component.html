@@ -56,7 +56,7 @@
   <!-- Row 1: Top 3 Metric Cards -->
   <div class="metrics-grid">
     <!-- Card 1: Total Revenue -->
-    <div class="metric-card">
+    <div class="metric-card metric-card--gold">
       <div class="metric-card__header">
         <span class="metric-card__label">{{ t().totalRevenue }}</span>
         <div class="metric-card__icon-wrap metric-card__icon-wrap--gold">
@@ -73,7 +73,7 @@
     </div>
 
     <!-- Card 2: Most Popular Item -->
-    <div class="metric-card">
+    <div class="metric-card metric-card--blue">
       <div class="metric-card__header">
         <span class="metric-card__label">{{ t().mostPopularItem }}</span>
         <div class="metric-card__icon-wrap metric-card__icon-wrap--blue">
@@ -95,7 +95,7 @@
     </div>
 
     <!-- Card 3: Average Order Value -->
-    <div class="metric-card">
+    <div class="metric-card metric-card--green">
       <div class="metric-card__header">
         <span class="metric-card__label">{{ t().averageOrderValue }}</span>
         <div class="metric-card__icon-wrap metric-card__icon-wrap--green">
@@ -150,12 +150,13 @@
 
         <!-- Bars Area -->
         <div class="chart-bars-row">
-          @for (cat of categoryRevenue(); track cat.category) {
+          @for (cat of categoryRevenue(); track cat.category; let idx = $index) {
             <div class="bar-group">
               <div class="bar-track">
                 <div
                   class="bar-fill"
                   [style.height.%]="chartYAxisMax() > 0 ? Math.min(100, Math.round((cat.amount / chartYAxisMax()) * 100)) : 0"
+                  [style.background]="getCategoryColor(cat.category, idx)"
                   [title]="cat.category + ': ' + cat.amount + ' ' + t().currency"
                 >
                   <span class="bar-tooltip">{{ cat.amount }} {{ t().currency }}</span>
@@ -170,6 +171,19 @@
           }
         </div>
       </div>
+
+      <!-- Responsive & Bottom Category Color Legend -->
+      @if (categoryRevenue().length > 0) {
+        <div class="category-legend-row">
+          @for (cat of categoryRevenue(); track cat.category; let idx = $index) {
+            <div class="category-legend-item">
+              <span class="legend-color-box" [style.background]="getCategoryColor(cat.category, idx)"></span>
+              <span class="legend-category-name">{{ isArabic() ? (cat.categoryAr || cat.category) : cat.category }}</span>
+              <span class="legend-category-val">({{ cat.amount }} {{ t().currency }})</span>
+            </div>
+          }
+        </div>
+      }
     </div>
 
     <!-- Right Chart: Payment Method Donut -->

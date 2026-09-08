@@ -50,7 +50,9 @@ export class CouponApiService extends BaseApiService {
       discountType: dto.discountType ?? 1,
       value: dto.value ?? dto.discountPercent ?? 0,
       expiryDate: dto.expiryDate || dto.expiresAt || new Date(Date.now() + 30 * 86400000).toISOString(),
-      usageLimit: dto.usageLimit ?? dto.maxRedemptions ?? null
+      usageLimit: dto.usageLimit ?? dto.maxRedemptions ?? null,
+      name: dto.name || dto.code,
+      isActive: dto.isActive !== false
     };
 
     return this.post<ApiResponse<CouponDto>>(API_ENDPOINTS.COUPONS.LIST, payload).pipe(
@@ -65,7 +67,8 @@ export class CouponApiService extends BaseApiService {
       value: dto.value ?? dto.discountPercent ?? 0,
       expiryDate: dto.expiryDate || dto.expiresAt || new Date(Date.now() + 30 * 86400000).toISOString(),
       usageLimit: dto.usageLimit ?? dto.maxRedemptions ?? null,
-      isActive: dto.isActive !== false
+      isActive: dto.isActive !== undefined ? dto.isActive : (dto.status ? dto.status === 'active' : true),
+      name: dto.name || dto.title || undefined
     };
 
     return this.put<ApiResponse<CouponDto>>(API_ENDPOINTS.COUPONS.BY_ID(id), payload).pipe(

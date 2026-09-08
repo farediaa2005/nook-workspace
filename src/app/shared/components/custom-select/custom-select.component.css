@@ -92,8 +92,14 @@
   flex: 1;
 }
 
+:host-context(.rtl) .select-display-text,
+:host-context([class*="rtl"]) .select-display-text,
+:host-context([dir="rtl"]) .select-display-text,
+.rtl .select-display-text,
+[class*="rtl"] .select-display-text,
 [dir="rtl"] .select-display-text {
-  text-align: right;
+  text-align: right !important;
+  direction: rtl !important;
 }
 
 .chevron-icon {

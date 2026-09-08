@@ -58,11 +58,14 @@ export class DiscountApiService extends BaseApiService {
   /** Create discount — POST /api/Discounts */
   createDiscount(dto: CreateDiscountDto | any): Observable<DiscountDto> {
     const payload: Record<string, any> = {
-      dateFrom: dto.dateFrom || dto.startsAt || new Date().toISOString(),
-      dateTo: dto.dateTo || dto.expiresAt || null,
-      discountType: typeof dto.discountType === 'number' ? dto.discountType : (dto.type === 'Fixed' ? 2 : 1),
+      name: dto.name || dto.title || dto.code || 'Discount',
+      nameEn: dto.nameEn || dto.titleEn || dto.name || dto.title || dto.code || 'Discount',
+      dateFrom: dto.dateFrom || dto.startsAt || dto.startDate || new Date().toISOString(),
+      dateTo: dto.dateTo || dto.expiresAt || dto.expiryDate || null,
+      discountType: typeof dto.discountType === 'number' ? dto.discountType : (dto.type === 'Fixed' || dto.type === 'fixed' ? 2 : 1),
       value: dto.value ?? 0,
-      facultyId: dto.facultyId || null
+      facultyId: dto.facultyId || null,
+      isActive: dto.isActive !== false
     };
 
     return this.post<ApiResponse<DiscountDto>>(API_ENDPOINTS.DISCOUNTS.LIST, payload).pipe(
@@ -73,11 +76,14 @@ export class DiscountApiService extends BaseApiService {
   /** Update discount — PUT /api/Discounts/{id} */
   updateDiscount(id: string, dto: UpdateDiscountDto | any): Observable<DiscountDto> {
     const payload: Record<string, any> = {
-      dateFrom: dto.dateFrom || dto.startsAt || null,
-      dateTo: dto.dateTo || dto.expiresAt || null,
-      discountType: typeof dto.discountType === 'number' ? dto.discountType : (dto.type === 'Fixed' ? 2 : 1),
+      name: dto.name || dto.title || dto.code,
+      nameEn: dto.nameEn || dto.titleEn || dto.name || dto.title || dto.code,
+      dateFrom: dto.dateFrom || dto.startsAt || dto.startDate || null,
+      dateTo: dto.dateTo || dto.expiresAt || dto.expiryDate || null,
+      discountType: typeof dto.discountType === 'number' ? dto.discountType : (dto.type === 'Fixed' || dto.type === 'fixed' ? 2 : (dto.type === 'percentage' || dto.type === 'Percentage' ? 1 : 1)),
       value: dto.value ?? 0,
-      facultyId: dto.facultyId || null
+      facultyId: dto.facultyId || null,
+      isActive: dto.isActive !== undefined ? dto.isActive : (dto.status ? dto.status === 'active' : true)
     };
 
     return this.put<ApiResponse<DiscountDto>>(API_ENDPOINTS.DISCOUNTS.BY_ID(id), payload).pipe(

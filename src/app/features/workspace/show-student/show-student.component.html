@@ -614,8 +614,34 @@
   @if (studentToCheckout() && studentCheckoutData(); as coData) {
   <app-checkout-modal [data]="coData" (close)="closeCheckoutModal()" (paymentMethodChange)="coPaymentMethod.set($event)"
     (amountReceivedChange)="coAmountReceived.set($event)" (discountChange)="setDiscountPercent($event)"
-    (couponSubmit)="applyCouponCode($event)" (editRate)="openEditBaseCostModal()" (addCatering)="openAddCateringModal()"
+    (couponSubmit)="applyCouponCode($event)" (editRate)="openEditBaseCostModal()" (editPrinting)="openEditPrintingModal()" (addCatering)="openAddCateringModal()"
     (removeCatering)="removeCateringItem($event)" (processPayment)="finalizeCheckout($event)"></app-checkout-modal>
+  }
+
+  <!-- SUBMODAL: Edit Printing Pages inside Checkout -->
+  @if (isEditPrintingOpen()) {
+  <div class="modal-overlay modal-overlay--nested" (click)="closeEditPrintingModal()">
+    <div class="modal-card modal-card--sm" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h3 class="modal-title">{{ isArabic() ? 'تعديل عدد صفحات الطباعة' : 'Edit Printing Pages' }}</h3>
+        <button type="button" class="modal-close-btn" (click)="closeEditPrintingModal()">×</button>
+      </div>
+      <div class="modal-form-body">
+        <div class="modal-field-group">
+          <label class="modal-label">{{ isArabic() ? 'عدد الصفحات المطبوعة' : 'Number of Printed Pages' }}</label>
+          <input type="number" min="0" class="modal-input" [value]="editPrintingPagesInput()"
+            (input)="editPrintingPagesInput.set(+$any($event.target).value)" />
+          <span class="field-hint" style="font-size: 12px; color: var(--text-muted, #9ca3af); margin-top: 4px; display: block;">
+            {{ isArabic() ? 'سعر الصفحة: 1.50 ج.م' : 'Rate per page: 1.50 EGP' }}
+          </span>
+        </div>
+        <div class="modal-actions-footer">
+          <button type="button" class="modal-btn-cancel" (click)="closeEditPrintingModal()">{{ t().cancel }}</button>
+          <button type="button" class="modal-btn-save" (click)="savePrintingPages()">{{ t().saveChanges }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
   }
 
   <!-- SUBMODAL: Edit Base Cost inside Checkout -->
@@ -1420,7 +1446,7 @@
 
               <div class="row-grid-2">
                 <div class="field-wrap">
-                  <label class="field-label">{{ t().printing }} ({{ t().papers }})</label>
+                  <label class="field-label">{{ isArabic() ? 'طباعة مستندات (عدد الأوراق)' : t().printing }}</label>
                   <div class="counter-input-wrap">
                     <button type="button" class="btn-counter"
                       (click)="editPrinting.set(editPrinting() > 0 ? editPrinting() - 1 : 0)">-</button>

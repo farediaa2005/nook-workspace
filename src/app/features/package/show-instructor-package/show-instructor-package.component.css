@@ -2779,7 +2779,11 @@ tr.row--menu-open td {
   }
 
   .metrics-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .metrics-grid > *:nth-child(3):last-child {
+    grid-column: 1 / -1;
   }
 
   .modal-grid-2,

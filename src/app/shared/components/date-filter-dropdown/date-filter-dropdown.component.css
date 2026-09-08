@@ -49,6 +49,18 @@
   font-size: 0.86rem;
   text-overflow: ellipsis;
   overflow: hidden;
+  flex: 1;
+  text-align: left;
+}
+
+:host-context(.rtl) .date-display-text,
+:host-context([class*="rtl"]) .date-display-text,
+:host-context([dir="rtl"]) .date-display-text,
+.rtl .date-display-text,
+[class*="rtl"] .date-display-text,
+[dir="rtl"] .date-display-text {
+  text-align: right !important;
+  direction: rtl !important;
 }
 
 .chevron-icon {
@@ -86,9 +98,15 @@
   animation: fadeInMenu 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+:host-context(.rtl) .date-menu-card,
+:host-context([class*="rtl"]) .date-menu-card,
+:host-context([dir="rtl"]) .date-menu-card,
+.rtl .date-menu-card,
+[class*="rtl"] .date-menu-card,
 [dir="rtl"] .date-menu-card {
-  right: auto;
-  left: 0;
+  right: auto !important;
+  left: 0 !important;
+  text-align: right !important;
 }
 
 @keyframes fadeInMenu {

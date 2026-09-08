@@ -47,9 +47,14 @@
   pointer-events: none;
 }
 
+:host-context(.rtl) .search-icon,
+:host-context([class*="rtl"]) .search-icon,
+:host-context([dir="rtl"]) .search-icon,
+.rtl .search-icon,
+[class*="rtl"] .search-icon,
 [dir="rtl"] .search-icon {
-  left: auto;
-  right: 14px;
+  left: auto !important;
+  right: 14px !important;
 }
 
 .search-input {
@@ -66,8 +71,15 @@
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
+:host-context(.rtl) .search-input,
+:host-context([class*="rtl"]) .search-input,
+:host-context([dir="rtl"]) .search-input,
+.rtl .search-input,
+[class*="rtl"] .search-input,
 [dir="rtl"] .search-input {
-  padding: 0 42px 0 16px;
+  padding: 0 42px 0 16px !important;
+  text-align: right !important;
+  direction: rtl !important;
 }
 
 .search-input:focus {

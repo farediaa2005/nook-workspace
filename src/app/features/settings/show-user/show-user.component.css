@@ -444,7 +444,11 @@
     width: 100%;
   }
   .metrics-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .metrics-grid > *:nth-child(3):last-child {
+    grid-column: 1 / -1;
   }
   .form-grid {
     grid-template-columns: 1fr;

@@ -1,5 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { Observable, of, map, catchError, finalize, tap } from 'rxjs';
+import { Observable, of, map, catchError, finalize, tap, throwError } from 'rxjs';
 import {
   College,
   CreateCollegeDto,
@@ -173,10 +173,10 @@ export class DetailsService {
           nameEn: inst.nameEn || inst.name,
           phone: inst.phoneNumber || inst.phone || '-',
           email: inst.email || '-',
-          specialty: inst.specialty || '-',
-          specialtyEn: inst.specialtyEn || inst.specialty || '-',
-          affiliation: inst.affiliation || '-',
-          affiliationEn: inst.affiliationEn || inst.affiliation || '-',
+          specialty: inst.specialty || inst.specialization || '-',
+          specialtyEn: inst.specialtyEn || inst.specialty || inst.specialization || '-',
+          affiliation: inst.affiliation || inst.workplace || '-',
+          affiliationEn: inst.affiliationEn || inst.affiliation || inst.workplace || '-',
           totalSessions: inst.sessionsCount || inst.totalSessions || 0,
           status: (inst.isActive === false ? 'inactive' : 'active') as 'active' | 'inactive',
           bio: inst.bio || '',
@@ -204,6 +204,9 @@ export class DetailsService {
     return this.instructorApi.createInstructor({
       name: dto.name,
       phoneNumber: dto.phone,
+      email: dto.email,
+      specialty: dto.specialty,
+      affiliation: dto.affiliation,
       colour: '#f5b921'
     }).pipe(
       map(inst => {
@@ -212,11 +215,11 @@ export class DetailsService {
           name: inst.name,
           nameEn: inst.nameEn || dto.nameEn || inst.name,
           phone: inst.phoneNumber || dto.phone || '-',
-          email: dto.email || '-',
-          specialty: dto.specialty || '-',
-          specialtyEn: dto.specialtyEn || '-',
-          affiliation: dto.affiliation || '-',
-          affiliationEn: dto.affiliationEn || '-',
+          email: (inst as any).email || dto.email || '-',
+          specialty: (inst as any).specialty || (inst as any).specialization || dto.specialty || '-',
+          specialtyEn: (inst as any).specialtyEn || dto.specialtyEn || '-',
+          affiliation: (inst as any).affiliation || (inst as any).workplace || dto.affiliation || '-',
+          affiliationEn: (inst as any).affiliationEn || dto.affiliationEn || '-',
           totalSessions: 0,
           status: dto.status || 'active',
           bio: dto.bio || '',
@@ -234,6 +237,9 @@ export class DetailsService {
     return this.instructorApi.updateInstructor(id, {
       name: dto.name || '',
       phoneNumber: dto.phone,
+      email: dto.email,
+      specialty: dto.specialty,
+      affiliation: dto.affiliation,
       colour: '#f5b921'
     }).pipe(
       tap(() => {
@@ -298,6 +304,21 @@ export class DetailsService {
   }
 
   addBlacklist(dto: CreateBlacklistDto): Observable<BlacklistRecord> {
+    const cleanPhone = (dto.phone || '').trim();
+    const cleanName = (dto.name || '').trim().toLowerCase();
+    const existingActiveBlock = this.blacklist().find(b =>
+      b.status === 'blocked' && (
+        (cleanPhone && b.phone && b.phone === cleanPhone) ||
+        (cleanName && b.name && b.name.trim().toLowerCase() === cleanName)
+      )
+    );
+
+    if (existingActiveBlock) {
+      const errorMsg = 'This student is already actively blocked.';
+      this.error.set(errorMsg);
+      return throwError(() => new Error(errorMsg));
+    }
+
     this.isLoading.set(true);
     return this.blacklistApi.addToBlacklist({
       studentName: dto.name,

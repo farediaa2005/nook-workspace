@@ -216,8 +216,22 @@ export class ShowInstructorsComponent implements OnInit {
       return;
     }
 
-    if (!phone) {
-      this.formError.set(this.t().phoneNumberRequired);
+    if (!phone || phone.length !== 11 || !/^\d{11}$/.test(phone)) {
+      this.formError.set(
+        this.isArabic()
+          ? 'رقم الهاتف يجب أن يتكون من 11 رقماً (مثال: 01012345678)'
+          : 'Phone number must be exactly 11 digits (e.g. 01012345678)'
+      );
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (email && !emailRegex.test(email)) {
+      this.formError.set(
+        this.isArabic()
+          ? 'يرجى إدخال بريد إلكتروني صحيح (مثال: name@domain.com)'
+          : 'Please enter a valid email address (e.g. name@domain.com)'
+      );
       return;
     }
 

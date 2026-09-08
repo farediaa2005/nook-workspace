@@ -13,10 +13,6 @@ export function sanitizeCsvCell(value: any): string {
     return '""';
   }
 
-  if (typeof value === 'number' && !isNaN(value)) {
-    return String(value);
-  }
-
   let str = String(value);
 
   // Check for dangerous formula trigger prefixes (Formula Injection / CWE-1236)

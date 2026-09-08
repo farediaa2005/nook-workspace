@@ -85,6 +85,27 @@ export class ProductGraphComponent implements OnInit {
   // Category revenue data for bar chart
   categoryRevenue = this.cateringService.categoryRevenue;
 
+  categoryColors: string[] = [
+    '#f5b921', // Gold / Yellow
+    '#3b82f6', // Blue
+    '#a855f7', // Purple
+    '#10b981', // Emerald Green
+    '#f97316', // Orange
+    '#ec4899', // Pink
+    '#06b6d4'  // Cyan
+  ];
+
+  getCategoryColor(category: string, idx: number): string {
+    if (!category) return this.categoryColors[idx % this.categoryColors.length];
+    const c = category.toLowerCase().trim();
+    if (c.includes('snack') || c.includes('سناكس') || c.includes('مخبوزات')) return '#f5b921';
+    if (c.includes('beverag') || c.includes('عصائر') || c.includes('مشروب')) return '#3b82f6';
+    if (c.includes('coffee') || c.includes('قهوة') || c.includes('هوت')) return '#a855f7';
+    if (c.includes('meal') || c.includes('وجبات') || c.includes('سندوتش')) return '#10b981';
+    if (c.includes('merch') || c.includes('ميرش') || c.includes('nook')) return '#f97316';
+    return this.categoryColors[idx % this.categoryColors.length];
+  }
+
   chartYAxisMax = computed(() => {
     const cats = this.categoryRevenue();
     const maxAmount = cats.reduce((m, c) => Math.max(m, c.amount), 0);

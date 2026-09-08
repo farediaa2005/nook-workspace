@@ -109,12 +109,29 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       return true;
     });
 
-    const displayCards: ClassroomCard[] = [...activeOrScheduledCards];
+    // Deduplicate active/scheduled cards per room so duplicate sessions for the same room don't flash on screen
+    const uniqueRoomCardsMap = new Map<string, ClassroomCard>();
+    activeOrScheduledCards.forEach(card => {
+      const roomKey = (card.roomId || card.name).trim().toLowerCase();
+      if (!uniqueRoomCardsMap.has(roomKey)) {
+        uniqueRoomCardsMap.set(roomKey, card);
+      } else {
+        const existing = uniqueRoomCardsMap.get(roomKey)!;
+        if (card.status === 'active' && existing.status !== 'active') {
+          uniqueRoomCardsMap.set(roomKey, card);
+        } else if (card.status === existing.status && String(card.id) > String(existing.id)) {
+          uniqueRoomCardsMap.set(roomKey, card);
+        }
+      }
+    });
+
+    const displayCards: ClassroomCard[] = Array.from(uniqueRoomCardsMap.values());
 
     // For each room, if it doesn't have an active or currently-reserved session today, append a virtual available card
     for (const room of rooms) {
-      const hasActiveSession = activeOrScheduledCards.some(
-        card => card.name.toLowerCase() === room.name.toLowerCase() && card.status === 'active'
+      const roomKey = (room.id || room.name).trim().toLowerCase();
+      const hasActiveSession = displayCards.some(
+        card => (card.roomId === room.id || card.name.toLowerCase() === room.name.toLowerCase()) && (card.status === 'active' || card.status === 'scheduled')
       );
       if (!hasActiveSession) {
         displayCards.push({
@@ -620,7 +637,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
 
   isActivityValid = computed(() => {
     const val = this.bookingActivity().trim();
-    return val.length >= 3 && val.length <= 60;
+    return val.length >= 2 && val.length <= 60;
   });
 
   isPhoneValid = computed(() => {
@@ -998,7 +1015,14 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
           elapsed: initialElapsed,
           rental: rentalAmount
         }).subscribe({
-          error: (err) => console.error('Failed to update classroom booking:', err)
+          next: () => {
+            this.workspaceService.showToast(this.isArabic() ? 'تم تحديث حجز القاعة بنجاح!' : 'Room booking updated successfully!', 'success');
+            this.classroomService.syncWithBackend();
+          },
+          error: (err) => {
+            const errorMsg = err?.error?.message || err?.message || (this.isArabic() ? 'فشل تحديث حجز القاعة' : 'Failed to update classroom booking');
+            this.workspaceService.showToast(errorMsg, 'error');
+          }
         });
       }
     } else {
@@ -1030,7 +1054,14 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
         catering: 0
       };
       this.classroomService.addBooking(newCard).subscribe({
-        error: (err) => console.error('Failed to create classroom booking:', err)
+        next: () => {
+          this.workspaceService.showToast(this.isArabic() ? 'تم تأكيد وحفظ حجز القاعة بنجاح!' : 'Room booking confirmed and saved successfully!', 'success');
+          this.classroomService.syncWithBackend();
+        },
+        error: (err) => {
+          const errorMsg = err?.error?.message || err?.message || (this.isArabic() ? 'فشل حفظ حجز القاعة في السيرفر' : 'Failed to save classroom booking');
+          this.workspaceService.showToast(errorMsg, 'error');
+        }
       });
     }
 
