@@ -51,21 +51,27 @@ export class ClassroomApiService extends BaseApiService {
 
   /** Create a new classroom booking/session — POST /api/Classrooms */
   createClassroom(dto: CreateClassroomDto): Observable<ClassroomDto> {
+    const titleVal = dto.title || dto.activity || null;
     const payload: Record<string, any> = {
       date: dto.date || dto.bookingDate || new Date().toISOString(),
       timeFrom: dto.timeFrom || new Date().toISOString(),
       timeTo: dto.timeTo || null,
       roomId: dto.roomId || null,
+      title: titleVal,
+      activity: titleVal,
+      expectedAttendees: dto.expectedAttendees ?? null,
       printing: dto.printing ?? dto.printingCharges ?? 0,
       discount: dto.discount ?? dto.discountPercent ?? 0,
       reservationCost: dto.reservationCost ?? dto.hourlyRate ?? 0,
+      hourlyRate: dto.hourlyRate ?? dto.reservationCost ?? 0,
       payWay: dto.payWay ?? 1,
       discountType: dto.discountType ?? null,
       type: dto.type ?? 1,
-      activity: dto.activity || null,
       note: dto.note || dto.instructorName || null,
       instructorId: dto.instructorId || null,
-      instructorName: dto.instructorName || dto.note || null
+      instructorName: dto.instructorName || dto.note || null,
+      shiftId: dto.shiftId || null,
+      staffId: dto.staffId || null
     };
 
     return this.post<ApiResponse<ClassroomDto>>(API_ENDPOINTS.CLASSROOMS.LIST, payload).pipe(
@@ -75,11 +81,14 @@ export class ClassroomApiService extends BaseApiService {
 
   /** Update classroom session — PUT /api/Classrooms/{id} */
   updateClassroom(id: string, dto: UpdateClassroomDto): Observable<ClassroomDto> {
+    const titleVal = dto.title || dto.activity || null;
     const payload: Record<string, any> = {
       date: dto.date || null,
       timeFrom: dto.timeFrom || null,
       timeTo: dto.timeTo || null,
       roomId: dto.roomId || null,
+      title: titleVal,
+      activity: titleVal,
       printing: dto.printing ?? 0,
       discount: dto.discount ?? 0,
       reservationCost: dto.reservationCost ?? 0,
@@ -87,10 +96,11 @@ export class ClassroomApiService extends BaseApiService {
       status: dto.status ?? 1,
       discountType: dto.discountType ?? null,
       type: dto.type ?? 1,
-      activity: dto.activity || null,
       note: dto.note || (dto as any).instructorName || null,
       instructorId: dto.instructorId || null,
-      instructorName: (dto as any).instructorName || dto.note || null
+      instructorName: (dto as any).instructorName || dto.note || null,
+      shiftId: dto.shiftId || null,
+      staffId: dto.staffId || null
     };
 
     return this.put<ApiResponse<ClassroomDto>>(API_ENDPOINTS.CLASSROOMS.BY_ID(id), payload).pipe(
@@ -100,14 +110,33 @@ export class ClassroomApiService extends BaseApiService {
 
   /** Checkout a classroom session — PUT /api/Classrooms/{id}/checkout */
   checkoutClassroom(id: string, dto: CheckoutClassroomDto): Observable<ClassroomDetailDto> {
+    const payMethodStr = typeof dto.paymentMethod === 'string'
+      ? dto.paymentMethod
+      : (dto.payWay === 2 ? 'Vodafone' : (dto.payWay === 3 ? 'Instapay' : (dto.payWay === 4 ? 'Fawry' : 'Cash')));
+
+    const payWayVal = dto.payWay ?? (
+      payMethodStr.toLowerCase().includes('vodafone') ? 2 :
+      payMethodStr.toLowerCase().includes('instapay') ? 3 :
+      payMethodStr.toLowerCase().includes('fawry') ? 4 : 1
+    );
+
+    const paidAmt = dto.paidAmount ?? dto.finalAmount ?? dto.reservationCost ?? 0;
+
     const payload: Record<string, any> = {
       timeTo: dto.timeTo || new Date().toISOString(),
+      actualAttendees: dto.actualAttendees ?? null,
+      paymentMethod: payMethodStr,
+      usePackageHours: dto.usePackageHours ?? 0,
+      packageId: dto.packageId ?? null,
+      paidAmount: paidAmt,
       reservationCost: dto.reservationCost ?? dto.finalAmount ?? dto.roomRate ?? 0,
       printing: dto.printing ?? 0,
       discount: dto.discount ?? 0,
       discountType: dto.discountType ?? null,
-      payWay: dto.payWay ?? (dto.paymentMethod?.toLowerCase().includes('vodafone') ? 2 : 1),
-      note: dto.note || null
+      payWay: payWayVal,
+      note: dto.note || null,
+      shiftId: dto.shiftId || null,
+      staffId: dto.staffId || null
     };
 
     return this.put<ApiResponse<ClassroomDetailDto>>(API_ENDPOINTS.CLASSROOMS.CHECKOUT(id), payload).pipe(

@@ -31,7 +31,7 @@
                 </span>
               }
             </div>
-            <div class="input-container">
+            <div class="input-container relative-wrap" style="position: relative;">
               <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                 <circle cx="12" cy="7" r="4"></circle>
@@ -42,7 +42,10 @@
                 [placeholder]="t().instructorPlaceholder"
                 [ngModel]="instructor()"
                 (input)="onInstructorInput($event)"
+                (focus)="showInstructorSuggestions.set(true)"
+                (blur)="hideSuggestionsWithDelay()"
                 name="instructor"
+                autocomplete="off"
               />
               @if (instructor()) {
                 <button type="button" class="input-clear-btn" (click)="clearInstructor()">
@@ -52,6 +55,23 @@
                     <line x1="9" y1="9" x2="15" y2="15"></line>
                   </svg>
                 </button>
+              }
+              @if (showInstructorSuggestions() && filteredInstructors().length > 0) {
+                <div class="instructor-dropdown-menu">
+                  @for (ins of filteredInstructors(); track ins.id) {
+                    <div class="instructor-dropdown-item" (mousedown)="selectInstructor(ins)">
+                      <div class="ins-info">
+                        <strong class="ins-name">{{ ins.name }}</strong>
+                        @if (ins.phoneNumber) {
+                          <span class="ins-phone">{{ ins.phoneNumber }}</span>
+                        }
+                      </div>
+                      @if (ins.specialty) {
+                        <span class="ins-badge">{{ ins.specialty }}</span>
+                      }
+                    </div>
+                  }
+                </div>
               }
             </div>
             @if (instructor() && !isInstructorValid()) {
@@ -241,7 +261,7 @@
                     [class.period-opt--active]="startPeriod() === 'AM'"
                     (click)="startPeriod.set('AM')"
                   >
-                    AM
+                    {{ isArabic() ? 'ص' : 'AM' }}
                   </button>
                   <button
                     type="button"
@@ -249,7 +269,7 @@
                     [class.period-opt--active]="startPeriod() === 'PM'"
                     (click)="startPeriod.set('PM')"
                   >
-                    PM
+                    {{ isArabic() ? 'م' : 'PM' }}
                   </button>
                 </div>
               </div>
@@ -301,7 +321,7 @@
                     [class.period-opt--active]="endPeriod() === 'AM'"
                     (click)="endPeriod.set('AM')"
                   >
-                    AM
+                    {{ isArabic() ? 'ص' : 'AM' }}
                   </button>
                   <button
                     type="button"
@@ -309,7 +329,7 @@
                     [class.period-opt--active]="endPeriod() === 'PM'"
                     (click)="endPeriod.set('PM')"
                   >
-                    PM
+                    {{ isArabic() ? 'م' : 'PM' }}
                   </button>
                 </div>
               </div>

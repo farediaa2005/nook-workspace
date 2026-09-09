@@ -1,9 +1,11 @@
-import { Component, computed, inject, signal, OnInit } from '@angular/core';
+import { Component, computed, inject, signal, effect, OnInit } from '@angular/core';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LanguageService } from '../../../core/services/language.service';
 import { ClassroomService } from '../../../core/services/classroom.service';
+import { PackageService } from '../../../core/services/package.service';
 import { ClassroomCard, PaymentMethod } from '../../../core/models/classroom.model';
+import { PackageItem } from '../../../core/models/package.model';
 
 @Component({
   selector: 'app-classroom-checkout',
@@ -15,6 +17,7 @@ import { ClassroomCard, PaymentMethod } from '../../../core/models/classroom.mod
 export class ClassroomCheckoutComponent implements OnInit {
   private langService = inject(LanguageService);
   private classroomService = inject(ClassroomService);
+  private packageService = inject(PackageService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
@@ -25,8 +28,8 @@ export class ClassroomCheckoutComponent implements OnInit {
   selectedCard = signal<ClassroomCard | null>(null);
 
   // Financial Items
-  roomRate = signal(40);
-  durationHours = signal(2);
+  roomRate = signal(0);
+  durationHours = signal(0);
   cateringAmount = signal(0.00);
   printingAmount = signal(0.00);
   manualAdjustment = signal(0.00);
@@ -38,9 +41,93 @@ export class ClassroomCheckoutComponent implements OnInit {
   overtimeStatus = signal<'normal' | 'grace_period' | 'extra_hour'>('normal');
   overtimeAlertMessage = signal<string>('');
 
+  // Package Integration
+  checkoutBillingMode = signal<'package' | 'cash'>('cash');
+
+  checkoutMatchedPackage = computed<PackageItem | null>(() => {
+    const card = this.selectedCard();
+    if (!card) return null;
+
+    const instructorName = (card.instructor || '').trim().toLowerCase();
+    const phone = (card.phone || '').trim().replace(/\D/g, '');
+    const email = (card.email || '').trim().toLowerCase();
+    const instructorId = card.instructorId;
+
+    const packages = this.packageService.instructorPackages();
+
+    return packages.find(pkg => {
+      if (pkg.status !== 'active' && pkg.status !== 'near_expiry') return false;
+      if ((pkg.remainingHours || 0) <= 0) return false;
+
+      // 1. Direct ID match
+      if (instructorId && pkg.memberId && instructorId === pkg.memberId) {
+        return true;
+      }
+
+      // 2. Phone match (min 7 digits)
+      const pkgPhone = (pkg.memberPhone || '').replace(/\D/g, '');
+      if (phone.length >= 7 && pkgPhone.length >= 7 && (phone === pkgPhone || phone.endsWith(pkgPhone) || pkgPhone.endsWith(phone))) {
+        return true;
+      }
+
+      // 3. Email match
+      if (email.length >= 5 && email.includes('@') && pkg.memberEmail && pkg.memberEmail.toLowerCase() === email) {
+        return true;
+      }
+
+      // 4. Name match
+      if (instructorName && instructorName !== '-') {
+        const ar = (pkg.memberNameAr || '').trim().toLowerCase();
+        const en = (pkg.memberNameEn || '').trim().toLowerCase();
+        if (ar && ar === instructorName) return true;
+        if (en && en === instructorName) return true;
+      }
+
+      return false;
+    }) || null;
+  });
+
+  isCheckoutPackage = computed(() => {
+    return this.checkoutBillingMode() === 'package' && !!this.checkoutMatchedPackage();
+  });
+
+  checkoutPackageCoveredHours = computed(() => {
+    if (!this.isCheckoutPackage()) return 0;
+    const pkg = this.checkoutMatchedPackage();
+    const dur = this.durationHours();
+    if (!pkg) return 0;
+    return Math.min(dur, pkg.remainingHours || 0);
+  });
+
+  checkoutPackageExtraHours = computed(() => {
+    if (!this.isCheckoutPackage()) return 0;
+    const dur = this.durationHours();
+    const covered = this.checkoutPackageCoveredHours();
+    return Math.max(0, dur - covered);
+  });
+
   // Payment Options
   selectedPaymentMethod = signal<PaymentMethod>('cash');
   amountReceived = signal<number | null>(null);
+
+  constructor() {
+    effect(() => {
+      if (!this.selectedCard()) {
+        const cardIdFromQuery = this.route.snapshot.queryParamMap.get('cardId');
+        if (cardIdFromQuery) {
+          const card = this.classroomService.getCardById(cardIdFromQuery);
+          if (card) {
+            this.initFromCard(card);
+            return;
+          }
+        }
+        const activeCard = this.classroomService.activeCheckoutCard() || this.classroomService.cards().find(c => c.status === 'active');
+        if (activeCard) {
+          this.initFromCard(activeCard);
+        }
+      }
+    });
+  }
 
   ngOnInit(): void {
     const cardIdFromQuery = this.route.snapshot.queryParamMap.get('cardId');
@@ -82,7 +169,7 @@ export class ClassroomCheckoutComponent implements OnInit {
     this.overtimeAlertMessage.set(overtimeInfo.alertMessage);
 
     const totalBilledHours = agreedHours + overtimeInfo.extraHours;
-    const hourlyRate = card.hourlyRate || (card.rental && agreedHours ? Math.round(card.rental / agreedHours) : 40);
+    const hourlyRate = card.hourlyRate || (card.rental && agreedHours ? Math.round(card.rental / agreedHours) : 0);
     const catering = card.catering || 0;
     const printing = card.printingCharges !== undefined ? card.printingCharges : 0;
 
@@ -93,10 +180,19 @@ export class ClassroomCheckoutComponent implements OnInit {
     this.manualAdjustment.set(0);
     this.loyaltyDiscount.set(0);
     this.amountReceived.set(null);
+
+    // Auto-detect package
+    const matchedPkg = this.checkoutMatchedPackage();
+    const hasValidPkg = !!matchedPkg && (matchedPkg.remainingHours || 0) > 0;
+    const hadBookedPkg = (card.packageCoveredHours || 0) > 0 || (card.paymentMode === 'package' && !!card.packageName);
+    this.checkoutBillingMode.set(hasValidPkg || hadBookedPkg ? 'package' : 'cash');
   }
 
   // Computations
   roomRentalTotal = computed(() => {
+    if (this.isCheckoutPackage()) {
+      return this.roomRate() * this.checkoutPackageExtraHours();
+    }
     return this.roomRate() * this.durationHours();
   });
 
@@ -137,6 +233,21 @@ export class ClassroomCheckoutComponent implements OnInit {
     if (card) {
       const finalAmt = this.finalAmount();
       const received = this.amountReceived() ?? finalAmt;
+      const isPkg = this.isCheckoutPackage();
+      const coveredHours = this.checkoutPackageCoveredHours();
+      const matchedPkg = this.checkoutMatchedPackage();
+
+      // Deduct from package if applicable
+      if (isPkg && coveredHours > 0 && matchedPkg) {
+        this.packageService.recordSessionUsage(matchedPkg.id, {
+          duration: coveredHours,
+          date: this.classroomService.getTodayDateISO(),
+          sessionAr: `جلسة قاعة ${card.name} (${card.activity || 'ورشة عمل'})`,
+          sessionEn: `Classroom session: ${card.name} (${card.activity || 'Workshop'})`,
+          roomOrDesk: card.name
+        });
+      }
+
       this.classroomService.checkoutRoom(card.id, {
         cardId: card.id,
         roomRate: this.roomRate(),
@@ -148,7 +259,9 @@ export class ClassroomCheckoutComponent implements OnInit {
         paymentMethod: this.selectedPaymentMethod(),
         amountReceived: received,
         finalAmount: finalAmt,
-        changeDue: this.changeDue()
+        changeDue: this.changeDue(),
+        usePackageHours: isPkg ? coveredHours : 0,
+        packageId: isPkg && matchedPkg ? matchedPkg.id : undefined
       }).subscribe({
         next: () => {
           this.router.navigate(['/classroom/show-classroom']);

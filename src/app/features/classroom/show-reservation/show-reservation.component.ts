@@ -24,6 +24,12 @@ export class ShowReservationComponent implements OnInit {
   reservationId = signal<string | null>(null);
   selectedReservation = signal<AdminReservation | null>(null);
 
+  getRoomCapacity(roomName?: string): number | string {
+    if (!roomName) return '-';
+    const room = this.classroomService.rooms().find(r => r.name.toLowerCase() === roomName.toLowerCase());
+    return room?.capacity || room?.maxCapacity || '-';
+  }
+
   ngOnInit(): void {
     const idFromParam = this.route.snapshot.paramMap.get('id');
     const idFromQuery = this.route.snapshot.queryParamMap.get('id');

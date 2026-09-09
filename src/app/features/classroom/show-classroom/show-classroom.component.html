@@ -37,8 +37,10 @@
   </div>
 
   @if (classroomService.isLoading()) {
-  <div class="loading-state-box" style="display: flex; align-items: center; justify-content: center; padding: 40px; gap: 12px; color: var(--text-secondary, #6b7280);">
-    <svg class="animate-spin" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5">
+  <div class="loading-state-box"
+    style="display: flex; align-items: center; justify-content: center; padding: 40px; gap: 12px; color: var(--text-secondary, #6b7280);">
+    <svg class="animate-spin" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
+      stroke-width="2.5">
       <circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-linecap="round" />
     </svg>
     <span>{{ t().loadingClassrooms }}</span>
@@ -54,7 +56,8 @@
       [style.--card-accent]="card.accentColor || '#2563eb'">
       <!-- Room Image -->
       <div class="room-card__media">
-        <img [src]="getRoomImage(card.image)" (error)="onImageError($event)" [alt]="card.name" class="room-img" loading="lazy" />
+        <img [src]="getRoomImage(card.image)" (error)="onImageError($event)" [alt]="card.name" class="room-img"
+          loading="lazy" />
 
         <!-- Timing Alert Overlay on Image -->
         @if (card.timeAlertStatus && card.timeAlertStatus !== 'normal') {
@@ -110,7 +113,8 @@
         <!-- Metadata Details -->
         <div class="room-meta-group">
           <!-- Instructor -->
-          <div class="meta-row meta-row--clickable" (click)="openEditBookingModal(card)" [title]="isArabic() ? 'تعديل أو تحديد الإنستراكتور' : 'Edit or assign instructor'">
+          <div class="meta-row meta-row--clickable" (click)="openEditBookingModal(card)"
+            [title]="isArabic() ? 'تعديل أو تحديد الإنستراكتور' : 'Edit or assign instructor'">
             <div class="meta-icon-wrap">
               <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -120,7 +124,8 @@
             <div class="meta-info">
               <span class="meta-label">{{ t().instructor }}</span>
               <span class="meta-value" [class.meta-value--unassigned]="!card.instructor || card.instructor === '-'">
-                {{ (!card.instructor || card.instructor === '-') ? (isArabic() ? 'غير محدد (اضغط للتعيين)' : 'Unassigned (click to set)') : formatName(card.instructor) }}
+                {{ (!card.instructor || card.instructor === '-') ? (isArabic() ? 'غير محدد (اضغط للتعيين)' : 'Unassigned
+                (click to set)') : formatName(card.instructor) }}
               </span>
             </div>
           </div>
@@ -145,12 +150,15 @@
           <div class="metric-card">
             <span class="metric-label">{{ t().rental }}</span>
             @if (isCardPackage(card)) {
-              <div style="display: flex; align-items: center; gap: 4px;">
-                <span class="badge-pkg-deducted" style="padding: 2px 6px; font-size: 0.72rem;">{{ t().packageActiveBadge }}</span>
-                <strong class="metric-val" style="color: var(--success); font-size: 0.88rem;">0.00 {{ t().currency }}</strong>
-              </div>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <span class="badge-pkg-deducted" style="padding: 2px 6px; font-size: 0.72rem;">{{ t().packageActiveBadge
+                }}</span>
+              <strong class="metric-val" style="color: var(--success); font-size: 0.88rem;">0.00 {{ t().currency
+                }}</strong>
+            </div>
             } @else {
-              <strong class="metric-val">{{ (card.rental && card.rental > 0 ? card.rental : ((card.durationHours || 1) * (card.hourlyRate || 40))).toFixed(2) }} {{ t().currency }}</strong>
+            <strong class="metric-val">{{ (card.rental && card.rental > 0 ? card.rental : ((card.durationHours || 1) *
+              (card.hourlyRate || 40))).toFixed(2) }} {{ t().currency }}</strong>
             }
           </div>
           <div class="metric-card">
@@ -206,12 +214,12 @@
      ============================================================ -->
 @if (isBookingModalOpen()) {
 <div class="modal-backdrop" (click)="closeBookingModal()">
-  <div class="modal-dialog modal-dialog--wide" (click)="$event.stopPropagation()">
+  <div class="modal-dialog modal-dialog--booking-clean" (click)="$event.stopPropagation()">
     <!-- Modal Header -->
     <div class="modal-header">
       <div class="modal-header__text">
         <h2 class="modal-title">
-          {{ editingCardId() ? (t().edit + ' ' + t().classrooms) : t().newClassroomBooking }}
+          {{ editingCardId() ? (t().edit + ' ' + t().classrooms) : t().newReservationTitle }}
         </h2>
         <p class="modal-subtitle">{{ t().configureBookingDetails }}</p>
       </div>
@@ -223,500 +231,307 @@
       </button>
     </div>
 
-    <!-- Modal Body (2 Columns) -->
-    <div class="modal-grid">
-      <!-- LEFT COLUMN: Core Details & Rates -->
-      <div class="modal-col">
-        <!-- Section 1: Core Details -->
-        <div class="modal-section-card">
-          <h3 class="section-card-title">{{ t().coreDetails }}</h3>
+    <!-- Modal Form (Calendar-Style Structure + Nook UI/UX) -->
+    <div class="modal-form-clean">
+      <!-- 1. Room Selection with Images -->
+      <div class="field-wrap">
+        <div class="label-with-action">
+          <label class="field-label">{{ t().classroomLabel }}</label>
+          <span class="selected-room-indicator">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              style="width: 14px; height: 14px;">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+            {{ getSelectedRoomDisplayName() }}
+          </span>
+        </div>
+        <div class="room-select-grid">
+          @for (r of selectableRooms(); track r.id) {
+          <div class="room-thumb-card" [class.room-thumb-card--active]="selectedRoomId() === r.id"
+            (click)="onRoomSelected(r.id)">
+            <div class="room-thumb-media">
+              <img [src]="r.imageUrl || r.image || '/images/rooms/room-workshop.jpg'" [alt]="r.name"
+                class="room-thumb-img" />
+              @if (selectedRoomId() === r.id) {
+              <div class="room-thumb-check-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </div>
+              }
+            </div>
+            <div class="room-thumb-info">
+              <span class="room-thumb-name">{{ r.name }}</span>
+              <span class="room-thumb-meta">{{ r.hourlyRate || 40 }} {{ isArabic() ? 'ج.م / س' : 'EGP/hr' }}</span>
+            </div>
+          </div>
+          }
+        </div>
+      </div>
 
-          <!-- Instructor with Autocomplete Dropdown -->
-          <div class="field-wrap instructor-autocomplete-wrap" style="position: relative;">
-            <label class="field-label">{{ t().instructor }}</label>
-            <div class="input-container">
-              <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"/>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      <!-- 2. Instructor & Activity (2 Columns) -->
+      <div class="row-grid-2">
+        <!-- Instructor with Autocomplete -->
+        <div class="field-wrap instructor-autocomplete-wrap" style="position: relative;">
+          <label class="field-label">{{ t().instructor }}</label>
+          <div class="input-container">
+            <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <input type="text" class="custom-input" [placeholder]="t().instructorPlaceholder"
+              [ngModel]="bookingInstructor()" (click)="$event.stopPropagation(); isInstructorDropdownOpen.set(true)"
+              (focus)="isInstructorDropdownOpen.set(true)"
+              (input)="onInstructorInput($event); isInstructorDropdownOpen.set(true)" />
+            @if (bookingInstructor()) {
+            <button type="button" class="input-clear-btn" (click)="clearBookingInstructor()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
               </svg>
-              <input
-                type="text"
-                class="custom-input"
-                [placeholder]="t().instructorPlaceholder"
-                [ngModel]="bookingInstructor()"
-                (focus)="isInstructorDropdownOpen.set(true)"
-                (input)="onInstructorInput($event); isInstructorDropdownOpen.set(true)"
-              />
-              @if (bookingInstructor()) {
-                <button type="button" class="input-clear-btn" (click)="clearBookingInstructor()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="15" y1="9" x2="9" y2="15"></line>
-                    <line x1="9" y1="9" x2="15" y2="15"></line>
-                  </svg>
-                </button>
-              }
-            </div>
-
-            <!-- Autocomplete Dropdown List -->
-            @if (isInstructorDropdownOpen() && instructorOptions().length > 0) {
-              <div class="instructor-dropdown-list">
-                @for (member of instructorOptions(); track member.id) {
-                  <div class="instructor-dropdown-item" (click)="selectInstructor(member)">
-                    <div class="instructor-avatar-pill" [class.student-avatar-pill]="member.type === 'student'">
-                      {{ (isArabic() ? member.nameAr : member.nameEn).charAt(0) }}
-                    </div>
-                    <div class="instructor-item-meta">
-                      <div class="instructor-item-header">
-                        <strong class="instructor-item-name">{{ isArabic() ? member.nameAr : member.nameEn }}</strong>
-                        @if (member.type === 'student') {
-                          <span class="badge-role-tag badge-role--student">
-                            {{ isArabic() ? 'طالب' : 'Student' }}
-                          </span>
-                        } @else {
-                          <span class="badge-role-tag badge-role--instructor">
-                            {{ isArabic() ? 'إنستراكتور' : 'Instructor' }}
-                          </span>
-                        }
-                        @if (hasInstructorActivePackage(member)) {
-                          <span class="badge-instructor-pkg">
-                            <span class="status-dot"></span>
-                            {{ t().packageActiveBadge }}
-                          </span>
-                        }
-                      </div>
-                      <span class="instructor-item-sub">{{ isArabic() ? member.subAr : member.subEn }} • {{ member.phone }}</span>
-                    </div>
-                    <span class="btn-select-instructor-pill">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 12px; height: 12px;">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                      {{ t().selectBtn }}
-                    </span>
-                  </div>
-                }
-              </div>
-            }
-
-            @if (bookingInstructor() && !isInstructorValid()) {
-              <span class="field-error-msg">{{ t().errorInstructor }}</span>
+            </button>
             }
           </div>
 
-          <!-- Activity / Subject -->
-          <div class="field-wrap">
-            <label class="field-label">{{ t().activitySubject }}</label>
-            <div class="input-container">
-              <input type="text" class="custom-input" [placeholder]="t().activityPlaceholder" [ngModel]="bookingActivity()"
-                (input)="onActivityInput($event)" />
+          <!-- Autocomplete Dropdown List -->
+          @if (isInstructorDropdownOpen() && instructorOptions().length > 0) {
+          <div class="instructor-dropdown-list" (click)="$event.stopPropagation()">
+            @for (member of instructorOptions(); track member.id) {
+            <div class="instructor-dropdown-item" (click)="selectInstructor(member)">
+              <div class="instructor-avatar-pill">
+                {{ (isArabic() ? member.nameAr : member.nameEn).charAt(0) }}
+              </div>
+              <div class="instructor-item-meta">
+                <strong class="instructor-item-name">{{ isArabic() ? member.nameAr : member.nameEn }}</strong>
+                <span class="instructor-item-sub">{{ member.phone }}</span>
+              </div>
             </div>
-            @if (bookingActivity() && !isActivityValid()) {
-              <span class="field-error-msg">{{ t().errorActivity }}</span>
             }
           </div>
-
-          <!-- Phone & Email -->
-          <div class="row-grid-2">
-            <div class="field-wrap">
-              <label class="field-label">{{ t().phoneNumber }}</label>
-              <div class="input-container">
-                <input type="tel" class="custom-input" [placeholder]="t().phonePlaceholder" [ngModel]="bookingPhone()"
-                  (input)="onPhoneInput($event)" />
-              </div>
-              @if (bookingPhone() && !isPhoneValid()) {
-                <span class="field-error-msg">{{ t().errorPhone }}</span>
-              }
-            </div>
-            <div class="field-wrap">
-              <label class="field-label">{{ t().emailAddress }}</label>
-              <div class="input-container">
-                <input type="email" class="custom-input" [placeholder]="t().emailPlaceholder" [ngModel]="bookingEmail()"
-                  (input)="onEmailInput($event)" />
-              </div>
-              @if (bookingEmail() && !isEmailValid()) {
-                <span class="field-error-msg">{{ t().errorEmail }}</span>
-              }
-            </div>
-          </div>
+          }
         </div>
 
-        <!-- Section 2: Timing & Schedule -->
-        <div class="modal-section-card">
-          <h3 class="section-card-title">{{ t().ratesAndTiming }}</h3>
+        <!-- Activity / Subject -->
+        <div class="field-wrap">
+          <label class="field-label">{{ t().activitySubject }}</label>
+          <div class="input-container">
+            <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            <input type="text" class="custom-input" [placeholder]="t().activityPlaceholder"
+              [ngModel]="bookingActivity()" (input)="onActivityInput($event)" />
+          </div>
+        </div>
+      </div>
 
-          <!-- Booking Date -->
-          <div class="field-wrap">
-            <label class="field-label">{{ t().bookingDate }}</label>
-            <div class="input-container date-input-container" (click)="bookingDatePicker.showPicker()">
-              <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <!-- 3. Schedule, Time & Recurrence (Google Calendar Style) -->
+      <div class="field-wrap">
+        <label class="field-label">{{ isArabic() ? 'المواعيد والتكرار' : 'Schedule & Recurrence' }}</label>
+        <div class="calendar-time-recurrence-card">
+          <!-- Row 1: Date Chip + Start Time + End Time -->
+          <div class="cal-date-time-bar">
+            <!-- Date Chip (Click opens calendar) -->
+            <div class="cal-date-chip" (click)="openDatePicker(bookingDatePicker)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                style="width: 16px; height: 16px; color: var(--yellow);">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                 <line x1="16" y1="2" x2="16" y2="6"></line>
                 <line x1="8" y1="2" x2="8" y2="6"></line>
                 <line x1="3" y1="10" x2="21" y2="10"></line>
               </svg>
-              <input #bookingDatePicker type="date" class="custom-input custom-input--date" [min]="todayDate()"
-                [ngModel]="bookingDate()" (ngModelChange)="bookingDate.set($event)"
-                (click)="bookingDatePicker.showPicker()" />
-            </div>
-          </div>
-
-          <!-- Start & End Time -->
-          <div class="row-grid-2">
-            <!-- Start Time -->
-            <div class="field-wrap">
-              <label class="field-label">{{ t().startTime }}</label>
-              <div class="time-picker-box"
-                [class.time-picker-box--invalid]="!isTimeRangeValid() && bookingStartTime() && bookingEndTime()">
-                <svg class="time-box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-                <div class="time-digits">
-                  <input type="text" class="time-num-input" placeholder="02" maxlength="2" [ngModel]="startHour()"
-                    (ngModelChange)="startHour.set($event)" />
-                  <span class="time-colon">:</span>
-                  <input type="text" class="time-num-input" placeholder="00" maxlength="2" [ngModel]="startMinute()"
-                    (ngModelChange)="startMinute.set($event)" />
-                </div>
-                <div class="period-toggle-pill">
-                  <button type="button" class="period-opt" [class.period-opt--active]="startPeriod() === 'AM'"
-                    (click)="startPeriod.set('AM')">
-                    AM
-                  </button>
-                  <button type="button" class="period-opt" [class.period-opt--active]="startPeriod() === 'PM'"
-                    (click)="startPeriod.set('PM')">
-                    PM
-                  </button>
-                </div>
-              </div>
-              <button type="button" class="btn-time-now" (click)="setStartTimeToNow()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="now-icon">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-                <span>{{ t().now }}</span>
-              </button>
+              <span class="cal-date-text">{{ formattedDateDisplay() }}</span>
+              <input #bookingDatePicker type="date" class="cal-hidden-date-input" [ngModel]="bookingDate()"
+                (ngModelChange)="bookingDate.set($event)" (click)="$event.stopPropagation()" />
             </div>
 
-            <!-- End Time -->
-            <div class="field-wrap">
-              <label class="field-label">{{ t().endTime }}</label>
-              <div class="time-picker-box"
-                [class.time-picker-box--invalid]="!isTimeRangeValid() && bookingStartTime() && bookingEndTime()">
-                <svg class="time-box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-                <div class="time-digits">
-                  <input type="text" class="time-num-input" placeholder="05" maxlength="2" [ngModel]="endHour()"
-                    (ngModelChange)="endHour.set($event)" />
-                  <span class="time-colon">:</span>
-                  <input type="text" class="time-num-input" placeholder="00" maxlength="2" [ngModel]="endMinute()"
-                    (ngModelChange)="endMinute.set($event)" />
-                </div>
-                <div class="period-toggle-pill">
-                  <button type="button" class="period-opt" [class.period-opt--active]="endPeriod() === 'AM'"
-                    (click)="endPeriod.set('AM')">
-                    AM
-                  </button>
-                  <button type="button" class="period-opt" [class.period-opt--active]="endPeriod() === 'PM'"
-                    (click)="endPeriod.set('PM')">
-                    PM
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          @if (!isTimeRangeValid() && bookingStartTime() && bookingEndTime()) {
-          <div class="time-range-error">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="error-msg-icon">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-            <span>{{ t().invalidTimeRange }}</span>
-          </div>
-          } @else if (isTimeRangeValid() && crossesMidnight()) {
-          <div class="time-range-note">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="error-msg-icon"
-              style="color: var(--yellow);">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-            <span>{{ t().timeAlertCrossMidnight }}</span>
-          </div>
-          }
-
-          @if (isTimeRangeValid() && hasBookingOverlap()) {
-          <div class="time-range-error" style="margin-top: 8px;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="error-msg-icon">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-            <span>{{ t().timeAlertOverlap }}</span>
-          </div>
-          }
-        </div>
-
-        <!-- Section 3: Package & Payment Option -->
-        <div class="modal-section-card">
-          <h3 class="section-card-title">{{ t().selectPackageOrCash }}</h3>
-
-          <!-- Instructor Package Detection Card -->
-          @if (matchedInstructorPackage(); as pkg) {
-            <div class="instructor-package-card">
-              <div class="pkg-card-top">
-                <div class="pkg-info">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="pkg-badge-icon">
-                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+            <!-- Time Range Group (Selectable Chips with Dropdowns) -->
+            @if (!isAllDay()) {
+            <div class="cal-time-range-group">
+              <!-- Start Time Chip (Selectable Dropdown) -->
+              <div class="cal-time-chip-select-wrap cal-time-chip--start">
+                <button type="button" class="btn-cal-time-chip"
+                  [class.btn-cal-time-chip--active]="isStartTimeDropdownOpen()"
+                  (click)="$event.stopPropagation(); isStartTimeDropdownOpen.set(!isStartTimeDropdownOpen()); isEndTimeDropdownOpen.set(false)">
+                  <span>{{ bookingStartTime() || '09:00 AM' }}</span>
+                  <svg class="chip-chevron" [class.chip-chevron--open]="isStartTimeDropdownOpen()" viewBox="0 0 20 20"
+                    fill="currentColor">
+                    <path fill-rule="evenodd"
+                      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                      clip-rule="evenodd" />
                   </svg>
-                  <strong class="pkg-name">{{ isArabic() ? pkg.packageNameAr : pkg.packageNameEn }}</strong>
-                </div>
-                <div class="pkg-hours-badge" [class.pkg-hours-badge--low]="pkg.remainingHours <= 3">
-                  <span class="pkg-hours-num">{{ pkg.remainingHours }}</span>
-                  <span class="pkg-hours-label">{{ t().hrs }}</span>
-                </div>
-              </div>
-
-              <!-- Payment Mode Selector -->
-              <div class="payment-mode-toggle-grid">
-                <button
-                  type="button"
-                  class="btn-mode-card"
-                  [class.btn-mode-card--active]="bookingPaymentMode() === 'package'"
-                  (click)="bookingPaymentMode.set('package')"
-                  [disabled]="pkg.remainingHours <= 0"
-                >
-                  <div class="mode-card-left">
-                    <div class="mode-card-radio">
-                      <div class="radio-inner" [class.radio-inner--active]="bookingPaymentMode() === 'package'"></div>
-                    </div>
-                    <strong class="mode-title">{{ t().deductFromPackage }}</strong>
-                  </div>
-                  <span class="mode-cost-free">0.00 {{ t().currency }}</span>
                 </button>
 
-                <button
-                  type="button"
-                  class="btn-mode-card"
-                  [class.btn-mode-card--active]="bookingPaymentMode() === 'cash'"
-                  (click)="bookingPaymentMode.set('cash')"
-                >
-                  <div class="mode-card-left">
-                    <div class="mode-card-radio">
-                      <div class="radio-inner" [class.radio-inner--active]="bookingPaymentMode() === 'cash'"></div>
-                    </div>
-                    <strong class="mode-title">{{ t().payCashDirect }}</strong>
-                  </div>
-                  <span class="mode-cost-standard">{{ (bookingHourlyRate() * (bookingDurationHours() || 1)).toFixed(2) }} {{ t().currency }}</span>
-                </button>
-              </div>
-            </div>
-          } @else {
-            <div class="no-package-notice-card">
-              <div class="notice-info">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="notice-icon">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="12" y1="8" x2="12" y2="12"></line>
-                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                </svg>
-                <span>{{ t().noActivePackage }}</span>
-              </div>
-              <span class="badge-standard-rate">{{ (bookingHourlyRate() * (bookingDurationHours() || 1)).toFixed(2) }} {{ t().currency }}</span>
-            </div>
-          }
-        </div>
-      </div>
-
-      <!-- RIGHT COLUMN: Logistics & Summary -->
-      <div class="modal-col">
-        <!-- Logistics -->
-        <div class="modal-section-card">
-          <div class="room-selector-header">
-            <label class="field-label">{{ t().room }}</label>
-            <span class="badge-confirmed">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="check-icon">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
-              {{ t().availabilityConfirmed }}
-            </span>
-          </div>
-
-          <div class="room-select-grid">
-            @for (r of selectableRooms(); track r.id) {
-            <div class="room-thumb-card" [class.room-thumb-card--active]="selectedRoomId() === r.id"
-              (click)="selectRoom(r.id)">
-              <div class="room-thumb-media">
-                <img [src]="getRoomImage(r.image)" (error)="onImageError($event)" [alt]="r.name" class="room-thumb-img" loading="lazy" />
-              </div>
-              <div class="room-thumb-info">
-                <strong class="room-thumb-name">{{ isArabic() ? (r.nameAr || r.name) : (r.nameEn || r.name) }}</strong>
-                <span class="room-thumb-capacity">MAX {{ r.maxCapacity }}</span>
-              </div>
-            </div>
-            }
-          </div>
-        </div>
-
-        <!-- Booking Summary -->
-        <div class="modal-section-card summary-section-card">
-          <h3 class="summary-heading">{{ t().bookingSummary }}</h3>
-
-          @if (bookingPaymentMode() === 'package' && matchedInstructorPackage()) {
-            <!-- Package Mode Summary -->
-            <div class="summary-lines">
-              <div class="summary-line">
-                <span class="summary-label">{{ t().selectPackageOrCash }}</span>
-                <span class="badge-pkg-deducted">{{ t().deductedFromPackage }}</span>
-              </div>
-              <div class="summary-line">
-                <span class="summary-label">{{ t().duration }}</span>
-                <strong class="summary-value">{{ bookingDurationHours() }} {{ t().hrs }}</strong>
-              </div>
-            </div>
-
-            <!-- Total Row -->
-            <div class="total-row" style="margin-top: 8px;">
-              <span class="total-label">{{ t().total }}</span>
-              <span class="total-amount" style="color: var(--success);">0.00 {{ t().currency }}</span>
-            </div>
-          } @else {
-            <!-- Cash / Standard Mode Summary -->
-            <div class="summary-lines">
-              <div class="summary-line">
-                <div class="summary-label-with-action">
-                  <span class="summary-label">{{ t().hourlyRate }}</span>
-                  @if (!isEditingBookingRate()) {
-                  <button type="button" class="btn-summary-edit" (click)="startEditingBookingRate()"
-                    [title]="t().editHourlyRateTooltip">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tiny-summary-icon">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                    </svg>
-                    <span>{{ t().edit }}</span>
+                @if (isStartTimeDropdownOpen()) {
+                <div class="cal-time-dropdown-menu" (click)="$event.stopPropagation()">
+                  @for (slot of timeSlotOptions(); track slot) {
+                  <button type="button" class="cal-time-opt"
+                    [class.cal-time-opt--selected]="bookingStartTime() === slot" (click)="selectStartTime(slot)">
+                    {{ slot }}
                   </button>
                   }
                 </div>
-                @if (!isEditingBookingRate()) {
-                <strong class="summary-value">{{ bookingHourlyRate() }} {{ t().currency }}/{{ t().hrs }}</strong>
-                } @else {
-                <div class="summary-rate-edit-box">
-                  <input type="number" min="0" step="5" class="summary-rate-input" [ngModel]="tempBookingRate()"
-                    (ngModelChange)="tempBookingRate.set(+$event)"
-                    (keydown.enter)="$event.preventDefault(); saveBookingRate()"
-                    (keydown.escape)="isEditingBookingRate.set(false)" (blur)="saveBookingRate()" autofocus />
-                  <button type="button" class="btn-save-mini" (click)="saveBookingRate()" [title]="t().save">✓</button>
-                </div>
                 }
               </div>
 
-              <div class="summary-line">
-                <span class="summary-label">{{ t().duration }}</span>
-                <strong class="summary-value">{{ bookingDurationHours() }} {{ t().hrs }}</strong>
-              </div>
+              <span class="cal-time-sep">–</span>
 
-              <div class="summary-line">
-                <div style="display: flex; flex-direction: column; gap: 2px;">
-                  <span class="summary-label">{{ t().fullHallRental }}</span>
-                  <span style="font-size: 0.72rem; color: var(--text-dim);">
-                    {{ t().fullHallRentalDesc }}
-                  </span>
+              <!-- End Time Chip (Selectable Dropdown with Duration Calculation) -->
+              <div class="cal-time-chip-select-wrap cal-time-chip--end">
+                <button type="button" class="btn-cal-time-chip"
+                  [class.btn-cal-time-chip--active]="isEndTimeDropdownOpen()"
+                  (click)="$event.stopPropagation(); isEndTimeDropdownOpen.set(!isEndTimeDropdownOpen()); isStartTimeDropdownOpen.set(false)">
+                  <span>{{ bookingEndTime() || '11:00 AM' }}</span>
+                  <svg class="chip-chevron" [class.chip-chevron--open]="isEndTimeDropdownOpen()" viewBox="0 0 20 20"
+                    fill="currentColor">
+                    <path fill-rule="evenodd"
+                      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                      clip-rule="evenodd" />
+                  </svg>
+                </button>
+
+                @if (isEndTimeDropdownOpen()) {
+                <div class="cal-time-dropdown-menu" (click)="$event.stopPropagation()">
+                  @for (opt of endTimeSlotOptions(); track opt.time) {
+                  <button type="button" class="cal-time-opt"
+                    [class.cal-time-opt--selected]="bookingEndTime() === opt.time" (click)="selectEndTime(opt.time)">
+                    <span class="cal-time-val">{{ opt.time }}</span>
+                    <span class="cal-time-dur">{{ opt.durationLabel }}</span>
+                  </button>
+                  }
                 </div>
-                <strong class="summary-value">{{ bookingRoomRentalTotal().toFixed(2) }} {{ t().currency }}</strong>
-              </div>
-
-              <div class="summary-divider"></div>
-
-              <div class="summary-line subtotal-line">
-                <span class="summary-label">{{ t().subtotal }}</span>
-                <strong class="summary-value">{{ bookingSubtotal().toFixed(2) }} {{ t().currency }}</strong>
-              </div>
-            </div>
-
-            <!-- Expandable Discount / Promo Box (Only for Cash) -->
-            <div class="promo-coupon-wrap">
-              @if (!appliedCoupon()) {
-                @if (!isBookingDiscountSectionOpen()) {
-                  <div class="add-discount-trigger-row">
-                    <button type="button" class="btn-add-discount-link" (click)="isBookingDiscountSectionOpen.set(true)">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                      </svg>
-                      <span>{{ t().addDiscountOrAdjustment }}</span>
-                    </button>
-                  </div>
-                } @else {
-                  <div class="discount-inline-box">
-                    <div class="discount-box-head">
-                      <span class="tiny-label">{{ t().applyDiscountOrAdjustment }}</span>
-                      <button type="button" class="btn-close-mini" (click)="isBookingDiscountSectionOpen.set(false)">&times;</button>
-                    </div>
-
-                    <!-- Quick Percentage Preset Offers -->
-                    <div class="discount-presets-row">
-                      <button type="button" class="btn-discount-preset" (click)="applyBookingPercentDiscount(0.10)">
-                        10%
-                      </button>
-                      <button type="button" class="btn-discount-preset" (click)="applyBookingPercentDiscount(0.15)">
-                        15%
-                      </button>
-                      <button type="button" class="btn-discount-preset" (click)="applyBookingPercentDiscount(0.20)">
-                        20%
-                      </button>
-                      <button type="button" class="btn-discount-preset" (click)="applyBookingPercentDiscount(0.25)">
-                        25%
-                      </button>
-                    </div>
-
-                    <!-- Promo Code Input Group -->
-                    <div class="coupon-input-group">
-                      <input type="text" class="coupon-input" [placeholder]="t().enterPromoCodePlaceholder"
-                        [ngModel]="couponCode()" (ngModelChange)="couponCode.set($event)"
-                        (keydown.enter)="$event.preventDefault(); applyCoupon()" />
-                      <button type="button" class="btn-coupon-apply" (click)="applyCoupon()">
-                        {{ t().applyPromoCode }}
-                      </button>
-                    </div>
-                    @if (couponError()) {
-                      <span class="coupon-error-msg">{{ couponError() }}</span>
-                    }
-                  </div>
                 }
-              } @else {
-                <!-- Applied Coupon / Offer Pill -->
-                <div class="coupon-applied-pill">
-                  <div class="coupon-pill-info">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tag-icon">
-                      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-                      <line x1="7" y1="7" x2="7.01" y2="7"></line>
-                    </svg>
-                    <strong>{{ appliedCoupon()?.code }} ({{ appliedCoupon()?.discountName }})</strong>
-                  </div>
-                  <button type="button" class="btn-remove-coupon" (click)="removeCoupon()">&times;</button>
-                </div>
-              }
-            </div>
-
-            @if (appliedCoupon()) {
-            <div class="discount-applied-row">
-              <span>{{ t().discountApplied }}</span>
-              <span class="discount-value">-{{ bookingDiscountAmount().toFixed(2) }} {{ t().currency }}</span>
+              </div>
             </div>
             }
+          </div>
 
-            <!-- Total Row -->
-            <div class="total-row">
-              <span class="total-label">{{ t().total }}</span>
-              <span class="total-amount">{{ bookingTotal().toFixed(2) }} {{ t().currency }}</span>
+          <!-- Row 2: All day checkbox & Quick "Now" button -->
+          <div class="cal-secondary-row">
+            <label class="cal-all-day-checkbox">
+              <input type="checkbox" [checked]="isAllDay()" (change)="toggleAllDay()" />
+              <span>{{ isArabic() ? 'طوال اليوم' : 'All day' }}</span>
+            </label>
+
+            @if (!isAllDay()) {
+            <button type="button" class="btn-time-now-link" (click)="setStartTimeToNow()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                style="width: 12px; height: 12px;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span>{{ t().now }}</span>
+            </button>
+            }
+          </div>
+
+          <!-- Row 3: Recurrence Selector Dropdown (Screenshot 3) -->
+          <div class="recurrence-dropdown-wrap">
+            <button type="button" class="btn-recurrence-select"
+              (click)="$event.stopPropagation(); isRecurrenceDropdownOpen.update(v => !v)">
+              <span>{{ recurrenceLabel() }}</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                style="width: 16px; height: 16px; transition: transform 0.2s;"
+                [style.transform]="isRecurrenceDropdownOpen() ? 'rotate(180deg)' : 'none'">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+
+            @if (isRecurrenceDropdownOpen()) {
+            <div class="recurrence-menu" (click)="$event.stopPropagation()">
+              <div class="recurrence-opt-item" [class.recurrence-opt-item--active]="repeatOption() === 'none'"
+                (click)="selectRepeatOption('none')">
+                <span>{{ isArabic() ? 'لا يتكرر' : 'Does not repeat' }}</span>
+              </div>
+              <div class="recurrence-opt-item" [class.recurrence-opt-item--active]="repeatOption() === 'daily'"
+                (click)="selectRepeatOption('daily')">
+                <span>{{ isArabic() ? 'يومياً' : 'Daily' }}</span>
+              </div>
+              <div class="recurrence-opt-item" [class.recurrence-opt-item--active]="repeatOption() === 'weekly'"
+                (click)="selectRepeatOption('weekly')">
+                <span>{{ isArabic() ? ('أسبوعياً في يوم ' + dayOfWeekName()) : ('Weekly on ' + dayOfWeekName())
+                  }}</span>
+              </div>
+              <div class="recurrence-opt-item" [class.recurrence-opt-item--active]="repeatOption() === 'monthly'"
+                (click)="selectRepeatOption('monthly')">
+                <span>{{ isArabic() ? ('شهرياً في نفس اليوم') : ('Monthly on this day') }}</span>
+              </div>
+              <div class="recurrence-opt-item" [class.recurrence-opt-item--active]="repeatOption() === 'weekdays'"
+                (click)="selectRepeatOption('weekdays')">
+                <span>{{ isArabic() ? 'كل أيام العمل' : 'Every weekday' }}</span>
+              </div>
+              <div class="recurrence-opt-item" [class.recurrence-opt-item--active]="repeatOption() === 'custom'"
+                (click)="selectRepeatOption('custom')">
+                <span>{{ isArabic() ? 'مخصص...' : 'Custom...' }}</span>
+              </div>
             </div>
+            }
+          </div>
+
+          <!-- If Repeat is Custom: Sleek pill with edit button -->
+          @if (repeatOption() === 'custom') {
+          <div class="custom-recurrence-pill" (click)="openCustomRecurrenceModal()">
+            <div class="crp-info">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="crp-icon">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span class="crp-text">{{ customRecurrenceSummaryText() }}</span>
+            </div>
+            <button type="button" class="btn-crp-edit" (click)="$event.stopPropagation(); openCustomRecurrenceModal()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                style="width: 13px; height: 13px;">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+              <span>{{ isArabic() ? 'تعديل' : 'Edit' }}</span>
+            </button>
+          </div>
+          } @else if (repeatOption() !== 'none') {
+          <!-- If Repeat is standard: Stepper mini-group -->
+          <div class="recurrence-config-bar">
+            <span>{{ isArabic() ? 'عدد مرات التكرار:' : 'Repeat occurrences:' }}</span>
+            <div class="stepper-mini-group">
+              <button type="button" class="btn-stepper-mini" (click)="adjustRepeatOccurrences(-1)">-</button>
+              <strong style="color: var(--yellow); min-width: 20px; text-align: center;">{{ repeatOccurrences()
+                }}</strong>
+              <button type="button" class="btn-stepper-mini" (click)="adjustRepeatOccurrences(1)">+</button>
+            </div>
+          </div>
           }
         </div>
       </div>
+
+      <!-- 5. Hourly Rate & Cost Preview -->
+      <div class="field-wrap">
+        <label class="field-label">{{ t().hourlyRate }}</label>
+        <div class="input-container">
+          <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="1" x2="12" y2="23"></line>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+          </svg>
+          <input type="number" min="0" class="custom-input" [ngModel]="bookingHourlyRate()"
+            (ngModelChange)="bookingHourlyRate.set(+$event)" />
+        </div>
+      </div>
+
+      <!-- Cost & Duration Summary Banner -->
+      @if (bookingDurationHours() > 0) {
+      <div class="booking-summary-banner">
+        <div class="summary-item">
+          <span class="summary-label">{{ t().duration }}:</span>
+          <strong class="summary-val">{{ bookingDurationHours() }} {{ t().hrs }}</strong>
+        </div>
+        <div class="summary-sep">•</div>
+        <div class="summary-item">
+          <span class="summary-label">{{ t().total }}:</span>
+          <strong class="summary-val summary-val--gold">{{ (bookingHourlyRate() * bookingDurationHours()).toFixed(2) }}
+            {{ t().currency }}</strong>
+        </div>
+      </div>
+      }
     </div>
 
     <!-- Modal Footer -->
@@ -726,7 +541,303 @@
       </button>
       <button type="button" class="btn btn--primary btn-modal-confirm" [disabled]="!isBookingFormValid()"
         [class.btn--disabled]="!isBookingFormValid()" (click)="confirmNewBooking()">
-        {{ editingCardId() ? t().saveChanges : t().confirmBooking }}
+        {{ editingCardId() ? t().saveChanges : t().save }}
+      </button>
+    </div>
+  </div>
+</div>
+}
+
+<!-- ============================================================
+     MODAL 1.5: CUSTOM RECURRENCE MODAL (Google Calendar Style)
+     ============================================================ -->
+@if (isCustomRecurrenceModalOpen()) {
+<div class="modal-backdrop custom-recurrence-backdrop" (click)="closeCustomRecurrenceModal()">
+  <div class="modal-dialog custom-recurrence-dialog" (click)="$event.stopPropagation()">
+    <!-- Modal Header -->
+    <div class="cr-dialog-header">
+      <div class="cr-header-title-wrap">
+        <div class="cr-icon-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="cr-dialog-icon">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+        </div>
+        <div class="cr-header-text">
+          <h3 class="cr-dialog-title">{{ isArabic() ? 'جدولة وتكرار الحصص' : 'Custom Recurrence Schedule' }}</h3>
+          <p class="cr-dialog-subtitle">{{ isArabic() ? 'تكرار حجز القاعة للكورسات والورش في أيام وأوقات محددة' :
+            'Repeat room booking for courses and workshops' }}</p>
+        </div>
+      </div>
+      <button type="button" class="btn-close-circle" (click)="closeCustomRecurrenceModal()" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="cr-dialog-body">
+      <!-- 1. Frequency Tabs -->
+      <div class="cr-section">
+        <div class="cr-section-header">
+          <span class="cr-step-badge">1</span>
+          <label class="cr-label">{{ isArabic() ? 'وتيرة التكرار (تكرار كل):' : 'Repeat Frequency:' }}</label>
+        </div>
+
+        <div class="cr-frequency-grid">
+          <!-- Option: Weekly (Recommended for courses) -->
+          <div class="cr-freq-card" [class.cr-freq-card--active]="customRecurrence().unit === 'week'"
+            (click)="updateCustomUnit('week')">
+            <div class="cr-freq-top">
+              <span class="cr-freq-icon">📅</span>
+              <strong class="cr-freq-title">{{ isArabic() ? 'أسبوعياً' : 'Weekly' }}</strong>
+              <span class="cr-badge-recommended">{{ isArabic() ? 'موصى به للكورسات' : 'Best for courses' }}</span>
+            </div>
+            <span class="cr-freq-desc">{{ isArabic() ? 'حجز متكرر في أيام محددة (مثل: سبت وتلات)' : 'Repeats on specific
+              weekdays' }}</span>
+          </div>
+
+          <!-- Option: Daily -->
+          <div class="cr-freq-card" [class.cr-freq-card--active]="customRecurrence().unit === 'day'"
+            (click)="updateCustomUnit('day')">
+            <div class="cr-freq-top">
+              <span class="cr-freq-icon">⚡</span>
+              <strong class="cr-freq-title">{{ isArabic() ? 'يومياً' : 'Daily' }}</strong>
+            </div>
+            <span class="cr-freq-desc">{{ isArabic() ? 'أيام متتالية (معسكرات وورش عمل مكثفة)' : 'Consecutive days for
+              workshops' }}</span>
+          </div>
+
+          <!-- Option: Monthly -->
+          <div class="cr-freq-card" [class.cr-freq-card--active]="customRecurrence().unit === 'month'"
+            (click)="updateCustomUnit('month')">
+            <div class="cr-freq-top">
+              <span class="cr-freq-icon">🗓️</span>
+              <strong class="cr-freq-title">{{ isArabic() ? 'شهرياً' : 'Monthly' }}</strong>
+            </div>
+            <span class="cr-freq-desc">{{ isArabic() ? 'مرة كل شهر (اجتماعات وندوات دورية)' : 'Once a month on same day'
+              }}</span>
+          </div>
+        </div>
+
+        <!-- Interval config row -->
+        <div class="cr-interval-bar">
+          <span class="cr-sub-text">{{ isArabic() ? 'تكرار الموعد كل:' : 'Repeat every:' }}</span>
+          <div class="cr-interval-stepper">
+            <button type="button" class="btn-interval-step"
+              (click)="updateCustomInterval(customRecurrence().interval - 1)">-</button>
+            <span class="interval-val">{{ customRecurrence().interval }}</span>
+            <button type="button" class="btn-interval-step"
+              (click)="updateCustomInterval(customRecurrence().interval + 1)">+</button>
+          </div>
+          <span class="cr-sub-text cr-sub-text--unit">
+            {{ customRecurrence().unit === 'week' ? (customRecurrence().interval === 1 ? (isArabic() ? 'أسبوع
+            (أسبوعياً)' : 'week') : (isArabic() ? 'أسابيع' : 'weeks')) : (customRecurrence().unit === 'day' ?
+            (isArabic() ? 'يوم' : 'days') : (isArabic() ? 'شهر' : 'months')) }}
+          </span>
+        </div>
+      </div>
+
+      <!-- 2. Days of week selector (Only when unit === 'week') -->
+      @if (customRecurrence().unit === 'week') {
+      <div class="cr-section">
+        <div class="cr-section-header">
+          <span class="cr-step-badge">2</span>
+          <label class="cr-label">{{ isArabic() ? 'اختر أيام الحصص في الأسبوع:' : 'Select days of the week:' }}</label>
+          <span class="cr-hint-tag">{{ isArabic() ? 'تحديد متعدد' : 'Multi-select' }}</span>
+        </div>
+
+        <div class="cr-weekdays-row">
+          @for (day of weekDaysList; track day.value) {
+          <button type="button" class="cr-day-pill" [class.cr-day-pill--active]="isDaySelected(day.value)"
+            (click)="toggleCustomDay(day.value)">
+            <span class="cr-day-name">{{ isArabic() ? day.fullName : day.fullNameEn }}</span>
+            @if (isDaySelected(day.value)) {
+            <span class="cr-day-check">✓</span>
+            }
+          </button>
+          }
+        </div>
+      </div>
+      }
+
+      <!-- 3. Course End Condition -->
+      <div class="cr-section">
+        <div class="cr-section-header">
+          <span class="cr-step-badge">{{ customRecurrence().unit === 'week' ? '3' : '2' }}</span>
+          <label class="cr-label">{{ isArabic() ? 'متى ينتهي الحجز / الكورس؟' : 'When does the booking end?' }}</label>
+        </div>
+
+        <div class="cr-ends-cards-list">
+          <!-- Option A: After X occurrences (Recommended) -->
+          <div class="cr-end-card" [class.cr-end-card--active]="customRecurrence().endType === 'after'"
+            (click)="updateCustomEndType('after')">
+            <div class="cr-end-card-top">
+              <div class="cr-radio-circle" [class.cr-radio-circle--active]="customRecurrence().endType === 'after'">
+                @if (customRecurrence().endType === 'after') {
+                <div class="cr-radio-dot"></div>
+                }
+              </div>
+              <div class="cr-end-card-info">
+                <strong class="cr-end-title">{{ isArabic() ? 'بعد عدد حصص / مواعيد محددة' : 'After a specific number of
+                  sessions' }}</strong>
+                <span class="cr-end-desc">{{ isArabic() ? 'الأنسب للكورسات المحددة بعدد محاضرات (مثال: كورس 8 حصص)' :
+                  'Best for fixed-session courses' }}</span>
+              </div>
+            </div>
+
+            <!-- Occurrences Stepper + Presets -->
+            <div class="cr-end-card-content" (click)="$event.stopPropagation()">
+              <div class="cr-occurrences-controller">
+                <span class="occ-label">{{ isArabic() ? 'عدد الحصص:' : 'Total sessions:' }}</span>
+                <div class="occ-stepper-box">
+                  <button type="button" class="btn-occ-step" (click)="adjustCustomOccurrences(-1)">-</button>
+                  <input type="number" min="1" max="60" class="occ-number-input"
+                    [value]="customRecurrence().occurrences"
+                    (input)="updateCustomOccurrences($any($event.target).value)" />
+                  <button type="button" class="btn-occ-step" (click)="adjustCustomOccurrences(1)">+</button>
+                </div>
+                <span class="occ-unit">{{ isArabic() ? 'حصة / موعد' : 'sessions' }}</span>
+              </div>
+
+              <!-- Quick Presets -->
+              <div class="cr-presets-row">
+                <span class="presets-label">{{ isArabic() ? 'اختيار سريع:' : 'Quick pick:' }}</span>
+                <button type="button" class="preset-chip"
+                  [class.preset-chip--active]="customRecurrence().occurrences === 4"
+                  (click)="setCustomOccurrencesPreset(4)">
+                  {{ isArabic() ? '4 حصص' : '4 sessions' }}
+                </button>
+                <button type="button" class="preset-chip"
+                  [class.preset-chip--active]="customRecurrence().occurrences === 8"
+                  (click)="setCustomOccurrencesPreset(8)">
+                  {{ isArabic() ? '8 حصص (شهر)' : '8 sessions (1 mo)' }}
+                </button>
+                <button type="button" class="preset-chip"
+                  [class.preset-chip--active]="customRecurrence().occurrences === 12"
+                  (click)="setCustomOccurrencesPreset(12)">
+                  {{ isArabic() ? '12 حصة' : '12 sessions' }}
+                </button>
+                <button type="button" class="preset-chip"
+                  [class.preset-chip--active]="customRecurrence().occurrences === 16"
+                  (click)="setCustomOccurrencesPreset(16)">
+                  {{ isArabic() ? '16 حصة (شهرين)' : '16 sessions (2 mos)' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Option B: On a specific Date -->
+          <div class="cr-end-card" [class.cr-end-card--active]="customRecurrence().endType === 'on_date'"
+            (click)="updateCustomEndType('on_date')">
+            <div class="cr-end-card-top">
+              <div class="cr-radio-circle" [class.cr-radio-circle--active]="customRecurrence().endType === 'on_date'">
+                @if (customRecurrence().endType === 'on_date') {
+                <div class="cr-radio-dot"></div>
+                }
+              </div>
+              <div class="cr-end-card-info">
+                <strong class="cr-end-title">{{ isArabic() ? 'حتى تاريخ انتهاء محدد' : 'Until a specific end date'
+                  }}</strong>
+                <span class="cr-end-desc">{{ isArabic() ? 'تتوقف الحجوزات عند نهاية الشهر أو تاريخ محدد' : 'Stops at a
+                  fixed calendar date' }}</span>
+              </div>
+            </div>
+
+            @if (customRecurrence().endType === 'on_date') {
+            <div class="cr-end-card-content" (click)="$event.stopPropagation()">
+              <div class="cr-date-picker-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="cr-input-icon">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                </svg>
+                <input type="date" class="cr-custom-date-input"
+                  [value]="customRecurrence().endDate || bookingDate() || todayDate()"
+                  (change)="updateCustomEndDate($any($event.target).value)" />
+              </div>
+            </div>
+            }
+          </div>
+
+          <!-- Option C: Ongoing (Never) -->
+          <div class="cr-end-card" [class.cr-end-card--active]="customRecurrence().endType === 'never'"
+            (click)="updateCustomEndType('never')">
+            <div class="cr-end-card-top">
+              <div class="cr-radio-circle" [class.cr-radio-circle--active]="customRecurrence().endType === 'never'">
+                @if (customRecurrence().endType === 'never') {
+                <div class="cr-radio-dot"></div>
+                }
+              </div>
+              <div class="cr-end-card-info">
+                <strong class="cr-end-title">{{ isArabic() ? 'مستمر شهرياً (بدون تحديد موعد انتهاء)' : 'Ongoing monthly'
+                  }}</strong>
+                <span class="cr-end-desc">{{ isArabic() ? 'يتم جدولة أول شهر تلقائياً وتجديده لاحقاً' : 'Books month by
+                  month ongoing' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Real-time Live Summary Preview Card -->
+      <div class="cr-preview-banner">
+        <div class="cr-preview-top">
+          <div class="cr-preview-heading">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="cr-preview-icon">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            <strong class="cr-preview-title">{{ isArabic() ? 'ملخص جدول المواعيد المحجوزة:' : 'Schedule Summary
+              Preview:' }}</strong>
+          </div>
+          <span class="cr-sessions-count-badge">
+            {{ isArabic() ? 'إجمالي المواعيد: ' : 'Total: ' }}
+            <strong>{{ generatedRecurrenceDates().length }} {{ isArabic() ? 'حصص' : 'sessions' }}</strong>
+          </span>
+        </div>
+
+        <div class="cr-preview-sentence">
+          {{ customRecurrenceSummaryText() }}
+        </div>
+
+        <!-- Upcoming Dates List Chips -->
+        @if (upcomingRecurrenceDatesPreview().length > 0) {
+        <div class="cr-upcoming-dates-wrap">
+          <span class="upcoming-label">{{ isArabic() ? 'أول المواعيد القادمة في الجدول:' : 'First upcoming dates:'
+            }}</span>
+          <div class="upcoming-chips-row">
+            @for (item of upcomingRecurrenceDatesPreview(); track item.index) {
+            <span class="upcoming-date-chip">
+              <span class="udc-num">#{{ item.index }}</span>
+              <span class="udc-text">{{ item.label }}</span>
+            </span>
+            }
+            @if (generatedRecurrenceDates().length > 5) {
+            <span class="upcoming-more-chip">+{{ generatedRecurrenceDates().length - 5 }} {{ isArabic() ? 'مواعيد أخرى'
+              : 'more' }}</span>
+            }
+          </div>
+        </div>
+        }
+      </div>
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="cr-dialog-footer">
+      <button type="button" class="btn btn--ghost btn-cr-cancel" (click)="closeCustomRecurrenceModal()">
+        {{ isArabic() ? 'إلغاء' : 'Cancel' }}
+      </button>
+      <button type="button" class="btn btn--primary btn-cr-done" (click)="saveCustomRecurrence()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          style="width: 16px; height: 16px;">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        <span>{{ isArabic() ? 'تطبيق وجدولة المواعيد' : 'Apply Schedule' }}</span>
       </button>
     </div>
   </div>
@@ -826,49 +937,53 @@
                 <div class="line-header">
                   <strong class="line-title">{{ t().roomRental }}</strong>
                   @if (!isCheckoutPackage()) {
-                    <button type="button" class="btn-row-action" (click)="openRateModal()"
-                      [title]="t().editRateAndDuration">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="row-action-icon">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                      </svg>
-                      <span>{{ t().edit }}</span>
-                    </button>
-                    @if (hasPackageAvailableForCheckout()) {
-                      <button type="button" class="btn-row-action" (click)="toggleCheckoutBillingMode()"
-                        [title]="t().deductFromPackage" style="color: var(--success); border-color: rgba(34, 197, 94, 0.3);">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="row-action-icon">
-                          <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-                        </svg>
-                        <span>{{ t().deductFromPackage }}</span>
-                      </button>
-                    }
+                  <button type="button" class="btn-row-action" (click)="openRateModal()"
+                    [title]="t().editRateAndDuration">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="row-action-icon">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                    <span>{{ t().edit }}</span>
+                  </button>
+                  @if (hasPackageAvailableForCheckout()) {
+                  <button type="button" class="btn-row-action" (click)="toggleCheckoutBillingMode()"
+                    [title]="t().deductFromPackage"
+                    style="color: var(--success); border-color: rgba(34, 197, 94, 0.3);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="row-action-icon">
+                      <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                    </svg>
+                    <span>{{ t().deductFromPackage }}</span>
+                  </button>
+                  }
                   } @else {
-                    <span class="badge-pkg-deducted" style="font-size: 0.72rem;">{{ t().deductedFromPackage }}</span>
-                    @if (hasPackageAvailableForCheckout()) {
-                      <button type="button" class="btn-row-action" (click)="toggleCheckoutBillingMode()"
-                        [title]="t().payCashDirect" style="color: var(--text-muted);">
-                        <span>{{ t().payCashDirect }}</span>
-                      </button>
-                    }
+                  <span class="badge-pkg-deducted" style="font-size: 0.72rem;">{{ t().deductedFromPackage }}</span>
+                  @if (hasPackageAvailableForCheckout()) {
+                  <button type="button" class="btn-row-action" (click)="toggleCheckoutBillingMode()"
+                    [title]="t().payCashDirect" style="color: var(--text-muted);">
+                    <span>{{ t().payCashDirect }}</span>
+                  </button>
+                  }
                   }
                 </div>
                 @if (!isCheckoutPackage()) {
-                  <span class="line-sub">{{ checkoutRoomRate() }} {{ t().currency }}/{{ t().hrs }} &times; {{
-                    checkoutDurationHours() }} {{ t().hrs }}</span>
+                <span class="line-sub">{{ checkoutRoomRate() }} {{ t().currency }}/{{ t().hrs }} &times; {{
+                  checkoutDurationHours() }} {{ t().hrs }}</span>
                 } @else if (checkoutPackageExtraHours() > 0) {
-                  <span class="line-sub" style="color: #d97706;">
-                    {{ checkoutPackageCoveredHours() }} {{ t().hrs }} {{ t().deductedFromPackage }} + {{ checkoutPackageExtraHours() }} {{ t().hrs }} ({{ (checkoutPackageExtraHours() * checkoutRoomRate()).toFixed(2) }} {{ t().currency }})
-                  </span>
+                <span class="line-sub" style="color: #d97706;">
+                  {{ checkoutPackageCoveredHours() }} {{ t().hrs }} {{ t().deductedFromPackage }} + {{
+                  checkoutPackageExtraHours() }} {{ t().hrs }} ({{ (checkoutPackageExtraHours() *
+                  checkoutRoomRate()).toFixed(2) }} {{ t().currency }})
+                </span>
                 } @else {
-                  <span class="line-sub" style="color: var(--success);">
-                    {{ t().fullyCoveredByPackage }}
-                  </span>
+                <span class="line-sub" style="color: var(--success);">
+                  {{ t().fullyCoveredByPackage }}
+                </span>
                 }
               </div>
               <div class="line-amount">
-                <span class="amount-number" [style.color]="isCheckoutPackage() && checkoutRoomRentalTotal() === 0 ? 'var(--success)' : 'inherit'">
+                <span class="amount-number"
+                  [style.color]="isCheckoutPackage() && checkoutRoomRentalTotal() === 0 ? 'var(--success)' : 'inherit'">
                   {{ checkoutRoomRentalTotal().toFixed(2) }}
                 </span>
                 <span class="currency-symbol">{{ t().currency }}</span>
@@ -1034,113 +1149,108 @@
           <h3 class="section-card-title">{{ t().payment }}</h3>
 
           @if (isCheckoutPackage() && checkoutFinalAmount() === 0) {
-            <!-- Package 0 EGP Mode -->
-            <div class="package-checkout-covered-banner" style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 10px; padding: 14px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 22px; height: 22px; color: var(--success); flex-shrink: 0;">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                <polyline points="22 4 12 14.01 9 11.01"></polyline>
-              </svg>
-              <div style="display: flex; flex-direction: column; gap: 2px;">
-                <strong style="color: var(--success); font-size: 0.92rem;">{{ t().sessionFullyCoveredByPackage }}</strong>
-                <span style="color: var(--text-dim); font-size: 0.78rem;">{{ t().noAdditionalPaymentRequired }}</span>
-              </div>
+          <!-- Package 0 EGP Mode -->
+          <div class="package-checkout-covered-banner"
+            style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 10px; padding: 14px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              style="width: 22px; height: 22px; color: var(--success); flex-shrink: 0;">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <strong style="color: var(--success); font-size: 0.92rem;">{{ t().sessionFullyCoveredByPackage }}</strong>
+              <span style="color: var(--text-dim); font-size: 0.78rem;">{{ t().noAdditionalPaymentRequired }}</span>
             </div>
+          </div>
 
-            <!-- Action Button for Package -->
-            <button
-              type="button"
-              class="btn btn--primary btn-process-checkout"
-              style="width: 100%; margin-top: 10px; cursor: pointer;"
-              (click)="confirmProcessCheckout()"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="process-icon">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="9 12 11 14 15 10"></polyline>
-              </svg>
-              <span>{{ t().completeSessionAndFreeRoom }}</span>
-            </button>
+          <!-- Action Button for Package -->
+          <button type="button" class="btn btn--primary btn-process-checkout"
+            style="width: 100%; margin-top: 10px; cursor: pointer;" (click)="confirmProcessCheckout()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="process-icon">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="9 12 11 14 15 10"></polyline>
+            </svg>
+            <span>{{ t().completeSessionAndFreeRoom }}</span>
+          </button>
           } @else {
-            <span class="field-label">{{ t().paymentMethod }}</span>
+          <span class="field-label">{{ t().paymentMethod }}</span>
 
-            <!-- Payment Methods Grid -->
-            <div class="payment-methods-grid">
-              <div class="payment-option-card" [class.payment-option-card--active]="checkoutPaymentMethod() === 'cash'"
-                (click)="selectPaymentMethod('cash')">
-                <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="2" y="6" width="20" height="12" rx="2"></rect>
-                  <circle cx="12" cy="12" r="3"></circle>
-                  <path d="M6 12h.01M18 12h.01"></path>
-                </svg>
-                <span class="pay-name">{{ t().cash }}</span>
-              </div>
-
-              <div class="payment-option-card"
-                [class.payment-option-card--active]="checkoutPaymentMethod() === 'vodafone'"
-                (click)="selectPaymentMethod('vodafone')">
-                <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="2" y="4" width="20" height="16" rx="2"></rect>
-                  <path d="M16 12h4m-2-2v4"></path>
-                </svg>
-                <span class="pay-name">{{ t().vodafoneCash }}</span>
-              </div>
-
-              <div class="payment-option-card" [class.payment-option-card--active]="checkoutPaymentMethod() === 'fawry'"
-                (click)="selectPaymentMethod('fawry')">
-                <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"></path>
-                  <path d="M8 7h8M8 11h8M8 15h4"></path>
-                </svg>
-                <span class="pay-name">{{ t().fawry }}</span>
-              </div>
-
-              <div class="payment-option-card"
-                [class.payment-option-card--active]="checkoutPaymentMethod() === 'instapay'"
-                (click)="selectPaymentMethod('instapay')">
-                <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                </svg>
-                <span class="pay-name">{{ t().instaPay }}</span>
-              </div>
-            </div>
-
-            <!-- Amount Received Input -->
-            <div class="field-wrap" style="margin-top: 14px;">
-              <label class="field-label">{{ t().amountReceived }}</label>
-              <div class="amount-input-box" [class.amount-input-box--invalid]="checkoutAmountReceived() !== null && !isCheckoutPaymentValid()">
-                <span class="input-currency">{{ t().currency }}</span>
-                <input type="number" step="0.01" class="amount-received-input" placeholder="0.00"
-                  [ngModel]="checkoutAmountReceived()"
-                  (ngModelChange)="checkoutAmountReceived.set($event !== null && $event !== '' ? +$event : null)" />
-              </div>
-              @if (checkoutAmountReceived() !== null && !isCheckoutPaymentValid()) {
-                <span class="field-error-msg" style="color: var(--danger); font-size: 0.76rem; font-weight: 600; margin-top: 4px; display: block;">
-                  {{ t().errorAmountReceivedLow }} ({{ checkoutFinalAmount().toFixed(2) }} {{ t().currency }})
-                </span>
-              }
-            </div>
-
-            <!-- Change Due Box -->
-            <div class="change-due-box">
-              <span class="change-label">{{ t().changeDue }}</span>
-              <span class="change-amount">{{ checkoutChangeDue().toFixed(2) }} {{ t().currency }}</span>
-            </div>
-
-            <!-- Action Button -->
-            <button
-              type="button"
-              class="btn btn--primary btn-process-checkout"
-              [disabled]="!isCheckoutPaymentValid()"
-              [style.opacity]="!isCheckoutPaymentValid() ? '0.5' : '1'"
-              [style.cursor]="!isCheckoutPaymentValid() ? 'not-allowed' : 'pointer'"
-              (click)="confirmProcessCheckout()"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="process-icon">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="9 12 11 14 15 10"></polyline>
+          <!-- Payment Methods Grid -->
+          <div class="payment-methods-grid">
+            <div class="payment-option-card" [class.payment-option-card--active]="checkoutPaymentMethod() === 'cash'"
+              (click)="selectPaymentMethod('cash')">
+              <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M6 12h.01M18 12h.01"></path>
               </svg>
-              <span>{{ t().processPaymentAndFreeRoom }}</span>
-            </button>
+              <span class="pay-name">{{ t().cash }}</span>
+            </div>
+
+            <div class="payment-option-card"
+              [class.payment-option-card--active]="checkoutPaymentMethod() === 'vodafone'"
+              (click)="selectPaymentMethod('vodafone')">
+              <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                <path d="M16 12h4m-2-2v4"></path>
+              </svg>
+              <span class="pay-name">{{ t().vodafoneCash }}</span>
+            </div>
+
+            <div class="payment-option-card" [class.payment-option-card--active]="checkoutPaymentMethod() === 'fawry'"
+              (click)="selectPaymentMethod('fawry')">
+              <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"></path>
+                <path d="M8 7h8M8 11h8M8 15h4"></path>
+              </svg>
+              <span class="pay-name">{{ t().fawry }}</span>
+            </div>
+
+            <div class="payment-option-card"
+              [class.payment-option-card--active]="checkoutPaymentMethod() === 'instapay'"
+              (click)="selectPaymentMethod('instapay')">
+              <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+              </svg>
+              <span class="pay-name">{{ t().instaPay }}</span>
+            </div>
+          </div>
+
+          <!-- Amount Received Input -->
+          <div class="field-wrap" style="margin-top: 14px;">
+            <label class="field-label">{{ t().amountReceived }}</label>
+            <div class="amount-input-box"
+              [class.amount-input-box--invalid]="checkoutAmountReceived() !== null && !isCheckoutPaymentValid()">
+              <span class="input-currency">{{ t().currency }}</span>
+              <input type="number" step="0.01" class="amount-received-input" placeholder="0.00"
+                [ngModel]="checkoutAmountReceived()"
+                (ngModelChange)="checkoutAmountReceived.set($event !== null && $event !== '' ? +$event : null)" />
+            </div>
+            @if (checkoutAmountReceived() !== null && !isCheckoutPaymentValid()) {
+            <span class="field-error-msg"
+              style="color: var(--danger); font-size: 0.76rem; font-weight: 600; margin-top: 4px; display: block;">
+              {{ t().errorAmountReceivedLow }} ({{ checkoutFinalAmount().toFixed(2) }} {{ t().currency }})
+            </span>
+            }
+          </div>
+
+          <!-- Change Due Box -->
+          <div class="change-due-box">
+            <span class="change-label">{{ t().changeDue }}</span>
+            <span class="change-amount">{{ checkoutChangeDue().toFixed(2) }} {{ t().currency }}</span>
+          </div>
+
+          <!-- Action Button -->
+          <button type="button" class="btn btn--primary btn-process-checkout" [disabled]="!isCheckoutPaymentValid()"
+            [style.opacity]="!isCheckoutPaymentValid() ? '0.5' : '1'"
+            [style.cursor]="!isCheckoutPaymentValid() ? 'not-allowed' : 'pointer'" (click)="confirmProcessCheckout()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="process-icon">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="9 12 11 14 15 10"></polyline>
+            </svg>
+            <span>{{ t().processPaymentAndFreeRoom }}</span>
+          </button>
           }
         </div>
       </div>
@@ -1337,9 +1447,6 @@
 
 <!-- CATERING POS MODAL (Integrated for Room & Active Shift) -->
 @if (isCateringPosModalOpen()) {
-  <app-catering-pos-modal
-    [targetRoom]="cateringTargetRoom()"
-    (close)="isCateringPosModalOpen.set(false)"
-    (addToRoomSession)="onAddToRoomSession($event)"
-  ></app-catering-pos-modal>
+<app-catering-pos-modal [targetRoom]="cateringTargetRoom()" (close)="isCateringPosModalOpen.set(false)"
+  (addToRoomSession)="onAddToRoomSession($event)"></app-catering-pos-modal>
 }

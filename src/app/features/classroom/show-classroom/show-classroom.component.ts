@@ -97,35 +97,23 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     // Find all cards that are active or scheduled matching date filter (default: today only)
     const activeOrScheduledCards = cards.filter(card => {
       if (card.status !== 'active' && card.status !== 'scheduled') return false;
+      // Active sessions currently ongoing MUST ALWAYS be displayed on the live board!
+      if (card.status === 'active') return true;
+
       if (dateOpt === 'today') {
         const isToday = !card.bookingDate ||
                         card.bookingDate === 'Today' ||
                         card.bookingDate === todayISO ||
                         this.classroomService.parseIsoToLocalDate(card.bookingDate) === todayISO;
-        return isToday || card.status === 'active';
+        return isToday;
       } else if (dateOpt === 'custom' && customDate) {
         return card.bookingDate === customDate || this.classroomService.parseIsoToLocalDate(card.bookingDate) === customDate;
       }
       return true;
     });
 
-    // Deduplicate active/scheduled cards per room so duplicate sessions for the same room don't flash on screen
-    const uniqueRoomCardsMap = new Map<string, ClassroomCard>();
-    activeOrScheduledCards.forEach(card => {
-      const roomKey = (card.roomId || card.name).trim().toLowerCase();
-      if (!uniqueRoomCardsMap.has(roomKey)) {
-        uniqueRoomCardsMap.set(roomKey, card);
-      } else {
-        const existing = uniqueRoomCardsMap.get(roomKey)!;
-        if (card.status === 'active' && existing.status !== 'active') {
-          uniqueRoomCardsMap.set(roomKey, card);
-        } else if (card.status === existing.status && String(card.id) > String(existing.id)) {
-          uniqueRoomCardsMap.set(roomKey, card);
-        }
-      }
-    });
-
-    const displayCards: ClassroomCard[] = Array.from(uniqueRoomCardsMap.values());
+    // Keep all active/scheduled cards so every real ongoing session is visible and actionable
+    const displayCards: ClassroomCard[] = [...activeOrScheduledCards];
 
     // For each room, if it doesn't have an active or currently-reserved session today, append a virtual available card
     for (const room of rooms) {
@@ -136,6 +124,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       if (!hasActiveSession) {
         displayCards.push({
           id: `virtual-avail-${room.id}`,
+          roomId: room.id,
           name: room.name,
           activity: '',
           instructor: '',
@@ -550,6 +539,10 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
         this.selectedRoomId.set(match.id);
         this.bookingHourlyRate.set(match.hourlyRate);
       }
+    } else if (this.selectableRooms().length > 0) {
+      const firstRoom = this.selectableRooms()[0];
+      this.selectedRoomId.set(firstRoom.id);
+      this.bookingHourlyRate.set(firstRoom.hourlyRate);
     }
 
     this.bookingInstructor.set('');
@@ -558,15 +551,14 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     this.bookingEmail.set('');
     this.bookingPrintingCharges.set(0);
     this.bookingDate.set(this.todayDate());
-    this.startHour.set('');
-    this.startMinute.set('');
-    this.startPeriod.set('PM');
-    this.endHour.set('');
-    this.endMinute.set('');
-    this.endPeriod.set('PM');
+    this.setStartTimeToNow();
     this.isDiscountApplied.set(false);
     this.isBookingDiscountSectionOpen.set(false);
     this.bookingPaymentMode.set('cash');
+    this.isAllDay.set(false);
+    this.repeatOption.set('none');
+    this.isRecurrenceDropdownOpen.set(false);
+    this.repeatOccurrences.set(4);
 
     this.isBookingModalOpen.set(true);
     document.body.style.overflow = 'hidden';
@@ -632,7 +624,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   // Validation Signals
   isInstructorValid = computed(() => {
     const val = this.bookingInstructor().trim();
-    return val.length >= 3 && val.length <= 50;
+    return val.length >= 2 && val.length <= 50;
   });
 
   isActivityValid = computed(() => {
@@ -685,6 +677,457 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   }
 
   isInstructorDropdownOpen = signal(false);
+  isRecurrenceDropdownOpen = signal(false);
+  isStartTimeDropdownOpen = signal(false);
+  isEndTimeDropdownOpen = signal(false);
+  isAllDay = signal<boolean>(false);
+  repeatOption = signal<'none' | 'daily' | 'weekly' | 'monthly' | 'weekdays' | 'custom'>('none');
+  repeatOccurrences = signal<number>(4);
+
+  // 15-minute standard time slots: 12:00 AM to 11:45 PM
+  timeSlotOptions = computed<string[]>(() => {
+    const slots: string[] = [];
+    for (let h = 0; h < 24; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        const period: 'AM' | 'PM' = h < 12 ? 'AM' : 'PM';
+        let displayH = h % 12;
+        if (displayH === 0) displayH = 12;
+        const hStr = String(displayH).padStart(2, '0');
+        const mStr = String(m).padStart(2, '0');
+        slots.push(`${hStr}:${mStr} ${period}`);
+      }
+    }
+    return slots;
+  });
+
+  // End time options with duration labels relative to start time
+  endTimeSlotOptions = computed<{ time: string; durationLabel: string }[]>(() => {
+    const startTimeStr = this.bookingStartTime();
+    const startMins = startTimeStr ? this.classroomService.parseTimeToMinutes(startTimeStr) : 540; // 09:00 AM default
+    const slots: { time: string; durationLabel: string }[] = [];
+    const isAr = this.isArabic();
+
+    // Offer times starting 15 mins after start up to 24 hours
+    for (let offset = 15; offset <= 24 * 60; offset += 15) {
+      const endMins = (startMins + offset) % (24 * 60);
+      const h24 = Math.floor(endMins / 60);
+      const m = endMins % 60;
+      const period: 'AM' | 'PM' = h24 < 12 ? 'AM' : 'PM';
+      let displayH = h24 % 12;
+      if (displayH === 0) displayH = 12;
+      const hStr = String(displayH).padStart(2, '0');
+      const mStr = String(m).padStart(2, '0');
+      const timeStr = `${hStr}:${mStr} ${period}`;
+
+      let durLabel = '';
+      if (offset < 60) {
+        durLabel = isAr ? `(${offset} دقيقة)` : `(${offset} mins)`;
+      } else {
+        const fullH = Math.floor(offset / 60);
+        const remM = offset % 60;
+        if (remM === 0) {
+          durLabel = isAr ? `(${fullH} ساعة)` : `(${fullH} hr${fullH > 1 ? 's' : ''})`;
+        } else {
+          durLabel = isAr ? `(${fullH} س و ${remM} د)` : `(${fullH} hr ${remM} m)`;
+        }
+      }
+
+      slots.push({ time: timeStr, durationLabel: durLabel });
+    }
+    return slots;
+  });
+
+  selectStartTime(timeStr: string): void {
+    const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (match) {
+      this.startHour.set(match[1]);
+      this.startMinute.set(match[2]);
+      this.startPeriod.set(match[3].toUpperCase() as 'AM' | 'PM');
+    }
+    this.isStartTimeDropdownOpen.set(false);
+
+    // Auto adjust end time if empty or if currently before/equal to start
+    const sMins = this.classroomService.parseTimeToMinutes(timeStr);
+    const currEMins = this.bookingEndTime() ? this.classroomService.parseTimeToMinutes(this.bookingEndTime()) : 0;
+    if (!this.bookingEndTime() || currEMins <= sMins) {
+      const newEMins = (sMins + 120) % (24 * 60); // default +2 hours
+      const eH24 = Math.floor(newEMins / 60);
+      const eM = newEMins % 60;
+      const ePer: 'AM' | 'PM' = eH24 < 12 ? 'AM' : 'PM';
+      let displayH = eH24 % 12;
+      if (displayH === 0) displayH = 12;
+      this.endHour.set(String(displayH).padStart(2, '0'));
+      this.endMinute.set(String(eM).padStart(2, '0'));
+      this.endPeriod.set(ePer);
+    }
+  }
+
+  selectEndTime(timeStr: string): void {
+    const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (match) {
+      this.endHour.set(match[1]);
+      this.endMinute.set(match[2]);
+      this.endPeriod.set(match[3].toUpperCase() as 'AM' | 'PM');
+    }
+    this.isEndTimeDropdownOpen.set(false);
+  }
+
+  openDatePicker(picker: HTMLInputElement): void {
+    try {
+      if (typeof picker.showPicker === 'function') {
+        picker.showPicker();
+        return;
+      }
+    } catch {
+      // Fallback
+    }
+    picker.focus();
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.instructor-autocomplete-wrap')) {
+      this.isInstructorDropdownOpen.set(false);
+    }
+    if (!target.closest('.recurrence-dropdown-wrap')) {
+      this.isRecurrenceDropdownOpen.set(false);
+    }
+    if (!target.closest('.cal-time-chip--start')) {
+      this.isStartTimeDropdownOpen.set(false);
+    }
+    if (!target.closest('.cal-time-chip--end')) {
+      this.isEndTimeDropdownOpen.set(false);
+    }
+  }
+
+  isCustomRecurrenceModalOpen = signal(false);
+
+  customRecurrence = signal<{
+    interval: number;
+    unit: 'day' | 'week' | 'month';
+    daysOfWeek: number[];
+    endType: 'never' | 'on_date' | 'after';
+    occurrences: number;
+    endDate: string;
+  }>({
+    interval: 1,
+    unit: 'week',
+    daysOfWeek: [3],
+    endType: 'after',
+    occurrences: 8,
+    endDate: ''
+  });
+
+  weekDaysList = [
+    { value: 6, label: 'س', labelEn: 'S', fullName: 'السبت', fullNameEn: 'Saturday' },
+    { value: 0, label: 'ح', labelEn: 'S', fullName: 'الأحد', fullNameEn: 'Sunday' },
+    { value: 1, label: 'ن', labelEn: 'M', fullName: 'الاثنين', fullNameEn: 'Monday' },
+    { value: 2, label: 'ث', labelEn: 'T', fullName: 'الثلاثاء', fullNameEn: 'Tuesday' },
+    { value: 3, label: 'ر', labelEn: 'W', fullName: 'الأربعاء', fullNameEn: 'Wednesday' },
+    { value: 4, label: 'خ', labelEn: 'T', fullName: 'الخميس', fullNameEn: 'Thursday' },
+    { value: 5, label: 'ج', labelEn: 'F', fullName: 'الجمعة', fullNameEn: 'Friday' },
+  ];
+
+  openCustomRecurrenceModal(): void {
+    this.isRecurrenceDropdownOpen.set(false);
+    const baseDateStr = this.bookingDate() || this.todayDate();
+    const [y, m, d] = baseDateStr.split('-').map(Number);
+    const currDay = new Date(y, m - 1, d).getDay();
+
+    this.customRecurrence.update(c => ({
+      ...c,
+      unit: c.unit || 'week',
+      endType: c.endType || 'after',
+      occurrences: c.occurrences || 8,
+      daysOfWeek: c.daysOfWeek && c.daysOfWeek.length > 0 ? c.daysOfWeek : [currDay]
+    }));
+
+    this.isCustomRecurrenceModalOpen.set(true);
+  }
+
+  closeCustomRecurrenceModal(): void {
+    this.isCustomRecurrenceModalOpen.set(false);
+  }
+
+  saveCustomRecurrence(): void {
+    this.repeatOption.set('custom');
+    this.isCustomRecurrenceModalOpen.set(false);
+  }
+
+  setCustomOccurrencesPreset(count: number): void {
+    this.customRecurrence.update(c => ({
+      ...c,
+      endType: 'after',
+      occurrences: count
+    }));
+  }
+
+  adjustCustomOccurrences(delta: number): void {
+    this.customRecurrence.update(c => ({
+      ...c,
+      endType: 'after',
+      occurrences: Math.max(1, Math.min(60, (c.occurrences || 8) + delta))
+    }));
+  }
+
+  upcomingRecurrenceDatesPreview = computed<{ label: string; index: number }[]>(() => {
+    const dates = this.generatedRecurrenceDates();
+    const isAr = this.isArabic();
+    return dates.slice(0, 5).map((dStr, idx) => {
+      const [y, m, d] = dStr.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      const dayName = dt.toLocaleDateString(isAr ? 'ar-EG' : 'en-US', { weekday: 'short' });
+      const datePart = dt.toLocaleDateString(isAr ? 'ar-EG' : 'en-US', { day: 'numeric', month: 'short' });
+      return {
+        index: idx + 1,
+        label: `${dayName} ${datePart}`
+      };
+    });
+  });
+
+  customTotalCostPreview = computed<number>(() => {
+    const totalSessions = this.generatedRecurrenceDates().length;
+    const durHours = this.bookingDurationHours() || 1;
+    const rate = this.bookingHourlyRate() || 0;
+    return totalSessions * durHours * rate;
+  });
+
+  toggleCustomDay(dayVal: number): void {
+    this.customRecurrence.update(curr => {
+      const exists = curr.daysOfWeek.includes(dayVal);
+      let updated: number[];
+      if (exists) {
+        updated = curr.daysOfWeek.length > 1 ? curr.daysOfWeek.filter(d => d !== dayVal) : curr.daysOfWeek;
+      } else {
+        updated = [...curr.daysOfWeek, dayVal].sort();
+      }
+      return { ...curr, daysOfWeek: updated };
+    });
+  }
+
+  isDaySelected(dayVal: number): boolean {
+    return this.customRecurrence().daysOfWeek.includes(dayVal);
+  }
+
+  updateCustomInterval(val: any): void {
+    const num = Math.max(1, Math.min(99, parseInt(val, 10) || 1));
+    this.customRecurrence.update(c => ({ ...c, interval: num }));
+  }
+
+  updateCustomUnit(unit: 'day' | 'week' | 'month'): void {
+    this.customRecurrence.update(c => ({ ...c, unit }));
+  }
+
+  updateCustomEndType(endType: 'never' | 'on_date' | 'after'): void {
+    this.customRecurrence.update(c => ({ ...c, endType }));
+  }
+
+  updateCustomOccurrences(val: any): void {
+    const num = Math.max(1, Math.min(50, parseInt(val, 10) || 1));
+    this.customRecurrence.update(c => ({ ...c, occurrences: num }));
+  }
+
+  updateCustomEndDate(dateStr: string): void {
+    this.customRecurrence.update(c => ({ ...c, endDate: dateStr }));
+  }
+
+  customRecurrenceSummaryText = computed(() => {
+    const c = this.customRecurrence();
+    const isAr = this.isArabic();
+    let text = '';
+
+    if (c.interval === 1) {
+      if (c.unit === 'day') text = isAr ? 'يومياً' : 'Daily';
+      else if (c.unit === 'week') text = isAr ? 'أسبوعياً' : 'Weekly';
+      else if (c.unit === 'month') text = isAr ? 'شهرياً' : 'Monthly';
+    } else {
+      if (c.unit === 'day') text = isAr ? `كل ${c.interval} أيام` : `Every ${c.interval} days`;
+      else if (c.unit === 'week') text = isAr ? `كل ${c.interval} أسابيع` : `Every ${c.interval} weeks`;
+      else if (c.unit === 'month') text = isAr ? `كل ${c.interval} أشهر` : `Every ${c.interval} months`;
+    }
+
+    if (c.unit === 'week' && c.daysOfWeek.length > 0) {
+      const dayNames = c.daysOfWeek
+        .map(dVal => this.weekDaysList.find(w => w.value === dVal))
+        .filter(Boolean)
+        .map(w => isAr ? w!.fullName : w!.fullNameEn);
+      text += isAr ? ` في أيام ${dayNames.join('، ')}` : ` on ${dayNames.join(', ')}`;
+    }
+
+    if (c.endType === 'after') {
+      text += isAr ? ` (${c.occurrences} مواعيد)` : ` (${c.occurrences} occurrences)`;
+    } else if (c.endType === 'on_date' && c.endDate) {
+      text += isAr ? ` حتى ${c.endDate}` : ` until ${c.endDate}`;
+    }
+
+    return text;
+  });
+
+  dayOfWeekName = computed(() => {
+    const dateStr = this.bookingDate() || this.todayDate();
+    return this.getDayOfWeekName(dateStr, this.isArabic());
+  });
+
+  formattedDateDisplay = computed(() => {
+    const dateStr = this.bookingDate() || this.todayDate();
+    return this.getFormattedDateDisplay(dateStr, this.isArabic());
+  });
+
+  recurrenceLabel = computed(() => {
+    const opt = this.repeatOption();
+    const day = this.dayOfWeekName();
+    const isAr = this.isArabic();
+    if (opt === 'daily') return isAr ? 'يومياً (Daily)' : 'Daily';
+    if (opt === 'weekly') return isAr ? `أسبوعياً كل يوم ${day} (Weekly)` : `Weekly on ${day}`;
+    if (opt === 'monthly') return isAr ? 'شهرياً في نفس اليوم (Monthly)' : 'Monthly';
+    if (opt === 'weekdays') return isAr ? 'كل أيام العمل (أحد - خميس)' : 'Every weekday (Sun - Thu)';
+    if (opt === 'custom') {
+      return this.customRecurrenceSummaryText() || (isAr ? 'تكرار مخصص...' : 'Custom...');
+    }
+    return isAr ? 'لا يتكرر (Does not repeat)' : 'Does not repeat';
+  });
+
+  generatedRecurrenceDates = computed<string[]>(() => {
+    const opt = this.repeatOption();
+    const baseDateStr = this.bookingDate() || this.todayDate();
+    if (opt === 'none') {
+      return [baseDateStr];
+    }
+
+    const [by, bm, bd] = baseDateStr.split('-').map(Number);
+    const baseDate = new Date(by, bm - 1, bd);
+    const dates: string[] = [baseDateStr];
+
+    if (opt === 'daily') {
+      const count = this.repeatOccurrences() || 7;
+      for (let i = 1; i < count; i++) {
+        const next = new Date(baseDate);
+        next.setDate(baseDate.getDate() + i);
+        dates.push(this.formatDateToISO(next));
+      }
+    } else if (opt === 'weekly') {
+      const count = this.repeatOccurrences() || 4;
+      for (let i = 1; i < count; i++) {
+        const next = new Date(baseDate);
+        next.setDate(baseDate.getDate() + (i * 7));
+        dates.push(this.formatDateToISO(next));
+      }
+    } else if (opt === 'monthly') {
+      const count = this.repeatOccurrences() || 3;
+      for (let i = 1; i < count; i++) {
+        const next = new Date(baseDate);
+        next.setMonth(baseDate.getMonth() + i);
+        dates.push(this.formatDateToISO(next));
+      }
+    } else if (opt === 'weekdays') {
+      const count = this.repeatOccurrences() || 5;
+      let added = 1;
+      let dayOffset = 1;
+      while (added < count && dayOffset < 60) {
+        const next = new Date(baseDate);
+        next.setDate(baseDate.getDate() + dayOffset);
+        const dow = next.getDay();
+        if (dow !== 5 && dow !== 6) {
+          dates.push(this.formatDateToISO(next));
+          added++;
+        }
+        dayOffset++;
+      }
+    } else if (opt === 'custom') {
+      const c = this.customRecurrence();
+      const targetCount = c.endType === 'after' ? c.occurrences : (c.endType === 'never' ? 12 : 50);
+      const untilDate = c.endType === 'on_date' && c.endDate ? new Date(c.endDate) : null;
+
+      if (c.unit === 'day') {
+        let i = 1;
+        while (dates.length < targetCount && i < 100) {
+          const next = new Date(baseDate);
+          next.setDate(baseDate.getDate() + (i * c.interval));
+          if (untilDate && next > untilDate) break;
+          dates.push(this.formatDateToISO(next));
+          i++;
+        }
+      } else if (c.unit === 'week') {
+        const days = c.daysOfWeek && c.daysOfWeek.length > 0 ? c.daysOfWeek : [baseDate.getDay()];
+        let dayStep = 1;
+
+        while (dates.length < targetCount && dayStep < 365) {
+          const checkDate = new Date(baseDate);
+          checkDate.setDate(baseDate.getDate() + dayStep);
+
+          if (untilDate && checkDate > untilDate) break;
+
+          if (days.includes(checkDate.getDay())) {
+            dates.push(this.formatDateToISO(checkDate));
+          }
+          dayStep++;
+        }
+      } else if (c.unit === 'month') {
+        let i = 1;
+        while (dates.length < targetCount && i < 36) {
+          const next = new Date(baseDate);
+          next.setMonth(baseDate.getMonth() + (i * c.interval));
+          if (untilDate && next > untilDate) break;
+          dates.push(this.formatDateToISO(next));
+          i++;
+        }
+      }
+    }
+
+    return dates;
+  });
+
+  getDayOfWeekName(dateStr: string, isAr: boolean): string {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    return date.toLocaleDateString(isAr ? 'ar-EG' : 'en-US', { weekday: 'long' });
+  }
+
+  getFormattedDateDisplay(dateStr: string, isAr: boolean): string {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    return date.toLocaleDateString(isAr ? 'ar-EG' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long' });
+  }
+
+  toggleAllDay(): void {
+    this.isAllDay.update(v => !v);
+    if (this.isAllDay()) {
+      this.startHour.set('08');
+      this.startMinute.set('00');
+      this.startPeriod.set('AM');
+      this.endHour.set('11');
+      this.endMinute.set('00');
+      this.endPeriod.set('PM');
+    }
+  }
+
+  selectRepeatOption(opt: 'none' | 'daily' | 'weekly' | 'monthly' | 'weekdays' | 'custom'): void {
+    if (opt === 'custom') {
+      this.openCustomRecurrenceModal();
+    } else {
+      this.repeatOption.set(opt);
+      this.isRecurrenceDropdownOpen.set(false);
+    }
+  }
+
+  adjustRepeatOccurrences(delta: number): void {
+    this.repeatOccurrences.update(val => Math.max(2, Math.min(20, val + delta)));
+  }
+
+  getSelectedRoomDisplayName(): string {
+    const r = this.selectableRooms().find(rm => rm.id === this.selectedRoomId());
+    return r ? r.name : '';
+  }
+
+  private formatDateToISO(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
 
   allSearchableMembers = computed<PackageMemberOption[]>(() => {
     const list: PackageMemberOption[] = [];
@@ -937,17 +1380,22 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     this.isEditingBookingRate.set(false);
   }
 
+  onRoomSelected(roomId: string): void {
+    this.selectedRoomId.set(roomId);
+    const room = this.selectableRooms().find(r => r.id === roomId);
+    if (room) {
+      this.bookingHourlyRate.set(room.hourlyRate);
+    }
+  }
+
   isBookingFormValid = computed(() => {
     const hasInstructor = !!this.bookingInstructor().trim() && this.isInstructorValid();
     const hasActivity = !!this.bookingActivity().trim() && this.isActivityValid();
-    const hasDate = !!this.bookingDate().trim() && this.isDateValid();
+    const hasDate = !!this.bookingDate().trim();
     const hasHourlyRate = Number(this.bookingHourlyRate()) > 0;
     const hasTimes = !!this.bookingStartTime() && !!this.bookingEndTime();
     const validRange = this.isTimeRangeValid() && this.bookingDurationHours() > 0;
-    const noOverlap = !this.hasBookingOverlap();
-    const validPhone = this.isPhoneValid();
-    const validEmail = this.isEmailValid();
-    return hasInstructor && hasActivity && hasDate && hasHourlyRate && hasTimes && validRange && noOverlap && validPhone && validEmail;
+    return hasInstructor && hasActivity && hasDate && hasHourlyRate && hasTimes && validRange;
   });
 
   confirmNewBooking(): void {
@@ -1055,7 +1503,29 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       };
       this.classroomService.addBooking(newCard).subscribe({
         next: () => {
-          this.workspaceService.showToast(this.isArabic() ? 'تم تأكيد وحفظ حجز القاعة بنجاح!' : 'Room booking confirmed and saved successfully!', 'success');
+          const opt = this.repeatOption();
+          const allDates = this.generatedRecurrenceDates();
+          const recurrenceDates = allDates.slice(1);
+          if (opt !== 'none' && recurrenceDates.length > 0) {
+            recurrenceDates.forEach(recDate => {
+              this.classroomService.createReservation({
+                roomId: selectedRoom?.id,
+                roomName: selectedRoom ? selectedRoom.name : 'Classroom',
+                instructorId: this.selectedInstructorId() || undefined,
+                instructorName: instructorName,
+                activity: `${this.bookingActivity()} (${this.recurrenceLabel()})`,
+                dateFrom: recDate,
+                dateTo: recDate,
+                timeFrom: this.bookingStartTime(),
+                timeTo: this.bookingEndTime(),
+                reservationCost: rentalAmount
+              }).subscribe();
+            });
+
+            this.workspaceService.showToast(this.isArabic() ? `تم تأكيد الحجز وتكراره بنجاح (${allDates.length} مواعيد)!` : `Booking confirmed and repeated (${allDates.length} sessions)!`, 'success');
+          } else {
+            this.workspaceService.showToast(this.isArabic() ? 'تم تأكيد وحفظ حجز القاعة بنجاح!' : 'Room booking confirmed and saved successfully!', 'success');
+          }
           this.classroomService.syncWithBackend();
         },
         error: (err) => {
@@ -1412,7 +1882,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
         });
       }
 
-      // 2. Checkout room
+      // 2. Checkout room (records shift transaction and updates backend)
       const received = this.checkoutAmountReceived() ?? finalAmt;
       this.classroomService.checkoutRoom(currentCard.id, {
         cardId: currentCard.id,
@@ -1427,18 +1897,14 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
         finalAmount: finalAmt,
         changeDue: this.checkoutChangeDue()
       }).subscribe({
-        error: (err) => console.error('Failed to checkout room:', err)
+        next: () => {
+          this.workspaceService.showToast(this.isArabic() ? 'تم إنهاء وتسوية حجز القاعة بنجاح!' : 'Classroom checked out successfully!', 'success');
+        },
+        error: (err) => {
+          console.error('Failed to checkout room:', err);
+          this.workspaceService.showToast(this.isArabic() ? 'تعذر إنهاء الحجز في السيرفر' : 'Failed to checkout room in server', 'error');
+        }
       });
-
-      // 3. Log transaction in active cashier shift
-      if (finalAmt > 0) {
-        this.shiftService.recordTransaction({
-          type: 'classroom',
-          amount: finalAmt,
-          paymentMethod: this.checkoutPaymentMethod(),
-          details: `تسوية خروج قاعة ${currentCard.name} (${currentCard.instructor})${isPkg ? ` [مخصوم ${coveredHours} س من الباقة]` : ''}`
-        });
-      }
     }
     this.closeCheckoutModal();
   }
@@ -1554,13 +2020,5 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     }
     if (this.isBookingModalOpen()) this.closeBookingModal();
     if (this.isCheckoutModalOpen()) this.closeCheckoutModal();
-  }
-
-  @HostListener('document:click', ['$event'])
-  onDocumentClick(event: MouseEvent): void {
-    const target = event.target as HTMLElement;
-    if (!target.closest('.instructor-autocomplete-wrap')) {
-      this.isInstructorDropdownOpen.set(false);
-    }
   }
 }

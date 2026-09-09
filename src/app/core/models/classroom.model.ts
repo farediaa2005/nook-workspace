@@ -108,10 +108,12 @@ export interface CreateClassroomDto {
   payWay?: PayWay | number;
   discountType?: DiscountType | number | null;
   type?: ClassroomTypeEnum | number;
+  title?: string | null;
   activity?: string | null;
+  expectedAttendees?: number | null;
   note?: string | null;
   instructorId?: string | null;
-  // UI aliases
+  // UI & Shift Audit aliases
   instructorName?: string;
   instructorPhone?: string;
   instructorEmail?: string;
@@ -121,6 +123,8 @@ export interface CreateClassroomDto {
   bookingDate?: string;
   startTime?: string;
   endTime?: string;
+  shiftId?: string | null;
+  staffId?: string | null;
 }
 
 /** Update classroom session request — PUT /api/Classrooms/{id} */
@@ -136,26 +140,35 @@ export interface UpdateClassroomDto {
   status?: SessionStatus | number;
   discountType?: DiscountType | number | null;
   type?: ClassroomTypeEnum | number;
+  title?: string | null;
   activity?: string | null;
   note?: string | null;
   instructorId?: string | null;
   // UI convenience
   startTime?: string;
   endTime?: string;
+  shiftId?: string | null;
+  staffId?: string | null;
 }
 
 /** Checkout classroom session — PUT /api/Classrooms/{id}/checkout */
 export interface CheckoutClassroomDto {
   timeTo?: string | null;
+  actualAttendees?: number | null;
+  paymentMethod?: string | number | null;
+  usePackageHours?: number | null;
+  packageId?: string | null;
+  paidAmount?: number;
   reservationCost?: number;
   printing?: number;
   discount?: number;
   discountType?: DiscountType | number | null;
   payWay?: PayWay | number;
   note?: string | null;
-  // UI & Shift details
-  paidAmount?: number;
-  paymentMethod?: string;
+  // Shift & Audit tracking
+  shiftId?: string | null;
+  staffId?: string | null;
+  // UI & Calculation details
   roomRate?: number;
   durationHours?: number;
   finalAmount?: number;
@@ -396,6 +409,12 @@ export interface ClassroomCheckoutPayload {
   amountReceived: number;
   finalAmount: number;
   changeDue: number;
+  attendeesCount?: number;
+  usePackageHours?: number;
+  packageId?: string;
+  notes?: string;
+  shiftId?: string;
+  staffId?: string;
 }
 
 /** Overtime and grace period calculation result */
@@ -440,6 +459,8 @@ export interface AdminConsoleRoom {
   id: string;
   name: string;
   capacity: number;
+  hourlyRate?: number;
+  image?: string;
 }
 
 /** A single time-slot row in the 24-hour calendar grid */

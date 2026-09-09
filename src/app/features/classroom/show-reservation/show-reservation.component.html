@@ -71,7 +71,7 @@
               <div class="logistics-content">
                 <span class="logistics-label">{{ t().assignedSpace }}</span>
                 <strong class="logistics-value">{{ res.classroom }}</strong>
-                <span class="logistics-sub">{{ t().capacity }}: {{ res.capacity || 24 }} {{ t().studentsCount }}</span>
+                <span class="logistics-sub">{{ t().capacity }}: {{ res.capacity || getRoomCapacity(res.classroom) }} {{ t().studentsCount }}</span>
               </div>
             </div>
 

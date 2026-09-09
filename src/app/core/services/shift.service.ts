@@ -668,6 +668,47 @@ export class ShiftService implements OnDestroy {
           }
         ];
 
+    let canteenRev = 0;
+    let classroomRev = 0;
+    let workspaceRev = 0;
+    let packageRev = 0;
+    let otherRev = 0;
+    let expenses = dto.administrative ?? 0;
+    let vfIn = dto.vfCashInside ?? 0;
+    let vfOut = dto.vfCashOutside ?? 0;
+    let ipIn = 0;
+    let ipOut = 0;
+    let fwIn = 0;
+    let fwOut = 0;
+
+    if (Array.isArray(dto.items)) {
+      for (const it of dto.items) {
+        const amt = Number(it.cost ?? it.amount ?? 0);
+        const t = String(it.type || '').toLowerCase();
+        const pay = Number(it.payWay); // 1=Cash, 2=Vodafone, 3=Instapay, 4=Fawry
+
+        if (t === 'canteen' || t.includes('canteen') || t.includes('catering')) canteenRev += amt;
+        else if (t === 'classroom' || t.includes('classroom') || t.includes('room')) classroomRev += amt;
+        else if (t === 'workspace' || t.includes('workspace') || t.includes('student')) workspaceRev += amt;
+        else if (t === 'package' || t.includes('package')) packageRev += amt;
+        else if (t === 'expense' || t.includes('expense')) expenses += Math.abs(amt);
+        else otherRev += amt;
+
+        if (pay === 2) {
+          if (t === 'expense') vfOut += Math.abs(amt);
+          else vfIn += amt;
+        } else if (pay === 3) {
+          if (t === 'expense') ipOut += Math.abs(amt);
+          else ipIn += amt;
+        } else if (pay === 4) {
+          if (t === 'expense') fwOut += Math.abs(amt);
+          else fwIn += amt;
+        }
+      }
+    }
+
+    const totalRev = canteenRev + classroomRev + workspaceRev + packageRev + otherRev;
+
     return {
       id: dto.id,
       staffName: dto.userName || 'موظف الاستقبال',
@@ -680,19 +721,19 @@ export class ShiftService implements OnDestroy {
       startVodafoneCash: 0,
       startInstapay: 0,
       startFawry: 0,
-      canteenRevenue: 0,
-      classroomRevenue: 0,
-      workspaceRevenue: 0,
-      packageRevenue: 0,
-      otherIncome: 0,
-      adminExpenses: dto.administrative ?? 0,
-      vodafoneCashInside: dto.vfCashInside ?? 0,
-      vodafoneCashOutside: dto.vfCashOutside ?? 0,
-      instapayCashInside: 0,
-      instapayCashOutside: 0,
-      fawryCashInside: 0,
-      fawryCashOutside: 0,
-      totalRevenue: dto.totalCost ?? dto.systemCash ?? 0,
+      canteenRevenue: canteenRev,
+      classroomRevenue: classroomRev,
+      workspaceRevenue: workspaceRev,
+      packageRevenue: packageRev,
+      otherIncome: otherRev,
+      adminExpenses: expenses,
+      vodafoneCashInside: vfIn,
+      vodafoneCashOutside: vfOut,
+      instapayCashInside: ipIn,
+      instapayCashOutside: ipOut,
+      fawryCashInside: fwIn,
+      fawryCashOutside: fwOut,
+      totalRevenue: totalRev || (dto.totalCost ?? dto.systemCash ?? 0),
       transactionsCount: mappedTransactions.length,
       transactions: mappedTransactions
     };

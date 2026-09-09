@@ -7,10 +7,12 @@ import {
   OnDestroy,
   AfterViewInit,
   ViewChild,
-  ElementRef
+  ElementRef,
+  HostListener
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { LanguageService } from '../../../core/services/language.service';
 import { ClassroomService } from '../../../core/services/classroom.service';
 import {
@@ -24,6 +26,7 @@ import { FormsModule } from '@angular/forms';
 import { ReservationDetailPanelComponent } from '../../../shared/components/reservation-detail-panel/reservation-detail-panel.component';
 import { PrimaryButtonComponent } from '../../../shared/components/primary-button/primary-button.component';
 import { CustomSelectComponent, SelectOption } from '../../../shared/components/custom-select/custom-select.component';
+import { WorkspaceService } from '../../../core/services/workspace.service';
 
 @Component({
   selector: 'app-classroom-reservations',
@@ -32,8 +35,7 @@ import { CustomSelectComponent, SelectOption } from '../../../shared/components/
     CommonModule,
     FormsModule,
     ReservationDetailPanelComponent,
-    PrimaryButtonComponent,
-    CustomSelectComponent
+    PrimaryButtonComponent
   ],
   templateUrl: './classroom-reservations.component.html',
   styleUrl: './classroom-reservations.component.css'
@@ -43,6 +45,7 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
 
   private langService = inject(LanguageService);
   protected classroomService = inject(ClassroomService);
+  private workspaceService = inject(WorkspaceService);
   private router = inject(Router);
   private timerHandle: any = null;
 
@@ -57,7 +60,9 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     return this.classroomService.rooms().map(r => ({
       id: r.id,
       name: r.name,
-      capacity: r.maxCapacity
+      capacity: r.maxCapacity,
+      hourlyRate: r.hourlyRate,
+      image: r.imageUrl
     }));
   });
 
@@ -156,12 +161,70 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
   isDetailPanelOpen = signal<boolean>(false);
   selectedReservation = signal<AdminReservation | null>(null);
   activeActionMenuId = signal<string | null>(null);
+  actionMenuPosition = signal<{ top?: number; bottom?: number; left?: number; right?: number; transformOrigin?: string }>({});
+
+  @HostListener('window:scroll')
+  @HostListener('window:resize')
+  onWindowScrollOrResize(): void {
+    if (this.activeActionMenuId()) {
+      this.closeActionMenu();
+    }
+  }
 
   toggleActionMenu(id: string, event?: MouseEvent): void {
     if (event) {
       event.stopPropagation();
     }
-    this.activeActionMenuId.update(curr => curr === id ? null : id);
+    if (this.activeActionMenuId() === id) {
+      this.activeActionMenuId.set(null);
+      return;
+    }
+
+    if (event && event.currentTarget) {
+      const btn = event.currentTarget as HTMLElement;
+      const rect = btn.getBoundingClientRect();
+      const menuHeight = 270;
+      const menuWidth = 180;
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+
+      const spaceBelow = viewportHeight - rect.bottom;
+      const spaceAbove = rect.top;
+
+      const isRtl = this.isArabic() || document.documentElement.dir === 'rtl' || document.body.getAttribute('dir') === 'rtl';
+
+      const pos: { top?: number; bottom?: number; left?: number; right?: number; transformOrigin?: string } = {};
+
+      // If space below is not enough for the full menu and space above is larger, open as dropup
+      if (spaceBelow < menuHeight && spaceAbove > spaceBelow) {
+        pos.bottom = Math.max(10, viewportHeight - rect.top + 4);
+        pos.transformOrigin = isRtl ? 'bottom left' : 'bottom right';
+      } else {
+        pos.top = Math.max(10, rect.bottom + 4);
+        pos.transformOrigin = isRtl ? 'top left' : 'top right';
+      }
+
+      // Horizontal positioning
+      if (isRtl) {
+        let targetLeft = rect.left;
+        if (targetLeft + menuWidth > viewportWidth) {
+          targetLeft = Math.max(10, viewportWidth - menuWidth - 10);
+        }
+        if (targetLeft < 10) targetLeft = 10;
+        pos.left = targetLeft;
+      } else {
+        let targetRight = viewportWidth - rect.right;
+        if (targetRight + menuWidth > viewportWidth) {
+          targetRight = Math.max(10, viewportWidth - menuWidth - 10);
+        }
+        if (targetRight < 10) targetRight = 10;
+        pos.right = targetRight;
+      }
+
+      this.actionMenuPosition.set(pos);
+    }
+
+    this.activeActionMenuId.set(id);
   }
 
   closeActionMenu(): void {
@@ -358,9 +421,9 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
   }
 
   private mapCardToReservation(card: ClassroomCard): AdminReservation | null {
-    if (!card || !card.id) return null;
-    const startTime24 = this.convert12hTo24h(card.startTime || '09:00 AM');
-    const endTime24 = this.convert12hTo24h(card.endTime || '11:00 AM');
+    if (!card || !card.id || !card.startTime) return null;
+    const startTime24 = this.convert12hTo24h(card.startTime);
+    const endTime24 = this.convert12hTo24h(card.endTime || card.startTime);
 
     let resStatus: 'active' | 'upcoming' | 'completed' | 'cancelled' = 'upcoming';
     if (card.status === 'active') resStatus = 'active';
@@ -457,11 +520,590 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
   resId = signal('');
   resRoomName = signal('');
   resInstructor = signal('');
+  selectedInstructorId = signal('');
+  isInstructorDropdownOpen = signal(false);
   resActivity = signal('');
   resDate = signal('');
-  resStartTime = signal('09:00 AM');
-  resEndTime = signal('11:00 AM');
+  resStartHour = signal('09');
+  resStartMinute = signal('00');
+  resStartPeriod = signal<'AM' | 'PM'>('AM');
+  resEndHour = signal('11');
+  resEndMinute = signal('00');
+  resEndPeriod = signal<'AM' | 'PM'>('AM');
   resHourlyRate = signal(40);
+  isSaving = signal(false);
+
+  // Recurrence & All-Day State for Modal (Google Calendar style)
+  isAllDay = signal<boolean>(false);
+  repeatOption = signal<'none' | 'daily' | 'weekly' | 'monthly' | 'weekdays' | 'custom'>('none');
+  isRecurrenceDropdownOpen = signal<boolean>(false);
+  repeatOccurrences = signal<number>(4);
+
+  dayOfWeekName = computed<string>(() => {
+    const dStr = this.resDate();
+    if (!dStr) return this.isArabic() ? 'الأربعاء' : 'Wednesday';
+    const [y, m, d] = dStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    return date.toLocaleDateString(this.isArabic() ? 'ar-u-nu-latn' : 'en-US', { weekday: 'long' });
+  });
+
+  formattedDateDisplay = computed<string>(() => {
+    const dStr = this.resDate();
+    if (!dStr) return '';
+    const [y, m, d] = dStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    return date.toLocaleDateString(this.isArabic() ? 'ar-u-nu-latn' : 'en-US', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long'
+    });
+  });
+
+  recurrenceLabel = computed<string>(() => {
+    const opt = this.repeatOption();
+    const day = this.dayOfWeekName();
+    const isAr = this.isArabic();
+    switch (opt) {
+      case 'daily':
+        return isAr ? 'يوميًا (Daily)' : 'Daily';
+      case 'weekly':
+        return isAr ? `أسبوعيًا كل يوم ${day} (Weekly)` : `Weekly on ${day}`;
+      case 'monthly':
+        return isAr ? 'شهريًا في نفس اليوم (Monthly)' : 'Monthly';
+      case 'weekdays':
+        return isAr ? 'كل أيام العمل (أحد - خميس)' : 'Every weekday (Mon - Fri)';
+      case 'custom':
+        return this.customRecurrenceSummaryText() || (isAr ? 'تكرار مخصص...' : 'Custom...');
+      default:
+        return isAr ? 'لا يتكرر (Does not repeat)' : 'Does not repeat';
+    }
+  });
+
+  isCustomRecurrenceModalOpen = signal(false);
+
+  customRecurrence = signal<{
+    interval: number;
+    unit: 'day' | 'week' | 'month';
+    daysOfWeek: number[];
+    endType: 'never' | 'on_date' | 'after';
+    occurrences: number;
+    endDate: string;
+  }>({
+    interval: 1,
+    unit: 'week',
+    daysOfWeek: [3],
+    endType: 'after',
+    occurrences: 8,
+    endDate: ''
+  });
+
+  weekDaysList = [
+    { value: 6, label: 'س', labelEn: 'S', fullName: 'السبت', fullNameEn: 'Saturday' },
+    { value: 0, label: 'ح', labelEn: 'S', fullName: 'الأحد', fullNameEn: 'Sunday' },
+    { value: 1, label: 'ن', labelEn: 'M', fullName: 'الاثنين', fullNameEn: 'Monday' },
+    { value: 2, label: 'ث', labelEn: 'T', fullName: 'الثلاثاء', fullNameEn: 'Tuesday' },
+    { value: 3, label: 'ر', labelEn: 'W', fullName: 'الأربعاء', fullNameEn: 'Wednesday' },
+    { value: 4, label: 'خ', labelEn: 'T', fullName: 'الخميس', fullNameEn: 'Thursday' },
+    { value: 5, label: 'ج', labelEn: 'F', fullName: 'الجمعة', fullNameEn: 'Friday' },
+  ];
+
+  openCustomRecurrenceModal(): void {
+    this.isRecurrenceDropdownOpen.set(false);
+    const baseDateStr = this.resDate() || this.classroomService.getTodayDateISO();
+    const [y, m, d] = baseDateStr.split('-').map(Number);
+    const currDay = new Date(y, m - 1, d).getDay();
+
+    this.customRecurrence.update(c => ({
+      ...c,
+      unit: c.unit || 'week',
+      endType: c.endType || 'after',
+      occurrences: c.occurrences || 8,
+      daysOfWeek: c.daysOfWeek && c.daysOfWeek.length > 0 ? c.daysOfWeek : [currDay]
+    }));
+
+    this.isCustomRecurrenceModalOpen.set(true);
+  }
+
+  closeCustomRecurrenceModal(): void {
+    this.isCustomRecurrenceModalOpen.set(false);
+  }
+
+  saveCustomRecurrence(): void {
+    this.repeatOption.set('custom');
+    this.isCustomRecurrenceModalOpen.set(false);
+  }
+
+  setCustomOccurrencesPreset(count: number): void {
+    this.customRecurrence.update(c => ({
+      ...c,
+      endType: 'after',
+      occurrences: count
+    }));
+  }
+
+  adjustCustomOccurrences(delta: number): void {
+    this.customRecurrence.update(c => ({
+      ...c,
+      endType: 'after',
+      occurrences: Math.max(1, Math.min(60, (c.occurrences || 8) + delta))
+    }));
+  }
+
+  upcomingRecurrenceDatesPreview = computed<{ label: string; index: number }[]>(() => {
+    const dates = this.generatedRecurrenceDates();
+    const isAr = this.isArabic();
+    return dates.slice(0, 5).map((dStr, idx) => {
+      const [y, m, d] = dStr.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      const dayName = dt.toLocaleDateString(isAr ? 'ar-EG' : 'en-US', { weekday: 'short' });
+      const datePart = dt.toLocaleDateString(isAr ? 'ar-EG' : 'en-US', { day: 'numeric', month: 'short' });
+      return {
+        index: idx + 1,
+        label: `${dayName} ${datePart}`
+      };
+    });
+  });
+
+  customTotalCostPreview = computed<number>(() => {
+    const totalSessions = this.generatedRecurrenceDates().length;
+    const durHours = 2;
+    const rate = this.resHourlyRate() || 40;
+    return totalSessions * durHours * rate;
+  });
+
+  toggleCustomDay(dayVal: number): void {
+    this.customRecurrence.update(curr => {
+      const exists = curr.daysOfWeek.includes(dayVal);
+      let updated: number[];
+      if (exists) {
+        updated = curr.daysOfWeek.length > 1 ? curr.daysOfWeek.filter(d => d !== dayVal) : curr.daysOfWeek;
+      } else {
+        updated = [...curr.daysOfWeek, dayVal].sort();
+      }
+      return { ...curr, daysOfWeek: updated };
+    });
+  }
+
+  isDaySelected(dayVal: number): boolean {
+    return this.customRecurrence().daysOfWeek.includes(dayVal);
+  }
+
+  updateCustomInterval(val: any): void {
+    const num = Math.max(1, Math.min(99, parseInt(val, 10) || 1));
+    this.customRecurrence.update(c => ({ ...c, interval: num }));
+  }
+
+  updateCustomUnit(unit: 'day' | 'week' | 'month'): void {
+    this.customRecurrence.update(c => ({ ...c, unit }));
+  }
+
+  updateCustomEndType(endType: 'never' | 'on_date' | 'after'): void {
+    this.customRecurrence.update(c => ({ ...c, endType }));
+  }
+
+  updateCustomOccurrences(val: any): void {
+    const num = Math.max(1, Math.min(50, parseInt(val, 10) || 1));
+    this.customRecurrence.update(c => ({ ...c, occurrences: num }));
+  }
+
+  updateCustomEndDate(dateStr: string): void {
+    this.customRecurrence.update(c => ({ ...c, endDate: dateStr }));
+  }
+
+  customRecurrenceSummaryText = computed(() => {
+    const c = this.customRecurrence();
+    const isAr = this.isArabic();
+    let text = '';
+
+    if (c.interval === 1) {
+      if (c.unit === 'day') text = isAr ? 'يومياً' : 'Daily';
+      else if (c.unit === 'week') text = isAr ? 'أسبوعياً' : 'Weekly';
+      else if (c.unit === 'month') text = isAr ? 'شهرياً' : 'Monthly';
+    } else {
+      if (c.unit === 'day') text = isAr ? `كل ${c.interval} أيام` : `Every ${c.interval} days`;
+      else if (c.unit === 'week') text = isAr ? `كل ${c.interval} أسابيع` : `Every ${c.interval} weeks`;
+      else if (c.unit === 'month') text = isAr ? `كل ${c.interval} أشهر` : `Every ${c.interval} months`;
+    }
+
+    if (c.unit === 'week' && c.daysOfWeek.length > 0) {
+      const dayNames = c.daysOfWeek
+        .map(dVal => this.weekDaysList.find(w => w.value === dVal))
+        .filter(Boolean)
+        .map(w => isAr ? w!.fullName : w!.fullNameEn);
+      text += isAr ? ` في أيام ${dayNames.join('، ')}` : ` on ${dayNames.join(', ')}`;
+    }
+
+    if (c.endType === 'after') {
+      text += isAr ? ` (${c.occurrences} مواعيد)` : ` (${c.occurrences} occurrences)`;
+    } else if (c.endType === 'on_date' && c.endDate) {
+      text += isAr ? ` حتى ${c.endDate}` : ` until ${c.endDate}`;
+    }
+
+    return text;
+  });
+
+  generatedRecurrenceDates = computed<string[]>(() => {
+    const opt = this.repeatOption();
+    const baseDateStr = this.resDate() || this.classroomService.getTodayDateISO();
+    if (opt === 'none') {
+      return [baseDateStr];
+    }
+
+    const [by, bm, bd] = baseDateStr.split('-').map(Number);
+    const baseDate = new Date(by, bm - 1, bd);
+    const dates: string[] = [baseDateStr];
+
+    if (opt === 'daily') {
+      const count = this.repeatOccurrences() || 7;
+      for (let i = 1; i < count; i++) {
+        const next = new Date(baseDate);
+        next.setDate(baseDate.getDate() + i);
+        dates.push(this.formatDateToISO(next));
+      }
+    } else if (opt === 'weekly') {
+      const count = this.repeatOccurrences() || 4;
+      for (let i = 1; i < count; i++) {
+        const next = new Date(baseDate);
+        next.setDate(baseDate.getDate() + (i * 7));
+        dates.push(this.formatDateToISO(next));
+      }
+    } else if (opt === 'monthly') {
+      const count = this.repeatOccurrences() || 3;
+      for (let i = 1; i < count; i++) {
+        const next = new Date(baseDate);
+        next.setMonth(baseDate.getMonth() + i);
+        dates.push(this.formatDateToISO(next));
+      }
+    } else if (opt === 'weekdays') {
+      const count = this.repeatOccurrences() || 5;
+      let added = 1;
+      let dayOffset = 1;
+      while (added < count && dayOffset < 60) {
+        const next = new Date(baseDate);
+        next.setDate(baseDate.getDate() + dayOffset);
+        const dow = next.getDay();
+        if (dow !== 5 && dow !== 6) {
+          dates.push(this.formatDateToISO(next));
+          added++;
+        }
+        dayOffset++;
+      }
+    } else if (opt === 'custom') {
+      const c = this.customRecurrence();
+      const targetCount = c.endType === 'after' ? c.occurrences : (c.endType === 'never' ? 12 : 50);
+      const untilDate = c.endType === 'on_date' && c.endDate ? new Date(c.endDate) : null;
+
+      if (c.unit === 'day') {
+        let i = 1;
+        while (dates.length < targetCount && i < 100) {
+          const next = new Date(baseDate);
+          next.setDate(baseDate.getDate() + (i * c.interval));
+          if (untilDate && next > untilDate) break;
+          dates.push(this.formatDateToISO(next));
+          i++;
+        }
+      } else if (c.unit === 'week') {
+        const days = c.daysOfWeek && c.daysOfWeek.length > 0 ? c.daysOfWeek : [baseDate.getDay()];
+        let dayStep = 1;
+
+        while (dates.length < targetCount && dayStep < 365) {
+          const checkDate = new Date(baseDate);
+          checkDate.setDate(baseDate.getDate() + dayStep);
+
+          if (untilDate && checkDate > untilDate) break;
+
+          if (days.includes(checkDate.getDay())) {
+            dates.push(this.formatDateToISO(checkDate));
+          }
+          dayStep++;
+        }
+      } else if (c.unit === 'month') {
+        let i = 1;
+        while (dates.length < targetCount && i < 36) {
+          const next = new Date(baseDate);
+          next.setMonth(baseDate.getMonth() + (i * c.interval));
+          if (untilDate && next > untilDate) break;
+          dates.push(this.formatDateToISO(next));
+          i++;
+        }
+      }
+    }
+
+    return dates;
+  });
+
+  formatDateToISO(date: Date): string {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  toggleAllDay(): void {
+    const next = !this.isAllDay();
+    this.isAllDay.set(next);
+    if (next) {
+      this.resStartHour.set('08');
+      this.resStartMinute.set('00');
+      this.resStartPeriod.set('AM');
+      this.resEndHour.set('11');
+      this.resEndMinute.set('59');
+      this.resEndPeriod.set('PM');
+    } else {
+      this.setResTimeToNow();
+    }
+  }
+
+  selectRepeatOption(opt: 'none' | 'daily' | 'weekly' | 'monthly' | 'weekdays' | 'custom'): void {
+    if (opt === 'custom') {
+      this.openCustomRecurrenceModal();
+    } else {
+      this.repeatOption.set(opt);
+      this.isRecurrenceDropdownOpen.set(false);
+    }
+  }
+
+  adjustRepeatOccurrences(delta: number): void {
+    const curr = this.repeatOccurrences();
+    const updated = Math.max(2, Math.min(30, curr + delta));
+    this.repeatOccurrences.set(updated);
+  }
+
+  isStartTimeDropdownOpen = signal<boolean>(false);
+  isEndTimeDropdownOpen = signal<boolean>(false);
+
+  // 15-minute standard time slots: 12:00 AM to 11:45 PM
+  timeSlotOptions = computed<string[]>(() => {
+    const slots: string[] = [];
+    for (let h = 0; h < 24; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        const period: 'AM' | 'PM' = h < 12 ? 'AM' : 'PM';
+        let displayH = h % 12;
+        if (displayH === 0) displayH = 12;
+        const hStr = String(displayH).padStart(2, '0');
+        const mStr = String(m).padStart(2, '0');
+        slots.push(`${hStr}:${mStr} ${period}`);
+      }
+    }
+    return slots;
+  });
+
+  // End time options with duration labels relative to start time
+  endTimeSlotOptions = computed<{ time: string; durationLabel: string }[]>(() => {
+    const startTimeStr = this.resStartTime();
+    const startMins = startTimeStr ? this.classroomService.parseTimeToMinutes(startTimeStr) : 540; // 09:00 AM
+    const slots: { time: string; durationLabel: string }[] = [];
+    const isAr = this.isArabic();
+
+    for (let offset = 15; offset <= 24 * 60; offset += 15) {
+      const endMins = (startMins + offset) % (24 * 60);
+      const h24 = Math.floor(endMins / 60);
+      const m = endMins % 60;
+      const period: 'AM' | 'PM' = h24 < 12 ? 'AM' : 'PM';
+      let displayH = h24 % 12;
+      if (displayH === 0) displayH = 12;
+      const hStr = String(displayH).padStart(2, '0');
+      const mStr = String(m).padStart(2, '0');
+      const timeStr = `${hStr}:${mStr} ${period}`;
+
+      let durLabel = '';
+      if (offset < 60) {
+        durLabel = isAr ? `(${offset} دقيقة)` : `(${offset} mins)`;
+      } else {
+        const fullH = Math.floor(offset / 60);
+        const remM = offset % 60;
+        if (remM === 0) {
+          durLabel = isAr ? `(${fullH} ساعة)` : `(${fullH} hr${fullH > 1 ? 's' : ''})`;
+        } else {
+          durLabel = isAr ? `(${fullH} س و ${remM} د)` : `(${fullH} hr ${remM} m)`;
+        }
+      }
+
+      slots.push({ time: timeStr, durationLabel: durLabel });
+    }
+    return slots;
+  });
+
+  selectStartTime(timeStr: string): void {
+    const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (match) {
+      this.resStartHour.set(match[1]);
+      this.resStartMinute.set(match[2]);
+      this.resStartPeriod.set(match[3].toUpperCase() as 'AM' | 'PM');
+    }
+    this.isStartTimeDropdownOpen.set(false);
+
+    // Auto adjust end time if empty or if currently before/equal to start
+    const sMins = this.classroomService.parseTimeToMinutes(timeStr);
+    const currEMins = this.resEndTime() ? this.classroomService.parseTimeToMinutes(this.resEndTime()) : 0;
+    if (!this.resEndTime() || currEMins <= sMins) {
+      const newEMins = (sMins + 120) % (24 * 60); // default +2 hours
+      const eH24 = Math.floor(newEMins / 60);
+      const eM = newEMins % 60;
+      const ePer: 'AM' | 'PM' = eH24 < 12 ? 'AM' : 'PM';
+      let displayH = eH24 % 12;
+      if (displayH === 0) displayH = 12;
+      this.resEndHour.set(String(displayH).padStart(2, '0'));
+      this.resEndMinute.set(String(eM).padStart(2, '0'));
+      this.resEndPeriod.set(ePer);
+    }
+  }
+
+  selectEndTime(timeStr: string): void {
+    const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (match) {
+      this.resEndHour.set(match[1]);
+      this.resEndMinute.set(match[2]);
+      this.resEndPeriod.set(match[3].toUpperCase() as 'AM' | 'PM');
+    }
+    this.isEndTimeDropdownOpen.set(false);
+  }
+
+  openDatePicker(picker: HTMLInputElement): void {
+    try {
+      if (typeof picker.showPicker === 'function') {
+        picker.showPicker();
+        return;
+      }
+    } catch {
+      // Fallback
+    }
+    picker.focus();
+  }
+
+  onStartTimeDirectChange(val: string): void {
+    if (!val) return;
+    const match = val.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+    if (match) {
+      this.resStartHour.set(match[1].padStart(2, '0'));
+      this.resStartMinute.set(match[2]);
+      if (match[3]) {
+        this.resStartPeriod.set(match[3].toUpperCase() as 'AM' | 'PM');
+      }
+    }
+  }
+
+  onEndTimeDirectChange(val: string): void {
+    if (!val) return;
+    const match = val.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+    if (match) {
+      this.resEndHour.set(match[1].padStart(2, '0'));
+      this.resEndMinute.set(match[2]);
+      if (match[3]) {
+        this.resEndPeriod.set(match[3].toUpperCase() as 'AM' | 'PM');
+      }
+    }
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.instructor-autocomplete-wrap')) {
+      this.isInstructorDropdownOpen.set(false);
+    }
+    if (!target.closest('.recurrence-dropdown-wrap')) {
+      this.isRecurrenceDropdownOpen.set(false);
+    }
+    if (!target.closest('.cal-time-chip--start')) {
+      this.isStartTimeDropdownOpen.set(false);
+    }
+    if (!target.closest('.cal-time-chip--end')) {
+      this.isEndTimeDropdownOpen.set(false);
+    }
+    if (!target.closest('.action-menu-wrap')) {
+      this.closeActionMenu();
+    }
+  }
+
+  resStartTime = computed(() => {
+    const h = (this.resStartHour() || '09').padStart(2, '0');
+    const m = (this.resStartMinute() || '00').padStart(2, '0');
+    return `${h}:${m} ${this.resStartPeriod()}`;
+  });
+
+  resEndTime = computed(() => {
+    const h = (this.resEndHour() || '11').padStart(2, '0');
+    const m = (this.resEndMinute() || '00').padStart(2, '0');
+    return `${h}:${m} ${this.resEndPeriod()}`;
+  });
+
+  resDurationHours = computed(() => {
+    const sMins = this.classroomService.parseTimeToMinutes(this.resStartTime());
+    const eMins = this.classroomService.parseTimeToMinutes(this.resEndTime());
+    if (eMins <= sMins) {
+      // crossover midnight
+      const diff = (24 * 60 - sMins) + eMins;
+      return +(diff / 60).toFixed(1);
+    }
+    return +((eMins - sMins) / 60).toFixed(1);
+  });
+
+  resTotalCost = computed(() => {
+    const rate = Number(this.resHourlyRate()) || 0;
+    const dur = this.resDurationHours();
+    return +(dur * rate).toFixed(2);
+  });
+
+  instructorOptions = computed(() => {
+    const q = this.resInstructor().trim().toLowerCase();
+    const list = this.classroomService.instructors() || [];
+    if (!q) return list;
+    return list.filter(i =>
+      (i.name || '').toLowerCase().includes(q) ||
+      (i.phoneNumber || '').includes(q)
+    );
+  });
+
+  selectInstructor(ins: any): void {
+    this.resInstructor.set(ins.name || '');
+    this.selectedInstructorId.set(ins.id || '');
+    this.isInstructorDropdownOpen.set(false);
+  }
+
+  clearInstructor(): void {
+    this.resInstructor.set('');
+    this.selectedInstructorId.set('');
+    this.isInstructorDropdownOpen.set(false);
+  }
+
+  onRoomChange(roomName: string): void {
+    this.resRoomName.set(roomName);
+    const room = this.rooms().find(r => r.name.toLowerCase() === roomName.toLowerCase() || r.id === roomName);
+    if (room && room.hourlyRate) {
+      this.resHourlyRate.set(room.hourlyRate);
+    }
+  }
+
+  setResTimeToNow(): void {
+    const now = new Date();
+    let hours = now.getHours();
+    const minutes = now.getMinutes();
+    const period: 'AM' | 'PM' = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+
+    this.resStartHour.set(String(hours).padStart(2, '0'));
+    this.resStartMinute.set(String(minutes).padStart(2, '0'));
+    this.resStartPeriod.set(period);
+
+    const endTotalH = now.getHours() + 2;
+    let endH = endTotalH % 12;
+    if (endH === 0) endH = 12;
+    const endPer: 'AM' | 'PM' = (endTotalH % 24) >= 12 ? 'PM' : 'AM';
+    this.resEndHour.set(String(endH).padStart(2, '0'));
+    this.resEndMinute.set(String(minutes).padStart(2, '0'));
+    this.resEndPeriod.set(endPer);
+  }
+
+  isReservationFormValid = computed(() => {
+    const hasRoom = !!this.resRoomName().trim();
+    const hasInstructor = !!this.resInstructor().trim() && this.resInstructor().trim().length >= 2;
+    const hasActivity = !!this.resActivity().trim() && this.resActivity().trim().length >= 2;
+    const hasDate = !!this.resDate().trim();
+    const hasRate = Number(this.resHourlyRate()) > 0;
+    const hasDur = this.resDurationHours() > 0;
+    return hasRoom && hasInstructor && hasActivity && hasDate && hasRate && hasDur && !this.isSaving();
+  });
 
   // Split Modal
   isSplitModalOpen = signal(false);
@@ -472,14 +1114,30 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
   openNewReservationModal(): void {
     this.modalMode.set('new');
     this.resId.set('');
-    this.resRoomName.set(this.rooms()[0]?.name || 'Nook Hall');
+    const firstRoom = this.rooms()[0];
+    this.resRoomName.set(firstRoom?.name || 'Nook Hall');
     this.resInstructor.set('');
+    this.selectedInstructorId.set('');
+    this.isInstructorDropdownOpen.set(false);
     this.resActivity.set('');
-    this.resDate.set(this.classroomService.getTodayDateISO());
-    this.resStartTime.set('09:00 AM');
-    this.resEndTime.set('11:00 AM');
-    this.resHourlyRate.set(40);
+
+    const d = this.selectedDate();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    this.resDate.set(`${y}-${m}-${day}`);
+
+    this.setResTimeToNow();
+    this.resHourlyRate.set(firstRoom?.hourlyRate || 40);
+
+    // Reset recurrence state
+    this.isAllDay.set(false);
+    this.repeatOption.set('none');
+    this.repeatOccurrences.set(4);
+    this.isRecurrenceDropdownOpen.set(false);
+
     this.isReservationModalOpen.set(true);
+    document.body.style.overflow = 'hidden';
   }
 
   openEditReservationModal(res: AdminReservation): void {
@@ -487,36 +1145,92 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     this.resId.set(res.id);
     this.resRoomName.set(res.classroom);
     this.resInstructor.set(res.instructor);
+    this.selectedInstructorId.set('');
+    this.isInstructorDropdownOpen.set(false);
     this.resActivity.set(res.activity);
-    this.resDate.set(res.date === 'Today' ? this.classroomService.getTodayDateISO() : res.date);
-    this.resStartTime.set(res.startTime);
-    this.resEndTime.set(res.endTime);
-    this.resHourlyRate.set(40);
+    this.resDate.set(res.date === 'Today' ? this.classroomService.getTodayDateISO() : (res.date || this.classroomService.getTodayDateISO()));
+
+    // Reset recurrence state for edit
+    this.isAllDay.set(false);
+    this.repeatOption.set('none');
+    this.repeatOccurrences.set(4);
+    this.isRecurrenceDropdownOpen.set(false);
+
+    if (res.startTime) {
+      const matchStart = res.startTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+      if (matchStart) {
+        let h = parseInt(matchStart[1], 10);
+        const min = matchStart[2];
+        let p: 'AM' | 'PM' = (matchStart[3]?.toUpperCase() as 'AM' | 'PM') || 'AM';
+        if (!matchStart[3]) {
+          if (h >= 12) {
+            p = 'PM';
+            if (h > 12) h -= 12;
+          } else if (h === 0) {
+            h = 12;
+          }
+        }
+        this.resStartHour.set(String(h).padStart(2, '0'));
+        this.resStartMinute.set(min);
+        this.resStartPeriod.set(p);
+      }
+    }
+
+    if (res.endTime) {
+      const matchEnd = res.endTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+      if (matchEnd) {
+        let h = parseInt(matchEnd[1], 10);
+        const min = matchEnd[2];
+        let p: 'AM' | 'PM' = (matchEnd[3]?.toUpperCase() as 'AM' | 'PM') || 'AM';
+        if (!matchEnd[3]) {
+          if (h >= 12) {
+            p = 'PM';
+            if (h > 12) h -= 12;
+          } else if (h === 0) {
+            h = 12;
+          }
+        }
+        this.resEndHour.set(String(h).padStart(2, '0'));
+        this.resEndMinute.set(min);
+        this.resEndPeriod.set(p);
+      }
+    }
+
+    const roomMatch = this.rooms().find(r => r.name.toLowerCase() === (res.classroom || '').toLowerCase() || r.id === res.classroom);
+    const calculatedRate = (res.durationHours && res.durationHours > 0 && res.cost) ? Math.round(res.cost / res.durationHours) : (roomMatch?.hourlyRate || 40);
+    this.resHourlyRate.set(calculatedRate || 40);
+
     this.isReservationModalOpen.set(true);
+    document.body.style.overflow = 'hidden';
   }
 
   duplicateReservation(res: AdminReservation): void {
+    this.openEditReservationModal(res);
     this.modalMode.set('duplicate');
     this.resId.set('');
-    this.resRoomName.set(res.classroom);
-    this.resInstructor.set(res.instructor);
-    this.resActivity.set(res.activity + this.t().copySuffix);
+    this.resActivity.set(res.activity + ' ' + this.t().copySuffix);
     this.resDate.set(this.classroomService.getTodayDateISO());
-    this.resStartTime.set(res.startTime);
-    this.resEndTime.set(res.endTime);
-    this.resHourlyRate.set(40);
-    this.isReservationModalOpen.set(true);
+  }
+
+  closeReservationModal(): void {
+    this.isReservationModalOpen.set(false);
+    this.isInstructorDropdownOpen.set(false);
+    this.isRecurrenceDropdownOpen.set(false);
+    document.body.style.overflow = '';
   }
 
   saveReservation(): void {
+    if (!this.isReservationFormValid()) return;
+    this.isSaving.set(true);
+
     const instructor = this.resInstructor().trim();
     const activity = this.resActivity().trim();
-    if (!instructor || !activity) return;
-
-    const startMins = this.classroomService.parseTimeToMinutes(this.resStartTime());
-    const endMins = this.classroomService.parseTimeToMinutes(this.resEndTime());
-    const durHours = endMins > startMins ? +((endMins - startMins) / 60).toFixed(1) : 2;
-    const isOngoing = this.classroomService.isSessionActive(this.resStartTime(), this.resEndTime(), this.resDate());
+    const durHours = this.resDurationHours();
+    const totalCost = this.resTotalCost();
+    const startTimeStr = this.resStartTime();
+    const endTimeStr = this.resEndTime();
+    const dateStr = this.resDate();
+    const isOngoing = this.classroomService.isSessionActive(startTimeStr, endTimeStr, dateStr);
 
     if (this.modalMode() === 'edit' && this.resId()) {
       const existing = this.classroomService.getCardById(this.resId());
@@ -525,49 +1239,124 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
           ...existing,
           name: this.resRoomName(),
           instructor,
+          instructorId: this.selectedInstructorId() || existing.instructorId,
           activity,
-          bookingDate: this.resDate(),
-          startTime: this.resStartTime(),
-          endTime: this.resEndTime(),
+          bookingDate: dateStr,
+          startTime: startTimeStr,
+          endTime: endTimeStr,
           durationHours: durHours,
           hourlyRate: this.resHourlyRate(),
-          rental: +(durHours * this.resHourlyRate()).toFixed(2),
+          rental: totalCost,
           status: isOngoing ? 'active' : 'scheduled'
         }).subscribe({
-          error: (e) => console.error('Failed to update card:', e)
+          next: () => {
+            this.isSaving.set(false);
+            this.closeReservationModal();
+            this.workspaceService.showToast(this.isArabic() ? 'تم حفظ التعديلات بنجاح' : 'Changes saved successfully', 'success');
+            this.classroomService.syncWithBackend();
+          },
+          error: (e) => {
+            this.isSaving.set(false);
+            console.error('Failed to update card:', e);
+            const msg = e?.error?.message || (this.isArabic() ? 'فشل حفظ التعديلات' : 'Failed to update reservation');
+            this.workspaceService.showToast(msg, 'error');
+          }
         });
       } else {
         this.classroomService.updateReservation(this.resId(), {
           roomName: this.resRoomName(),
+          instructorId: this.selectedInstructorId() || undefined,
           instructorName: instructor,
           activity,
-          dateFrom: this.resDate(),
-          timeFrom: this.resStartTime(),
-          timeTo: this.resEndTime(),
-          reservationCost: +(durHours * this.resHourlyRate()).toFixed(2)
+          dateFrom: dateStr,
+          timeFrom: startTimeStr,
+          timeTo: endTimeStr,
+          reservationCost: totalCost
         }).subscribe({
-          error: (e) => console.error('Failed to update reservation:', e)
+          next: () => {
+            this.isSaving.set(false);
+            this.closeReservationModal();
+            this.workspaceService.showToast(this.isArabic() ? 'تم تعديل الحجز بنجاح' : 'Reservation updated successfully', 'success');
+            this.classroomService.syncWithBackend();
+          },
+          error: (e) => {
+            this.isSaving.set(false);
+            console.error('Failed to update reservation:', e);
+            const msg = e?.error?.message || (this.isArabic() ? 'فشل تعديل الحجز' : 'Failed to update reservation');
+            this.workspaceService.showToast(msg, 'error');
+          }
         });
       }
     } else {
       // New or Duplicate
-      const roomMatch = this.rooms().find(r => r.name.toLowerCase() === this.resRoomName().toLowerCase());
-      this.classroomService.createReservation({
-        roomId: roomMatch?.id,
-        roomName: this.resRoomName(),
-        instructorName: instructor,
-        activity,
-        dateFrom: this.resDate(),
-        dateTo: this.resDate(),
-        timeFrom: this.resStartTime(),
-        timeTo: this.resEndTime(),
-        reservationCost: +(durHours * this.resHourlyRate()).toFixed(2)
-      }).subscribe({
-        error: (e) => console.error('Failed to create reservation:', e)
-      });
-    }
+      const roomMatch = this.rooms().find(r => r.name.toLowerCase() === this.resRoomName().toLowerCase() || r.id === this.resRoomName());
+      const opt = this.repeatOption();
 
-    this.isReservationModalOpen.set(false);
+      if (opt === 'none') {
+        this.classroomService.createReservation({
+          roomId: roomMatch?.id,
+          roomName: this.resRoomName(),
+          instructorId: this.selectedInstructorId() || undefined,
+          instructorName: instructor,
+          activity,
+          dateFrom: dateStr,
+          dateTo: dateStr,
+          timeFrom: startTimeStr,
+          timeTo: endTimeStr,
+          reservationCost: totalCost
+        }).subscribe({
+          next: () => {
+            this.isSaving.set(false);
+            this.closeReservationModal();
+            this.workspaceService.showToast(this.isArabic() ? 'تم إضافة الحجز بنجاح' : 'Reservation created successfully', 'success');
+            this.classroomService.syncWithBackend();
+          },
+          error: (e) => {
+            this.isSaving.set(false);
+            console.error('Failed to create reservation:', e);
+            const msg = e?.error?.message || (this.isArabic() ? 'فشل إضافة الحجز' : 'Failed to create reservation');
+            this.workspaceService.showToast(msg, 'error');
+          }
+        });
+      } else {
+        // Recurring reservations
+        const datesToBook = this.generatedRecurrenceDates();
+
+        const requests = datesToBook.map(recDate => {
+          return this.classroomService.createReservation({
+            roomId: roomMatch?.id,
+            roomName: this.resRoomName(),
+            instructorId: this.selectedInstructorId() || undefined,
+            instructorName: instructor,
+            activity,
+            dateFrom: recDate,
+            dateTo: recDate,
+            timeFrom: startTimeStr,
+            timeTo: endTimeStr,
+            reservationCost: totalCost
+          });
+        });
+
+        forkJoin(requests).subscribe({
+          next: () => {
+            this.isSaving.set(false);
+            this.closeReservationModal();
+            const msg = this.isArabic()
+              ? `تم إنشاء ${datesToBook.length} مواعيد دورية بنجاح`
+              : `Created ${datesToBook.length} recurring bookings successfully`;
+            this.workspaceService.showToast(msg, 'success');
+            this.classroomService.syncWithBackend();
+          },
+          error: (e) => {
+            this.isSaving.set(false);
+            console.error('Failed to create recurring reservations:', e);
+            const msg = e?.error?.message || (this.isArabic() ? 'حدث خطأ أثناء حفظ بعض الحجوزات الدورية' : 'Error saving some recurring bookings');
+            this.workspaceService.showToast(msg, 'error');
+            this.classroomService.syncWithBackend();
+          }
+        });
+      }
+    }
   }
 
   deleteReservation(res: AdminReservation): void {

@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, effect } from '@angular/core';
 import { RouterLink, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LanguageService } from '../../../core/services/language.service';
@@ -19,6 +19,35 @@ export class AddClassroomComponent {
   t = this.langService.t;
   isArabic = this.langService.isArabic;
   defaultRoomImage = '/images/rooms/room-workshop.jpg';
+
+  // Instructors from Backend API
+  instructors = this.classroomService.instructors;
+  selectedInstructorId = signal<string | null>(null);
+  showInstructorSuggestions = signal(false);
+
+  filteredInstructors = computed(() => {
+    const term = this.instructor().toLowerCase().trim();
+    const list = this.instructors();
+    if (!term) return list.slice(0, 8);
+    return list.filter(i =>
+      (i.name && i.name.toLowerCase().includes(term)) ||
+      (i.phoneNumber && i.phoneNumber.includes(term))
+    ).slice(0, 8);
+  });
+
+  selectInstructor(ins: any): void {
+    this.instructor.set(ins.name || '');
+    this.selectedInstructorId.set(ins.id || null);
+    if (ins.phoneNumber) this.phoneNumber.set(ins.phoneNumber);
+    if (ins.email) this.emailAddress.set(ins.email);
+    this.showInstructorSuggestions.set(false);
+  }
+
+  hideSuggestionsWithDelay(): void {
+    setTimeout(() => {
+      this.showInstructorSuggestions.set(false);
+    }, 200);
+  }
 
   getRoomImage(imageUrl?: string | null): string {
     if (imageUrl && imageUrl.trim()) return imageUrl.trim();
@@ -67,6 +96,8 @@ export class AddClassroomComponent {
     const cleaned = input.value.replace(/[^a-zA-Z\s\u0600-\u06FF.]/g, '').substring(0, 50);
     input.value = cleaned;
     this.instructor.set(cleaned);
+    this.selectedInstructorId.set(null);
+    this.showInstructorSuggestions.set(true);
   }
 
   onActivityInput(event: Event): void {
@@ -126,7 +157,18 @@ export class AddClassroomComponent {
 
   // Rooms
   rooms = this.classroomService.rooms;
-  selectedRoomId = signal<string>('nook-1');
+  selectedRoomId = signal<string>('');
+
+  constructor() {
+    effect(() => {
+      const roomList = this.rooms();
+      if (roomList.length > 0 && !this.selectedRoomId()) {
+        const first = roomList[0];
+        this.selectedRoomId.set(first.id);
+        this.hourlyRate.set(first.hourlyRate);
+      }
+    });
+  }
 
   // Discount Toggle
   isDiscountApplied = signal(false);
@@ -181,6 +223,8 @@ export class AddClassroomComponent {
 
   clearInstructor(): void {
     this.instructor.set('');
+    this.selectedInstructorId.set(null);
+    this.showInstructorSuggestions.set(false);
   }
 
   setStartTimeToNow(): void {
@@ -290,6 +334,7 @@ export class AddClassroomComponent {
     const newCard: ClassroomCard = {
       id: '',
       roomId: selectedRoom?.id,
+      instructorId: this.selectedInstructorId() || undefined,
       name: selectedRoom?.name || '',
       activity: this.activitySubject(),
       instructor: this.instructor(),
