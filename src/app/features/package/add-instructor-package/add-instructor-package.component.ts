@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { LanguageService } from '../../../core/services/language.service';
 import { PackageService } from '../../../core/services/package.service';
+import { ShiftService } from '../../../core/services/shift.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { InstructorApiService } from '../../../core/services/api/instructor-api.service';
 import { PackageMemberOption, PaymentMethod, ValidityPresetOption } from '../../../core/models/package.model';
@@ -20,6 +21,7 @@ export class AddInstructorPackageComponent {
   private langService = inject(LanguageService);
   protected packageService = inject(PackageService);
   protected settingsService = inject(SettingsService);
+  private shiftService = inject(ShiftService);
   private instructorApi = inject(InstructorApiService);
   private router = inject(Router);
 
@@ -116,7 +118,7 @@ export class AddInstructorPackageComponent {
   couponCode = signal<string>('');
 
   paymentMethod = signal<PaymentMethod>('cash');
-  amountReceived = signal<number | null>(1000);
+  amountReceived = signal<number | null>(null);
   notes = signal<string>('');
   submitted = signal<boolean>(false);
 
@@ -189,6 +191,20 @@ export class AddInstructorPackageComponent {
     const recv = this.amountReceived();
     if (recv === null || recv === undefined || isNaN(recv)) return false;
     return recv < this.finalTotal();
+  });
+
+  isPaymentValid = computed(() => {
+    if (this.paymentMethod() === 'cash') {
+      const recv = this.amountReceived();
+      return recv !== null && recv !== undefined && !isNaN(recv) && recv >= this.finalTotal() && recv > 0;
+    }
+    return true;
+  });
+
+  isFormValid = computed(() => {
+    const hasMembers = this.selectedMembers().length > 0;
+    const validTotal = this.finalTotal() >= 0 && !isNaN(this.finalTotal());
+    return hasMembers && validTotal && this.isPaymentValid();
   });
 
   instructorMemberOptions = computed(() => {
@@ -277,6 +293,9 @@ export class AddInstructorPackageComponent {
   }
 
   savePackage(): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إضافة باقة محاضر' : 'Create Instructor Package')) {
+      return;
+    }
     this.submitted.set(true);
     const members = this.selectedMembers();
 
@@ -380,6 +399,9 @@ export class AddInstructorPackageComponent {
   }
 
   openQuickAddInstructorModal(initialName?: string): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إضافة محاضر جديد' : 'Add New Instructor')) {
+      return;
+    }
     this.quickInstructorName.set(initialName || this.memberSearchQuery().trim());
     this.quickInstructorPhone.set('');
     this.quickInstructorSpecialty.set('');

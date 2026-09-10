@@ -300,11 +300,17 @@
           <input
             type="number"
             class="custom-input"
+            [class.input-error]="!!valueError()"
+            [min]="1"
+            [max]="formType() === 'percentage' ? 100 : 99999"
             [placeholder]="formType() === 'percentage' ? '25' : '50'"
             [ngModel]="formValue()"
             (ngModelChange)="formValue.set($event)"
             name="formValue"
           />
+          @if (valueError(); as vErr) {
+            <span class="field-error-msg">{{ vErr }}</span>
+          }
         </div>
 
         <!-- Applicable Scope -->
@@ -365,6 +371,7 @@
 
         <app-primary-button
           [text]="t().saveCode"
+          [disabled]="isFormInvalid() || isSaving()"
           type="submit"
         ></app-primary-button>
       </div>

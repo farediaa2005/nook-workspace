@@ -12,6 +12,7 @@ export class PrimaryButtonComponent {
   text = input<string>('');
   type = input<'button' | 'submit'>('button');
   fullWidth = input<boolean>(false);
+  disabled = input<boolean>(false);
   clicked = output<MouseEvent>();
 
   onClick(event: MouseEvent): void {

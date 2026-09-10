@@ -176,6 +176,12 @@ export interface CheckoutClassroomDto {
   changeDue?: number;
 }
 
+export enum RecurrenceFrequency {
+  Daily = 1,
+  Weekly = 2,
+  Monthly = 3
+}
+
 /** Reservation DTO from /api/Reservations */
 export interface ReservationDto {
   id: string;
@@ -195,6 +201,14 @@ export interface ReservationDto {
   instructorName?: string | null;
   instructorPhone?: string | null;
   instructorPhoneNumber?: string | null;
+  recurrenceFrequency?: RecurrenceFrequency | number | null;
+  recurrenceInterval?: number;
+  daysOfWeek?: number[] | string | null;
+  totalSessions?: number | null;
+  isOngoing?: boolean;
+  canceledDates?: string[];
+  upcomingSessions?: string[];
+  status?: SessionStatus | number;
 }
 
 /** Create reservation request — POST /api/Reservations */
@@ -211,6 +225,11 @@ export interface CreateReservationDto {
   activity?: string | null;
   note?: string | null;
   instructorId?: string | null;
+  recurrenceFrequency?: RecurrenceFrequency | number | null;
+  recurrenceInterval?: number;
+  daysOfWeek?: number[] | string | null;
+  totalSessions?: number | null;
+  isOngoing?: boolean;
   // UI convenience
   instructorName?: string;
   instructorPhone?: string;
@@ -219,6 +238,58 @@ export interface CreateReservationDto {
 
 /** Update reservation request — PUT /api/Reservations/{id} */
 export interface UpdateReservationDto extends Partial<CreateReservationDto> {}
+
+/** Standalone Reservation Conflict Check Request — POST /api/Reservations/check-conflict */
+export interface CheckReservationConflictDto {
+  roomId: string;
+  dateFrom: string;
+  dateTo?: string;
+  timeFrom: string;
+  timeTo: string;
+  recurrenceFrequency?: RecurrenceFrequency | number;
+  recurrenceInterval?: number;
+  daysOfWeek?: number[];
+  totalSessions?: number;
+  isOngoing?: boolean;
+  excludeReservationId?: string | null;
+}
+
+/** Individual Conflict Details */
+export interface ReservationConflictItemDto {
+  date: string;
+  timeFrom: string;
+  timeTo: string;
+  conflictType: 'Classroom' | 'Workspace' | 'Reservation' | string;
+  conflictingEntityId?: string;
+  conflictingEntityName?: string;
+  reason?: string;
+}
+
+/** Conflict Check Result Response */
+export interface ReservationConflictCheckResultDto {
+  hasConflict: boolean;
+  message?: string;
+  totalDatesChecked: number;
+  conflictingDatesCount: number;
+  conflicts: ReservationConflictItemDto[];
+  availableDates: string[];
+  conflictingDates: string[];
+}
+
+/** Cancel a day from reservation interval — POST /api/Reservations/{id}/cancel-day */
+export interface CancelReservationDayDto {
+  date: string;
+  reason?: string;
+}
+
+/** Create Classroom Session from Reservation — POST /api/Reservations/{id}/create-classroom */
+export interface CreateClassroomFromReservationDto {
+  date: string;
+  timeFrom?: string | null;
+  timeTo?: string | null;
+  expectedAttendees?: number;
+  note?: string;
+}
 
 /** Booking (Admin reservation) DTO from /api/Bookings */
 export interface BookingDto {
@@ -429,6 +500,8 @@ export interface ClassroomOvertimeResult {
 /** Full reservation record used by the admin calendar and reservations table */
 export interface AdminReservation {
   id: string;
+  reservationId?: string;
+  occurrenceDate?: string;
   displayId: string;
   instructor: string;
   instructorTitle?: string;
@@ -445,6 +518,14 @@ export interface AdminReservation {
   cost: number;
   status: 'active' | 'upcoming' | 'completed' | 'cancelled';
   colorTheme: 'yellow' | 'blue' | 'purple' | 'emerald' | 'orange' | 'rose';
+  isRecurring?: boolean;
+  recurrenceFrequency?: RecurrenceFrequency | number | null;
+  recurrenceInterval?: number;
+  daysOfWeek?: number[] | string | null;
+  totalSessions?: number | null;
+  isOngoing?: boolean;
+  canceledDates?: string[];
+  upcomingSessions?: string[];
   costBreakdown: {
     baseRate: number;
     baseRateLabel: string;

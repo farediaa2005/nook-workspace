@@ -78,7 +78,7 @@ export interface StudentDirectoryItem {
 export class ShowStudentComponent implements OnInit, OnDestroy {
   private langService = inject(LanguageService);
   protected workspaceService = inject(WorkspaceService);
-  private shiftService = inject(ShiftService);
+  protected shiftService = inject(ShiftService);
   private authService = inject(AuthService);
   private studentApi = inject(StudentApiService);
   private cateringService = inject(CateringService);
@@ -94,6 +94,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.workspaceService.loadFromBackend();
+    this.packageService.syncPackagesFromBackend();
     this.timerInterval = setInterval(() => {
       this.currentLiveTime.set(new Date());
     }, 1000);
@@ -385,6 +386,8 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     for (const p of profiles) {
       const key = getOrCreateKey(p.phone, p.name, p.id);
       const name = clean(p.name) || 'طالب';
+      const faculty = clean(p.faculty);
+      const college = clean(p.college);
       studentMap.set(key, {
         id: p.id || `STU-${Math.abs(key.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)).toString().slice(0, 4)}`,
         studentId: p.id,
@@ -393,8 +396,8 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
         phone: clean(p.phone),
         whatsapp: clean(p.whatsapp) || clean(p.phone),
         email: clean(p.email),
-        faculty: clean(p.faculty) || clean(p.college) || 'عام',
-        college: clean(p.college) || clean(p.faculty) || 'عام',
+        faculty: faculty || '',
+        college: college && college !== faculty ? college : '',
         currentStatus: 'offline',
         totalVisits: 0,
         totalSpent: 0
@@ -403,12 +406,28 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
 
     // 2. Ingest packages
     for (const pkg of studentPkgs) {
-      const key = getOrCreateKey(pkg.memberPhone, pkg.memberNameAr || pkg.memberNameEn, pkg.id);
-      const existing = studentMap.get(key);
-      const pkgName = pkg.packageNameAr || pkg.packageNameEn || 'باقة طلاب';
+      const pkgStudentId = pkg.memberId;
+      const pkgPhone = clean(pkg.memberPhone);
+      const pkgName = clean(pkg.memberNameAr || pkg.memberNameEn);
+
+      // Match student by backend student ID first, then phone, then name
+      let existing: StudentDirectoryItem | undefined;
+      if (pkgStudentId) {
+        existing = Array.from(studentMap.values()).find(s => s.studentId === pkgStudentId || s.id === pkgStudentId);
+      }
+      if (!existing && pkgPhone && pkgPhone.length >= 8) {
+        const pKey = pkgPhone;
+        existing = studentMap.get(pKey);
+      }
+      if (!existing && pkgName) {
+        const nKey = pkgName.toLowerCase();
+        existing = studentMap.get(nKey);
+      }
+
+      const pkgNameStr = pkg.packageNameAr || pkg.packageNameEn || 'باقة طلاب';
       const pkgInfo = {
         hasPackage: true,
-        packageName: pkgName,
+        packageName: pkgNameStr,
         packageNameAr: pkg.packageNameAr,
         packageNameEn: pkg.packageNameEn,
         remainingHours: pkg.remainingHours,
@@ -418,19 +437,24 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
 
       if (existing) {
         existing.packageInfo = pkgInfo;
-        if (!existing.phone && pkg.memberPhone) existing.phone = clean(pkg.memberPhone);
+        if (!existing.phone && pkgPhone && pkgPhone !== '-') existing.phone = pkgPhone;
         if (!existing.email && pkg.memberEmail) existing.email = clean(pkg.memberEmail);
+        if (!existing.faculty && pkg.memberSubAr && pkg.memberSubAr !== '-') {
+          existing.faculty = pkg.memberSubAr;
+        }
       } else {
-        const name = clean(pkg.memberNameAr || pkg.memberNameEn) || 'مشترك باقة';
+        const name = pkgName || 'مشترك باقة';
+        const key = getOrCreateKey(pkgPhone, name, pkgStudentId || pkg.id);
         studentMap.set(key, {
-          id: `PKG-${pkg.id}`,
+          id: pkgStudentId || `PKG-${pkg.id}`,
+          studentId: pkgStudentId,
           name,
           avatar: generateAvatarSvg(name),
-          phone: clean(pkg.memberPhone),
-          whatsapp: clean(pkg.memberPhone),
+          phone: pkgPhone !== '-' ? pkgPhone : '',
+          whatsapp: pkgPhone !== '-' ? pkgPhone : '',
           email: clean(pkg.memberEmail),
-          faculty: 'مشترك باقة',
-          college: 'مشترك باقة',
+          faculty: pkg.memberSubAr && pkg.memberSubAr !== '-' ? pkg.memberSubAr : '',
+          college: '',
           currentStatus: 'offline',
           packageInfo: pkgInfo,
           totalVisits: 0,
@@ -453,15 +477,14 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
           name,
           avatar: s.avatar || generateAvatarSvg(name),
           phone: clean(s.phone),
-          whatsapp: clean(s.whatsapp) || clean(s.phone),
+          whatsapp: clean(s.whatsapp || s.phone),
           email: clean(s.email),
-          faculty: clean(s.faculty) || clean(s.college) || 'عام',
-          college: clean(s.college) || clean(s.faculty) || 'عام',
+          faculty: clean(s.faculty) || '',
+          college: '',
           currentStatus: 'offline',
           totalVisits: 0,
           totalSpent: 0
         };
-        studentMap.set(key, student);
       }
 
       student.totalVisits += 1;
@@ -1288,6 +1311,38 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   checkoutsToday = this.workspaceService.checkoutsToday;
   isLoading = this.workspaceService.isLoading;
 
+  // Filtered metrics matching selected date filter (Issue #3)
+  filteredTotalVisits = computed(() => this.filteredStudents().length);
+
+  filteredTotalHours = computed(() => {
+    let totalMins = 0;
+    for (const s of this.filteredStudents()) {
+      totalMins += parseDurationMinutes(this.getLiveStudentDuration(s));
+    }
+    return `${(totalMins / 60).toFixed(1)} ${this.isArabic() ? 'ساعة' : 'hrs'}`;
+  });
+
+  filteredTotalRevenue = computed(() => {
+    let total = 0;
+    for (const s of this.filteredStudents()) {
+      total += this.getStudentTotalCost(s);
+    }
+    return `${total.toFixed(2)} ${this.t().egp}`;
+  });
+
+  filteredAvgSession = computed(() => {
+    const list = this.filteredStudents();
+    if (list.length === 0) return '0h 00m';
+    let totalMins = 0;
+    for (const s of list) {
+      totalMins += parseDurationMinutes(this.getLiveStudentDuration(s));
+    }
+    const avg = totalMins / list.length;
+    const h = Math.floor(avg / 60);
+    const m = Math.round(avg % 60);
+    return `${h}h ${String(m).padStart(2, '0')}m`;
+  });
+
   // Filtered student list
   filteredStudents = computed(() => {
     const query = this.searchQuery().toLowerCase().trim();
@@ -1361,6 +1416,9 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   // CHECK-IN (ADD STUDENT) MODAL HANDLERS
   // ----------------------------------------------------
   openCheckInModal(): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تسجيل دخول طالب' : 'Student Check-in')) {
+      return;
+    }
     this.ciName.set('');
     this.ciPhone.set('');
     this.ciEmail.set('');
@@ -1425,6 +1483,18 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
 
   onPhoneInput(val: string): void {
     this.ciPhone.set(val);
+    const cleanP = val.trim().replace(/[^\d]/g, '');
+    if (cleanP && cleanP.length === 11) {
+      const existing = this.workspaceService.getStudentProfile(cleanP);
+      if (existing) {
+        if (!this.ciName() && existing.name) this.ciName.set(existing.name);
+        if (!this.ciWhatsapp() && existing.whatsapp) this.ciWhatsapp.set(existing.whatsapp);
+        if (!this.ciEmail() && existing.email) this.ciEmail.set(existing.email);
+        if (!this.ciFaculty() && existing.faculty) this.ciFaculty.set(existing.faculty);
+        if (!this.ciCollege() && existing.college) this.ciCollege.set(existing.college);
+        this.ciExistingStudentFound.set(true);
+      }
+    }
     if (this.ciSubmitted()) {
       this.validateCheckIn();
     }
@@ -1455,20 +1525,15 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     if (!phone) {
       this.ciPhoneError.set(this.isArabic() ? 'يرجى إدخال رقم الهاتف' : 'Phone number is required');
       isValid = false;
-    } else if (phone.length !== 11 || !/^\d{11}$/.test(phone)) {
-      this.ciPhoneError.set(
-        this.isArabic()
-          ? 'يجب أن يتكون رقم الهاتف من 11 رقماً (مثال: 01012345678)'
-          : 'Phone number must be exactly 11 digits (e.g. 01012345678)'
-      );
+    } else if (!/^01[0-9]{9}$/.test(phone.replace(/\s+/g, ''))) {
+      this.ciPhoneError.set(this.isArabic() ? 'رقم الهاتف يجب أن يتكون من 11 رقم ويبدأ بـ 01' : 'Phone must be 11 digits starting with 01');
       isValid = false;
     } else {
       this.ciPhoneError.set(null);
     }
 
-    // 3. Email validation (optional unless entered)
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (email && !emailRegex.test(email)) {
+    // 3. Email validation (optional, but if filled must be valid)
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       this.ciEmailError.set(this.t().validEmailFormatRequired);
       isValid = false;
     } else {
@@ -1492,8 +1557,24 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   }
 
   submitCheckIn(): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تسجيل دخول طالب' : 'Student Check-in')) {
+      return;
+    }
     this.ciSubmitted.set(true);
     if (!this.validateCheckIn()) {
+      return;
+    }
+
+    // Blacklist check before submitting
+    const studentPhone = this.ciPhone().trim();
+    const isBlacklisted = this.workspaceService.blacklist().some(b => b.phone && b.phone === studentPhone);
+    if (isBlacklisted) {
+      this.workspaceService.showToast(
+        this.isArabic()
+          ? 'عفواً، لا يمكن تسجيل الدخول لأن هذا الطالب موجود في قائمة الحظر. يرجى فك الحظر أولاً.'
+          : 'Check-in denied: this student is on the blacklist. Please unblock first.',
+        'error'
+      );
       return;
     }
 
@@ -1518,8 +1599,8 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       phone: this.ciPhone().trim(),
       email: this.ciEmail().trim(),
       whatsapp: this.ciWhatsapp().trim() || this.ciPhone().trim(),
-      college: this.ciCollege().trim() || 'General',
-      faculty: this.ciFaculty().trim() || 'General',
+      college: this.ciCollege().trim(),
+      faculty: this.ciFaculty().trim(),
       date: this.ciDate(),
       checkInTime: this.formatTimeDisplay(this.ciTime()),
       expectedCheckout: this.ciExpectedCheckout() ? this.formatTimeDisplay(this.ciExpectedCheckout()) : undefined,
@@ -1543,6 +1624,9 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   // CHECKOUT MODAL HANDLERS
   // ----------------------------------------------------
   openCheckoutModal(student: ActiveStudentSession): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'دفع حساب ومغادرة الطالب' : 'Student Checkout')) {
+      return;
+    }
     this.closeActionMenu();
     this.studentToCheckout.set(student);
 
@@ -1768,6 +1852,9 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   }
 
   openRegisterModal(): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تسجيل طالب جديد' : 'Register New Student')) {
+      return;
+    }
     this.regName.set('');
     this.regPhone.set('');
     this.regWhatsapp.set('');
@@ -1782,6 +1869,9 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   }
 
   submitRegisterStudent(): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تسجيل طالب جديد' : 'Register New Student')) {
+      return;
+    }
     const name = this.regName().trim();
     const phone = this.regPhone().trim();
     if (!name || !phone) {
@@ -1910,6 +2000,9 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   }
 
   openStudentCateringModal(student: ActiveStudentSession): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إضافة طلب ضيافة' : 'Add Catering Order')) {
+      return;
+    }
     this.activeStudentForCatering.set(student);
     this.cateringTargetStudent.set({
       id: student.id,
@@ -1978,6 +2071,9 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   }
 
   openAddCateringModal(): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إضافة صنف كاترنج' : 'Add Catering Item')) {
+      return;
+    }
     const student = this.studentToCheckout();
     if (student) {
       this.openStudentCateringModal(student);
@@ -2068,6 +2164,9 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   }
 
   openBlockModal(student: ActiveStudentSession): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حظر طالب' : 'Block Student')) {
+      return;
+    }
     this.closeActionMenu();
     // Strict Requirement 7: Cannot block student while checked-in
     if (student.status === 'active') {
@@ -2124,6 +2223,9 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   });
 
   openDeleteModal(student: ActiveStudentSession): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حذف جلسة الطالب' : 'Delete Student Session')) {
+      return;
+    }
     this.closeActionMenu();
     this.deleteShiftPassword.set('');
     this.deletePasswordError.set(null);
@@ -2188,6 +2290,9 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   }
 
   openEditModal(student: ActiveStudentSession): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تعديل جلسة الطالب' : 'Edit Student Session')) {
+      return;
+    }
     this.closeActionMenu();
     this.studentToEdit.set(student);
 
@@ -2250,6 +2355,20 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     }
     this.currentPage.set(1);
     this.closeDateDropdown();
+
+    const now = new Date();
+    const todayISO = getTodayDateISO();
+
+    if (option === 'today') {
+      this.workspaceService.fetchSessions({ DateFrom: todayISO, DateTo: todayISO });
+    } else if (option === 'yesterday') {
+      const yest = new Date(now);
+      yest.setDate(now.getDate() - 1);
+      const yestISO = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
+      this.workspaceService.fetchSessions({ DateFrom: yestISO, DateTo: yestISO });
+    } else if (option === 'all') {
+      this.workspaceService.fetchSessions();
+    }
   }
 
   onCustomDateSelect(dateStr: string): void {
@@ -2258,6 +2377,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       this.customDateValue.set(dateStr);
       this.currentPage.set(1);
       this.closeDateDropdown();
+      this.workspaceService.fetchSessions({ DateFrom: dateStr, DateTo: dateStr });
     }
   }
 

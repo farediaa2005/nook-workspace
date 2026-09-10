@@ -7,6 +7,7 @@ import { PackageService } from '../../../core/services/package.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { StudentApiService } from '../../../core/services/api/student-api.service';
 import { FacultyApiService } from '../../../core/services/api/faculty-api.service';
+import { ShiftService } from '../../../core/services/shift.service';
 import { CouponApiService } from '../../../core/services/api/coupon-api.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { FacultyDto } from '../../../core/models/faculty.model';
@@ -24,6 +25,7 @@ export class AddStudentPackageComponent implements OnInit {
   private langService = inject(LanguageService);
   protected packageService = inject(PackageService);
   protected settingsService = inject(SettingsService);
+  private shiftService = inject(ShiftService);
   private couponApi = inject(CouponApiService);
   private studentApi = inject(StudentApiService);
   private facultyApi = inject(FacultyApiService);
@@ -133,7 +135,7 @@ export class AddStudentPackageComponent implements OnInit {
   couponCode = signal<string>('');
 
   paymentMethod = signal<PaymentMethod>('cash');
-  amountReceived = signal<number | null>(250);
+  amountReceived = signal<number | null>(null);
   notes = signal<string>('');
   submitted = signal<boolean>(false);
 
@@ -206,6 +208,20 @@ export class AddStudentPackageComponent implements OnInit {
     const recv = this.amountReceived();
     if (recv === null || recv === undefined || isNaN(recv)) return false;
     return recv < this.finalTotal();
+  });
+
+  isPaymentValid = computed(() => {
+    if (this.paymentMethod() === 'cash') {
+      const recv = this.amountReceived();
+      return recv !== null && recv !== undefined && !isNaN(recv) && recv >= this.finalTotal() && recv > 0;
+    }
+    return true;
+  });
+
+  isFormValid = computed(() => {
+    const hasMembers = this.selectedMembers().length > 0;
+    const validTotal = this.finalTotal() >= 0 && !isNaN(this.finalTotal());
+    return hasMembers && validTotal && this.isPaymentValid();
   });
 
   studentMemberOptions = computed(() => {
@@ -302,6 +318,9 @@ export class AddStudentPackageComponent implements OnInit {
   }
 
   savePackage(): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إضافة باقة طالب' : 'Create Student Package')) {
+      return;
+    }
     this.submitted.set(true);
     const members = this.selectedMembers();
 
@@ -405,6 +424,9 @@ export class AddStudentPackageComponent implements OnInit {
   }
 
   openQuickAddStudentModal(initialName?: string): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إضافة طالب جديد' : 'Add New Student')) {
+      return;
+    }
     this.quickStudentName.set(initialName || this.memberSearchQuery().trim());
     this.quickStudentPhone.set('');
     this.quickStudentWhatsapp.set('');

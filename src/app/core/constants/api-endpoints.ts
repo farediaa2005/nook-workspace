@@ -162,7 +162,9 @@ export const API_ENDPOINTS = {
 
   SHIFTS: {
     LIST: '/api/Shifts',
+    CURRENT: '/api/Shifts/current',
     BY_ID: (id: string) => `/api/Shifts/${id}`,
+    RECALCULATE: (id: string) => `/api/Shifts/${id}/recalculate`,
     OPEN: (userId: string) => `/api/Shifts/open/${userId}`,
     CLOSE: (id: string) => `/api/Shifts/${id}/close`,
     ITEMS: (id: string) => `/api/Shifts/${id}/items`,
@@ -187,6 +189,9 @@ export const API_ENDPOINTS = {
     LIST: '/api/Reservations',
     BY_ID: (id: string) => `/api/Reservations/${id}`,
     BY_INSTRUCTOR: (instructorId: string) => `/api/Reservations/instructor/${instructorId}`,
+    CHECK_CONFLICT: '/api/Reservations/check-conflict',
+    CANCEL_DAY: (id: string) => `/api/Reservations/${id}/cancel-day`,
+    CREATE_CLASSROOM: (id: string) => `/api/Reservations/${id}/create-classroom`,
   },
 
   WALLET: {

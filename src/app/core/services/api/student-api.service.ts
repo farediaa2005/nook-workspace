@@ -10,6 +10,9 @@ export interface BackendStudentDto {
   phoneNumber?: string | null;
   phone?: string | null;
   whatsapp?: string | null;
+  email?: string | null;
+  college?: string | null;
+  university?: string | null;
   canBook: boolean;
   walletBalance?: number;
   walletAmount?: number;
@@ -28,6 +31,9 @@ export interface CreateStudentPayload {
   name: string;
   phoneNumber?: string | null;
   whatsapp?: string | null;
+  email?: string | null;
+  college?: string | null;
+  university?: string | null;
   roomId?: string | null;
   zone?: number;
   addedBy?: string | null;
@@ -40,6 +46,9 @@ export interface UpdateStudentPayload {
   name?: string;
   phoneNumber?: string | null;
   whatsapp?: string | null;
+  email?: string | null;
+  college?: string | null;
+  university?: string | null;
   facultyId?: string | null;
   parentId?: string | null;
   canBook?: boolean;

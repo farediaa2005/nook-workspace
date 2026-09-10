@@ -354,8 +354,12 @@ export class WorkspaceCheckoutComponent implements OnInit {
   }
 
   saveDiscount(): void {
+    let val = Math.max(0, +this.newDiscountInput() || 0);
+    if (this.modalDiscountMode() === 'percent') {
+      val = Math.min(100, val);
+    }
     this.discountMode.set(this.modalDiscountMode());
-    this.discountValue.set(this.newDiscountInput());
+    this.discountValue.set(val);
     this.showAddDiscountModal.set(false);
     const label = this.discountMode() === 'percent' ? `${this.discountValue()}%` : `${this.discountValue()} ج.م`;
     this.workspaceService.showToast(`تم تعديل الخصم إلى ${label}`, 'info');

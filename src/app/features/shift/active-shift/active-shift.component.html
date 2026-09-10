@@ -87,7 +87,15 @@
     </div>
 
     <!-- Header Actions CTA -->
-    <div class="header-actions">
+    <div class="header-actions" style="display: flex; gap: 10px; align-items: center;">
+      <button type="button" class="btn-add-item" (click)="openAddItemModal()" style="background: rgba(245, 185, 33, 0.15); color: #f5b921; border: 1px solid rgba(245, 185, 33, 0.3); border-radius: 10px; padding: 10px 16px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span>{{ isArabic() ? 'إضافة مصروف / بند' : 'Add Item / Expense' }}</span>
+      </button>
+
       <button class="btn-close-shift" (click)="openCloseShiftModal()">
         <svg viewBox="0 0 24 24" fill="none" class="btn-icon">
           <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2"/>
@@ -509,6 +517,119 @@
       (cancelled)="closeModal()"
       (closed)="onShiftClosed()"
     ></app-end-of-shift-modal>
+  }
+
+  <!-- Add Shift Item / Expense Modal (Issue #15) -->
+  @if (showAddItemModal()) {
+    <div class="modal-overlay" style="position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 16px;" (click)="closeAddItemModal()">
+      <div class="modal-dialog-box" style="background: var(--surface); border: 1px solid var(--border); border-radius: 20px; width: 100%; max-width: 480px; padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.4);" (click)="$event.stopPropagation()">
+        <!-- Header -->
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
+          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text);">
+            {{ isArabic() ? 'إضافة بند جديد إلى الوردية' : 'Add Shift Item / Transaction' }}
+          </h3>
+          <button type="button" (click)="closeAddItemModal()" style="background: transparent; border: none; font-size: 1.5rem; color: var(--text-dim); cursor: pointer;">&times;</button>
+        </div>
+
+        <form (ngSubmit)="submitAddItem()" style="display: flex; flex-direction: column; gap: 16px;">
+          <!-- Type Toggle: Expense vs Revenue -->
+          <div>
+            <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--text-dim); margin-bottom: 6px;">
+              {{ isArabic() ? 'نوع البند' : 'Item Type' }}
+            </label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: var(--surface-2); padding: 4px; border-radius: 10px; border: 1px solid var(--border);">
+              <button
+                type="button"
+                [style.background]="newItemType() === 'expense' ? '#ef4444' : 'transparent'"
+                [style.color]="newItemType() === 'expense' ? '#ffffff' : 'var(--text)'"
+                style="padding: 8px; border-radius: 8px; border: none; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s;"
+                (click)="newItemType.set('expense'); newItemCategory.set('expense')"
+              >
+                {{ isArabic() ? 'مصروفات (خارج)' : 'Expense (Outflow)' }}
+              </button>
+              <button
+                type="button"
+                [style.background]="newItemType() === 'revenue' ? '#10b981' : 'transparent'"
+                [style.color]="newItemType() === 'revenue' ? '#ffffff' : 'var(--text)'"
+                style="padding: 8px; border-radius: 8px; border: none; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s;"
+                (click)="newItemType.set('revenue'); newItemCategory.set('other')"
+              >
+                {{ isArabic() ? 'إيراد (داخل)' : 'Revenue (Inflow)' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Amount -->
+          <div>
+            <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--text-dim); margin-bottom: 6px;">
+              {{ isArabic() ? 'المبلغ (جنيه)' : 'Amount (EGP)' }} *
+            </label>
+            <input
+              type="number"
+              step="0.5"
+              min="0.01"
+              required
+              [placeholder]="isArabic() ? 'أدخل المبلغ...' : 'Enter amount...'"
+              [ngModel]="newItemAmount()"
+              (ngModelChange)="newItemAmount.set($event)"
+              name="itemAmount"
+              style="width: 100%; padding: 10px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 1rem; font-weight: 700; outline: none;"
+            />
+          </div>
+
+          <!-- Payment Way / Channel -->
+          <div>
+            <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--text-dim); margin-bottom: 6px;">
+              {{ isArabic() ? 'طريقة / قناة الدفع' : 'Payment Method / Channel' }}
+            </label>
+            <select
+              [ngModel]="newItemPayWay()"
+              (ngModelChange)="newItemPayWay.set($event)"
+              name="itemPayWay"
+              style="width: 100%; padding: 10px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 0.9rem; outline: none; font-weight: 600;"
+            >
+              <option value="cash">{{ isArabic() ? 'خزينة نقدية (Cash)' : 'Cash Drawer' }}</option>
+              <option value="vodafone">{{ isArabic() ? 'فودافون كاش (Vodafone Cash)' : 'Vodafone Cash' }}</option>
+              <option value="instapay">{{ isArabic() ? 'إنستاباي (InstaPay)' : 'InstaPay' }}</option>
+              <option value="fawry">{{ isArabic() ? 'فوري (Fawry / POS)' : 'Fawry / POS' }}</option>
+            </select>
+          </div>
+
+          <!-- Description / Details -->
+          <div>
+            <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--text-dim); margin-bottom: 6px;">
+              {{ isArabic() ? 'الوصف / تفاصيل البند' : 'Description / Details' }}
+            </label>
+            <input
+              type="text"
+              [placeholder]="isArabic() ? 'مثال: مصاريف ضيافة، أدوات مكتبية...' : 'e.g. Catering expenses, stationery...'"
+              [ngModel]="newItemDescription()"
+              (ngModelChange)="newItemDescription.set($event)"
+              name="itemDescription"
+              style="width: 100%; padding: 10px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 0.9rem; outline: none;"
+            />
+          </div>
+
+          <!-- Form Actions -->
+          <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+            <button
+              type="button"
+              (click)="closeAddItemModal()"
+              style="padding: 10px 18px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-weight: 600; cursor: pointer;"
+            >
+              {{ t().cancelBtn }}
+            </button>
+            <button
+              type="submit"
+              [disabled]="!newItemAmount() || newItemAmount()! <= 0"
+              style="padding: 10px 22px; border-radius: 10px; border: none; background: #f5b921; color: #16130a; font-weight: 800; cursor: pointer;"
+            >
+              {{ t().save }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   }
   }
 </div>

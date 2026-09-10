@@ -39,10 +39,18 @@ export class LoginComponent {
   email = signal<string>('');
   password = signal<string>('');
   showPassword = signal<boolean>(false);
-  activeField = signal<'email' | 'password' | null>(null);
+  activeField = signal<'email' | 'password' | 'resetEmail' | 'resetToken' | 'newPassword' | 'confirmPassword' | null>(null);
   isDarkTheme = this.themeService.isDark;
   errorMessage = signal<string>('');
+  successMessage = signal<string>('');
   isLoading = signal<boolean>(false);
+
+  // Forgot / Reset Password flow state
+  mode = signal<'login' | 'forgot' | 'otp' | 'reset'>('login');
+  resetEmail = signal<string>('');
+  resetToken = signal<string>('');
+  newPassword = signal<string>('');
+  confirmPassword = signal<string>('');
 
   togglePassword(): void {
     this.showPassword.update(val => !val);
@@ -52,7 +60,7 @@ export class LoginComponent {
     this.themeService.toggleTheme();
   }
 
-  onFocus(field: 'email' | 'password'): void {
+  onFocus(field: 'email' | 'password' | 'resetEmail' | 'resetToken' | 'newPassword' | 'confirmPassword'): void {
     this.activeField.set(field);
   }
 
@@ -69,18 +77,111 @@ export class LoginComponent {
   }
 
   isLampOn(): boolean {
-    return this.isEmailActive() || this.isPasswordActive();
+    return this.isEmailActive() || this.isPasswordActive() || this.mode() !== 'login';
   }
 
   onForgotPassword(): void {
-    const contactMsg = this.isArabic()
-      ? 'لاستعادة أو إعادة تعيين كلمة المرور، يرجى التواصل مع مسؤول النظام (System Administrator).'
-      : 'To reset or recover your password, please contact the System Administrator.';
-    this.errorMessage.set(contactMsg);
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    this.resetEmail.set(this.email());
+    this.mode.set('forgot');
+  }
+
+  backToLogin(): void {
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    this.mode.set('login');
+  }
+
+  onRequestReset(): void {
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    const em = this.resetEmail().trim();
+
+    if (!em) {
+      this.errorMessage.set(this.isArabic() ? 'يرجى إدخال البريد الإلكتروني' : 'Please enter your email address');
+      return;
+    }
+
+    this.isLoading.set(true);
+    this.authService.forgotPassword(em).subscribe({
+      next: (res) => {
+        this.isLoading.set(false);
+        this.successMessage.set(res?.message || (this.isArabic() ? 'تم إرسال كود التحقق (OTP) إلى بريدك الإلكتروني.' : 'Verification code (OTP) has been sent to your email.'));
+        this.resetToken.set('');
+        this.mode.set('otp');
+      },
+      error: (err) => {
+        this.isLoading.set(false);
+        const msg = err?.error?.message || err?.error?.title || (this.isArabic() ? 'فشل طلب كود التحقق' : 'Failed to request verification code');
+        this.errorMessage.set(msg);
+      }
+    });
+  }
+
+  onVerifyOtpSubmit(): void {
+    this.errorMessage.set('');
+    const tok = this.resetToken().trim();
+    if (!tok) {
+      this.errorMessage.set(this.isArabic() ? 'يرجى إدخال كود التحقق (OTP)' : 'Please enter the verification code (OTP)');
+      return;
+    }
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    this.newPassword.set('');
+    this.confirmPassword.set('');
+    this.mode.set('reset');
+  }
+
+  onResetPasswordSubmit(): void {
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    const em = this.resetEmail().trim();
+    const tok = this.resetToken().trim();
+    const np = this.newPassword().trim();
+    const cp = this.confirmPassword().trim();
+
+    if (!tok) {
+      this.errorMessage.set(this.isArabic() ? 'كود التحقق مفقود، يرجى الرجوع للخطوة السابقة' : 'Verification code is missing, please go back');
+      this.mode.set('otp');
+      return;
+    }
+
+    if (!np || !cp) {
+      this.errorMessage.set(this.isArabic() ? 'يرجى إدخال كلمة المرور الجديدة وتأكيدها' : 'Please enter and confirm your new password');
+      return;
+    }
+
+    if (np.length < 6) {
+      this.errorMessage.set(this.isArabic() ? 'كلمة المرور يجب ألا تقل عن 6 أحرف أو أرقام' : 'Password must be at least 6 characters');
+      return;
+    }
+
+    if (np !== cp) {
+      this.errorMessage.set(this.isArabic() ? 'كلمتا المرور غير متطابقتين' : 'Passwords do not match');
+      return;
+    }
+
+    this.isLoading.set(true);
+    this.authService.resetPassword({ email: em, token: tok, newPassword: np }).subscribe({
+      next: () => {
+        this.isLoading.set(false);
+        this.successMessage.set(this.isArabic() ? 'تم تغيير كلمة المرور بنجاح! يمكنك تسجيل الدخول الآن.' : 'Password reset successfully! You can now log in.');
+        this.email.set(em);
+        this.password.set('');
+        this.mode.set('login');
+      },
+      error: (err) => {
+        this.isLoading.set(false);
+        const msg = err?.error?.message || err?.error?.title || (this.isArabic() ? 'فشل إعادة تعيين كلمة المرور، يرجى التأكد من كود الـ OTP' : 'Failed to reset password, please verify OTP');
+        this.errorMessage.set(msg);
+      }
+    });
   }
 
   onSubmit(): void {
     this.errorMessage.set('');
+    this.successMessage.set('');
     const id = this.email().trim();
     const pw = this.password().trim();
 

@@ -277,7 +277,7 @@ export class PackageService {
               const mappedStudents: PackageItem[] = (studentPks || []).map((p: any) => {
                 const student = p.studentId ? this.studentMap.get(p.studentId) : null;
                 const sName = student?.name || p.studentName || p.name || 'طالب';
-                const sPhone = student?.phoneNumber || student?.whatsapp || p.studentPhone || '-';
+                const sPhone = student?.phoneNumber || student?.whatsapp || p.studentPhoneNumber || p.studentPhone || '-';
                 const totalHours = p.hours || p.totalHours || 0;
                 const remainingHours = p.remainingHours != null ? p.remainingHours : totalHours;
                 const cost = p.cost || p.paidAmount || p.price || 0;
@@ -287,18 +287,21 @@ export class PackageService {
                 const expDate = rawExp ? parseIsoToLocalDate(rawExp) : '';
                 const purchaseDate = rawPurch ? parseIsoToLocalDate(rawPurch) : getTodayDateISO();
                 const status = this.computePackageStatus(expDate, remainingHours, p.status);
+                const faculty = student?.facultyName || p.facultyName || '-';
+                const pkgNameAr = p.packageName || (totalHours > 0 ? `باقة ${totalHours} ساعة` : 'باقة طلاب');
+                const pkgNameEn = p.packageNameEn || p.packageName || (totalHours > 0 ? `${totalHours} Hours Pass` : 'Student Package');
 
                 return {
                   id: p.id,
                   memberId: p.studentId || '',
                   memberNameAr: sName,
                   memberNameEn: sName,
-                  memberSubAr: student?.facultyName || '-',
-                  memberSubEn: student?.facultyName || '-',
+                  memberSubAr: faculty,
+                  memberSubEn: faculty,
                   memberPhone: sPhone,
                   type: 'student',
-                  packageNameAr: p.packageName || p.name || `باقة ${totalHours} ساعة`,
-                  packageNameEn: p.packageNameEn || p.packageName || p.name || `${totalHours} Hours Pass`,
+                  packageNameAr: pkgNameAr,
+                  packageNameEn: pkgNameEn,
                   allocatedHours: totalHours,
                   usedHours: Math.max(0, totalHours - remainingHours),
                   remainingHours: remainingHours,

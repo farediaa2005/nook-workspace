@@ -143,12 +143,14 @@ export interface ChangePasswordDto {
 
 /** Forgot password request DTO — matches POST /api/Auth/forgot-password */
 export interface ForgotPasswordDto {
-  email: string;
+  identifier: string;
+  email?: string;
 }
 
 /** Reset password request DTO — matches POST /api/Auth/reset-password */
 export interface ResetPasswordDto {
-  email: string;
+  identifier: string;
+  email?: string;
   token: string;
   newPassword: string;
 }

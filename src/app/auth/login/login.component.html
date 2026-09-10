@@ -52,90 +52,233 @@
       <div class="alert show">{{ errorMessage() }}</div>
     }
 
-    <!-- Form -->
-    <form (ngSubmit)="onSubmit()" autocomplete="off">
-      <!-- Identifier Field (Username or Email) -->
-      <div class="field" [class.active]="isEmailActive()">
-        <label for="email">{{ t().loginIdentifierLabel }}</label>
-        <div class="boxf">
-          <span class="lead">
-            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
-          </span>
-          <input
-            id="email"
-            type="text"
-            name="email"
-            [ngModel]="email()"
-            (ngModelChange)="email.set($event)"
-            (focus)="onFocus('email')"
-            (blur)="onBlur()"
-            [placeholder]="t().loginIdentifierLabel"
-            autocomplete="username"
-          />
-        </div>
-      </div>
+    @if (successMessage()) {
+      <div class="alert show" style="background-color: rgba(34, 197, 94, 0.15); color: #22c55e; border-color: rgba(34, 197, 94, 0.3);">{{ successMessage() }}</div>
+    }
 
-      <!-- Password Field -->
-      <div class="field" [class.active]="isPasswordActive()">
-        <label for="password">{{ t().loginPasswordLabel }}</label>
-        <div class="boxf">
-          <span class="lead">
-            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-          </span>
-          <input
-            id="password"
-            [type]="showPassword() ? 'text' : 'password'"
-            name="password"
-            [ngModel]="password()"
-            (ngModelChange)="password.set($event)"
-            (focus)="onFocus('password')"
-            (blur)="onBlur()"
-            placeholder="••••••••"
-            autocomplete="new-password"
-          />
-          <button type="button" class="toggle" (click)="togglePassword()" aria-label="Toggle password visibility">
-            @if (showPassword()) {
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                <line x1="1" y1="1" x2="23" y2="23"/>
+    @if (mode() === 'login') {
+      <!-- Form -->
+      <form (ngSubmit)="onSubmit()" autocomplete="off">
+        <!-- Identifier Field (Username or Email) -->
+        <div class="field" [class.active]="isEmailActive()">
+          <label for="email">{{ t().loginIdentifierLabel }}</label>
+          <div class="boxf">
+            <span class="lead">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
               </svg>
-            } @else {
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-            }
-          </button>
+            </span>
+            <input
+              id="email"
+              type="text"
+              name="email"
+              [ngModel]="email()"
+              (ngModelChange)="email.set($event)"
+              (focus)="onFocus('email')"
+              (blur)="onBlur()"
+              [placeholder]="t().loginIdentifierLabel"
+              autocomplete="username"
+            />
+          </div>
         </div>
-      </div>
 
-      <!-- Forgot Password -->
-      <div class="row">
-        <a class="forgot" role="button" tabindex="0" (click)="onForgotPassword()" (keydown.enter)="onForgotPassword()">{{ t().loginForgotPassword }}</a>
-      </div>
+        <!-- Password Field -->
+        <div class="field" [class.active]="isPasswordActive()">
+          <label for="password">{{ t().loginPasswordLabel }}</label>
+          <div class="boxf">
+            <span class="lead">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </span>
+            <input
+              id="password"
+              [type]="showPassword() ? 'text' : 'password'"
+              name="password"
+              [ngModel]="password()"
+              (ngModelChange)="password.set($event)"
+              (focus)="onFocus('password')"
+              (blur)="onBlur()"
+              placeholder="••••••••"
+              autocomplete="new-password"
+            />
+            <button type="button" class="toggle" (click)="togglePassword()" aria-label="Toggle password visibility">
+              @if (showPassword()) {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              } @else {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              }
+            </button>
+          </div>
+        </div>
 
-      <!-- Submit Button -->
-      <button type="submit" class="enter" [disabled]="isLoading()">
-        @if (isLoading()) {
-          <span>{{ t().loginLoadingBtn }}</span>
-          <svg class="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="12" stroke-linecap="round"/>
+        <!-- Forgot Password -->
+        <div class="row">
+          <a class="forgot" role="button" tabindex="0" (click)="onForgotPassword()" (keydown.enter)="onForgotPassword()">{{ t().loginForgotPassword }}</a>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="enter" [disabled]="isLoading()">
+          @if (isLoading()) {
+            <span>{{ t().loginLoadingBtn }}</span>
+            <svg class="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="12" stroke-linecap="round"/>
+            </svg>
+          } @else {
+            <span>{{ t().loginEnterBtn }}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"/>
+              <polyline points="12 5 19 12 12 19"/>
+            </svg>
+          }
+        </button>
+      </form>
+    } @else if (mode() === 'forgot') {
+      <!-- Forgot Password Form -->
+      <form (ngSubmit)="onRequestReset()" autocomplete="off">
+        <div class="field active">
+          <label for="resetEmail">{{ isArabic() ? 'البريد الإلكتروني' : 'Email Address' }}</label>
+          <div class="boxf">
+            <span class="lead">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+            </span>
+            <input
+              id="resetEmail"
+              type="email"
+              name="resetEmail"
+              [ngModel]="resetEmail()"
+              (ngModelChange)="resetEmail.set($event)"
+              (focus)="onFocus('resetEmail')"
+              (blur)="onBlur()"
+              [placeholder]="isArabic() ? 'أدخل البريد الإلكتروني' : 'Enter your email'"
+            />
+          </div>
+        </div>
+
+        <button type="submit" class="enter" [disabled]="isLoading()" style="margin-top: 15px;">
+          @if (isLoading()) {
+            <span>{{ t().loginLoadingBtn }}</span>
+          } @else {
+            <span>{{ isArabic() ? 'إرسال رمز التعيين' : 'Send Reset Code' }}</span>
+          }
+        </button>
+
+        <div class="row" style="margin-top: 15px; justify-content: center;">
+          <a class="forgot" role="button" tabindex="0" (click)="backToLogin()" (keydown.enter)="backToLogin()">{{ isArabic() ? 'العودة لتسجيل الدخول' : 'Back to Login' }}</a>
+        </div>
+      </form>
+    } @else if (mode() === 'otp') {
+      <!-- Step 2: OTP Verification Screen -->
+      <form (ngSubmit)="onVerifyOtpSubmit()" autocomplete="off">
+        <div style="margin-bottom: 14px; text-align: center; color: #a1a1aa; font-size: 0.88rem; line-height: 1.5;">
+          <span>{{ isArabic() ? 'أدخل كود التحقق المرسل إلى: ' : 'Enter verification code sent to: ' }}</span>
+          <strong style="color: #f5b921; direction: ltr; display: inline-block;">{{ resetEmail() }}</strong>
+        </div>
+
+        <div class="field active">
+          <label for="resetToken">{{ isArabic() ? 'كود التحقق (OTP)' : 'Verification Code (OTP)' }}</label>
+          <div class="boxf">
+            <input
+              id="resetToken"
+              type="text"
+              name="resetToken"
+              autocomplete="one-time-code"
+              [ngModel]="resetToken()"
+              (ngModelChange)="resetToken.set($event)"
+              (focus)="onFocus('resetToken')"
+              (blur)="onBlur()"
+              [placeholder]="isArabic() ? 'أدخل الرمز المستلم' : 'Enter OTP code'"
+              style="text-align: center; letter-spacing: 4px; font-size: 1.2rem; font-weight: 700;"
+            />
+          </div>
+        </div>
+
+        <button type="submit" class="enter" style="margin-top: 18px;">
+          <span>{{ isArabic() ? 'متابعة لتغيير كلمة المرور' : 'Continue to Set Password' }}</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+            <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
-        } @else {
-          <span>{{ t().loginEnterBtn }}</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="5" y1="12" x2="19" y2="12"/>
-            <polyline points="12 5 19 12 12 19"/>
-          </svg>
-        }
-      </button>
-    </form>
+        </button>
+
+        <div class="row" style="margin-top: 15px; justify-content: space-between;">
+          <a class="forgot" role="button" tabindex="0" (click)="onRequestReset()" (keydown.enter)="onRequestReset()">
+            {{ isArabic() ? 'إعادة إرسال الكود' : 'Resend Code' }}
+          </a>
+          <a class="forgot" role="button" tabindex="0" (click)="mode.set('forgot')" (keydown.enter)="mode.set('forgot')">
+            {{ isArabic() ? 'تغيير البريد' : 'Change Email' }}
+          </a>
+        </div>
+      </form>
+    } @else if (mode() === 'reset') {
+      <!-- Step 3: New Password Screen -->
+      <form (ngSubmit)="onResetPasswordSubmit()" autocomplete="off">
+        <div style="margin-bottom: 14px; text-align: center; color: #a1a1aa; font-size: 0.88rem;">
+          <span>{{ isArabic() ? 'قم بتعيين كلمة المرور الجديدة لحسابك' : 'Set a new password for your account' }}</span>
+        </div>
+
+        <div class="field active">
+          <label for="newPassword">{{ isArabic() ? 'كلمة المرور الجديدة' : 'New Password' }}</label>
+          <div class="boxf">
+            <input
+              id="newPassword"
+              type="password"
+              name="newPassword"
+              autocomplete="new-password"
+              [ngModel]="newPassword()"
+              (ngModelChange)="newPassword.set($event)"
+              (focus)="onFocus('newPassword')"
+              (blur)="onBlur()"
+              placeholder="••••••••"
+            />
+          </div>
+        </div>
+
+        <div class="field active" style="margin-top: 10px;">
+          <label for="confirmPassword">{{ isArabic() ? 'تأكيد كلمة المرور' : 'Confirm New Password' }}</label>
+          <div class="boxf">
+            <input
+              id="confirmPassword"
+              type="password"
+              name="confirmPassword"
+              autocomplete="new-password"
+              [ngModel]="confirmPassword()"
+              (ngModelChange)="confirmPassword.set($event)"
+              (focus)="onFocus('confirmPassword')"
+              (blur)="onBlur()"
+              placeholder="••••••••"
+            />
+          </div>
+        </div>
+
+        <button type="submit" class="enter" [disabled]="isLoading()" style="margin-top: 18px;">
+          @if (isLoading()) {
+            <span>{{ t().loginLoadingBtn }}</span>
+          } @else {
+            <span>{{ isArabic() ? 'حفظ كلمة المرور الجديدة' : 'Save New Password' }}</span>
+          }
+        </button>
+
+        <div class="row" style="margin-top: 15px; justify-content: space-between;">
+          <a class="forgot" role="button" tabindex="0" (click)="mode.set('otp')" (keydown.enter)="mode.set('otp')">
+            {{ isArabic() ? 'الرجوع لكود الـ OTP' : 'Back to OTP' }}
+          </a>
+          <a class="forgot" role="button" tabindex="0" (click)="backToLogin()" (keydown.enter)="backToLogin()">
+            {{ isArabic() ? 'العودة لتسجيل الدخول' : 'Back to Login' }}
+          </a>
+        </div>
+      </form>
+    }
 
     <!-- Divider -->
     <div class="divi">{{ t().loginFollowUs }}</div>

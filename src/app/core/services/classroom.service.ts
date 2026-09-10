@@ -16,6 +16,10 @@ import {
   ReservationDto,
   CreateReservationDto,
   UpdateReservationDto,
+  CheckReservationConflictDto,
+  ReservationConflictCheckResultDto,
+  CancelReservationDayDto,
+  CreateClassroomFromReservationDto,
   RoomDto,
   ClassroomTypeEnum
 } from '../models/classroom.model';
@@ -309,8 +313,10 @@ export class ClassroomService {
           }
 
           let computedStatus: ClassroomStatus = 'available';
-          if (isExplicitlyCompleted || isCancelled) {
-            computedStatus = 'available';
+          if (isExplicitlyCompleted) {
+            computedStatus = 'completed';
+          } else if (isCancelled) {
+            computedStatus = 'cancelled';
           } else if (isActive) {
             computedStatus = 'active';
           } else if (isScheduled) {
@@ -476,7 +482,10 @@ export class ClassroomService {
     return this.reservationApi.getReservations(params).pipe(
       map(reservations => {
         const currentRooms = this.roomsState();
-        const mapped: AdminReservation[] = (reservations || []).map((r: ReservationDto) => {
+        const todayISO = this.getTodayDateISO();
+        const mapped: AdminReservation[] = [];
+
+        for (const r of reservations || []) {
           const roomMatch = currentRooms.find(rm => rm.id === r.roomId || (r.roomName && rm.name.toLowerCase() === r.roomName.toLowerCase()));
           const sTime = this.parseIsoToLocal24h(r.timeFrom) || '09:00';
           let eTime = this.parseIsoToLocal24h(r.timeTo) || '11:00';
@@ -490,34 +499,96 @@ export class ClassroomService {
           const diffMinutes = endMins - startMins;
           const durHours = diffMinutes > 0 ? +(diffMinutes / 60).toFixed(1) : 2;
 
-          const dateStr = this.parseIsoToLocalDate(r.dateFrom);
-          const isToday = dateStr === this.getTodayDateISO();
+          const baseDateStr = this.parseIsoToLocalDate(r.dateFrom) || todayISO;
+          const isRecurring = !!(r.recurrenceFrequency || (r.upcomingSessions && r.upcomingSessions.length > 0));
 
-          return {
-            id: r.id,
-            displayId: `RES-${r.id.substring(0, 4).toUpperCase()}`,
-            instructor: r.instructorName || r.note || 'Instructor',
-            activity: r.activity || 'Classroom Reservation',
-            classroom: r.roomName || roomMatch?.name || 'Hall',
-            capacity: roomMatch?.maxCapacity || 20,
-            date: isToday ? 'Today' : dateStr,
-            fullDate: dateStr,
-            startTime: sTime,
-            endTime: eTime,
-            timeRange: `${sTime} - ${eTime}`,
-            durationHours: durHours,
-            cost: r.reservationCost || 0,
-            status: 'upcoming',
-            colorTheme: 'blue',
-            costBreakdown: {
-              baseRate: r.reservationCost || 0,
-              baseRateLabel: this.langService.t().baseRate,
-              equipmentAddon: 0,
-              earlyBirdDiscount: r.discount || 0,
-              total: r.reservationCost || 0
+          if (isRecurring) {
+            let sessionDates: string[] = [];
+            if (Array.isArray(r.upcomingSessions) && r.upcomingSessions.length > 0) {
+              sessionDates = r.upcomingSessions.map(s => this.parseIsoToLocalDate(s)).filter((d): d is string => !!d);
+              if (baseDateStr && !sessionDates.includes(baseDateStr)) {
+                sessionDates.unshift(baseDateStr);
+              }
+            } else {
+              sessionDates = this.calculateRecurrenceDates(r);
             }
-          };
-        });
+
+            const canceledSet = new Set(r.canceledDates || []);
+            sessionDates = sessionDates.filter(d => !canceledSet.has(d));
+
+            if (sessionDates.length === 0 && !canceledSet.has(baseDateStr)) {
+              sessionDates = [baseDateStr];
+            }
+
+            for (const dStr of sessionDates) {
+              const isToday = dStr === todayISO;
+              mapped.push({
+                id: `${r.id}_${dStr}`,
+                reservationId: r.id,
+                occurrenceDate: dStr,
+                displayId: `RES-${r.id.substring(0, 4).toUpperCase()}`,
+                instructor: r.instructorName || r.note || 'Instructor',
+                activity: r.activity || 'Classroom Reservation',
+                classroom: r.roomName || roomMatch?.name || 'Hall',
+                capacity: roomMatch?.maxCapacity || 20,
+                date: isToday ? 'Today' : dStr,
+                fullDate: dStr,
+                startTime: sTime,
+                endTime: eTime,
+                timeRange: `${sTime} - ${eTime}`,
+                durationHours: durHours,
+                cost: r.reservationCost || 0,
+                status: 'upcoming',
+                colorTheme: 'blue',
+                isRecurring: true,
+                recurrenceFrequency: r.recurrenceFrequency,
+                recurrenceInterval: r.recurrenceInterval,
+                daysOfWeek: r.daysOfWeek,
+                totalSessions: r.totalSessions,
+                isOngoing: r.isOngoing,
+                canceledDates: r.canceledDates,
+                upcomingSessions: r.upcomingSessions,
+                costBreakdown: {
+                  baseRate: r.reservationCost || 0,
+                  baseRateLabel: this.langService.t().baseRate,
+                  equipmentAddon: 0,
+                  earlyBirdDiscount: r.discount || 0,
+                  total: r.reservationCost || 0
+                }
+              });
+            }
+          } else {
+            // Single standalone reservation
+            const isToday = baseDateStr === todayISO;
+            mapped.push({
+              id: r.id,
+              reservationId: r.id,
+              occurrenceDate: baseDateStr,
+              displayId: `RES-${r.id.substring(0, 4).toUpperCase()}`,
+              instructor: r.instructorName || r.note || 'Instructor',
+              activity: r.activity || 'Classroom Reservation',
+              classroom: r.roomName || roomMatch?.name || 'Hall',
+              capacity: roomMatch?.maxCapacity || 20,
+              date: isToday ? 'Today' : baseDateStr,
+              fullDate: baseDateStr,
+              startTime: sTime,
+              endTime: eTime,
+              timeRange: `${sTime} - ${eTime}`,
+              durationHours: durHours,
+              cost: r.reservationCost || 0,
+              status: 'upcoming',
+              colorTheme: 'blue',
+              isRecurring: false,
+              costBreakdown: {
+                baseRate: r.reservationCost || 0,
+                baseRateLabel: this.langService.t().baseRate,
+                equipmentAddon: 0,
+                earlyBirdDiscount: r.discount || 0,
+                total: r.reservationCost || 0
+              }
+            });
+          }
+        }
 
         this.reservationsState.set(mapped);
         return mapped;
@@ -527,6 +598,65 @@ export class ClassroomService {
         return of([]);
       })
     );
+  }
+
+  /** Helper to calculate recurring session dates matching backend recurrence specification */
+  private calculateRecurrenceDates(r: ReservationDto): string[] {
+    const dates: string[] = [];
+    if (!r.dateFrom) return dates;
+    const start = new Date(r.dateFrom);
+    if (isNaN(start.getTime())) return dates;
+
+    const freq = Number(r.recurrenceFrequency || 2);
+    const interval = Math.max(1, Number(r.recurrenceInterval || 1));
+    const total = Math.max(1, Number(r.totalSessions || 8));
+    const rawDays = r.daysOfWeek;
+    let days: number[] = [];
+    if (Array.isArray(rawDays)) {
+      days = rawDays.map(Number);
+    } else if (typeof rawDays === 'string') {
+      days = rawDays.split(',').map(s => Number(s.trim())).filter(n => !isNaN(n));
+    }
+    if (days.length === 0) {
+      days = [start.getDay()];
+    }
+
+    const maxOccurrences = Math.min(60, total);
+    const curr = new Date(start);
+
+    if (freq === 1) {
+      // Daily
+      for (let i = 0; i < maxOccurrences; i++) {
+        dates.push(this.formatDateToYMD(curr));
+        curr.setDate(curr.getDate() + interval);
+      }
+    } else if (freq === 2) {
+      // Weekly: match days of week
+      let count = 0;
+      let safety = 0;
+      while (count < maxOccurrences && safety < 365) {
+        if (days.includes(curr.getDay())) {
+          dates.push(this.formatDateToYMD(curr));
+          count++;
+        }
+        curr.setDate(curr.getDate() + 1);
+        safety++;
+      }
+    } else if (freq === 3) {
+      // Monthly
+      for (let i = 0; i < maxOccurrences; i++) {
+        dates.push(this.formatDateToYMD(curr));
+        curr.setMonth(curr.getMonth() + interval);
+      }
+    }
+    return dates;
+  }
+
+  private formatDateToYMD(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   // ============================================================
@@ -826,7 +956,7 @@ export class ClassroomService {
     const roomMatch = this.roomsState().find(rm => rm.id === dto.roomId || (dto.roomName && rm.name.toLowerCase() === dto.roomName.toLowerCase()));
     const realRoomId = roomMatch?.id || dto.roomId;
     const matchedInsId = dto.instructorId || this.findInstructorIdByName(dto.instructorName || '');
-
+    const finalDateTo = dto.dateTo || targetDate;
     const payload: CreateReservationDto = {
       ...dto,
       roomId: realRoomId,
@@ -834,10 +964,15 @@ export class ClassroomService {
       instructorName: dto.instructorName,
       activity: dto.activity,
       dateFrom: targetDate ? new Date(targetDate).toISOString() : new Date().toISOString(),
-      dateTo: targetDate ? new Date(targetDate).toISOString() : new Date().toISOString(),
+      dateTo: finalDateTo ? new Date(finalDateTo).toISOString() : new Date().toISOString(),
       timeFrom: isoStart,
       timeTo: isoEnd,
-      reservationCost: dto.reservationCost || 0
+      reservationCost: dto.reservationCost || 0,
+      recurrenceFrequency: dto.recurrenceFrequency,
+      recurrenceInterval: dto.recurrenceInterval,
+      daysOfWeek: dto.daysOfWeek,
+      totalSessions: dto.totalSessions,
+      isOngoing: dto.isOngoing
     };
 
     return this.reservationApi.createReservation(payload).pipe(
@@ -857,10 +992,12 @@ export class ClassroomService {
         const dateStr = this.parseIsoToLocalDate(created.dateFrom) || targetDate;
         const res: AdminReservation = {
           id: created.id,
+          reservationId: created.id,
+          occurrenceDate: dateStr,
           displayId: `RES-${created.id.substring(0, 4).toUpperCase()}`,
-          instructor: dto.instructorName || created.instructorName || 'Instructor',
+          instructor: created.instructorName || dto.instructorName || 'Instructor',
           activity: created.activity || dto.activity || 'Classroom Reservation',
-          classroom: dto.roomName || roomMatch?.name || 'Hall',
+          classroom: created.roomName || dto.roomName || roomMatch?.name || 'Hall',
           capacity: roomMatch?.maxCapacity || 20,
           date: dateStr === this.getTodayDateISO() ? 'Today' : dateStr,
           fullDate: dateStr,
@@ -871,6 +1008,14 @@ export class ClassroomService {
           cost: created.reservationCost || dto.reservationCost || 0,
           status: 'upcoming',
           colorTheme: 'blue',
+          isRecurring: !!created.recurrenceFrequency,
+          recurrenceFrequency: created.recurrenceFrequency,
+          recurrenceInterval: created.recurrenceInterval,
+          daysOfWeek: created.daysOfWeek,
+          totalSessions: created.totalSessions,
+          isOngoing: created.isOngoing,
+          canceledDates: created.canceledDates,
+          upcomingSessions: created.upcomingSessions,
           costBreakdown: {
             baseRate: created.reservationCost || dto.reservationCost || 0,
             baseRateLabel: this.langService.t().baseRate,
@@ -880,7 +1025,8 @@ export class ClassroomService {
           }
         };
 
-        this.reservationsState.update(resList => [res, ...resList]);
+        // Reload reservations from backend so all occurrences are expanded
+        this.loadReservations().subscribe();
         return res;
       }),
       catchError(err => {
@@ -903,7 +1049,12 @@ export class ClassroomService {
       dateFrom: dto.dateFrom ? new Date(dto.dateFrom).toISOString() : undefined,
       dateTo: dto.dateTo ? new Date(dto.dateTo).toISOString() : undefined,
       timeFrom: isoStart,
-      timeTo: isoEnd
+      timeTo: isoEnd,
+      recurrenceFrequency: dto.recurrenceFrequency,
+      recurrenceInterval: dto.recurrenceInterval,
+      daysOfWeek: dto.daysOfWeek,
+      totalSessions: dto.totalSessions,
+      isOngoing: dto.isOngoing
     };
 
     return this.reservationApi.updateReservation(id, payload).pipe(
@@ -921,7 +1072,7 @@ export class ClassroomService {
   deleteReservation(id: string): Observable<boolean> {
     return this.reservationApi.deleteReservation(id).pipe(
       tap(() => {
-        this.reservationsState.update(list => list.filter(r => r.id !== id));
+        this.reservationsState.update(list => list.filter(r => r.id !== id && r.reservationId !== id));
       }),
       catchError(err => {
         console.error('[ClassroomService] Error deleting reservation:', err);
@@ -1322,5 +1473,45 @@ export class ClassroomService {
   /** Today ISO string helper */
   getTodayDateISO(): string {
     return getTodayDateISO();
+  }
+
+  // ==========================================
+  // RESERVATIONS RECURRENCE & CONFLICT METHODS
+  // ==========================================
+
+  /**
+   * Standalone conflict check for proposed recurring reservation schedule
+   * POST /api/Reservations/check-conflict
+   */
+  checkReservationConflict(payload: CheckReservationConflictDto): Observable<ReservationConflictCheckResultDto> {
+    return this.reservationApi.checkConflict(payload);
+  }
+
+  /**
+   * Cancel a specific day from a reservation interval
+   * POST /api/Reservations/{id}/cancel-day
+   */
+  cancelReservationDay(id: string, payload: CancelReservationDayDto): Observable<ReservationDto> {
+    return this.reservationApi.cancelDay(id, payload).pipe(
+      tap(() => {
+        this.loadReservations().subscribe();
+      })
+    );
+  }
+
+  /**
+   * Start an actual Classroom session from a scheduled reservation on a specific date
+   * POST /api/Reservations/{id}/create-classroom
+   */
+  createClassroomFromReservation(
+    id: string,
+    payload: CreateClassroomFromReservationDto
+  ): Observable<ClassroomDto> {
+    return this.reservationApi.createClassroomFromReservation(id, payload).pipe(
+      tap(() => {
+        // Refresh classroom sessions so the newly created session appears in the dashboard
+        this.loadClassrooms().subscribe();
+      })
+    );
   }
 }

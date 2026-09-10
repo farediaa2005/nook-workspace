@@ -59,6 +59,7 @@ export class WorkspaceApiService extends BaseApiService {
     const payload: Record<string, any> = {
       zone: dto.zone ?? 0,
       timeFrom: dto.timeFrom || new Date().toISOString(),
+      timeTo: dto.timeTo || null,
       date: dto.date || new Date().toISOString(),
       wiFi: dto.wiFi ?? 0,
       printing: dto.printing ?? 0,

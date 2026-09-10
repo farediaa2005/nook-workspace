@@ -15,12 +15,16 @@ import { Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { LanguageService } from '../../../core/services/language.service';
 import { ClassroomService } from '../../../core/services/classroom.service';
+import { ShiftService } from '../../../core/services/shift.service';
 import {
   ClassroomCard,
   AdminReservation,
   AdminConsoleRoom,
   GridSlot,
-  RenderedBlock
+  RenderedBlock,
+  CheckReservationConflictDto,
+  ReservationConflictCheckResultDto,
+  CancelReservationDayDto
 } from '../../../core/models/classroom.model';
 import { FormsModule } from '@angular/forms';
 import { ReservationDetailPanelComponent } from '../../../shared/components/reservation-detail-panel/reservation-detail-panel.component';
@@ -46,6 +50,7 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
   private langService = inject(LanguageService);
   protected classroomService = inject(ClassroomService);
   private workspaceService = inject(WorkspaceService);
+  protected shiftService = inject(ShiftService);
   private router = inject(Router);
   private timerHandle: any = null;
 
@@ -119,7 +124,42 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
         combined.push(cr);
       }
     }
-    return combined;
+
+    const todayISO = this.classroomService.getTodayDateISO();
+    const now = new Date();
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+
+    return combined.map(res => {
+      if (res.status === 'cancelled') return res;
+
+      const resDate = res.date === 'Today' ? todayISO : (res.date || todayISO);
+      let calculatedStatus: 'active' | 'upcoming' | 'completed' | 'cancelled' = res.status || 'upcoming';
+
+      if (resDate < todayISO) {
+        calculatedStatus = 'completed';
+      } else if (resDate > todayISO) {
+        calculatedStatus = 'upcoming';
+      } else {
+        // Today
+        const [sH, sM] = (res.startTime || '00:00').split(':').map(Number);
+        const [eH, eM] = (res.endTime || '00:00').split(':').map(Number);
+        const sMins = (isNaN(sH) ? 0 : sH) * 60 + (isNaN(sM) ? 0 : sM);
+        const eMins = (isNaN(eH) ? 0 : eH) * 60 + (isNaN(eM) ? 0 : eM);
+
+        if (nowMins >= eMins && eMins > sMins) {
+          calculatedStatus = 'completed';
+        } else if (nowMins >= sMins && nowMins < eMins) {
+          calculatedStatus = 'active';
+        } else if (nowMins < sMins) {
+          calculatedStatus = 'upcoming';
+        }
+      }
+
+      return {
+        ...res,
+        status: calculatedStatus
+      };
+    });
   });
 
   // Computed reservations filtered for the table by currently selected date
@@ -241,8 +281,8 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
 
     const today = new Date();
     const isRealToday = d.getFullYear() === today.getFullYear() &&
-                        d.getMonth() === today.getMonth() &&
-                        d.getDate() === today.getDate();
+      d.getMonth() === today.getMonth() &&
+      d.getDate() === today.getDate();
 
     const prefix = isRealToday ? this.t().todayText : '';
 
@@ -376,7 +416,9 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
 
   ngOnInit(): void {
     document.addEventListener('keydown', this.handleKeyDown);
+    this.workspaceService.loadFromBackend();
     this.classroomService.loadRooms().subscribe();
+    this.classroomService.loadInstructors().subscribe();
     this.classroomService.loadReservations().subscribe();
     this.timerHandle = setInterval(() => {
       this.classroomService.refreshCardsStatus(this.isArabic());
@@ -509,7 +551,7 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
 
   onEditReservation(res: AdminReservation): void {
     this.closeDetailPanel();
-    this.openEditReservationModal(res);
+    this.requestEditReservation(res);
   }
 
   // ============================================================
@@ -517,6 +559,7 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
   // ============================================================
   isReservationModalOpen = signal(false);
   modalMode = signal<'new' | 'edit' | 'duplicate'>('new');
+  modalErrorMessage = signal<string>('');
   resId = signal('');
   resRoomName = signal('');
   resInstructor = signal('');
@@ -532,6 +575,46 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
   resEndPeriod = signal<'AM' | 'PM'>('AM');
   resHourlyRate = signal(40);
   isSaving = signal(false);
+
+  // Recurring Cancellation Modal State
+  isRecurringCancelModalOpen = signal(false);
+  selectedRecurringRes = signal<AdminReservation | null>(null);
+  recurringCancelScope = signal<'single' | 'all'>('single');
+  isCancellingRecurring = signal(false);
+
+  // Recurring Edit Scope Modal State
+  isRecurringEditScopeModalOpen = signal(false);
+  selectedRecurringEditRes = signal<AdminReservation | null>(null);
+  recurringEditScope = signal<'single' | 'all'>('single');
+
+  // Conflict Check Result State
+  conflictDetails = signal<ReservationConflictCheckResultDto | null>(null);
+
+  startSessionFromReservation(res: AdminReservation): void {
+    this.closeActionMenu();
+    this.closeDetailPanel();
+    const effectiveResId = res.reservationId || res.id;
+    const occDate = res.occurrenceDate || res.fullDate || this.classroomService.getTodayDateISO();
+    const dateIso = new Date(occDate).toISOString();
+
+    this.classroomService.createClassroomFromReservation(effectiveResId, {
+      date: dateIso,
+      expectedAttendees: res.capacity || 20,
+      note: `بدء جلسة من حجز ${res.classroom} - ${res.instructor}`
+    }).subscribe({
+      next: () => {
+        this.workspaceService.showToast(
+          this.isArabic() ? `تم بدء جلسة القاعة (${res.classroom}) بنجاح!` : `Classroom session started for ${res.classroom}!`,
+          'success'
+        );
+        this.classroomService.syncWithBackend();
+      },
+      error: (err) => {
+        const msg = err?.error?.message || (this.isArabic() ? 'فشل بدء جلسة القاعة من الحجز' : 'Failed to start session');
+        this.workspaceService.showToast(msg, 'error');
+      }
+    });
+  }
 
   // Recurrence & All-Day State for Modal (Google Calendar style)
   isAllDay = signal<boolean>(false);
@@ -1046,12 +1129,21 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
 
   instructorOptions = computed(() => {
     const q = this.resInstructor().trim().toLowerCase();
-    const list = this.classroomService.instructors() || [];
+    const list = (this.classroomService.instructors() || []).filter(
+      i => !this.workspaceService.isStudentBlacklisted(i.name, i.phoneNumber || i.phone, i.id)
+    );
     if (!q) return list;
     return list.filter(i =>
       (i.name || '').toLowerCase().includes(q) ||
       (i.phoneNumber || '').includes(q)
     );
+  });
+
+  isCurrentInstructorBlacklisted = computed(() => {
+    const name = this.resInstructor().trim();
+    const id = this.selectedInstructorId();
+    if (!name && !id) return false;
+    return this.workspaceService.isStudentBlacklisted(name, undefined, id);
   });
 
   selectInstructor(ins: any): void {
@@ -1102,7 +1194,8 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     const hasDate = !!this.resDate().trim();
     const hasRate = Number(this.resHourlyRate()) > 0;
     const hasDur = this.resDurationHours() > 0;
-    return hasRoom && hasInstructor && hasActivity && hasDate && hasRate && hasDur && !this.isSaving();
+    const notBlacklisted = !this.isCurrentInstructorBlacklisted();
+    return hasRoom && hasInstructor && hasActivity && hasDate && hasRate && hasDur && !this.isSaving() && notBlacklisted;
   });
 
   // Split Modal
@@ -1112,6 +1205,9 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
   cutEndTime = signal('01:00 PM');
 
   openNewReservationModal(): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حجز قاعة' : 'Classroom Reservation')) {
+      return;
+    }
     this.modalMode.set('new');
     this.resId.set('');
     const firstRoom = this.rooms()[0];
@@ -1140,7 +1236,32 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     document.body.style.overflow = 'hidden';
   }
 
+  requestEditReservation(res: AdminReservation): void {
+    if (res.isRecurring) {
+      this.selectedRecurringEditRes.set(res);
+      this.recurringEditScope.set('single');
+      this.isRecurringEditScopeModalOpen.set(true);
+    } else {
+      this.openEditReservationModal(res);
+    }
+  }
+
+  proceedWithRecurringEdit(): void {
+    const res = this.selectedRecurringEditRes();
+    if (!res) return;
+    this.isRecurringEditScopeModalOpen.set(false);
+    this.openEditReservationModal(res);
+  }
+
+  closeRecurringEditScopeModal(): void {
+    this.isRecurringEditScopeModalOpen.set(false);
+    this.selectedRecurringEditRes.set(null);
+  }
+
   openEditReservationModal(res: AdminReservation): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تعديل الحجز' : 'Edit Reservation')) {
+      return;
+    }
     this.modalMode.set('edit');
     this.resId.set(res.id);
     this.resRoomName.set(res.classroom);
@@ -1148,13 +1269,30 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     this.selectedInstructorId.set('');
     this.isInstructorDropdownOpen.set(false);
     this.resActivity.set(res.activity);
-    this.resDate.set(res.date === 'Today' ? this.classroomService.getTodayDateISO() : (res.date || this.classroomService.getTodayDateISO()));
+    this.conflictDetails.set(null);
+    this.modalErrorMessage.set('');
 
-    // Reset recurrence state for edit
-    this.isAllDay.set(false);
-    this.repeatOption.set('none');
-    this.repeatOccurrences.set(4);
-    this.isRecurrenceDropdownOpen.set(false);
+    const targetDate = res.occurrenceDate || (res.date === 'Today' ? this.classroomService.getTodayDateISO() : (res.date || this.classroomService.getTodayDateISO()));
+    this.resDate.set(targetDate);
+
+    // If editing a single occurrence from a series, lock recurrence to 'none'
+    if (this.recurringEditScope() === 'single' && res.isRecurring) {
+      this.isAllDay.set(false);
+      this.repeatOption.set('none');
+      this.repeatOccurrences.set(4);
+      this.isRecurrenceDropdownOpen.set(false);
+    } else if (res.isRecurring) {
+      this.isAllDay.set(false);
+      const freq = res.recurrenceFrequency;
+      this.repeatOption.set(freq === 1 ? 'daily' : (freq === 3 ? 'monthly' : 'weekly'));
+      this.repeatOccurrences.set(res.totalSessions || 4);
+      this.isRecurrenceDropdownOpen.set(false);
+    } else {
+      this.isAllDay.set(false);
+      this.repeatOption.set('none');
+      this.repeatOccurrences.set(4);
+      this.isRecurrenceDropdownOpen.set(false);
+    }
 
     if (res.startTime) {
       const matchStart = res.startTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
@@ -1208,6 +1346,7 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     this.openEditReservationModal(res);
     this.modalMode.set('duplicate');
     this.resId.set('');
+    this.selectedRecurringEditRes.set(null);
     this.resActivity.set(res.activity + ' ' + this.t().copySuffix);
     this.resDate.set(this.classroomService.getTodayDateISO());
   }
@@ -1216,160 +1355,374 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     this.isReservationModalOpen.set(false);
     this.isInstructorDropdownOpen.set(false);
     this.isRecurrenceDropdownOpen.set(false);
+    this.selectedRecurringEditRes.set(null);
+    this.conflictDetails.set(null);
     document.body.style.overflow = '';
   }
 
   saveReservation(): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حفظ الحجز' : 'Save Reservation')) {
+      return;
+    }
+    if (this.isCurrentInstructorBlacklisted()) {
+      this.workspaceService.showToast(
+        this.isArabic()
+          ? `لا يمكن إتمام الحجز: العميل "${this.resInstructor()}" محظور في القائمة السوداء (Blacklist)!`
+          : `Reservation denied: "${this.resInstructor()}" is blacklisted!`,
+        'error'
+      );
+      this.isSaving.set(false);
+      return;
+    }
     if (!this.isReservationFormValid()) return;
     this.isSaving.set(true);
+    this.modalErrorMessage.set('');
+    this.conflictDetails.set(null);
 
     const instructor = this.resInstructor().trim();
     const activity = this.resActivity().trim();
-    const durHours = this.resDurationHours();
     const totalCost = this.resTotalCost();
     const startTimeStr = this.resStartTime();
     const endTimeStr = this.resEndTime();
     const dateStr = this.resDate();
-    const isOngoing = this.classroomService.isSessionActive(startTimeStr, endTimeStr, dateStr);
+    const roomMatch = this.rooms().find(r => r.name.toLowerCase() === this.resRoomName().toLowerCase() || r.id === this.resRoomName());
+    const realRoomId = roomMatch?.id || this.resRoomName();
 
-    if (this.modalMode() === 'edit' && this.resId()) {
-      const existing = this.classroomService.getCardById(this.resId());
-      if (existing) {
-        this.classroomService.updateCard({
-          ...existing,
-          name: this.resRoomName(),
-          instructor,
-          instructorId: this.selectedInstructorId() || existing.instructorId,
-          activity,
-          bookingDate: dateStr,
-          startTime: startTimeStr,
-          endTime: endTimeStr,
-          durationHours: durHours,
-          hourlyRate: this.resHourlyRate(),
-          rental: totalCost,
-          status: isOngoing ? 'active' : 'scheduled'
-        }).subscribe({
-          next: () => {
-            this.isSaving.set(false);
-            this.closeReservationModal();
-            this.workspaceService.showToast(this.isArabic() ? 'تم حفظ التعديلات بنجاح' : 'Changes saved successfully', 'success');
-            this.classroomService.syncWithBackend();
-          },
-          error: (e) => {
-            this.isSaving.set(false);
-            console.error('Failed to update card:', e);
-            const msg = e?.error?.message || (this.isArabic() ? 'فشل حفظ التعديلات' : 'Failed to update reservation');
-            this.workspaceService.showToast(msg, 'error');
-          }
-        });
-      } else {
-        this.classroomService.updateReservation(this.resId(), {
-          roomName: this.resRoomName(),
-          instructorId: this.selectedInstructorId() || undefined,
-          instructorName: instructor,
-          activity,
-          dateFrom: dateStr,
-          timeFrom: startTimeStr,
-          timeTo: endTimeStr,
-          reservationCost: totalCost
-        }).subscribe({
-          next: () => {
-            this.isSaving.set(false);
-            this.closeReservationModal();
-            this.workspaceService.showToast(this.isArabic() ? 'تم تعديل الحجز بنجاح' : 'Reservation updated successfully', 'success');
-            this.classroomService.syncWithBackend();
-          },
-          error: (e) => {
-            this.isSaving.set(false);
-            console.error('Failed to update reservation:', e);
-            const msg = e?.error?.message || (this.isArabic() ? 'فشل تعديل الحجز' : 'Failed to update reservation');
-            this.workspaceService.showToast(msg, 'error');
-          }
-        });
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const currDay = new Date(y, m - 1, d).getDay();
+    const opt = this.repeatOption();
+
+    let freq: number | undefined = undefined;
+    let interval = 1;
+    let daysOfWeek: number[] = [currDay];
+    let totalSessions: number | undefined = undefined;
+    let isOngoing = false;
+    let endDateStr = dateStr;
+
+    if (opt === 'daily') {
+      freq = 1;
+      interval = 1;
+      daysOfWeek = [0, 1, 2, 3, 4, 5, 6];
+      totalSessions = this.repeatOccurrences() || 7;
+      endDateStr = this.computeEndDate(dateStr, totalSessions, 'day', 1);
+    } else if (opt === 'weekly') {
+      freq = 2;
+      interval = 1;
+      daysOfWeek = [currDay];
+      totalSessions = this.repeatOccurrences() || 4;
+      endDateStr = this.computeEndDate(dateStr, totalSessions, 'week', 1);
+    } else if (opt === 'monthly') {
+      freq = 3;
+      interval = 1;
+      daysOfWeek = [currDay];
+      totalSessions = this.repeatOccurrences() || 3;
+      endDateStr = this.computeEndDate(dateStr, totalSessions, 'month', 1);
+    } else if (opt === 'weekdays') {
+      freq = 2;
+      interval = 1;
+      daysOfWeek = [0, 1, 2, 3, 4];
+      totalSessions = this.repeatOccurrences() || 5;
+      endDateStr = this.computeEndDate(dateStr, totalSessions, 'week', 1);
+    } else if (opt === 'custom') {
+      const c = this.customRecurrence();
+      freq = c.unit === 'day' ? 1 : (c.unit === 'month' ? 3 : 2);
+      interval = c.interval || 1;
+      daysOfWeek = c.daysOfWeek && c.daysOfWeek.length > 0 ? c.daysOfWeek : [currDay];
+      if (c.endType === 'never') {
+        isOngoing = true;
+        totalSessions = undefined;
+        endDateStr = this.computeEndDate(dateStr, 52, 'week', 1);
+      } else if (c.endType === 'after') {
+        isOngoing = false;
+        totalSessions = c.occurrences || 8;
+        endDateStr = this.computeEndDate(dateStr, totalSessions, c.unit, interval);
+      } else if (c.endType === 'on_date') {
+        isOngoing = false;
+        endDateStr = c.endDate || dateStr;
       }
-    } else {
-      // New or Duplicate
-      const roomMatch = this.rooms().find(r => r.name.toLowerCase() === this.resRoomName().toLowerCase() || r.id === this.resRoomName());
-      const opt = this.repeatOption();
+    }
 
-      if (opt === 'none') {
-        this.classroomService.createReservation({
-          roomId: roomMatch?.id,
-          roomName: this.resRoomName(),
-          instructorId: this.selectedInstructorId() || undefined,
-          instructorName: instructor,
-          activity,
-          dateFrom: dateStr,
-          dateTo: dateStr,
-          timeFrom: startTimeStr,
-          timeTo: endTimeStr,
-          reservationCost: totalCost
-        }).subscribe({
-          next: () => {
-            this.isSaving.set(false);
-            this.closeReservationModal();
-            this.workspaceService.showToast(this.isArabic() ? 'تم إضافة الحجز بنجاح' : 'Reservation created successfully', 'success');
-            this.classroomService.syncWithBackend();
-          },
-          error: (e) => {
-            this.isSaving.set(false);
-            console.error('Failed to create reservation:', e);
-            const msg = e?.error?.message || (this.isArabic() ? 'فشل إضافة الحجز' : 'Failed to create reservation');
-            this.workspaceService.showToast(msg, 'error');
-          }
-        });
-      } else {
-        // Recurring reservations
-        const datesToBook = this.generatedRecurrenceDates();
+    const isoDateFrom = new Date(dateStr).toISOString();
+    const isoDateTo = new Date(endDateStr).toISOString();
+    const isoTimeFrom = this.convertTimeToISO(startTimeStr, dateStr);
+    const isoTimeTo = this.convertTimeToISO(endTimeStr, dateStr);
 
-        const requests = datesToBook.map(recDate => {
-          return this.classroomService.createReservation({
-            roomId: roomMatch?.id,
+    const handleSaveError = (e: any, defaultMsg: string) => {
+      this.isSaving.set(false);
+      let msg = defaultMsg;
+      if (e?.status === 409) {
+        msg = this.isArabic() ? 'تعارض في الموعد: هذه القاعة محجوزة بالفعل في هذا التوقيت.' : 'Conflict: Room is already booked for this time slot.';
+      } else if (e?.error?.message) {
+        msg = e.error.message;
+      }
+      this.modalErrorMessage.set(msg);
+      this.workspaceService.showToast(msg, 'error');
+    };
+
+    const executeSave = () => {
+      if (this.modalMode() === 'edit' && this.resId()) {
+        const targetRes = this.selectedRecurringEditRes();
+        if (this.recurringEditScope() === 'single' && targetRes && targetRes.isRecurring) {
+          // Edit SINGLE occurrence from a recurring series:
+          // 1. Cancel this day from the recurring series
+          // 2. Create a standalone reservation for this specific date
+          const occDate = targetRes.occurrenceDate || targetRes.fullDate;
+          const occIso = new Date(occDate).toISOString();
+          const seriesId = targetRes.reservationId || targetRes.id;
+
+          this.classroomService.cancelReservationDay(seriesId, {
+            date: occIso,
+            reason: 'تعديل موعد فردي من السلسلة'
+          }).subscribe({
+            next: () => {
+              this.classroomService.createReservation({
+                roomId: realRoomId,
+                roomName: this.resRoomName(),
+                instructorId: this.selectedInstructorId() || undefined,
+                instructorName: instructor,
+                activity,
+                dateFrom: dateStr,
+                dateTo: dateStr,
+                timeFrom: startTimeStr,
+                timeTo: endTimeStr,
+                reservationCost: totalCost
+              }).subscribe({
+                next: () => {
+                  this.isSaving.set(false);
+                  this.closeReservationModal();
+                  this.workspaceService.showToast(
+                    this.isArabic() ? 'تم تطبيق التعديل على هذا الموعد بنجاح' : 'Occurrence updated successfully',
+                    'success'
+                  );
+                  this.classroomService.syncWithBackend();
+                },
+                error: (e) => handleSaveError(e, this.isArabic() ? 'فشل حفظ الموعد المعدل' : 'Failed to save updated occurrence')
+              });
+            },
+            error: (e) => handleSaveError(e, this.isArabic() ? 'فشل استبعاد الموعد القديم من السلسلة' : 'Failed to update occurrence in series')
+          });
+        } else {
+          // Edit entire series or standalone reservation
+          const effectiveId = targetRes?.reservationId || this.resId();
+          this.classroomService.updateReservation(effectiveId, {
             roomName: this.resRoomName(),
             instructorId: this.selectedInstructorId() || undefined,
             instructorName: instructor,
             activity,
-            dateFrom: recDate,
-            dateTo: recDate,
+            dateFrom: dateStr,
+            dateTo: endDateStr,
             timeFrom: startTimeStr,
             timeTo: endTimeStr,
-            reservationCost: totalCost
+            reservationCost: totalCost,
+            recurrenceFrequency: freq,
+            recurrenceInterval: interval,
+            daysOfWeek: daysOfWeek,
+            totalSessions: totalSessions,
+            isOngoing: isOngoing
+          }).subscribe({
+            next: () => {
+              this.isSaving.set(false);
+              this.closeReservationModal();
+              this.workspaceService.showToast(this.isArabic() ? 'تم تعديل السلسلة بنجاح' : 'Reservation series updated successfully', 'success');
+              this.classroomService.syncWithBackend();
+            },
+            error: (e) => handleSaveError(e, this.isArabic() ? 'فشل تعديل الحجز' : 'Failed to update reservation')
           });
-        });
-
-        forkJoin(requests).subscribe({
+        }
+      } else {
+        // Create new (single or recurring)
+        this.classroomService.createReservation({
+          roomId: realRoomId,
+          roomName: this.resRoomName(),
+          instructorId: this.selectedInstructorId() || undefined,
+          instructorName: instructor,
+          activity,
+          dateFrom: dateStr,
+          dateTo: endDateStr,
+          timeFrom: startTimeStr,
+          timeTo: endTimeStr,
+          reservationCost: totalCost,
+          recurrenceFrequency: freq,
+          recurrenceInterval: interval,
+          daysOfWeek: daysOfWeek,
+          totalSessions: totalSessions,
+          isOngoing: isOngoing
+        }).subscribe({
           next: () => {
             this.isSaving.set(false);
             this.closeReservationModal();
-            const msg = this.isArabic()
-              ? `تم إنشاء ${datesToBook.length} مواعيد دورية بنجاح`
-              : `Created ${datesToBook.length} recurring bookings successfully`;
-            this.workspaceService.showToast(msg, 'success');
+            const successMsg = freq
+              ? (this.isArabic() ? `تم إنشاء الحجز الدوري بنجاح (${this.recurrenceLabel()})` : 'Recurring reservation created successfully')
+              : (this.isArabic() ? 'تم إضافة الحجز بنجاح' : 'Reservation created successfully');
+            this.workspaceService.showToast(successMsg, 'success');
             this.classroomService.syncWithBackend();
           },
-          error: (e) => {
-            this.isSaving.set(false);
-            console.error('Failed to create recurring reservations:', e);
-            const msg = e?.error?.message || (this.isArabic() ? 'حدث خطأ أثناء حفظ بعض الحجوزات الدورية' : 'Error saving some recurring bookings');
-            this.workspaceService.showToast(msg, 'error');
-            this.classroomService.syncWithBackend();
-          }
+          error: (e) => handleSaveError(e, this.isArabic() ? 'فشل إضافة الحجز' : 'Failed to create reservation')
         });
       }
+    };
+
+    // Step 1: Standalone Conflict Check
+    if (realRoomId && /^[0-9a-fA-F-]{36}$/.test(realRoomId)) {
+      const targetRes = this.selectedRecurringEditRes();
+      const excludeId = this.modalMode() === 'edit' ? (targetRes?.reservationId || this.resId() || null) : null;
+
+      this.classroomService.checkReservationConflict({
+        roomId: realRoomId,
+        dateFrom: isoDateFrom,
+        dateTo: isoDateTo,
+        timeFrom: isoTimeFrom,
+        timeTo: isoTimeTo,
+        recurrenceFrequency: freq,
+        recurrenceInterval: interval,
+        daysOfWeek: daysOfWeek,
+        totalSessions: totalSessions,
+        isOngoing: isOngoing,
+        excludeReservationId: excludeId
+      }).subscribe({
+        next: (conflictResult) => {
+          if (conflictResult && conflictResult.hasConflict) {
+            this.isSaving.set(false);
+            this.conflictDetails.set(conflictResult);
+            const msg = conflictResult.message || (this.isArabic() ? 'تم العثور على تعارض في المواعيد مع جلسات أخرى' : 'Conflict detected for scheduled dates');
+            this.modalErrorMessage.set(msg);
+            this.workspaceService.showToast(msg, 'error');
+            return;
+          }
+          executeSave();
+        },
+        error: () => {
+          // If conflict endpoint fails or is unreachable, proceed to save directly
+          executeSave();
+        }
+      });
+    } else {
+      executeSave();
     }
   }
 
+  private computeEndDate(startDateStr: string, count: number, unit: 'day' | 'week' | 'month', interval: number): string {
+    const [y, m, d] = startDateStr.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    if (unit === 'day') {
+      dt.setDate(dt.getDate() + (count - 1) * interval);
+    } else if (unit === 'week') {
+      dt.setDate(dt.getDate() + (count - 1) * 7 * interval);
+    } else if (unit === 'month') {
+      dt.setMonth(dt.getMonth() + (count - 1) * interval);
+    }
+    const ry = dt.getFullYear();
+    const rm = String(dt.getMonth() + 1).padStart(2, '0');
+    const rd = String(dt.getDate()).padStart(2, '0');
+    return `${ry}-${rm}-${rd}`;
+  }
+
+  private convertTimeToISO(timeStr: string, dateStr: string): string {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    const cleanTime = timeStr.trim();
+    let hours = 9;
+    let mins = 0;
+
+    const match24 = cleanTime.match(/^(\d{1,2}):(\d{2})$/);
+    if (match24) {
+      hours = parseInt(match24[1], 10);
+      mins = parseInt(match24[2], 10);
+    } else {
+      const match12 = cleanTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+      if (match12) {
+        hours = parseInt(match12[1], 10);
+        mins = parseInt(match12[2], 10);
+        const period = (match12[3] || 'AM').toUpperCase();
+        if (period === 'PM' && hours < 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+      }
+    }
+    dt.setHours(hours, mins, 0, 0);
+    return dt.toISOString();
+  }
+
   deleteReservation(res: AdminReservation): void {
-    const promptMsg = `${this.t().confirmDeleteBookingPrompt}\n("${res.activity}" - ${res.instructor})`;
+    if (!res || (!res.id && !res.reservationId)) return;
+    const isAr = this.isArabic();
+
+    if (res.isRecurring) {
+      this.selectedRecurringRes.set(res);
+      this.recurringCancelScope.set('single');
+      this.isRecurringCancelModalOpen.set(true);
+      return;
+    }
+
+    const promptMsg = `${isAr ? 'هل أنت متأكد من إلغاء هذا الحجز؟' : 'Are you sure you want to cancel this reservation?'} (${res.classroom} - ${res.instructor})`;
     if (confirm(promptMsg)) {
-      this.classroomService.deleteBooking(res.id).subscribe({
-        error: () => {
-          this.classroomService.deleteReservation(res.id).subscribe({
-            error: (e) => console.error('Failed to delete reservation:', e)
-          });
+      this.classroomService.deleteReservation(res.reservationId || res.id).subscribe({
+        next: () => {
+          this.workspaceService.showToast(isAr ? 'تم إلغاء الحجز بنجاح' : 'Reservation cancelled', 'success');
+          this.classroomService.syncWithBackend();
+        },
+        error: (e) => {
+          const msg = e?.error?.message || (isAr ? 'فشل إلغاء الحجز' : 'Failed to cancel reservation');
+          this.workspaceService.showToast(msg, 'error');
         }
       });
     }
+  }
+
+  confirmRecurringCancellation(): void {
+    const res = this.selectedRecurringRes();
+    if (!res) return;
+    const isAr = this.isArabic();
+    const targetId = res.reservationId || res.id;
+    this.isCancellingRecurring.set(true);
+
+    if (this.recurringCancelScope() === 'single') {
+      const occDate = res.occurrenceDate || res.fullDate;
+      const occIso = new Date(occDate).toISOString();
+      this.classroomService.cancelReservationDay(targetId, {
+        date: occIso,
+        reason: 'إلغاء الموعد الفردي من قبل الإدارة'
+      }).subscribe({
+        next: () => {
+          this.isCancellingRecurring.set(false);
+          this.isRecurringCancelModalOpen.set(false);
+          this.selectedRecurringRes.set(null);
+          this.workspaceService.showToast(
+            isAr ? `تم إلغاء موعد (${occDate}) من السلسلة بنجاح` : `Occurrence ${occDate} cancelled successfully`,
+            'success'
+          );
+          this.classroomService.syncWithBackend();
+        },
+        error: (err) => {
+          this.isCancellingRecurring.set(false);
+          const msg = err?.error?.message || (isAr ? 'فشل إلغاء الموعد الفردي' : 'Failed to cancel occurrence');
+          this.workspaceService.showToast(msg, 'error');
+        }
+      });
+    } else {
+      // Cancel entire series
+      this.classroomService.deleteReservation(targetId).subscribe({
+        next: () => {
+          this.isCancellingRecurring.set(false);
+          this.isRecurringCancelModalOpen.set(false);
+          this.selectedRecurringRes.set(null);
+          this.workspaceService.showToast(
+            isAr ? 'تم إلغاء سلسلة الحجز بالكامل بنجاح' : 'Entire reservation series cancelled',
+            'success'
+          );
+          this.classroomService.syncWithBackend();
+        },
+        error: (err) => {
+          this.isCancellingRecurring.set(false);
+          const msg = err?.error?.message || (isAr ? 'فشل إلغاء السلسلة' : 'Failed to cancel series');
+          this.workspaceService.showToast(msg, 'error');
+        }
+      });
+    }
+  }
+
+  closeRecurringCancelModal(): void {
+    this.isRecurringCancelModalOpen.set(false);
+    this.selectedRecurringRes.set(null);
   }
 
   openSplitModal(res: AdminReservation): void {

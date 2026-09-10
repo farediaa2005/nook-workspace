@@ -263,6 +263,9 @@ export class CateringPosModalComponent {
   }
 
   completeCashSale(): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إتمام عملية البيع' : 'Complete Sale')) {
+      return;
+    }
     if (this.cartItems().length === 0) return;
 
     const total = this.cartTotal();
@@ -294,6 +297,9 @@ export class CateringPosModalComponent {
   }
 
   confirmAddToRoomSession(): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إضافة طلب للقاعة' : 'Add to Room Session')) {
+      return;
+    }
     const room = this.targetRoom();
     if (!room || this.cartItems().length === 0) return;
 

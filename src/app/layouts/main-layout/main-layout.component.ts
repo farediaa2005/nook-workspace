@@ -33,14 +33,19 @@ export class MainLayoutComponent implements OnInit {
 
   // Check if an active shift exists
   hasActiveShift = this.shiftService.hasActiveShift;
+  isViewOnly = this.shiftService.isViewOnly;
   userBypassedShift = signal<boolean>(false);
+
+  goToOpenShift(): void {
+    this.router.navigate(['/shift/add-shift']);
+  }
 
   // Show open shift modal if no active shift, unless currently on shift history or user is Admin (Item 42)
   shouldShowOpenShiftModal = computed(() => {
     if (this.hasActiveShift()) return false;
     if (this.userBypassedShift()) return false;
     const url = this.currentUrl();
-    if (url.includes('/shift/history')) return false;
+    if (url.includes('/shift/history') || url.includes('/shift/add-shift')) return false;
     if (this.user()?.role === 'admin') return false;
     return true;
   });

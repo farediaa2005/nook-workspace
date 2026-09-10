@@ -12,6 +12,7 @@ import {
   PresetPackageOption
 } from '../../../core/models/package.model';
 
+import { ShiftService } from '../../../core/services/shift.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { getTodayDateISO, addDaysToDateISO } from '../../../core/utils/date-time.util';
 
@@ -25,6 +26,7 @@ export class ShowInstructorPackageComponent implements OnInit {
   private langService = inject(LanguageService);
   protected packageService = inject(PackageService);
   protected settingsService = inject(SettingsService);
+  protected shiftService = inject(ShiftService);
   private cdr = inject(ChangeDetectorRef);
   private route = inject(ActivatedRoute);
 
@@ -212,6 +214,20 @@ export class ShowInstructorPackageComponent implements OnInit {
     return recv < this.finalTotal();
   });
 
+  isPaymentValid = computed(() => {
+    if (this.sellPaymentMethod() === 'cash') {
+      const recv = this.amountReceived();
+      return recv !== null && recv !== undefined && !isNaN(recv) && recv >= this.finalTotal() && recv > 0;
+    }
+    return true;
+  });
+
+  isSellFormValid = computed(() => {
+    const hasMembers = this.selectedMembers().length > 0;
+    const validTotal = this.finalTotal() >= 0 && !isNaN(this.finalTotal());
+    return hasMembers && validTotal && this.isPaymentValid();
+  });
+
   // ----------------------------------------------------
   // 2. DETAILS & CONSUMPTION DRAWER STATE
   // ----------------------------------------------------
@@ -353,6 +369,9 @@ export class ShowInstructorPackageComponent implements OnInit {
   // SELL MODAL HANDLERS
   // ----------------------------------------------------
   openSellModal(): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'بيع باقة محاضر' : 'Sell Instructor Package')) {
+      return;
+    }
     const today = getTodayDateISO();
     this.todayDate.set(today);
     this.memberSearchQuery.set('');
@@ -461,6 +480,9 @@ export class ShowInstructorPackageComponent implements OnInit {
   }
 
   confirmSellPackage(): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'بيع باقة محاضر' : 'Sell Instructor Package')) {
+      return;
+    }
     this.sellSubmitted.set(true);
     const members = this.selectedMembers();
 
@@ -513,12 +535,22 @@ export class ShowInstructorPackageComponent implements OnInit {
       }
     }
 
-    if (this.sellPaymentMethod() === 'cash' && this.isCashShort()) {
-      this.packageService.showToast(
-        this.isArabic() ? 'المبلغ المستلم أقل من الإجمالي المطلوب' : 'Received amount is less than total due',
-        'error'
-      );
-      return;
+    if (this.sellPaymentMethod() === 'cash') {
+      const recv = this.amountReceived();
+      if (recv === null || recv === undefined || isNaN(recv) || recv <= 0) {
+        this.packageService.showToast(
+          this.isArabic() ? 'يرجى إدخال المبلغ المستلم أولاً لإتمام عملية الدفع النقدي' : 'Please enter the amount received first',
+          'error'
+        );
+        return;
+      }
+      if (recv < this.finalTotal()) {
+        this.packageService.showToast(
+          this.isArabic() ? 'المبلغ المستلم أقل من الإجمالي المطلوب' : 'Received amount is less than total due',
+          'error'
+        );
+        return;
+      }
     }
 
     const pkgTitle = this.effectivePackageName();
@@ -604,6 +636,9 @@ export class ShowInstructorPackageComponent implements OnInit {
   // RECORD USAGE SESSION HANDLERS
   // ----------------------------------------------------
   openRecordUsageModal(): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تسجيل استهلاك باقة' : 'Record Package Usage')) {
+      return;
+    }
     this.usageSessionTitle.set(this.isArabic() ? 'محاضرة وورشة تدريبية' : 'Classroom Workshop');
     this.usageHoursToDeduct.set(4);
     this.usageLocation.set('Classroom Hall A');
@@ -615,6 +650,9 @@ export class ShowInstructorPackageComponent implements OnInit {
   }
 
   confirmRecordUsage(): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تسجيل استهلاك باقة' : 'Record Package Usage')) {
+      return;
+    }
     const pkg = this.selectedPackageForDrawer();
     if (!pkg) return;
 
@@ -665,6 +703,9 @@ export class ShowInstructorPackageComponent implements OnInit {
   deletePasswordError = signal<string | null>(null);
 
   openDeleteModal(pkg: PackageItem): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حذف باقة' : 'Delete Package')) {
+      return;
+    }
     this.closeActionMenu();
     this.deletePasswordInput.set('');
     this.deletePasswordError.set(null);
@@ -700,6 +741,9 @@ export class ShowInstructorPackageComponent implements OnInit {
   editNotes = signal<string>('');
 
   openEditModal(pkg: PackageItem): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تعديل باقة' : 'Edit Package')) {
+      return;
+    }
     this.closeActionMenu();
     this.editingPackage.set(pkg);
     this.editPackageName.set(this.isArabic() ? (pkg.packageNameAr || pkg.packageNameEn || '') : (pkg.packageNameEn || pkg.packageNameAr || ''));

@@ -672,8 +672,18 @@
   transition: all 0.2s;
 }
 
-.btn-confirm:hover {
+.btn-confirm:hover:not(:disabled) {
   background: #facc15;
+}
+
+.btn-confirm:disabled,
+.btn-confirm.btn-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.7);
+  transform: none !important;
+  box-shadow: none !important;
+  pointer-events: none;
 }
 
 .btn-check-icon {

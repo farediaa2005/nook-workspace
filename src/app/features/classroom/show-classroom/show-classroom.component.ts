@@ -94,7 +94,8 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     const dateOpt = this.selectedDateOption();
     const customDate = this.customDateValue();
 
-    // Find all cards that are active or scheduled matching date filter (default: today only)
+    // Find all cards that are active or scheduled matching date filter
+    // COMPLETED sessions are excluded from the live classroom board so finished rooms become available
     const activeOrScheduledCards = cards.filter(card => {
       if (card.status !== 'active' && card.status !== 'scheduled') return false;
       // Active sessions currently ongoing MUST ALWAYS be displayed on the live board!
@@ -472,6 +473,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   // LIFECYCLE
   // ============================================================
   ngOnInit(): void {
+    this.workspaceService.loadFromBackend();
     this.classroomService.syncWithBackend();
     this.refreshLiveStatus();
     this.timerHandle = setInterval(() => {
@@ -525,6 +527,9 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   // BOOKING MODAL ACTIONS
   // ============================================================
   openBookingModal(roomName?: string): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حجز قاعة' : 'Classroom Booking')) {
+      return;
+    }
     this.editingCardId.set(null);
     this.bookingInstructor.set('');
     this.selectedInstructorId.set('');
@@ -565,6 +570,9 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   }
 
   openEditBookingModal(card: ClassroomCard): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تعديل الحجز' : 'Edit Booking')) {
+      return;
+    }
     this.editingCardId.set(card.id);
     const match = this.selectableRooms().find(r => r.name.toLowerCase() === card.name.toLowerCase());
     if (match) {
@@ -1136,6 +1144,10 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     const addMember = (m: PackageMemberOption) => {
       const name = (m.nameAr || m.nameEn || '').trim().toLowerCase();
       if (!name || this.isGenericInstructorName(name)) return;
+      // Exclude blacklisted members from selectable autocomplete options
+      if (this.workspaceService.isStudentBlacklisted(m.nameAr || m.nameEn, m.phone, m.id)) {
+        return;
+      }
       const cleanPhone = (m.phone || '').replace(/\D/g, '');
       const key = `${name}_${cleanPhone}`;
       if (seen.has(key) || (m.id && seen.has(m.id))) {
@@ -1388,6 +1400,14 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     }
   }
 
+  isCurrentInstructorBlacklisted = computed(() => {
+    const name = this.bookingInstructor().trim();
+    const phone = this.bookingPhone().trim();
+    const id = this.selectedInstructorId();
+    if (!name && !phone && !id) return false;
+    return this.workspaceService.isStudentBlacklisted(name, phone, id);
+  });
+
   isBookingFormValid = computed(() => {
     const hasInstructor = !!this.bookingInstructor().trim() && this.isInstructorValid();
     const hasActivity = !!this.bookingActivity().trim() && this.isActivityValid();
@@ -1395,10 +1415,23 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     const hasHourlyRate = Number(this.bookingHourlyRate()) > 0;
     const hasTimes = !!this.bookingStartTime() && !!this.bookingEndTime();
     const validRange = this.isTimeRangeValid() && this.bookingDurationHours() > 0;
-    return hasInstructor && hasActivity && hasDate && hasHourlyRate && hasTimes && validRange;
+    const notBlacklisted = !this.isCurrentInstructorBlacklisted();
+    return hasInstructor && hasActivity && hasDate && hasHourlyRate && hasTimes && validRange && notBlacklisted;
   });
 
   confirmNewBooking(): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حجز قاعة' : 'Classroom Booking')) {
+      return;
+    }
+    if (this.isCurrentInstructorBlacklisted()) {
+      this.workspaceService.showToast(
+        this.isArabic()
+          ? `لا يمكن إتمام الحجز: العميل "${this.bookingInstructor()}" محظور في القائمة السوداء (Blacklist)!`
+          : `Booking denied: "${this.bookingInstructor()}" is blacklisted!`,
+        'error'
+      );
+      return;
+    }
     if (!this.isBookingFormValid()) return;
 
     const selectedRoom = this.selectableRooms().find(r => r.id === this.selectedRoomId());
@@ -1741,6 +1774,9 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   });
 
   openCheckoutModal(card: ClassroomCard): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إنهاء جلسة القاعة والدفع' : 'Classroom Checkout')) {
+      return;
+    }
     this.activeCheckoutCard.set(card);
     this.classroomService.setActiveCheckoutCard(card);
 

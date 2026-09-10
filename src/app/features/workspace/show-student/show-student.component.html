@@ -41,39 +41,70 @@
 
   <!-- 4 Stat Metric Cards Grid -->
   <div class="metrics-grid">
-    <!-- Card 1: Inside Right Now -->
-    <app-metric-card [title]="t().insideRightNow" [value]="insideCount()" color="yellow">
-      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="10" />
-        <polyline points="12 6 12 12 16 14" />
-      </svg>
-    </app-metric-card>
+    @if (activeTab() === 'active') {
+      <!-- Card 1: Inside Right Now -->
+      <app-metric-card [title]="t().insideRightNow" [value]="insideCount()" color="yellow">
+        <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      </app-metric-card>
 
-    <!-- Card 2: Avg. Session -->
-    <app-metric-card [title]="t().avgSessionTitle" [value]="avgSession()" color="blue">
-      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="10" />
-        <polyline points="12 6 12 12 16 14" />
-      </svg>
-    </app-metric-card>
+      <!-- Card 2: Avg. Session -->
+      <app-metric-card [title]="t().avgSessionTitle" [value]="avgSession()" color="blue">
+        <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      </app-metric-card>
 
-    <!-- Card 3: Today's Check-ins -->
-    <app-metric-card [title]="t().todayCheckinsTitle" [value]="todayCheckins()" color="green">
-      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-        <polyline points="10 17 15 12 10 7" />
-        <line x1="15" y1="12" x2="3" y2="12" />
-      </svg>
-    </app-metric-card>
+      <!-- Card 3: Today's Check-ins -->
+      <app-metric-card [title]="t().todayCheckinsTitle" [value]="todayCheckins()" color="green">
+        <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+          <polyline points="10 17 15 12 10 7" />
+          <line x1="15" y1="12" x2="3" y2="12" />
+        </svg>
+      </app-metric-card>
 
-    <!-- Card 4: Checkouts Today -->
-    <app-metric-card [title]="t().checkoutsTodayTitle" [value]="checkoutsToday()" color="purple">
-      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-        <polyline points="16 17 21 12 16 7" />
-        <line x1="21" y1="12" x2="9" y2="12" />
-      </svg>
-    </app-metric-card>
+      <!-- Card 4: Checkouts Today -->
+      <app-metric-card [title]="t().checkoutsTodayTitle" [value]="checkoutsToday()" color="purple">
+        <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
+      </app-metric-card>
+    } @else {
+      <!-- History Tab Filtered Metrics (Issue #3) -->
+      <app-metric-card [title]="isArabic() ? 'إجمالي الجلسات المعروضة' : 'Filtered Sessions'" [value]="filteredTotalVisits()" color="blue">
+        <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+        </svg>
+      </app-metric-card>
+
+      <app-metric-card [title]="t().avgSessionTitle" [value]="filteredAvgSession()" color="yellow">
+        <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      </app-metric-card>
+
+      <app-metric-card [title]="isArabic() ? 'إجمالي الساعات (مفلترة)' : 'Total Hours'" [value]="filteredTotalHours()" color="green">
+        <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12" />
+        </svg>
+      </app-metric-card>
+
+      <app-metric-card [title]="isArabic() ? 'إجمالي الإيراد (مفلتر)' : 'Total Revenue'" [value]="filteredTotalRevenue()" color="purple">
+        <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="1" x2="12" y2="23" />
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+        </svg>
+      </app-metric-card>
+    }
   </div>
 
   <!-- Students Data Table Container -->

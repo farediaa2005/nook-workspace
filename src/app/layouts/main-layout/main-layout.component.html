@@ -12,6 +12,29 @@
 
   <!-- Main Content Area -->
   <main class="content">
+    @if (isViewOnly()) {
+      <div class="view-only-banner" [class.rtl]="isArabic()">
+        <div class="view-only-content">
+          <div class="view-only-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="view-only-icon">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </div>
+          <div class="view-only-text">
+            <strong>{{ isArabic() ? 'وضع المشاهدة والإحصائيات فقط (View-Only)' : 'View-Only Mode' }}:</strong>
+            <span>{{ isArabic() ? 'لا توجد وردية (شيفت) مفتوحة حالياً. يمكنك تصفح الصفحات ومشاهدة الإحصائيات، ولكن لا يمكن إضافة أو تعديل أو حجز أي عمليات حتى يتم فتح شيفت.' : 'No active shift is open. You can browse statistics and pages, but adding, booking, or modifying operations is locked until a shift is opened.' }}</span>
+          </div>
+        </div>
+        <button type="button" class="btn-open-shift-pill" (click)="goToOpenShift()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 15px; height: 15px;">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span>{{ isArabic() ? 'فتح شيفت جديد' : 'Open New Shift' }}</span>
+        </button>
+      </div>
+    }
     <router-outlet></router-outlet>
   </main>
 </div>

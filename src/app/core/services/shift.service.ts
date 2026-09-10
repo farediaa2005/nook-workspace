@@ -37,6 +37,20 @@ export class ShiftService implements OnDestroy {
     return !!shift && shift.status === 'active';
   });
 
+  readonly isViewOnly = computed(() => !this.hasActiveShift());
+
+  /** Guard check to prevent modifications/transactions when in View-Only mode (no active shift) */
+  public guardActiveShift(actionName?: string): boolean {
+    if (this.hasActiveShift()) {
+      return true;
+    }
+    const msg = this.langService.isArabic()
+      ? `لا يمكن تنفيذ ${actionName ? '"' + actionName + '"' : 'هذه العملية'}: يجب فتح شيفت أولاً! النظام حالياً في وضع المشاهدة فقط (View-Only).`
+      : `Cannot perform ${actionName ? '"' + actionName + '"' : 'action'}: An active shift is required! You are in View-Only mode.`;
+    this.notification.show(msg, 'error');
+    return false;
+  }
+
   readonly activeStaffName = computed(() => {
     const shift = this.currentShift();
     if (shift && shift.staffName) return shift.staffName;
@@ -174,41 +188,40 @@ export class ShiftService implements OnDestroy {
     this.isLoading.set(true);
     this.error.set(null);
 
-    const existingActive = this.currentShift();
-
-    this.shiftApi.getShifts().pipe(
+    // Call dedicated GET /api/Shifts/current
+    this.shiftApi.getCurrentShift().pipe(
       catchError((err) => {
         if (err?.status === 403) {
           console.info('[ShiftService] Shift API requires elevated role (403 Forbidden).');
         } else {
-          console.warn('[ShiftService] Failed to fetch shifts from API:', err?.message || err);
+          console.warn('[ShiftService] Failed to fetch current shift from API:', err?.message || err);
         }
-        return of([] as ShiftDto[]);
+        return of(null);
       }),
       finalize(() => this.isLoading.set(false))
     ).subscribe({
-      next: (apiShifts) => {
-        if (Array.isArray(apiShifts) && apiShifts.length > 0) {
-          // Look for an active shift (status === 1 or (!timeTo && status !== 2))
-          const activeDto = apiShifts.find((s: any) => s.status === 1 || (!s.timeTo && s.status !== 2));
-          if (activeDto) {
-            const record = this.mapDtoToShiftRecord(activeDto);
-            if (existingActive && existingActive.status === 'active') {
-              record.startVodafoneCash = existingActive.startVodafoneCash || record.startVodafoneCash;
-              record.startInstapay = existingActive.startInstapay || record.startInstapay;
-              record.startFawry = existingActive.startFawry || record.startFawry;
-              record.staffName = existingActive.staffName || record.staffName;
-            }
-            this.currentShift.set(record);
-          } else if (existingActive && existingActive.status === 'active') {
-            this.currentShift.set(existingActive);
-          } else {
-            this.currentShift.set(null);
-          }
-        } else if (existingActive && existingActive.status === 'active') {
-          this.currentShift.set(existingActive);
+      next: (currentDto) => {
+        if (currentDto && (currentDto.status === 1 || !currentDto.timeTo)) {
+          const record = this.mapDtoToShiftRecord(currentDto);
+          this.currentShift.set(record);
         } else {
-          this.currentShift.set(null);
+          // Fallback: check getShifts() in case current endpoint returned empty
+          this.shiftApi.getShifts().pipe(
+            catchError(() => of([] as ShiftDto[]))
+          ).subscribe({
+            next: (apiShifts) => {
+              if (Array.isArray(apiShifts) && apiShifts.length > 0) {
+                const activeDto = apiShifts.find((s: any) => s.status === 1 || (!s.timeTo && s.status !== 2));
+                if (activeDto) {
+                  this.currentShift.set(this.mapDtoToShiftRecord(activeDto));
+                } else {
+                  this.currentShift.set(null);
+                }
+              } else {
+                this.currentShift.set(null);
+              }
+            }
+          });
         }
       }
     });
@@ -220,8 +233,6 @@ export class ShiftService implements OnDestroy {
   public syncShiftsFromBackend(): void {
     if (!this.authService.isAuthenticated()) return;
     this.isLoadingHistory.set(true);
-
-    const existingActive = this.currentShift();
 
     this.shiftApi.getShifts().pipe(
       catchError((err) => {
@@ -240,15 +251,9 @@ export class ShiftService implements OnDestroy {
           const activeDto = apiShifts.find((s: any) => s.status === 1 || (!s.timeTo && s.status !== 2));
           if (activeDto) {
             const mappedActive = this.mapDtoToShiftRecord(activeDto);
-            if (existingActive && existingActive.status === 'active') {
-              mappedActive.startVodafoneCash = existingActive.startVodafoneCash || mappedActive.startVodafoneCash;
-              mappedActive.startInstapay = existingActive.startInstapay || mappedActive.startInstapay;
-              mappedActive.startFawry = existingActive.startFawry || mappedActive.startFawry;
-              mappedActive.staffName = existingActive.staffName || mappedActive.staffName;
-            }
             this.currentShift.set(mappedActive);
-          } else if (existingActive && existingActive.status === 'active') {
-            this.currentShift.set(existingActive);
+          } else {
+            this.currentShift.set(null);
           }
 
           // Closed shifts
@@ -668,20 +673,20 @@ export class ShiftService implements OnDestroy {
           }
         ];
 
-    let canteenRev = 0;
-    let classroomRev = 0;
-    let workspaceRev = 0;
-    let packageRev = 0;
-    let otherRev = 0;
-    let expenses = dto.administrative ?? 0;
+    let canteenRev = dto.canteenRevenue !== undefined ? Number(dto.canteenRevenue) : 0;
+    let classroomRev = dto.classroomRevenue !== undefined ? Number(dto.classroomRevenue) : 0;
+    let workspaceRev = dto.workspaceRevenue !== undefined ? Number(dto.workspaceRevenue) : 0;
+    let packageRev = dto.packageRevenue !== undefined ? Number(dto.packageRevenue) : 0;
+    let otherRev = dto.otherIncome !== undefined ? Number(dto.otherIncome) : 0;
+    let expenses = dto.administrative ?? dto.totalExpenses ?? 0;
     let vfIn = dto.vfCashInside ?? 0;
     let vfOut = dto.vfCashOutside ?? 0;
-    let ipIn = 0;
-    let ipOut = 0;
-    let fwIn = 0;
-    let fwOut = 0;
+    let ipIn = dto.instapayInside ?? 0;
+    let ipOut = dto.instapayOutside ?? 0;
+    let fwIn = dto.fawryInside ?? 0;
+    let fwOut = dto.fawryOutside ?? 0;
 
-    if (Array.isArray(dto.items)) {
+    if (dto.canteenRevenue === undefined && dto.classroomRevenue === undefined && Array.isArray(dto.items)) {
       for (const it of dto.items) {
         const amt = Number(it.cost ?? it.amount ?? 0);
         const t = String(it.type || '').toLowerCase();
@@ -707,7 +712,7 @@ export class ShiftService implements OnDestroy {
       }
     }
 
-    const totalRev = canteenRev + classroomRev + workspaceRev + packageRev + otherRev;
+    const totalRev = dto.totalRevenue ?? (canteenRev + classroomRev + workspaceRev + packageRev + otherRev);
 
     return {
       id: dto.id,
@@ -718,9 +723,9 @@ export class ShiftService implements OnDestroy {
       endTime: formattedEnd,
       status: isClosed ? 'closed' : 'active',
       initialCashDrawer: opening,
-      startVodafoneCash: 0,
-      startInstapay: 0,
-      startFawry: 0,
+      startVodafoneCash: dto.startVodafoneCash ?? 0,
+      startInstapay: dto.startInstapay ?? 0,
+      startFawry: dto.startFawry ?? 0,
       canteenRevenue: canteenRev,
       classroomRevenue: classroomRev,
       workspaceRevenue: workspaceRev,
@@ -734,7 +739,7 @@ export class ShiftService implements OnDestroy {
       fawryCashInside: fwIn,
       fawryCashOutside: fwOut,
       totalRevenue: totalRev || (dto.totalCost ?? dto.systemCash ?? 0),
-      transactionsCount: mappedTransactions.length,
+      transactionsCount: dto.transactionsCount ?? mappedTransactions.length,
       transactions: mappedTransactions
     };
   }
@@ -766,6 +771,31 @@ export class ShiftService implements OnDestroy {
       status: Math.abs(variance) < 0.01 ? 'balanced' : 'disputed',
       notes: dto.note || dto.notes || undefined
     };
+  }
+
+  /**
+   * Recalculate current active shift financials
+   * POST /api/Shifts/{id}/recalculate
+   */
+  recalculateCurrentShift(): Observable<boolean> {
+    const shift = this.currentShift();
+    if (!shift || !shift.id || !/^[0-9a-fA-F-]{36}$/.test(shift.id)) {
+      return of(false);
+    }
+
+    return this.shiftApi.recalculateShift(shift.id).pipe(
+      map((updatedDto) => {
+        if (updatedDto) {
+          this.currentShift.set(this.mapDtoToShiftRecord(updatedDto));
+          return true;
+        }
+        return false;
+      }),
+      catchError((err) => {
+        console.warn('[ShiftService] Recalculate failed:', err);
+        return of(false);
+      })
+    );
   }
 
   /**

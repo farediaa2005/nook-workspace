@@ -13,6 +13,7 @@ import { ModalComponent } from '../../../shared/components/modal/modal.component
 import { CustomSelectComponent, SelectOption } from '../../../shared/components/custom-select/custom-select.component';
 
 import { DetailsService } from '../../../core/services/details.service';
+import { NotificationService } from '../../../core/services/notification.service';
 import { DiscountCode } from '../../../core/models/details.model';
 import { getTodayDateISO, addDaysToDateISO } from '../../../core/utils/date-time.util';
 // [MOCK DATA DISABLED FOR LIVE API - See src/testing/mocks/details.mock.ts for offline presentation/testing]
@@ -39,6 +40,7 @@ export type { DiscountCode };
 export class AddDiscountComponent implements OnInit {
   private langService = inject(LanguageService);
   private detailsService = inject(DetailsService);
+  private notificationService = inject(NotificationService);
   private cdr = inject(ChangeDetectorRef);
   private route = inject(ActivatedRoute);
   private destroyRef = inject(DestroyRef);
@@ -62,6 +64,7 @@ export class AddDiscountComponent implements OnInit {
 
   // Modal State
   isModalOpen = signal<boolean>(false);
+  isSaving = signal<boolean>(false);
   modalMode = signal<'add' | 'edit'>('add');
   editingId = signal<string | null>(null);
 
@@ -76,6 +79,47 @@ export class AddDiscountComponent implements OnInit {
   formExpiryDate = signal<string>('');
   formStatus = signal<'active' | 'disabled'>('active');
   formError = signal<string | null>(null);
+
+  // Validation Signals
+  valueError = computed<string | null>(() => {
+    const type = this.formType();
+    const val = Number(this.formValue());
+    if (isNaN(val)) {
+      return this.isArabic() ? 'يرجى إدخال قيمة صحيحة' : 'Please enter a valid value';
+    }
+    if (type === 'percentage') {
+      if (val > 100) {
+        return this.isArabic()
+          ? 'نسبة الخصم لا يمكن أن تتجاوز 100%'
+          : 'Percentage discount cannot exceed 100%';
+      }
+      if (val < 1) {
+        return this.isArabic()
+          ? 'نسبة الخصم يجب أن تكون 1% على الأقل'
+          : 'Percentage discount must be at least 1%';
+      }
+    } else {
+      if (val < 1) {
+        return this.isArabic()
+          ? 'قيمة الخصم يجب أن تكون أكبر من 0'
+          : 'Discount amount must be greater than 0';
+      }
+    }
+    return null;
+  });
+
+  isFormInvalid = computed<boolean>(() => {
+    const code = this.formCode().trim();
+    const title = this.formTitle().trim();
+    const expiry = this.formExpiryDate();
+    return (
+      !code ||
+      !title ||
+      !expiry ||
+      expiry < this.todayDate ||
+      !!this.valueError()
+    );
+  });
 
   typeOptions = computed<SelectOption[]>(() => [
     { label: this.t().percentageType, value: 'percentage' },
@@ -193,7 +237,7 @@ export class AddDiscountComponent implements OnInit {
   openAddModal(): void {
     this.modalMode.set('add');
     this.editingId.set(null);
-    this.generateRandomCode();
+    this.formCode.set('');
     this.formTitle.set('');
     this.formType.set('percentage');
     this.formValue.set(15);
@@ -206,6 +250,7 @@ export class AddDiscountComponent implements OnInit {
     
     this.formStatus.set('active');
     this.formError.set(null);
+    this.isSaving.set(false);
     this.isModalOpen.set(true);
   }
 
@@ -222,18 +267,20 @@ export class AddDiscountComponent implements OnInit {
     this.formExpiryDate.set(discount.expiryDate);
     this.formStatus.set(discount.status === 'disabled' ? 'disabled' : 'active');
     this.formError.set(null);
+    this.isSaving.set(false);
     this.isModalOpen.set(true);
   }
 
   closeModal(): void {
     this.isModalOpen.set(false);
+    this.isSaving.set(false);
   }
 
   saveDiscount(): void {
     const code = this.formCode().trim().toUpperCase();
     const title = this.formTitle().trim();
     const type = this.formType();
-    const value = Math.max(1, Number(this.formValue()) || 0);
+    const value = Number(this.formValue()) || 0;
     const scope = this.formScope();
     const usageLimit = Math.max(1, Number(this.formUsageLimit()) || 100);
     const startDate = this.formStartDate();
@@ -250,6 +297,11 @@ export class AddDiscountComponent implements OnInit {
       return;
     }
 
+    if (this.valueError()) {
+      this.formError.set(this.valueError());
+      return;
+    }
+
     if (!expiryDate) {
       this.formError.set(this.t().expiryDateRequired);
       return;
@@ -259,6 +311,9 @@ export class AddDiscountComponent implements OnInit {
       this.formError.set(this.t().expiryDateCannotBePast);
       return;
     }
+
+    this.isSaving.set(true);
+    this.formError.set(null);
 
     if (this.modalMode() === 'add') {
       this.detailsService.createDiscount({
@@ -273,12 +328,19 @@ export class AddDiscountComponent implements OnInit {
         expiryDate,
         status: status as 'active' | 'disabled'
       }).subscribe({
-        next: (created) => {
-          this.discounts.set([created, ...this.discounts()]);
+        next: () => {
+          this.isSaving.set(false);
+          this.notificationService.success(
+            this.isArabic() ? 'تم حفظ كود الخصم بنجاح' : 'Promo code saved successfully'
+          );
+          this.loadDiscounts();
           this.closeModal();
         },
-        error: () => {
-          this.closeModal();
+        error: (err) => {
+          this.isSaving.set(false);
+          const msg = err?.error?.message || err?.message || (this.isArabic() ? 'فشل حفظ كود الخصم' : 'Failed to save promo code');
+          this.formError.set(msg);
+          this.notificationService.error(msg);
         }
       });
     } else {
@@ -293,28 +355,18 @@ export class AddDiscountComponent implements OnInit {
         status: status as 'active' | 'disabled'
       }).subscribe({
         next: () => {
-          const updated = this.discounts().map(d => {
-            if (d.id === id) {
-              return {
-                ...d,
-                code,
-                title,
-                type,
-                value,
-                scope,
-                usageLimit,
-                startDate,
-                expiryDate,
-                status: status as 'active' | 'disabled'
-              };
-            }
-            return d;
-          });
-          this.discounts.set(updated);
+          this.isSaving.set(false);
+          this.notificationService.success(
+            this.isArabic() ? 'تم تحديث كود الخصم بنجاح' : 'Promo code updated successfully'
+          );
+          this.loadDiscounts();
           this.closeModal();
         },
-        error: () => {
-          this.closeModal();
+        error: (err) => {
+          this.isSaving.set(false);
+          const msg = err?.error?.message || err?.message || (this.isArabic() ? 'فشل تحديث كود الخصم' : 'Failed to update promo code');
+          this.formError.set(msg);
+          this.notificationService.error(msg);
         }
       });
     }

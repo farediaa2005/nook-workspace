@@ -436,8 +436,8 @@ export class WorkspaceService {
         name: student.name || '',
         phone: phone,
         whatsapp: student.whatsapp || phone,
-        email: '',
-        college: student.facultyName || '',
+        email: student.email || '',
+        college: student.college || student.facultyName || '',
         faculty: student.facultyName || ''
       };
     }
@@ -461,31 +461,54 @@ export class WorkspaceService {
       faculty: profile.faculty?.trim() || ''
     };
 
-    const facKey = (cleanProfile.faculty || cleanProfile.college || '').toLowerCase().trim();
-    const matchedFacultyId = this.facultiesMap.get(facKey) || undefined;
+    const facName = (cleanProfile.faculty || cleanProfile.college || '').trim();
+    const facKey = facName.toLowerCase();
+    const matchedFacultyId = this.facultiesMap.get(facKey);
 
-    this.studentApi.createStudent({
-      name: cleanProfile.name,
-      phoneNumber: cleanProfile.phone,
-      whatsapp: cleanProfile.whatsapp || cleanProfile.phone,
-      facultyId: matchedFacultyId
-    }).subscribe({
-      next: (created) => {
-        const withId: StudentProfileRecord = {
-          ...cleanProfile,
-          id: created?.id
-        };
-        this.saveStudentProfile(withId);
-        if (created?.id) {
-          this.studentMap.set(created.id, created);
+    const executeCreate = (facultyId?: string) => {
+      this.studentApi.createStudent({
+        name: cleanProfile.name,
+        phoneNumber: cleanProfile.phone,
+        whatsapp: cleanProfile.whatsapp || cleanProfile.phone,
+        email: cleanProfile.email || undefined,
+        college: cleanProfile.college || undefined,
+        university: cleanProfile.college || undefined,
+        facultyId: facultyId || undefined
+      }).subscribe({
+        next: (created) => {
+          const withId: StudentProfileRecord = {
+            ...cleanProfile,
+            id: created?.id,
+            faculty: created?.facultyName || cleanProfile.faculty || facName
+          };
+          this.saveStudentProfile(withId);
+          if (created?.id) {
+            this.studentMap.set(created.id, created);
+          }
+          this.showToast(`تم تسجيل الطالب "${cleanProfile.name}" في النظام بنجاح!`, 'success');
+        },
+        error: (err) => {
+          this.saveStudentProfile(cleanProfile);
+          this.showToast(`تم حفظ بيانات الطالب محلياً: ${err?.message || ''}`, 'info');
         }
-        this.showToast(`تم تسجيل الطالب "${cleanProfile.name}" في النظام بنجاح!`, 'success');
-      },
-      error: (err) => {
-        this.saveStudentProfile(cleanProfile);
-        this.showToast(`تم حفظ بيانات الطالب محلياً: ${err?.message || ''}`, 'info');
-      }
-    });
+      });
+    };
+
+    if (facName && !matchedFacultyId) {
+      this.facultyApi.createFaculty({ name: facName }).subscribe({
+        next: (createdFac) => {
+          if (createdFac?.id) {
+            this.facultiesMap.set(facKey, createdFac.id);
+            executeCreate(createdFac.id);
+          } else {
+            executeCreate();
+          }
+        },
+        error: () => executeCreate()
+      });
+    } else {
+      executeCreate(matchedFacultyId);
+    }
   }
 
   /** Delete a student from registered students */
@@ -542,12 +565,14 @@ export class WorkspaceService {
         const profileList: StudentProfileRecord[] = [];
         (students || []).forEach(s => {
           this.studentMap.set(s.id, s);
+          const phone = s.phoneNumber || s.whatsapp || '';
           profileList.push({
             id: s.id,
             name: s.name,
-            phone: s.phoneNumber || s.whatsapp || '',
+            phone: phone,
             whatsapp: s.whatsapp || s.phoneNumber || '',
-            college: s.facultyName || '',
+            email: s.email || '',
+            college: s.college || s.facultyName || '',
             faculty: s.facultyName || ''
           });
         });
@@ -556,15 +581,16 @@ export class WorkspaceService {
         // 3. Populate blacklist state (deduplicated by studentId/phone/name)
         const uniqueBlacklistMap = new Map<string, BlacklistRecord>();
         (blacklists || []).forEach(b => {
-          const matchedSt = b.studentId ? this.studentMap.get(b.studentId) : null;
-          const name = b.name || matchedSt?.name || 'طالب محظور';
-          const phone = matchedSt?.phoneNumber || matchedSt?.whatsapp || '';
+          const matchedSt = (b.studentId ? this.studentMap.get(b.studentId) : null) ||
+            (b.name ? Array.from(this.studentMap.values()).find(s => s.name && s.name.trim().toLowerCase() === b.name.trim().toLowerCase()) : null);
+          const name = b.name || b.studentName || matchedSt?.name || 'طالب محظور';
+          const phone = b.studentPhone || (b as any).phone || (b as any).phoneNumber || matchedSt?.phoneNumber || matchedSt?.whatsapp || '';
           const key = (b.studentId || phone || name).trim().toLowerCase();
 
           if (!uniqueBlacklistMap.has(key)) {
             uniqueBlacklistMap.set(key, {
               id: b.id,
-              studentId: b.studentId || b.id,
+              studentId: b.studentId || matchedSt?.id || b.id,
               name,
               phone,
               reason: b.reason || 'مخالفة القواعد',
@@ -584,8 +610,12 @@ export class WorkspaceService {
     });
   }
 
-  private fetchSessions(): void {
-    this.api.getSessions().pipe(
+  fetchSessions(params?: { DateFrom?: string; DateTo?: string }): void {
+    const queryParams: any = {};
+    if (params?.DateFrom) queryParams.DateFrom = params.DateFrom;
+    if (params?.DateTo) queryParams.DateTo = params.DateTo;
+
+    this.api.getSessions(queryParams).pipe(
       catchError((err) => {
         console.warn('[WorkspaceService] Could not fetch sessions from API:', err?.message);
         this.error.set(err?.message || 'Failed to fetch workspace sessions');
@@ -624,17 +654,38 @@ export class WorkspaceService {
     }, 4000);
   }
 
+  /** Checks whether a student/member/instructor is currently on the blacklist */
+  public isStudentBlacklisted(name?: string | null, phone?: string | null, studentId?: string | null): boolean {
+    const list = this.blacklistState();
+    if (!list || list.length === 0) return false;
+
+    const cleanName = (name || '').trim().toLowerCase();
+    const cleanPhone = (phone || '').replace(/\D/g, '');
+    const cleanId = (studentId || '').trim().toLowerCase();
+
+    return list.some(b => {
+      if (cleanId && (b.studentId?.toLowerCase() === cleanId || b.id?.toLowerCase() === cleanId)) {
+        return true;
+      }
+      const bPhone = (b.phone || '').replace(/\D/g, '');
+      if (cleanPhone && bPhone) {
+        if (cleanPhone === bPhone) return true;
+        if (cleanPhone.length >= 8 && bPhone.length >= 8 && (cleanPhone.endsWith(bPhone.slice(-8)) || bPhone.endsWith(cleanPhone.slice(-8)))) {
+          return true;
+        }
+      }
+      const bName = (b.name || '').trim().toLowerCase();
+      if (cleanName && bName && (cleanName === bName || cleanName.includes(bName) || bName.includes(cleanName))) {
+        return true;
+      }
+      return false;
+    });
+  }
+
   /** Check in a student to workspace session */
   checkInStudent(newStudent: Omit<ActiveStudentSession, 'id' | 'duration' | 'status' | 'billingType'> & { billingType?: 'new-session' | 'package' | 'coupon'; studentId?: string; zone?: number }): void {
     // 0. Blacklist Enforcement Guard (Requirement 9)
-    const cleanName = (newStudent.name || '').trim().toLowerCase();
-    const cleanPhone = (newStudent.phone || '').trim();
-    const isBlacklisted = this.blacklistState().some(b =>
-      (cleanPhone && b.phone && b.phone === cleanPhone) ||
-      (cleanName && b.name && b.name.toLowerCase().trim() === cleanName) ||
-      (newStudent.studentId && b.studentId && b.studentId === newStudent.studentId)
-    );
-    if (isBlacklisted) {
+    if (this.isStudentBlacklisted(newStudent.name, newStudent.phone, newStudent.studentId)) {
       this.showToast('لا يمكن تسجيل دخول طالب محظور (BLOCKED). يرجى فك الحظر أولاً من قائمة الحظر', 'error');
       return;
     }
@@ -695,6 +746,7 @@ export class WorkspaceService {
         zone,
         date: newStudent.date || new Date().toISOString(),
         timeFrom: newStudent.checkInTime ? parseSessionTimeToDate(newStudent.checkInTime, newStudent.date).toISOString() : new Date().toISOString(),
+        timeTo: newStudent.expectedCheckout ? parseSessionTimeToDate(newStudent.expectedCheckout, newStudent.date).toISOString() : null,
         printing: newStudent.printingCount || 0,
         wallet: newStudent.walletAmount || 0,
         discount: newStudent.cost || 0,
@@ -1088,38 +1140,85 @@ export class WorkspaceService {
       patch = updates || {};
     }
 
-    const currentStudent = this.activeStudentsState().find(s => s.id === targetId) || this.historyStudentsState().find(s => s.id === targetId);
+    const currentStudent = this.activeStudentsState().find(s => s.id === targetId || s.studentId === targetId) ||
+      this.historyStudentsState().find(s => s.id === targetId || s.studentId === targetId) ||
+      this.backendStudentsState().find(s => s.id === targetId || s.phone === targetId);
     const merged = { ...currentStudent, ...patch };
 
+    const resolvedName = patch.name || merged.name || '';
+    const resolvedPhone = patch.phone || merged.phone || '';
+    const resolvedWhatsapp = patch.whatsapp || merged.whatsapp || resolvedPhone;
+    const resolvedEmail = patch.email !== undefined ? patch.email : (merged.email || '');
+    const resolvedCollege = patch.college !== undefined ? patch.college : (merged.college || '');
+    const resolvedFaculty = patch.faculty !== undefined ? patch.faculty : (merged.faculty || '');
+    const resolvedStudentId = (patch as any).studentId || (merged as any).studentId || (/^[0-9a-fA-F-]{36}$/.test(targetId) && !this.activeStudentsState().some(s => s.id === targetId) ? targetId : (currentStudent as any)?.studentId || currentStudent?.id);
+
     // Update in-memory profile
-    if (merged.name || merged.phone) {
+    if (resolvedName || resolvedPhone) {
       this.saveStudentProfile({
-        name: merged.name || '',
-        phone: merged.phone || '',
-        whatsapp: merged.whatsapp || merged.phone || '',
-        email: merged.email || '',
-        college: merged.college || '',
-        faculty: merged.faculty || '',
-        id: merged.studentId
+        name: resolvedName,
+        phone: resolvedPhone,
+        whatsapp: resolvedWhatsapp,
+        email: resolvedEmail,
+        college: resolvedCollege,
+        faculty: resolvedFaculty,
+        id: resolvedStudentId
       });
     }
 
-    this.activeStudentsState.update(list => list.map(s => (s.id === targetId ? { ...s, ...patch } : s)));
-    this.historyStudentsState.update(list => list.map(s => (s.id === targetId ? { ...s, ...patch } : s)));
+    this.activeStudentsState.update(list => list.map(s => (s.id === targetId || s.studentId === targetId ? { ...s, ...patch } : s)));
+    this.historyStudentsState.update(list => list.map(s => (s.id === targetId || s.studentId === targetId ? { ...s, ...patch } : s)));
 
     // If student has backend GUID, update in backend
-    const targetStudentGuid = (patch as any).studentId || currentStudent?.studentId;
+    const targetStudentGuid = resolvedStudentId;
     if (targetStudentGuid && /^[0-9a-fA-F-]{36}$/.test(targetStudentGuid)) {
-      const facKey = (patch.faculty || patch.college || currentStudent?.faculty || '').toLowerCase().trim();
+      const facName = (resolvedFaculty || resolvedCollege).trim();
+      const facKey = facName.toLowerCase();
       const matchedFacultyId = this.facultiesMap.get(facKey);
-      this.studentApi.updateStudent(targetStudentGuid, {
-        name: patch.name || currentStudent?.name || '',
-        phoneNumber: patch.phone || currentStudent?.phone || '',
-        whatsapp: patch.whatsapp || patch.phone || currentStudent?.whatsapp || currentStudent?.phone || '',
-        facultyId: matchedFacultyId
-      }).subscribe({
-        error: (err) => console.warn('[WorkspaceService] Update student backend notice:', err?.message)
-      });
+
+      const executeUpdate = (facultyId?: string) => {
+        this.studentApi.updateStudent(targetStudentGuid, {
+          name: resolvedName,
+          phoneNumber: resolvedPhone,
+          whatsapp: resolvedWhatsapp,
+          email: resolvedEmail || undefined,
+          college: resolvedCollege || undefined,
+          university: resolvedCollege || undefined,
+          facultyId: facultyId || undefined
+        }).subscribe({
+          next: (updated) => {
+            if (updated?.id) {
+              this.studentMap.set(updated.id, updated);
+              this.saveStudentProfile({
+                id: updated.id,
+                name: updated.name || resolvedName,
+                phone: updated.phoneNumber || resolvedPhone,
+                whatsapp: updated.whatsapp || resolvedWhatsapp,
+                email: resolvedEmail,
+                college: resolvedCollege,
+                faculty: updated.facultyName || resolvedFaculty
+              });
+            }
+          },
+          error: (err) => console.warn('[WorkspaceService] Update student backend notice:', err?.message)
+        });
+      };
+
+      if (facName && !matchedFacultyId) {
+        this.facultyApi.createFaculty({ name: facName }).subscribe({
+          next: (createdFac) => {
+            if (createdFac?.id) {
+              this.facultiesMap.set(facKey, createdFac.id);
+              executeUpdate(createdFac.id);
+            } else {
+              executeUpdate();
+            }
+          },
+          error: () => executeUpdate()
+        });
+      } else {
+        executeUpdate(matchedFacultyId);
+      }
     }
 
     // If workspace session has GUID, update session

@@ -39,6 +39,27 @@ export class ShiftApiService extends BaseApiService {
     );
   }
 
+  /**
+   * Get the single currently active shift across the workspace with live calculated metrics
+   * GET /api/Shifts/current
+   */
+  getCurrentShift(): Observable<ShiftDto | null> {
+    return this.get<ApiResponse<ShiftDto>>(API_ENDPOINTS.SHIFTS.CURRENT).pipe(
+      map(res => res?.data ?? null),
+      catchError(() => of(null))
+    );
+  }
+
+  /**
+   * Recalculate shift incomes, drawer cash, and digital wallets
+   * POST /api/Shifts/{id}/recalculate
+   */
+  recalculateShift(id: string): Observable<ShiftDto> {
+    return this.post<ApiResponse<ShiftDto>>(API_ENDPOINTS.SHIFTS.RECALCULATE(id), {}).pipe(
+      map(extractData)
+    );
+  }
+
   /** Get shift by ID */
   getShiftById(id: string): Observable<ShiftDto> {
     return this.get<ApiResponse<ShiftDto>>(API_ENDPOINTS.SHIFTS.BY_ID(id)).pipe(

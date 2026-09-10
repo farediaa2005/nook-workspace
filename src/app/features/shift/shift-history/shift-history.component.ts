@@ -180,15 +180,21 @@ export class ShiftHistoryComponent implements OnInit {
     window.print();
   }
 
-  // Shift Details Modal State (Item 36)
+  // Shift Details Modal State (Issue #16)
   selectedShiftForDetails = signal<ShiftHistoryItem | null>(null);
+  selectedShiftRecord = signal<any | null>(null);
 
   openShiftDetails(item: ShiftHistoryItem): void {
     this.selectedShiftForDetails.set(item);
+    this.selectedShiftRecord.set(null);
+    this.shiftService.getShiftById(item.id).subscribe(record => {
+      this.selectedShiftRecord.set(record);
+    });
   }
 
   closeShiftDetails(): void {
     this.selectedShiftForDetails.set(null);
+    this.selectedShiftRecord.set(null);
   }
 
   getStaffAvatar(item: ShiftHistoryItem | null): string {

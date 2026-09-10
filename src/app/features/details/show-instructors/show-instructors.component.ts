@@ -11,6 +11,7 @@ import { ModalComponent } from '../../../shared/components/modal/modal.component
 import { CustomSelectComponent, SelectOption } from '../../../shared/components/custom-select/custom-select.component';
 
 import { DetailsService } from '../../../core/services/details.service';
+import { NotificationService } from '../../../core/services/notification.service';
 import { Instructor } from '../../../core/models/details.model';
 import { exportToCsv } from '../../../core/utils/csv.util';
 import { getTodayDateISO } from '../../../core/utils/date-time.util';
@@ -38,6 +39,7 @@ export type { Instructor };
 export class ShowInstructorsComponent implements OnInit {
   private langService = inject(LanguageService);
   private detailsService = inject(DetailsService);
+  private notificationService = inject(NotificationService);
   private cdr = inject(ChangeDetectorRef);
 
   t = this.langService.t;
@@ -53,6 +55,7 @@ export class ShowInstructorsComponent implements OnInit {
 
   // Add / Edit Modal State
   isModalOpen = signal<boolean>(false);
+  isSaving = signal<boolean>(false);
   modalMode = signal<'add' | 'edit'>('add');
   editingId = signal<string | null>(null);
 
@@ -66,6 +69,24 @@ export class ShowInstructorsComponent implements OnInit {
   formStatus = signal<'active' | 'inactive'>('active');
   formBio = signal<string>('');
   formError = signal<string | null>(null);
+
+  // Field-Level Validation Signals
+  nameError = signal<string | null>(null);
+  phoneError = signal<string | null>(null);
+  emailError = signal<string | null>(null);
+
+  isFormInvalid = computed<boolean>(() => {
+    const name = this.formName().trim();
+    const phone = this.formPhone().trim();
+    const email = this.formEmail().trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    const hasNameErr = !name;
+    const hasPhoneErr = !phone || phone.length !== 11 || !/^\d{11}$/.test(phone);
+    const hasEmailErr = !!email && !emailRegex.test(email);
+
+    return hasNameErr || hasPhoneErr || hasEmailErr;
+  });
 
   statusOptions = computed<SelectOption[]>(() => [
     { label: this.t().active, value: 'active' },
@@ -166,6 +187,50 @@ export class ShowInstructorsComponent implements OnInit {
     }
   }
 
+  // Real-time Field Validation Handlers
+  onNameChange(val: string): void {
+    this.formName.set(val);
+    if (!val.trim()) {
+      this.nameError.set(this.isArabic() ? 'يرجى إدخال اسم المحاضر' : 'Instructor name is required');
+    } else {
+      this.nameError.set(null);
+    }
+    if (this.formError()) this.formError.set(null);
+  }
+
+  onPhoneChange(val: string): void {
+    this.formPhone.set(val);
+    const clean = val.trim();
+    if (!clean) {
+      this.phoneError.set(this.isArabic() ? 'رقم الهاتف مطلوب' : 'Phone number is required');
+    } else if (clean.length !== 11 || !/^\d{11}$/.test(clean)) {
+      this.phoneError.set(
+        this.isArabic()
+          ? 'رقم الهاتف يجب أن يتكون من 11 رقماً (مثال: 01012345678)'
+          : 'Phone number must be exactly 11 digits (e.g. 01012345678)'
+      );
+    } else {
+      this.phoneError.set(null);
+    }
+    if (this.formError()) this.formError.set(null);
+  }
+
+  onEmailChange(val: string): void {
+    this.formEmail.set(val);
+    const clean = val.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (clean && !emailRegex.test(clean)) {
+      this.emailError.set(
+        this.isArabic()
+          ? 'يرجى إدخال بريد إلكتروني صحيح (مثال: name@domain.com)'
+          : 'Please enter a valid email address (e.g. name@domain.com)'
+      );
+    } else {
+      this.emailError.set(null);
+    }
+    if (this.formError()) this.formError.set(null);
+  }
+
   // Modal Handlers
   openAddModal(): void {
     this.modalMode.set('add');
@@ -179,6 +244,10 @@ export class ShowInstructorsComponent implements OnInit {
     this.formStatus.set('active');
     this.formBio.set('');
     this.formError.set(null);
+    this.nameError.set(null);
+    this.phoneError.set(null);
+    this.emailError.set(null);
+    this.isSaving.set(false);
     this.isModalOpen.set(true);
   }
 
@@ -186,19 +255,24 @@ export class ShowInstructorsComponent implements OnInit {
     this.modalMode.set('edit');
     this.editingId.set(instructor.id);
     this.formName.set(instructor.name);
-    this.formPhone.set(instructor.phone);
-    this.formEmail.set(instructor.email);
-    this.formSpecialty.set(instructor.specialty);
-    this.formAffiliation.set(instructor.affiliation);
+    this.formPhone.set(instructor.phone === '-' ? '' : instructor.phone);
+    this.formEmail.set(instructor.email === '-' ? '' : instructor.email);
+    this.formSpecialty.set(instructor.specialty === '-' ? '' : instructor.specialty);
+    this.formAffiliation.set(instructor.affiliation === '-' ? '' : instructor.affiliation);
     this.formSessions.set(instructor.totalSessions || 0);
     this.formStatus.set(instructor.status);
     this.formBio.set(instructor.bio || '');
     this.formError.set(null);
+    this.nameError.set(null);
+    this.phoneError.set(null);
+    this.emailError.set(null);
+    this.isSaving.set(false);
     this.isModalOpen.set(true);
   }
 
   closeModal(): void {
     this.isModalOpen.set(false);
+    this.isSaving.set(false);
   }
 
   saveInstructor(): void {
@@ -211,29 +285,50 @@ export class ShowInstructorsComponent implements OnInit {
     const status = this.formStatus();
     const bio = this.formBio().trim();
 
+    let hasError = false;
+
     if (!name) {
-      this.formError.set(this.t().errorInstructor);
-      return;
+      this.nameError.set(
+        this.isArabic() ? 'يرجى إدخال اسم المحاضر' : 'Instructor name is required'
+      );
+      hasError = true;
+    } else {
+      this.nameError.set(null);
     }
 
     if (!phone || phone.length !== 11 || !/^\d{11}$/.test(phone)) {
-      this.formError.set(
+      this.phoneError.set(
         this.isArabic()
           ? 'رقم الهاتف يجب أن يتكون من 11 رقماً (مثال: 01012345678)'
           : 'Phone number must be exactly 11 digits (e.g. 01012345678)'
       );
-      return;
+      hasError = true;
+    } else {
+      this.phoneError.set(null);
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (email && !emailRegex.test(email)) {
-      this.formError.set(
+      this.emailError.set(
         this.isArabic()
           ? 'يرجى إدخال بريد إلكتروني صحيح (مثال: name@domain.com)'
           : 'Please enter a valid email address (e.g. name@domain.com)'
       );
+      hasError = true;
+    } else {
+      this.emailError.set(null);
+    }
+
+    if (hasError) {
+      this.formError.set(
+        this.emailError() || this.phoneError() || this.nameError() ||
+        (this.isArabic() ? 'يرجى تصحيح الأخطاء الموضحة في الحقول أدناه' : 'Please correct the highlighted form errors')
+      );
       return;
     }
+
+    this.isSaving.set(true);
+    this.formError.set(null);
 
     if (this.modalMode() === 'add') {
       this.detailsService.createInstructor({
@@ -249,12 +344,19 @@ export class ShowInstructorsComponent implements OnInit {
         status: status || 'active',
         bio
       }).subscribe({
-        next: (created) => {
-          this.instructors.set([created, ...this.instructors()]);
+        next: () => {
+          this.isSaving.set(false);
+          this.notificationService.success(
+            this.isArabic() ? 'تمت إضافة المحاضر بنجاح' : 'Instructor added successfully'
+          );
+          this.loadInstructors();
           this.closeModal();
         },
-        error: () => {
-          this.closeModal();
+        error: (err) => {
+          this.isSaving.set(false);
+          const msg = err?.error?.message || err?.message || (this.isArabic() ? 'فشل حفظ بيانات المحاضر' : 'Failed to save instructor');
+          this.formError.set(msg);
+          this.notificationService.error(msg);
         }
       });
     } else {
@@ -273,27 +375,18 @@ export class ShowInstructorsComponent implements OnInit {
         bio
       }).subscribe({
         next: () => {
-          const updated = this.instructors().map(ins => {
-            if (ins.id === id) {
-              return {
-                ...ins,
-                name,
-                phone,
-                email,
-                specialty,
-                affiliation,
-                totalSessions: sessions,
-                status,
-                bio
-              };
-            }
-            return ins;
-          });
-          this.instructors.set(updated);
+          this.isSaving.set(false);
+          this.notificationService.success(
+            this.isArabic() ? 'تم تحديث بيانات المحاضر بنجاح' : 'Instructor updated successfully'
+          );
+          this.loadInstructors();
           this.closeModal();
         },
-        error: () => {
-          this.closeModal();
+        error: (err) => {
+          this.isSaving.set(false);
+          const msg = err?.error?.message || err?.message || (this.isArabic() ? 'فشل تحديث بيانات المحاضر' : 'Failed to update instructor');
+          this.formError.set(msg);
+          this.notificationService.error(msg);
         }
       });
     }

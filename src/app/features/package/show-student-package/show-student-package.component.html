@@ -757,6 +757,10 @@
                         <div class="cash-short-alert">
                           <span>⚠️ {{ t().cashShortAlert }}</span>
                         </div>
+                      } @else if (amountReceived() === null || amountReceived() === undefined || amountReceived()! <= 0) {
+                        <div class="cash-short-alert" style="background: rgba(234, 179, 8, 0.1); border-color: rgba(234, 179, 8, 0.3); color: #eab308;">
+                          <span>⚠️ {{ isArabic() ? 'يجب إدخال المبلغ المستلم لتفعيل تأكيد الدفع' : 'Amount received is required to confirm payment' }}</span>
+                        </div>
                       }
 
                       <div class="change-due-box">
@@ -772,7 +776,7 @@
                   <button type="button" class="btn-modal-cancel" (click)="closeSellModal()">
                     {{ t().cancel }}
                   </button>
-                  <button type="submit" class="btn-modal-confirm">
+                  <button type="submit" class="btn-modal-confirm" [disabled]="!isSellFormValid()" [class.btn-disabled]="!isSellFormValid()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-check-icon">
                       <polyline points="20 6 9 17 4 12"/>
                     </svg>

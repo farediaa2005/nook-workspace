@@ -107,6 +107,14 @@ export class ActiveShiftComponent implements OnInit {
   // Modal State for Close Shift
   showCloseModal = signal<boolean>(false);
 
+  // Modal State for Add Shift Item (Expense / Income) - Issue #15
+  showAddItemModal = signal<boolean>(false);
+  newItemType = signal<'expense' | 'revenue'>('expense');
+  newItemCategory = signal<string>('expense');
+  newItemAmount = signal<number | null>(null);
+  newItemPayWay = signal<'cash' | 'vodafone' | 'instapay' | 'fawry'>('cash');
+  newItemDescription = signal<string>('');
+
   openCloseShiftModal(): void {
     this.showCloseModal.set(true);
   }
@@ -118,5 +126,38 @@ export class ActiveShiftComponent implements OnInit {
   onShiftClosed(): void {
     this.showCloseModal.set(false);
     this.router.navigate(['/shift/history']);
+  }
+
+  openAddItemModal(): void {
+    this.newItemType.set('expense');
+    this.newItemCategory.set('expense');
+    this.newItemAmount.set(null);
+    this.newItemPayWay.set('cash');
+    this.newItemDescription.set('');
+    this.showAddItemModal.set(true);
+  }
+
+  closeAddItemModal(): void {
+    this.showAddItemModal.set(false);
+  }
+
+  submitAddItem(): void {
+    const amt = this.newItemAmount();
+    if (!amt || amt <= 0) return;
+    const type = this.newItemType();
+    const cat = this.newItemCategory();
+    const pay = this.newItemPayWay();
+    const desc = this.newItemDescription().trim() || (type === 'expense' 
+      ? (this.isArabic() ? 'مصروفات وردية' : 'Shift Expense') 
+      : (this.isArabic() ? 'إيراد إضافي' : 'Additional Income'));
+
+    this.shiftService.recordTransaction({
+      amount: amt,
+      type: (type === 'expense' ? 'expense' : (cat === 'expense' ? 'other' : cat)) as any,
+      paymentMethod: pay,
+      details: desc
+    });
+
+    this.showAddItemModal.set(false);
   }
 }

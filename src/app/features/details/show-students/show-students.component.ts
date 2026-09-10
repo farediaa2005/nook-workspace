@@ -145,6 +145,7 @@ export class ShowStudentsComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.workspaceService.loadFromBackend();
+    this.packageService.syncPackagesFromBackend();
     this.timerInterval = setInterval(() => {
       this.currentLiveTime.set(new Date());
     }, 1000);
@@ -193,6 +194,8 @@ export class ShowStudentsComponent implements OnInit, OnDestroy {
     for (const p of registeredProfiles) {
       const key = getOrCreateKey(p.phone, p.name, p.id);
       const name = clean(p.name) || 'طالب';
+      const faculty = clean(p.faculty);
+      const college = clean(p.college);
       studentMap.set(key, {
         id: p.id || `STU-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
         studentId: p.id,
@@ -201,8 +204,8 @@ export class ShowStudentsComponent implements OnInit, OnDestroy {
         phone: clean(p.phone),
         whatsapp: clean(p.whatsapp || p.phone),
         email: clean(p.email),
-        faculty: clean(p.faculty) || 'عام',
-        college: clean(p.college) || clean(p.faculty) || 'جامعة عامة',
+        faculty: faculty || '',
+        college: college && college !== faculty ? college : '',
         currentStatus: 'offline',
         totalVisits: 0,
         totalSpent: 0
@@ -212,12 +215,28 @@ export class ShowStudentsComponent implements OnInit, OnDestroy {
     // 2. Ingest Student Packages
     const studentPkgs = this.packageService.packages().filter(p => p.type === 'student');
     for (const pkg of studentPkgs) {
-      const key = getOrCreateKey(pkg.memberPhone, pkg.memberNameAr || pkg.memberNameEn, pkg.id);
-      const existing = studentMap.get(key);
-      const pkgName = pkg.packageNameAr || pkg.packageNameEn || 'باقة طلاب';
+      const pkgStudentId = pkg.memberId;
+      const pkgPhone = clean(pkg.memberPhone);
+      const pkgName = clean(pkg.memberNameAr || pkg.memberNameEn);
+
+      // Match student by backend student ID first, then phone, then name
+      let existing: StudentDirectoryItem | undefined;
+      if (pkgStudentId) {
+        existing = Array.from(studentMap.values()).find(s => s.studentId === pkgStudentId || s.id === pkgStudentId);
+      }
+      if (!existing && pkgPhone && pkgPhone.length >= 8) {
+        const pKey = `p_${pkgPhone.replace(/[^\d]/g, '')}`;
+        existing = studentMap.get(pKey);
+      }
+      if (!existing && pkgName) {
+        const nKey = `n_${pkgName.toLowerCase()}`;
+        existing = studentMap.get(nKey);
+      }
+
+      const pkgNameStr = pkg.packageNameAr || pkg.packageNameEn || 'باقة طلاب';
       const pkgInfo = {
         hasPackage: true,
-        packageName: pkgName,
+        packageName: pkgNameStr,
         packageNameAr: pkg.packageNameAr,
         packageNameEn: pkg.packageNameEn,
         remainingHours: pkg.remainingHours,
@@ -227,19 +246,24 @@ export class ShowStudentsComponent implements OnInit, OnDestroy {
 
       if (existing) {
         existing.packageInfo = pkgInfo;
-        if (!existing.phone && pkg.memberPhone) existing.phone = clean(pkg.memberPhone);
+        if (!existing.phone && pkgPhone && pkgPhone !== '-') existing.phone = pkgPhone;
         if (!existing.email && pkg.memberEmail) existing.email = clean(pkg.memberEmail);
+        if (!existing.faculty && pkg.memberSubAr && pkg.memberSubAr !== '-') {
+          existing.faculty = pkg.memberSubAr;
+        }
       } else {
-        const name = clean(pkg.memberNameAr || pkg.memberNameEn) || 'مشترك باقة';
+        const name = pkgName || 'مشترك باقة';
+        const key = getOrCreateKey(pkgPhone, name, pkgStudentId || pkg.id);
         studentMap.set(key, {
-          id: `PKG-${pkg.id}`,
+          id: pkgStudentId || `PKG-${pkg.id}`,
+          studentId: pkgStudentId,
           name,
           avatar: generateAvatarSvg(name),
-          phone: clean(pkg.memberPhone),
-          whatsapp: clean(pkg.memberPhone),
+          phone: pkgPhone !== '-' ? pkgPhone : '',
+          whatsapp: pkgPhone !== '-' ? pkgPhone : '',
           email: clean(pkg.memberEmail),
-          faculty: 'مشترك باقة',
-          college: 'مشترك باقة',
+          faculty: pkg.memberSubAr && pkg.memberSubAr !== '-' ? pkg.memberSubAr : '',
+          college: '',
           currentStatus: 'offline',
           packageInfo: pkgInfo,
           totalVisits: 0,
@@ -267,8 +291,8 @@ export class ShowStudentsComponent implements OnInit, OnDestroy {
           phone: clean(s.phone),
           whatsapp: clean(s.whatsapp || s.phone),
           email: clean(s.email),
-          faculty: clean(s.faculty) || 'عام',
-          college: clean(s.faculty) || 'عام',
+          faculty: clean(s.faculty) || '',
+          college: '',
           currentStatus: 'offline',
           totalVisits: 0,
           totalSpent: 0
@@ -424,13 +448,14 @@ export class ShowStudentsComponent implements OnInit, OnDestroy {
 
   // Edit Modal Actions
   openEditModal(student: StudentDirectoryItem): void {
-    this.editTargetId.set(student.id);
-    this.editName.set(student.name);
-    this.editPhone.set(student.phone);
-    this.editWhatsapp.set(student.whatsapp || student.phone);
-    this.editEmail.set(student.email || '');
-    this.editCollege.set(student.college || '');
-    this.editFaculty.set(student.faculty || '');
+    const clean = (val?: string) => (val && val !== '-' && val !== 'undefined' ? val.trim() : '');
+    this.editTargetId.set(student.studentId || student.id);
+    this.editName.set(clean(student.name));
+    this.editPhone.set(clean(student.phone));
+    this.editWhatsapp.set(clean(student.whatsapp) || clean(student.phone));
+    this.editEmail.set(clean(student.email));
+    this.editCollege.set(clean(student.college));
+    this.editFaculty.set(clean(student.faculty));
     this.isEditModalOpen.set(true);
   }
 
@@ -443,13 +468,15 @@ export class ShowStudentsComponent implements OnInit, OnDestroy {
     const phone = this.editPhone().trim();
     if (!name || !phone) return;
 
-    this.workspaceService.registerNewStudent({
+    const targetId = this.editTargetId();
+    this.workspaceService.updateStudent(targetId, {
       name,
       phone,
       whatsapp: this.editWhatsapp().trim() || phone,
       email: this.editEmail().trim(),
       college: this.editCollege().trim(),
-      faculty: this.editFaculty().trim()
+      faculty: this.editFaculty().trim(),
+      studentId: targetId
     });
 
     this.closeEditModal();

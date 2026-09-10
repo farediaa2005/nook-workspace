@@ -1919,9 +1919,19 @@ tr.row--menu-open td {
   transition: all 0.15s ease;
 }
 
-.btn-modal-confirm:hover {
+.btn-modal-confirm:hover:not(:disabled) {
   filter: brightness(1.05);
   transform: translateY(-1px);
+}
+
+.btn-modal-confirm:disabled,
+.btn-modal-confirm.btn-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.7);
+  transform: none !important;
+  box-shadow: none !important;
+  pointer-events: none;
 }
 
 .btn-check-icon {

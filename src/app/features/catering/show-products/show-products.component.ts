@@ -10,6 +10,7 @@ import { CustomSelectComponent, SelectOption } from '../../../shared/components/
 import { AddProductModalComponent } from '../components/add-product-modal/add-product-modal.component';
 import { ProductSuccessModalComponent } from '../components/product-success-modal/product-success-modal.component';
 import { CateringPosModalComponent } from '../components/catering-pos-modal/catering-pos-modal.component';
+import { ShiftService } from '../../../core/services/shift.service';
 import { CateringProduct } from '../../../core/models/catering.model';
 import { exportToCsv } from '../../../core/utils/csv.util';
 import { getTodayDateISO, parseIsoToLocalDate } from '../../../core/utils/date-time.util';
@@ -36,6 +37,7 @@ export type CategoryFilterTab = 'all' | 'Snacks' | 'Merchandise' | 'Beverages' |
 export class ShowProductsComponent implements OnInit {
   private langService = inject(LanguageService);
   private cateringService = inject(CateringService);
+  private shiftService = inject(ShiftService);
   private route = inject(ActivatedRoute);
 
   t = this.langService.t;
@@ -195,6 +197,9 @@ export class ShowProductsComponent implements OnInit {
   }
 
   openEditModal(product: CateringProduct): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تعديل منتج' : 'Edit Product')) {
+      return;
+    }
     this.productToEdit.set({ ...product });
     this.editName.set(product.name);
     this.editCategory.set(product.category);
@@ -277,6 +282,9 @@ export class ShowProductsComponent implements OnInit {
 
   // Delete product
   deleteProduct(id: string): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حذف منتج' : 'Delete Product')) {
+      return;
+    }
     if (confirm(this.t().confirmDeleteProduct)) {
       this.cateringService.deleteProduct(id).subscribe({
         error: (err) => {
@@ -292,6 +300,9 @@ export class ShowProductsComponent implements OnInit {
 
   // Modal Handlers
   openAddModal(): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إضافة منتج جديد' : 'Add New Product')) {
+      return;
+    }
     this.isAddModalOpen.set(true);
   }
 
@@ -315,6 +326,9 @@ export class ShowProductsComponent implements OnInit {
   }
 
   openPosModal(): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'نقطة بيع الكاترنج' : 'Catering POS')) {
+      return;
+    }
     this.isPosModalOpen.set(true);
   }
 

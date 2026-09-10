@@ -191,8 +191,8 @@ export class ShowUserComponent implements OnInit {
     this.formName.set(u.name);
     this.formNameAr.set(u.nameAr || u.name);
     this.formUsername.set(u.username || '');
-    this.formPhone.set(u.phone || '');
-    this.formEmail.set(u.email);
+    this.formPhone.set(u.phone && u.phone !== '-' ? u.phone : '');
+    this.formEmail.set(u.email && u.email !== '-' ? u.email : '');
     this.formPassword.set('');
     this.formRole.set(this.isAdminUser(u) ? 'Admin / Manager' : 'Receptionist');
     this.formStatus.set(u.status === 'inactive' ? 'inactive' : 'active');

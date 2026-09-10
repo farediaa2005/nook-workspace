@@ -15,8 +15,28 @@ export interface ShiftDto {
   timeTo?: string | null;
   administrative?: number;
   previousTotal?: number;   // Opening cash drawer balance
+  startVodafoneCash?: number;
+  startInstapay?: number;
+  startFawry?: number;
   vfCashInside?: number;
   vfCashOutside?: number;
+  instapayInside?: number;
+  instapayOutside?: number;
+  fawryInside?: number;
+  fawryOutside?: number;
+  expectedCash?: number;
+  canteenRevenue?: number;
+  classroomRevenue?: number;
+  workspaceRevenue?: number;
+  packageRevenue?: number;
+  otherIncome?: number;
+  totalRevenue?: number;
+  totalExpenses?: number;
+  cashDifference?: number;
+  transactionsCount?: number;
+  vodafoneDifference?: number;
+  instapayDifference?: number;
+  fawryDifference?: number;
   increase?: number;
   loss?: number;
   totalCost?: number;

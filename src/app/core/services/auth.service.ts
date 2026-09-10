@@ -254,6 +254,33 @@ export class AuthService {
     }
   }
 
+  /**
+   * Request password reset link / token.
+   * POST /api/Auth/forgot-password — { identifier, email }
+   */
+  forgotPassword(email: string): Observable<any> {
+    const cleanEmail = email.trim();
+    return this.http.post(`${API_BASE_URL}${API_ENDPOINTS.AUTH.FORGOT_PASSWORD}`, {
+      identifier: cleanEmail,
+      email: cleanEmail
+    });
+  }
+
+  /**
+   * Reset password using token.
+   * POST /api/Auth/reset-password — { identifier, token, newPassword }
+   */
+  resetPassword(dto: { email?: string; identifier?: string; token: string; newPassword?: string; password?: string }): Observable<any> {
+    const cleanIdentifier = (dto.identifier || dto.email || '').trim();
+    const payload = {
+      identifier: cleanIdentifier,
+      email: cleanIdentifier,
+      token: dto.token.trim(),
+      newPassword: (dto.newPassword || dto.password || '').trim()
+    };
+    return this.http.post(`${API_BASE_URL}${API_ENDPOINTS.AUTH.RESET_PASSWORD}`, payload);
+  }
+
   public clearAuthState(): void {
     this.currentUser.set(null);
     this.accessToken = null;

@@ -44,6 +44,15 @@
   box-shadow: 0 2px 8px rgba(245, 185, 33, 0.3);
 }
 
+.btn-primary-action:disabled,
+.btn-primary-action[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+  box-shadow: none;
+  transform: none;
+}
+
 .btn-icon-slot {
   display: inline-flex;
   align-items: center;

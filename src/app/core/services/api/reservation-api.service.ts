@@ -6,7 +6,12 @@ import { ApiResponse, extractData } from '../../models/api-response.model';
 import {
   ReservationDto,
   CreateReservationDto,
-  UpdateReservationDto
+  UpdateReservationDto,
+  ClassroomDto,
+  CheckReservationConflictDto,
+  ReservationConflictCheckResultDto,
+  CancelReservationDayDto,
+  CreateClassroomFromReservationDto
 } from '../../models/classroom.model';
 
 export type BackendReservationDto = ReservationDto;
@@ -69,6 +74,48 @@ export class ReservationApiService extends BaseApiService {
   /** Delete reservation */
   deleteReservation(id: string): Observable<boolean> {
     return this.delete<ApiResponse<boolean>>(API_ENDPOINTS.RESERVATIONS.BY_ID(id)).pipe(
+      map(extractData)
+    );
+  }
+
+  /**
+   * Standalone conflict check for proposed recurring reservation schedule
+   * POST /api/Reservations/check-conflict
+   */
+  checkConflict(payload: CheckReservationConflictDto): Observable<ReservationConflictCheckResultDto> {
+    return this.post<ApiResponse<ReservationConflictCheckResultDto>>(
+      API_ENDPOINTS.RESERVATIONS.CHECK_CONFLICT,
+      payload
+    ).pipe(
+      map(extractData)
+    );
+  }
+
+  /**
+   * Cancel a specific day from a reservation interval
+   * POST /api/Reservations/{id}/cancel-day
+   */
+  cancelDay(id: string, payload: CancelReservationDayDto): Observable<ReservationDto> {
+    return this.post<ApiResponse<ReservationDto>>(
+      API_ENDPOINTS.RESERVATIONS.CANCEL_DAY(id),
+      payload
+    ).pipe(
+      map(extractData)
+    );
+  }
+
+  /**
+   * Create and start a Classroom session from a scheduled reservation
+   * POST /api/Reservations/{id}/create-classroom
+   */
+  createClassroomFromReservation(
+    id: string,
+    payload: CreateClassroomFromReservationDto
+  ): Observable<ClassroomDto> {
+    return this.post<ApiResponse<ClassroomDto>>(
+      API_ENDPOINTS.RESERVATIONS.CREATE_CLASSROOM(id),
+      payload
+    ).pipe(
       map(extractData)
     );
   }

@@ -229,11 +229,15 @@
           <input
             type="text"
             class="custom-input"
+            [class.input-error]="!!nameError()"
             [placeholder]="isArabic() ? 'مثال: د. محمد طه' : 'e.g. Dr. Mohamed Taha'"
             [ngModel]="formName()"
-            (ngModelChange)="formName.set($event)"
+            (ngModelChange)="onNameChange($event)"
             name="formName"
           />
+          @if (nameError(); as nErr) {
+            <span class="field-error-msg">{{ nErr }}</span>
+          }
         </div>
 
         <!-- Phone Number -->
@@ -242,11 +246,15 @@
           <input
             type="text"
             class="custom-input"
+            [class.input-error]="!!phoneError()"
             [placeholder]="'01012345678'"
             [ngModel]="formPhone()"
-            (ngModelChange)="formPhone.set($event)"
+            (ngModelChange)="onPhoneChange($event)"
             name="formPhone"
           />
+          @if (phoneError(); as pErr) {
+            <span class="field-error-msg">{{ pErr }}</span>
+          }
         </div>
 
         <!-- Email Address -->
@@ -255,11 +263,15 @@
           <input
             type="email"
             class="custom-input"
+            [class.input-error]="!!emailError()"
             [placeholder]="'instructor@example.com'"
             [ngModel]="formEmail()"
-            (ngModelChange)="formEmail.set($event)"
+            (ngModelChange)="onEmailChange($event)"
             name="formEmail"
           />
+          @if (emailError(); as eErr) {
+            <span class="field-error-msg">{{ eErr }}</span>
+          }
         </div>
 
         <!-- Specialty / Domain -->
@@ -332,6 +344,7 @@
 
         <app-primary-button
           [text]="t().saveInstructorBtn"
+          [disabled]="isFormInvalid() || isSaving()"
           type="submit"
         ></app-primary-button>
       </div>

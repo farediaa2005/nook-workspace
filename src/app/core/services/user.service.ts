@@ -1,11 +1,11 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
-import { catchError, of, finalize } from 'rxjs';
+import { catchError, of, finalize, forkJoin } from 'rxjs';
 import { AccountApiService } from './api/account-api.service';
 import { AuthService } from './auth.service';
 import { NotificationService } from './notification.service';
 import { LanguageService } from './language.service';
 import { AccountDto, StaffUser } from '../models/user.model';
-import { parseIsoToLocalDate } from '../utils/date-time.util';
+import { parseIsoToLocalDate, getTodayDateISO } from '../utils/date-time.util';
 
 @Injectable({
   providedIn: 'root'
@@ -35,6 +35,7 @@ export class UserService {
   /**
    * Fetch all system accounts from Backend API
    * GET /api/Accounts
+   * Concurrently enriched with createdAt from GET /api/Accounts/{id}/profile
    */
   syncUsersFromBackend(): void {
     if (!this.authService.isAuthenticated()) return;
@@ -58,6 +59,35 @@ export class UserService {
         if (accounts && accounts.length > 0) {
           const mapped: StaffUser[] = accounts.map(a => this.mapAccountDtoToUser(a));
           this.usersState.set(mapped);
+
+          // Concurrently enrich accounts with details from GET /api/Accounts/{id}/profile
+          const profileCalls = accounts.map(a =>
+            this.accountApi.getAccountProfile(a.id).pipe(catchError(() => of(null)))
+          );
+
+          forkJoin(profileCalls).subscribe({
+            next: (profiles) => {
+              const enriched = mapped.map((u, idx) => {
+                const p = profiles[idx];
+                const rawCreated = p?.createdAt || (p as any)?.createdDate;
+                const staffProfile = (p as any)?.profiles?.find((pr: any) => pr.role === 2 || pr.role === 1);
+                const profileName = staffProfile?.profileName || ((p as any)?.profiles?.[0] as any)?.profileName;
+                const resolvedName = profileName || u.name;
+                const resolvedPhone = (p?.phoneNumber && p.phoneNumber !== '-' ? p.phoneNumber : (u.phone && u.phone !== '-' ? u.phone : '-'));
+                const resolvedEmail = (p?.email && p.email !== '-' ? p.email : u.email);
+
+                return {
+                  ...u,
+                  name: resolvedName,
+                  nameAr: resolvedName,
+                  phone: resolvedPhone,
+                  email: resolvedEmail,
+                  createdAt: rawCreated ? parseIsoToLocalDate(rawCreated) : u.createdAt
+                };
+              });
+              this.usersState.set(enriched);
+            }
+          });
         } else {
           this.usersState.set([]);
         }
@@ -111,7 +141,8 @@ export class UserService {
           const mappedUser: StaffUser = {
             ...user,
             id: created.id,
-            status: created.isActive ? 'active' : 'inactive'
+            status: created.isActive ? 'active' : 'inactive',
+            createdAt: user.createdAt || getTodayDateISO()
           };
           this.usersState.update(list => [mappedUser, ...list]);
 
@@ -157,16 +188,30 @@ export class UserService {
     const apiRole = user.role.includes('Admin') ? 1 : 2;
     this.isLoading.set(true);
 
+    const cleanPhone = user.phone && user.phone !== '-' ? user.phone.trim() : undefined;
+    const cleanEmail = user.email && user.email !== '-' ? user.email.trim() : undefined;
+    const cleanUsername = (user.username || user.name || '').trim();
+
     this.accountApi.updateAccount(user.id, {
-      username: user.username || user.name,
-      userName: user.username || user.name,
-      email: user.email,
+      username: cleanUsername,
+      userName: cleanUsername,
+      email: cleanEmail,
+      phoneNumber: cleanPhone,
+      isActive: user.status === 'active',
       role: apiRole
     }).pipe(
       finalize(() => this.isLoading.set(false))
     ).subscribe({
       next: () => {
-        this.usersState.update(list => list.map(u => (u.id === user.id ? user : u)));
+        // Concurrently link/update staff profile so profileName reflects user.name
+        this.accountApi.linkStaffProfile(user.id, {
+          name: user.name || user.username,
+          staffRole: apiRole
+        }).subscribe({
+          error: (err) => console.warn('[UserService] Staff profile update notice:', err?.message)
+        });
+
+        this.usersState.update(list => list.map(u => (u.id === user.id ? { ...u, ...user } : u)));
         this.notification.success(
           this.langService.isArabic()
             ? `تم تحديث بيانات المستخدم "${user.name}" بنجاح!`
