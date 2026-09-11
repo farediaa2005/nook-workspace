@@ -15,10 +15,12 @@
         ></app-search-box>
       </div>
 
-      <app-primary-button
-        [text]="t().addNewUserBtn"
-        (click)="openAddModal()"
-      ></app-primary-button>
+      <div [title]="!shiftService.hasActiveShift() ? (isArabic() ? 'يتطلب فتح وردية لإضافة أو تعديل حسابات' : 'Opening a shift is required to manage users') : ''">
+        <app-primary-button
+          [text]="t().addNewUserBtn"
+          (click)="openAddModal()"
+        ></app-primary-button>
+      </div>
     </div>
   </div>
 
@@ -97,7 +99,13 @@
                     </div>
                     <div class="user-info-text">
                       <strong class="user-name-title">{{ isArabic() ? (u.nameAr || u.name) : u.name }}</strong>
-                      <span class="user-subtext">@{{ u.username || 'user' }} • {{ u.email }}</span>
+                      <div class="user-subtext" dir="ltr" style="display: flex; align-items: center; gap: 4px; font-size: 0.8rem; color: var(--text-dim);">
+                        @if (u.username && u.username !== u.email && !u.username.includes('@')) {
+                          <span>@{{ u.username }}</span>
+                          <span>•</span>
+                        }
+                        <span>{{ u.email }}</span>
+                      </div>
                     </div>
                   </div>
                 </td>

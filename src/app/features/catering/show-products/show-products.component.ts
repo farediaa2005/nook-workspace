@@ -11,6 +11,7 @@ import { AddProductModalComponent } from '../components/add-product-modal/add-pr
 import { ProductSuccessModalComponent } from '../components/product-success-modal/product-success-modal.component';
 import { CateringPosModalComponent } from '../components/catering-pos-modal/catering-pos-modal.component';
 import { ShiftService } from '../../../core/services/shift.service';
+import { WorkspaceService } from '../../../core/services/workspace.service';
 import { CateringProduct } from '../../../core/models/catering.model';
 import { exportToCsv } from '../../../core/utils/csv.util';
 import { getTodayDateISO, parseIsoToLocalDate } from '../../../core/utils/date-time.util';
@@ -38,6 +39,7 @@ export class ShowProductsComponent implements OnInit {
   private langService = inject(LanguageService);
   private cateringService = inject(CateringService);
   private shiftService = inject(ShiftService);
+  private workspaceService = inject(WorkspaceService);
   private route = inject(ActivatedRoute);
 
   t = this.langService.t;
@@ -75,27 +77,42 @@ export class ShowProductsComponent implements OnInit {
     return this.failedImages().has(productId);
   }
 
-  getProductImage(img?: string | null, id?: string): string {
-    const resolved = resolveImageUrl(img);
-    if (resolved) return resolved;
-    if (id) {
-      try {
-        const cached = localStorage.getItem('nook_product_img_' + id);
-        if (cached) return cached;
-      } catch {}
-    }
-    return '';
+  getProductImage(img?: string | null): string {
+    return resolveImageUrl(img);
   }
 
-  // Category Dropdown Options matching site styling
-  categoryOptions = computed<SelectOption[]>(() => [
-    { value: 'all', label: this.t().allCategories },
-    { value: 'Snacks', label: this.t().categorySnacks },
-    { value: 'Merchandise', label: this.t().categoryMerchandise },
-    { value: 'Beverages', label: this.t().categoryBeverages },
-    { value: 'Coffee', label: this.t().categoryCoffee },
-    { value: 'Meals', label: this.t().categoryMeals }
-  ]);
+  // Category Dropdown Options matching site styling & dynamic categories
+  categoryOptions = computed<SelectOption[]>(() => {
+    const list: SelectOption[] = [
+      { value: 'all', label: this.t().allCategories }
+    ];
+    for (const c of this.cateringService.categories()) {
+      list.push({
+        value: c.value,
+        label: this.isArabic() ? (c.labelAr || c.value) : (c.labelEn || c.value)
+      });
+    }
+    return list;
+  });
+
+  onCategorySelect(val: string): void {
+    this.selectedCategory.set(val);
+  }
+
+  openAddCategoryPrompt(): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إضافة تصنيف' : 'Add Category')) {
+      return;
+    }
+    const catName = prompt(this.isArabic() ? 'أدخل اسم التصنيف الجديد:' : 'Enter new category name:');
+    if (!catName || !catName.trim()) return;
+
+    const trimmed = catName.trim();
+    this.cateringService.categories.update(list => {
+      if (list.some(c => c.value.toLowerCase() === trimmed.toLowerCase())) return list;
+      return [...list, { value: trimmed, labelEn: trimmed, labelAr: trimmed }];
+    });
+    this.selectedCategory.set(trimmed);
+  }
 
   // All products from service
   allProducts = this.cateringService.products;
@@ -154,6 +171,8 @@ export class ShowProductsComponent implements OnInit {
   editCostPrice = signal<number | null>(null);
   editStock = signal<number | null>(null);
   editExpirationDate = signal<string>('');
+  editImagePreview = signal<string | null>(null);
+  editSelectedImageFile = signal<File | null>(null);
 
   isEditSellingPriceBelowCost = computed(() => {
     const s = this.editSellingPrice();
@@ -196,6 +215,25 @@ export class ShowProductsComponent implements OnInit {
     }
   }
 
+  onEditImageFileChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      this.editSelectedImageFile.set(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        this.editImagePreview.set(result);
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  removeEditImage(): void {
+    this.editSelectedImageFile.set(null);
+    this.editImagePreview.set(null);
+  }
+
   openEditModal(product: CateringProduct): void {
     if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تعديل منتج' : 'Edit Product')) {
       return;
@@ -219,12 +257,18 @@ export class ShowProductsComponent implements OnInit {
       this.editExpirationDate.set(datePart);
     }
 
+    const currentImg = product.image ? resolveImageUrl(product.image) : null;
+    this.editImagePreview.set(currentImg || null);
+    this.editSelectedImageFile.set(null);
+
     this.isEditModalOpen.set(true);
   }
 
   closeEditModal(): void {
     this.isEditModalOpen.set(false);
     this.productToEdit.set(null);
+    this.editImagePreview.set(null);
+    this.editSelectedImageFile.set(null);
   }
 
   saveEditProduct(): void {
@@ -247,7 +291,9 @@ export class ShowProductsComponent implements OnInit {
       stock: stockVal,
       expirationDate: exp,
       marginPercent: sPrice > 0 ? Math.round(((sPrice - cPrice) / sPrice) * 100) : 0,
-      status: stockVal === 0 ? 'low_stock' : stockVal <= 10 ? 'low_stock' : 'healthy'
+      status: stockVal === 0 ? 'low_stock' : stockVal <= 10 ? 'low_stock' : 'healthy',
+      imageFile: this.editSelectedImageFile() || undefined,
+      image: this.editImagePreview() || ''
     };
 
     this.cateringService.updateProduct(updated).subscribe({
@@ -285,13 +331,14 @@ export class ShowProductsComponent implements OnInit {
     if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حذف منتج' : 'Delete Product')) {
       return;
     }
-    if (confirm(this.t().confirmDeleteProduct)) {
-      this.cateringService.deleteProduct(id).subscribe({
-        error: (err) => {
-          alert(err?.error?.message || err?.message || this.t().failedToDeleteProduct);
-        }
-      });
-    }
+    this.cateringService.deleteProduct(id).subscribe({
+      next: () => {
+        this.workspaceService.showToast(this.isArabic() ? 'تم حذف المنتج بنجاح' : 'Product deleted successfully', 'success');
+      },
+      error: (err) => {
+        this.workspaceService.showToast(err?.error?.message || err?.message || (this.isArabic() ? 'فشل حذف المنتج' : 'Failed to delete product'), 'error');
+      }
+    });
   }
 
   setCategoryTab(cat: CategoryFilterTab): void {
@@ -314,6 +361,7 @@ export class ShowProductsComponent implements OnInit {
     this.lastCreatedProduct.set(product);
     this.isAddModalOpen.set(false);
     this.isSuccessModalOpen.set(true);
+    this.cateringService.getProducts().subscribe();
   }
 
   onAddAnother(): void {
@@ -334,5 +382,10 @@ export class ShowProductsComponent implements OnInit {
 
   closePosModal(): void {
     this.isPosModalOpen.set(false);
+    this.cateringService.getProducts().subscribe();
+  }
+
+  onSaleCompleted(): void {
+    this.cateringService.getProducts().subscribe();
   }
 }

@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -14,12 +14,16 @@ import { NotificationService } from '../../../core/services/notification.service
   templateUrl: './add-shift.component.html',
   styleUrl: './add-shift.component.css'
 })
-export class AddShiftComponent {
+export class AddShiftComponent implements OnInit {
   private shiftService = inject(ShiftService);
   private langService = inject(LanguageService);
   private authService = inject(AuthService);
   private notification = inject(NotificationService);
   private router = inject(Router);
+
+  ngOnInit(): void {
+    this.shiftService.fetchCurrentShiftFromApi();
+  }
 
   t = this.langService.t;
   isArabic = this.langService.isArabic;
@@ -94,6 +98,19 @@ export class AddShiftComponent {
           );
           this.router.navigate(['/shift/active']);
         } else {
+          if (errorMsg && (errorMsg.includes('وردية نشطة') || errorMsg.includes('already') || errorMsg.includes('active'))) {
+            this.shiftService.fetchCurrentShiftFromApi();
+            this.notification.info(
+              this.isArabic()
+                ? 'توجد بالفعل وردية نشطة مفتوحة في النظام، جاري تحويلك إليها...'
+                : 'An active shift is already open, redirecting...'
+            );
+            setTimeout(() => {
+              this.router.navigate(['/shift/active']);
+            }, 1000);
+            return;
+          }
+
           this.notification.error(
             errorMsg || (this.isArabic() ? 'فشل فتح الشفت' : 'Failed to start shift')
           );

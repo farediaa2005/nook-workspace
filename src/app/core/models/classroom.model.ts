@@ -501,6 +501,9 @@ export interface ClassroomOvertimeResult {
 export interface AdminReservation {
   id: string;
   reservationId?: string;
+  roomId?: string;
+  roomName?: string;
+  isClassroomSession?: boolean;
   occurrenceDate?: string;
   displayId: string;
   instructor: string;
@@ -516,6 +519,8 @@ export interface AdminReservation {
   timeRange: string;   // '10:00 - 12:00'
   durationHours: number;
   cost: number;
+  discount?: number;
+  discountPercent?: number;
   status: 'active' | 'upcoming' | 'completed' | 'cancelled';
   colorTheme: 'yellow' | 'blue' | 'purple' | 'emerald' | 'orange' | 'rose';
   isRecurring?: boolean;

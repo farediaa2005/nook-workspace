@@ -17,6 +17,7 @@ import { ShiftService } from './shift.service';
 import { AuthService } from './auth.service';
 import { WalletApiService } from './api/wallet-api.service';
 import { CateringService } from './catering.service';
+import { PackageService } from './package.service';
 import { parseIsoToLocalDate, getTodayDateISO, parseIsoToLocal24h } from '../utils/date-time.util';
 
 export interface ToastNotification {
@@ -205,6 +206,7 @@ export class WorkspaceService {
   private authService = inject(AuthService);
   private walletApi = inject(WalletApiService);
   private cateringService = inject(CateringService);
+  private packageService = inject(PackageService);
 
   // Pure in-memory reactive state — ZERO localStorage dependencies
   private activeStudentsState = signal<ActiveStudentSession[]>([]);
@@ -864,6 +866,9 @@ export class WorkspaceService {
       discountId?: string;
       couponCode?: string;
       payWay?: number;
+      packageHoursAlreadyDeducted?: boolean;
+      cateringAmount?: number;
+      printingAmount?: number;
     }
   ): void {
     const student = this.activeStudentsState().find(s => s.id === studentId);
@@ -921,13 +926,49 @@ export class WorkspaceService {
       isPartial ? 'info' : 'success'
     );
 
-    // Record shift transaction
-    this.shiftService.recordTransaction({
-      type: 'workspace',
-      paymentMethod: (checkoutOptions?.paymentMethod as any) || 'cash',
-      amount: receivedAmt,
-      details: `محاسبة جلسة طالب - ${student.name}${isPartial ? ` (دفع جزئي: مستلم ${receivedAmt} ج.م، متبقي ${remaining} ج.م)` : ''}`
-    });
+    // =========================================================================
+    // SEPARATE WORKSPACE SEATING, CATERING / DRINKS, AND PRINTING / SERVICES
+    // =========================================================================
+    const cateringAmount = Number(checkoutOptions?.cateringAmount ?? student.cateringTotal ?? 0);
+    const printingAmount = Number(checkoutOptions?.printingAmount ?? ((student.printingCount || student.printingPages || 0) * (student.printingPrice || 1.5)));
+
+    const effectiveCatering = Math.min(cateringAmount, receivedAmt);
+    const effectivePrinting = Math.min(printingAmount, Math.max(0, +(receivedAmt - effectiveCatering).toFixed(2)));
+    const workspaceOnlyAmt = Math.max(0, +(receivedAmt - effectiveCatering - effectivePrinting).toFixed(2));
+    const payMethod = (checkoutOptions?.paymentMethod as any) || 'cash';
+
+    // 1. Record Workspace Seating Session (ساعات وقعدة الورك سبيس)
+    if (workspaceOnlyAmt > 0 || (effectiveCatering === 0 && effectivePrinting === 0)) {
+      this.shiftService.recordTransaction({
+        type: 'workspace',
+        paymentMethod: payMethod,
+        amount: workspaceOnlyAmt > 0 ? workspaceOnlyAmt : receivedAmt,
+        details: `محاسبة جلسة طالب (ساعات وقعدة) - ${student.name}${isPartial ? ` (دفع جزئي: مستلم ${workspaceOnlyAmt} ج.م)` : ''}`
+      });
+    }
+
+    // 2. Record Catering & Drinks separately (الكافيه والمشروبات)
+    if (effectiveCatering > 0) {
+      const itemsList = student.cateringItems && student.cateringItems.length > 0
+        ? `: ${student.cateringItems.map((i: any) => `${i.name || 'طلب'} (x${i.quantity || 1})`).join(', ')}`
+        : '';
+      this.shiftService.recordTransaction({
+        type: 'canteen',
+        paymentMethod: payMethod,
+        amount: effectiveCatering,
+        details: `مشروبات وكافيه طالب - ${student.name}${itemsList}`
+      });
+    }
+
+    // 3. Record Printing & Handouts separately (إيرادات تانية - برنت ورق وخدمات)
+    if (effectivePrinting > 0) {
+      this.shiftService.recordTransaction({
+        type: 'other',
+        paymentMethod: payMethod,
+        amount: effectivePrinting,
+        details: `خدمات طباعة وتصوير ورق - ${student.name}${student.printingCount ? ` (${student.printingCount} ورقة)` : ''}`
+      });
+    }
 
     // Call Backend Dedicated Student Checkout API (Section 4.1)
     const targetStudentGuid = student.studentId || (/^[0-9a-fA-F-]{36}$/.test(studentId) ? studentId : undefined);
@@ -967,6 +1008,20 @@ export class WorkspaceService {
       }).subscribe({
         error: (err) => console.warn('[WorkspaceService] Checkout API notice:', err?.message)
       });
+    }
+
+    // Deduct student package hours if not already deducted by calling component
+    if (!checkoutOptions?.packageHoursAlreadyDeducted) {
+      const isPackage = checkoutOptions?.paymentMethod === 'package' ||
+        student.billingType === 'package' ||
+        !!checkoutOptions?.packageId ||
+        !!checkoutOptions?.usePackageHours;
+
+      if (isPackage) {
+        const hoursToDeduct = checkoutOptions?.usePackageHours || Math.max(1, Math.round(durationHours));
+        const targetId = checkoutOptions?.packageId || student.studentId || student.phone || student.id;
+        this.packageService.deductStudentPackageHours(targetId, hoursToDeduct);
+      }
     }
   }
 

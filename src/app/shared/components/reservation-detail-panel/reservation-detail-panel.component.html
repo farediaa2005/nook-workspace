@@ -95,7 +95,7 @@
                     {{ t().deductedFromPackage }}
                   </span>
                 } @else {
-                  <span class="cost-val">EGP {{ (res.costBreakdown.baseRate || res.cost) | number:'1.2-2' }}</span>
+                  <span class="cost-val">EGP {{ baseRateAmount() | number:'1.2-2' }}</span>
                 }
               </div>
 
@@ -106,10 +106,17 @@
                 </div>
               }
 
-              @if (res.costBreakdown.earlyBirdDiscount > 0) {
-                <div class="cost-row cost-row--discount">
-                  <span class="cost-label">{{ t().earlyBirdDiscount }}</span>
-                  <span class="cost-val">-EGP {{ res.costBreakdown.earlyBirdDiscount | number:'1.2-2' }}</span>
+              @if (discountAmount() > 0) {
+                <div class="cost-row cost-row--discount" style="color: #10b981;">
+                  <span class="cost-label">
+                    {{ isArabic() ? 'الخصم المطبق' : 'Discount Applied' }}
+                    @if (discountPercentLabel()) {
+                      ({{ discountPercentLabel() }})
+                    }
+                  </span>
+                  <span class="cost-val" style="color: #10b981; font-weight: 700;">
+                    -EGP {{ discountAmount() | number:'1.2-2' }}
+                  </span>
                 </div>
               }
             </div>
@@ -140,14 +147,23 @@
           <span>{{ t().edit }}</span>
         </button>
 
-        <button type="button" class="panel-btn panel-btn--checkout" (click)="onCheckout()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-            <polyline points="16 17 21 12 16 7"></polyline>
-            <line x1="21" y1="12" x2="9" y2="12"></line>
-          </svg>
-          <span>{{ t().checkOutBtn }}</span>
-        </button>
+        @if (isCompleted()) {
+          <div class="panel-badge-completed" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; background: rgba(16, 185, 129, 0.12); border: 1px solid #10b981; border-radius: 8px; color: #10b981; font-weight: 600; font-size: 0.88rem; flex: 1;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>{{ isArabic() ? 'تم تسجيل المغادرة (Checked-Out)' : 'Checked-Out' }}</span>
+          </div>
+        } @else {
+          <button type="button" class="panel-btn panel-btn--checkout" (click)="onCheckout()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            <span>{{ t().checkOutBtn }}</span>
+          </button>
+        }
       </footer>
     </aside>
   </div>

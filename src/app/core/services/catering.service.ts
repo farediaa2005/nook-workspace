@@ -14,8 +14,9 @@ import { ProductApiService } from './api/product-api.service';
 import { AuthService } from './auth.service';
 import { WorkspaceService } from './workspace.service';
 import { ClassroomService } from './classroom.service';
+import { ShiftService } from './shift.service';
 import { parseIsoToLocalDate, parseIsoToLocalDateObj } from '../utils/date-time.util';
-import { resolveImageUrl, getProductImageCache, setProductImageCache } from '../utils/image-url.util';
+import { resolveImageUrl } from '../utils/image-url.util';
 
 export const DEFAULT_CATEGORIES: { value: string; labelEn: string; labelAr: string }[] = [
   { value: 'Snacks', labelEn: 'Snacks', labelAr: 'سناكس ومخبوزات' },
@@ -207,7 +208,7 @@ export class CateringService {
           });
         }
       }
-    } catch {}
+    } catch { }
 
     const list = Array.from(map.values()).filter(x => x.qty > 0 || x.revenue > 0);
     list.sort((a, b) => b.revenue - a.revenue);
@@ -348,17 +349,58 @@ export class CateringService {
           });
         });
       }
-    } catch {}
+    } catch { }
 
     return sum;
   });
 
-  // Payment Breakdown
-  readonly paymentBreakdown = signal<PaymentBreakdown>({
+  // Internal manual POS payment accumulator
+  private _manualPaymentBreakdown = signal<PaymentBreakdown>({
     cardPercent: 0,
     appPercent: 0,
     cashPercent: 0,
     totalTxns: 0
+  });
+
+  // Dynamic Payment Breakdown computed directly from ShiftService canteen transactions + POS sales
+  readonly paymentBreakdown = computed<PaymentBreakdown>(() => {
+    let cashCount = 0;
+    let cardCount = 0;
+    let appCount = 0;
+    let totalTxns = 0;
+
+    try {
+      const ss = this.injector.get(ShiftService, null);
+      const current = ss?.currentShift();
+      if (current && current.transactions) {
+        const canteenTxns = current.transactions.filter(t => t.type === 'canteen');
+        for (const tx of canteenTxns) {
+          totalTxns++;
+          if (tx.paymentMethod === 'card') cardCount++;
+          else if (tx.paymentMethod === 'vodafone' || tx.paymentMethod === 'instapay' || tx.paymentMethod === 'app' || tx.paymentMethod === 'room_session') appCount++;
+          else cashCount++;
+        }
+      }
+    } catch { }
+
+    const manual = this._manualPaymentBreakdown();
+    if (manual.totalTxns > 0) {
+      totalTxns += manual.totalTxns;
+      cashCount += Math.round((manual.cashPercent / 100) * manual.totalTxns);
+      cardCount += Math.round((manual.cardPercent / 100) * manual.totalTxns);
+      appCount += Math.round((manual.appPercent / 100) * manual.totalTxns);
+    }
+
+    if (totalTxns === 0) {
+      return { totalTxns: 0, cashPercent: 0, cardPercent: 0, appPercent: 0 };
+    }
+
+    return {
+      totalTxns,
+      cashPercent: Math.round((cashCount / totalTxns) * 100),
+      cardPercent: Math.round((cardCount / totalTxns) * 100),
+      appPercent: Math.round((appCount / totalTxns) * 100)
+    };
   });
 
   constructor() {
@@ -402,6 +444,76 @@ export class CateringService {
   }
 
   /**
+   * Derive real-world sold count & revenue for a product by cross-referencing
+   * workspace sessions, classroom catering, and active shift canteen transactions.
+   */
+  private getProductSales(prodName: string, prodId?: string): { soldCount: number; totalRevenue: number } {
+    let soldCount = 0;
+    let totalRevenue = 0;
+    const nameLower = (prodName || '').toLowerCase().trim();
+
+    try {
+      const ws = this.injector.get(WorkspaceService, null);
+      const cs = this.injector.get(ClassroomService, null);
+      const ss = this.injector.get(ShiftService, null);
+
+      if (ws) {
+        const allStudents = [...(ws.activeStudents() || []), ...(ws.historyStudents() || [])];
+        for (const s of allStudents) {
+          const items = s.cateringItems || (s as any).canteenOrders || [];
+          for (const item of items) {
+            const iName = (item.name || item.nameAr || item.product?.name || '').toLowerCase().trim();
+            const iId = item.id || item.productId || item.product?.id;
+            if ((prodId && iId === prodId) || (iName && (iName === nameLower || iName.includes(nameLower) || nameLower.includes(iName)))) {
+              const qty = Number(item.quantity || item.qty || 1);
+              const price = Number(item.unitPrice || item.price || item.product?.sellingPrice || 0);
+              const rev = Number(item.totalPrice || item.total || (price * qty) || 0);
+              soldCount += qty;
+              totalRevenue += rev;
+            }
+          }
+        }
+      }
+
+      if (cs) {
+        for (const c of (cs.cards() || [])) {
+          const items = c.cateringItems || [];
+          for (const item of items) {
+            const iName = (item.name || item.nameAr || item.product?.name || '').toLowerCase().trim();
+            const iId = item.id || item.productId || item.product?.id;
+            if ((prodId && iId === prodId) || (iName && (iName === nameLower || iName.includes(nameLower) || nameLower.includes(iName)))) {
+              const qty = Number(item.quantity || item.qty || 1);
+              const price = Number(item.unitPrice || item.price || item.product?.sellingPrice || 0);
+              const rev = Number(item.totalPrice || item.total || (price * qty) || 0);
+              soldCount += qty;
+              totalRevenue += rev;
+            }
+          }
+        }
+      }
+
+      if (ss) {
+        const current = ss.currentShift();
+        if (current && current.transactions) {
+          for (const tx of current.transactions) {
+            if (tx.type === 'canteen' && tx.details) {
+              const det = tx.details.toLowerCase();
+              if (det.includes(nameLower)) {
+                const reg = new RegExp(`${nameLower}[^0-9x]*\\(x(\\d+)\\)`, 'i');
+                const match = tx.details.match(reg);
+                const qty = match ? Number(match[1]) : 1;
+                soldCount += qty;
+              }
+            }
+          }
+        }
+      }
+    } catch { }
+
+    return { soldCount, totalRevenue };
+  }
+
+  /**
    * Data Mapping: transforms backend ProductDto into frontend CateringProduct
    */
   private mapDtoToProduct(dto: ProductDto): CateringProduct {
@@ -428,14 +540,15 @@ export class CateringService {
       status = 'low_stock';
     }
 
-    let resolvedImage = resolveImageUrl(dto.imageUrl);
-    if ((!resolvedImage || resolvedImage.trim() === '') && dto.id) {
-      resolvedImage = getProductImageCache(dto.id) || '';
-    }
+    const rawImg = (dto as any).imageUrl || (dto as any).ImageUrl || (dto as any).image || (dto as any).Image || (dto as any).imagePath || (dto as any).ImagePath || (dto as any).photoUrl || (dto as any).PhotoUrl;
+    // Only resolve if image path looks like a real file (has extension), skip empty/null/placeholder values
+    const hasValidExtension = rawImg && /\.(jpe?g|png|gif|webp|svg|bmp|ico)$/i.test(rawImg.trim());
+    const resolvedImage = hasValidExtension ? resolveImageUrl(rawImg) : '';
 
     const existingProd = this.productsState().find(p => p.id === dto.id);
-    const soldCount = (dto as any).soldCount ?? (dto as any).salesCount ?? (dto as any).totalSales ?? existingProd?.soldCount ?? 0;
-    const totalRevenue = (dto as any).totalRevenue ?? (dto as any).revenue ?? existingProd?.totalRevenue ?? (soldCount * dto.piecePrice);
+    const sessionSales = this.getProductSales(dto.name, dto.id);
+    const soldCount = (dto as any).soldCount ?? (dto as any).salesCount ?? (dto as any).totalSales ?? (sessionSales.soldCount > 0 ? sessionSales.soldCount : (existingProd?.soldCount ?? 0));
+    const totalRevenue = (dto as any).totalRevenue ?? (dto as any).revenue ?? (sessionSales.totalRevenue > 0 ? sessionSales.totalRevenue : (existingProd?.totalRevenue ?? (soldCount * dto.piecePrice)));
 
     const rawCat = (dto as any).category || existingProd?.category;
     const rawCatAr = (dto as any).categoryAr || existingProd?.categoryAr;
@@ -555,16 +668,6 @@ export class CateringService {
         if (input.nameAr) product.nameAr = input.nameAr;
         if (input.reorderLevel !== undefined) product.reorderLevel = input.reorderLevel;
 
-        // Fallback to local image if backend returned empty or unresolved image
-        if (input.image && (!product.image || product.image.trim() === '')) {
-          product.image = input.image;
-        }
-
-        // Cache image in localStorage for immediate and persistent display
-        if (product.id && product.image) {
-          setProductImageCache(product.id, product.image);
-        }
-
         this.productsState.update(list => [product, ...list.filter(p => p.id !== product.id)]);
         return product;
       })
@@ -643,11 +746,8 @@ export class CateringService {
         product.categoryAr = updated.categoryAr;
         if (updated.nameAr) product.nameAr = updated.nameAr;
         if (updated.reorderLevel !== undefined) product.reorderLevel = updated.reorderLevel;
-        if (updated.image && (!product.image || product.image.trim() === '')) {
-          product.image = updated.image;
-        }
-        if (product.id && product.image) {
-          setProductImageCache(product.id, product.image);
+        if (updated.image === '' && !file) {
+          product.image = '';
         }
         this.productsState.update(list => list.map(p => p.id === product.id ? product : p));
         return product;
@@ -684,7 +784,9 @@ export class CateringService {
           PiecePrice: current.sellingPrice,
           Cost: current.costPrice,
           Quantity: newStock,
-          SerialNo: current.barcode || undefined
+          SerialNo: current.barcode || undefined,
+          ImageUrl: current.image || undefined,
+          ExpireDate: current.expirationDate && current.expirationDate !== 'N/A' ? current.expirationDate : undefined
         }).subscribe({
           error: (err) => console.warn('[CateringService] Stock deduction update notice:', err?.message || err)
         });
@@ -719,8 +821,8 @@ export class CateringService {
       });
     });
 
-    // 3. Update payment breakdown statistics
-    this.paymentBreakdown.update(pb => {
+    // 3. Update manual payment breakdown statistics
+    this._manualPaymentBreakdown.update(pb => {
       const totalTxns = pb.totalTxns + 1;
       let cash = pb.cashPercent;
       let card = pb.cardPercent;

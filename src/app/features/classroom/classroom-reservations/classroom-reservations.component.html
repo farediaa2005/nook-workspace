@@ -163,7 +163,7 @@
                   [style.left]="actionMenuPosition().left !== undefined ? (actionMenuPosition().left + 'px') : 'auto'"
                   [style.right]="actionMenuPosition().right !== undefined ? (actionMenuPosition().right + 'px') : 'auto'"
                   [style.transform-origin]="actionMenuPosition().transformOrigin || 'top right'">
-                  @if (res.status !== 'cancelled') {
+                  @if (res.status !== 'cancelled' && res.status !== 'completed') {
                   <button type="button" class="action-menu-btn action-menu-btn--checkout"
                     (click)="onCheckoutReservation(res); closeActionMenu()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -184,6 +184,7 @@
                     <span>{{ t().view }}</span>
                   </button>
 
+                  @if (!res.isClassroomSession && res.status !== 'completed' && res.status !== 'active' && res.status !== 'cancelled') {
                   <button type="button" class="action-menu-btn action-menu-btn--success" style="color: #22c55e;"
                     (click)="startSessionFromReservation(res)"
                     [title]="isArabic() ? 'بدء جلسة القاعة الآن' : 'Start Classroom Session Now'">
@@ -193,6 +194,7 @@
                     </svg>
                     <span style="color: #22c55e;">{{ isArabic() ? 'بدء الجلسة الان' : 'Start Session' }}</span>
                   </button>
+                  }
 
                   <button type="button" class="action-menu-btn"
                     (click)="requestEditReservation(res); closeActionMenu()">
@@ -1160,6 +1162,69 @@
           <span>{{ isArabic() ? 'جاري الإلغاء...' : 'Cancelling...' }}</span>
           } @else {
           <span>{{ isArabic() ? 'تأكيد الإلغاء' : 'Confirm Cancellation' }}</span>
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- 8. CUSTOM DELETE CONFIRMATION MODAL (NOOK STANDARD STYLE) -->
+  @if (isDeleteModalOpen() && reservationToDelete(); as delRes) {
+  <div class="modal-overlay" (click)="closeDeleteModal()">
+    <div class="delete-card" (click)="$event.stopPropagation()">
+      <div class="delete-icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" style="width: 32px; height: 32px;">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="15" y1="9" x2="9" y2="15"/>
+          <line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+      </div>
+
+      <h3 class="delete-title">
+        {{ isArabic() ? (delRes.isClassroomSession ? 'حذف جلسة القاعة' : 'إلغاء الحجز') : (delRes.isClassroomSession ? 'Delete Classroom Session' : 'Cancel Reservation') }}
+      </h3>
+
+      <p class="delete-subtitle">
+        {{ isArabic() 
+          ? (delRes.isClassroomSession ? 'هل أنت متأكد من رغبتك في حذف جلسة القاعة هذه نهائياً؟' : 'هل أنت متأكد من إلغاء هذا الحجز؟') 
+          : (delRes.isClassroomSession ? 'Are you sure you want to permanently delete this classroom session?' : 'Are you sure you want to cancel this reservation?') }}
+      </p>
+
+      <div class="delete-details-box">
+        <div class="delete-details-row">
+          <span class="dd-label">{{ t().classroomLabel }}:</span>
+          <strong class="dd-val">{{ delRes.classroom }}</strong>
+        </div>
+        <div class="delete-details-row">
+          <span class="dd-label">{{ t().instructor }}:</span>
+          <strong class="dd-val">{{ delRes.instructor }}</strong>
+        </div>
+        <div class="delete-details-row">
+          <span class="dd-label">{{ t().activity }}:</span>
+          <span class="dd-val">{{ delRes.activity }}</span>
+        </div>
+        <div class="delete-details-row">
+          <span class="dd-label">{{ t().time }}:</span>
+          <span class="dd-val">{{ delRes.timeRange }} ({{ delRes.date }})</span>
+        </div>
+        @if (delRes.cost) {
+        <div class="delete-details-row delete-details-row--cost">
+          <span class="dd-label">{{ t().costLabel }}:</span>
+          <strong class="dd-val dd-cost">{{ delRes.cost }} {{ t().currency }}</strong>
+        </div>
+        }
+      </div>
+
+      <div class="delete-actions-footer">
+        <button type="button" class="btn-cancel" (click)="closeDeleteModal()" [disabled]="isDeleting()">
+          {{ isArabic() ? 'تراجع' : 'Cancel' }}
+        </button>
+        <button type="button" class="btn-confirm-delete" (click)="confirmDelete()" [disabled]="isDeleting()">
+          @if (isDeleting()) {
+            <span>{{ isArabic() ? 'جاري الحذف...' : 'Deleting...' }}</span>
+          } @else {
+            <span>{{ isArabic() ? (delRes.isClassroomSession ? 'تأكيد حذف الجلسة' : 'تأكيد إلغاء الحجز') : 'Confirm Delete' }}</span>
           }
         </button>
       </div>

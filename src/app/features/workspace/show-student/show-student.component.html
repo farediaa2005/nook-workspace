@@ -1121,37 +1121,7 @@
                 }
               </div>
 
-              <!-- Card 5: Extra Services & Amenities -->
-              <div class="modal-section-card">
-                <div class="form-section-head">
-                  <h4 class="section-heading">{{ t().extraServicesAndAmenities }}</h4>
-                </div>
-
-                <div class="extra-services-grid">
-                  <!-- Printing Counter with Price Override from Settings -->
-
-                  <!-- Wallet Deposit -->
-                  <div class="modal-field-group">
-                    <label class="modal-label">{{ t().walletDepositLabel }} ({{ t().currency }})</label>
-                    <div class="counter-input-wrap">
-                      <button type="button" class="btn-counter"
-                        (click)="ciWallet.set(ciWallet() > 0 ? ciWallet() - 1 : 0)">-</button>
-                      <input type="number" min="0" step="10" class="counter-val-input" [value]="ciWallet()"
-                        (input)="ciWallet.set(+$any($event.target).value)" />
-                      <button type="button" class="btn-counter" (click)="ciWallet.set(ciWallet() + 10)">+</button>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- WiFi Voucher -->
-                <div class="modal-field-group" style="margin-top: 10px;">
-                  <label class="modal-label">{{ t().wifiVoucher }}</label>
-                  <input type="text" class="modal-input" [placeholder]="t().wifiVoucherPlaceholder" [value]="ciWifi()"
-                    (input)="ciWifi.set($any($event.target).value)" />
-                </div>
-              </div>
-
-              <!-- Card 6: Booking Summary -->
+              <!-- Card 5: Booking Summary -->
               <div class="modal-section-card modal-summary-box">
                 <div class="form-section-head">
                   <h4 class="section-heading">{{ t().bookingSummaryHeading }}</h4>
@@ -1206,13 +1176,6 @@
                   </div>
                   }
 
-                  @if (ciWallet() > 0) {
-                  <div class="summary-item-row">
-                    <span class="summary-item-label">{{ t().walletDepositLabel }}</span>
-                    <strong class="summary-item-val">+{{ ciWallet() }} {{ t().currency }}</strong>
-                  </div>
-                  }
-
                   <div class="summary-line-divider"></div>
 
                   <div class="summary-total-row">
@@ -1221,7 +1184,7 @@
                       @if (ciBilling() === 'package') {
                       0.00 <span class="summary-currency">{{ t().currency }}</span>
                       } @else {
-                      {{ (ciTotalCost() + (ciPrinting() * 1.5) + ciWallet()).toFixed(2) }} <span
+                      {{ (ciTotalCost() + (ciPrinting() * 1.5)).toFixed(2) }} <span
                         class="summary-currency">{{ t().currency }}</span>
                       }
                     </strong>

@@ -151,7 +151,8 @@ export class UserService {
             name: user.name,
             staffRole: apiRole
           }).subscribe({
-            error: () => {}
+            next: () => this.syncUsersFromBackend(),
+            error: () => this.syncUsersFromBackend()
           });
 
           this.notification.success(
@@ -208,7 +209,11 @@ export class UserService {
           name: user.name || user.username,
           staffRole: apiRole
         }).subscribe({
-          error: (err) => console.warn('[UserService] Staff profile update notice:', err?.message)
+          next: () => this.syncUsersFromBackend(),
+          error: (err) => {
+            console.warn('[UserService] Staff profile update notice:', err?.message);
+            this.syncUsersFromBackend();
+          }
         });
 
         this.usersState.update(list => list.map(u => (u.id === user.id ? { ...u, ...user } : u)));
@@ -242,6 +247,7 @@ export class UserService {
     ).subscribe({
       next: () => {
         this.usersState.update(list => list.filter(u => u.id !== id));
+        this.syncUsersFromBackend();
         this.notification.info(
           this.langService.isArabic()
             ? 'تم حذف الحساب بنجاح.'
@@ -274,6 +280,7 @@ export class UserService {
         this.usersState.update(list =>
           list.map(u => (u.id === id ? { ...u, status: u.status === 'active' ? 'inactive' : 'active' } : u))
         );
+        this.syncUsersFromBackend();
         this.notification.success(
           this.langService.isArabic()
             ? 'تم تحديث حالة الحساب بنجاح.'

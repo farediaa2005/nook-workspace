@@ -87,7 +87,29 @@
     </div>
 
     <!-- Header Actions CTA -->
-    <div class="header-actions" style="display: flex; gap: 10px; align-items: center;">
+    <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+      <button
+        type="button"
+        class="btn-sync-shift"
+        (click)="recalculateShift()"
+        [disabled]="isRecalculating()"
+        [title]="isArabic() ? 'إعادة احتساب وتدقيق بيانات الوردية ومطابقة الحسابات' : 'Recalculate & Sync Shift Data'"
+        style="background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s ease;"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          [style.animation]="isRecalculating() ? 'spin 0.8s linear infinite' : 'none'"
+          style="width: 17px; height: 17px;"
+        >
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+        </svg>
+        <span>{{ isArabic() ? 'تحديث وتدقيق الحسابات' : 'Sync & Recalculate' }}</span>
+      </button>
+
+
       <button type="button" class="btn-add-item" (click)="openAddItemModal()" style="background: rgba(245, 185, 33, 0.15); color: #f5b921; border: 1px solid rgba(245, 185, 33, 0.3); border-radius: 10px; padding: 10px 16px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
           <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -340,7 +362,7 @@
           </div>
         </div>
         <div class="stat-body">
-          <div class="stat-number stat-number--muted">
+          <div class="stat-number">
             {{ otherIncome().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span>
           </div>
           <div class="stat-footnote">
@@ -415,6 +437,7 @@
               <th>{{ t().categoryColumn }}</th>
               <th>{{ t().paymentChannelColumn }}</th>
               <th class="text-end">{{ t().amountColumn }}</th>
+              <th style="width: 50px; text-align: center;">🗑️</th>
             </tr>
           </thead>
           <tbody>
@@ -448,6 +471,12 @@
                     } @else if (tx.type === 'package') {
                       <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="2"/></svg>
                       <span>{{ t().packages }}</span>
+                    } @else if (tx.type === 'canteen') {
+                      <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3" stroke="currentColor" stroke-width="2"/></svg>
+                      <span>{{ t().cateringCategory }}</span>
+                    } @else if (tx.type === 'other' || tx.type === 'printing') {
+                      <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" stroke="currentColor" stroke-width="2"/><circle cx="7" cy="7" r="1.5" fill="currentColor"/></svg>
+                      <span>{{ t().otherIncomeCategory }}</span>
                     } @else if (tx.type === 'vodafone_in' || tx.type === 'vodafone_out') {
                       <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M12 2v20M8 8a6 6 0 0 1 8 0" stroke="currentColor" stroke-width="2"/></svg>
                       <span>{{ t().vodafoneCashName }}</span>
@@ -497,10 +526,33 @@
                 <td class="cell-amount text-end" [class.text-positive]="tx.amount >= 0" [class.text-negative]="tx.amount < 0">
                   {{ tx.amount >= 0 ? '+' : '' }}{{ tx.amount.toFixed(2) }} {{ currencyText() }}
                 </td>
+
+                <!-- Delete Action -->
+                <td style="text-align: center; padding: 4px;">
+                  @if (tx.type !== 'system' && !tx.id.startsWith('TX-')) {
+                    <button
+                      class="delete-tx-btn"
+                      [disabled]="isDeletingItem() === tx.id"
+                      (click)="deleteTransaction(tx)"
+                      [title]="isArabic() ? 'حذف هذا البند' : 'Delete this item'"
+                      style="background: none; border: none; cursor: pointer; padding: 4px 6px; border-radius: 6px; color: var(--text-dim); transition: all 0.2s ease;"
+                      onmouseover="this.style.background='rgba(239,68,68,0.15)'; this.style.color='#ef4444';"
+                      onmouseout="this.style.background='none'; this.style.color='var(--text-dim)';"
+                    >
+                      @if (isDeletingItem() === tx.id) {
+                        <span style="display: inline-block; width: 14px; height: 14px; border: 2px solid #ef4444; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite;"></span>
+                      } @else {
+                        <svg viewBox="0 0 24 24" fill="none" width="15" height="15">
+                          <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      }
+                    </button>
+                  }
+                </td>
               </tr>
             } @empty {
               <tr>
-                <td colspan="5" style="text-align: center; padding: 32px; color: var(--text-dim);">
+                <td colspan="6" style="text-align: center; padding: 32px; color: var(--text-dim);">
                   {{ t().noTransactionsForChannel }}
                 </td>
               </tr>
@@ -519,118 +571,337 @@
     ></app-end-of-shift-modal>
   }
 
-  <!-- Add Shift Item / Expense Modal (Issue #15) -->
-  @if (showAddItemModal()) {
-    <div class="modal-overlay" style="position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 16px;" (click)="closeAddItemModal()">
-      <div class="modal-dialog-box" style="background: var(--surface); border: 1px solid var(--border); border-radius: 20px; width: 100%; max-width: 480px; padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.4);" (click)="$event.stopPropagation()">
-        <!-- Header -->
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
-          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text);">
-            {{ isArabic() ? 'إضافة بند جديد إلى الوردية' : 'Add Shift Item / Transaction' }}
-          </h3>
-          <button type="button" (click)="closeAddItemModal()" style="background: transparent; border: none; font-size: 1.5rem; color: var(--text-dim); cursor: pointer;">&times;</button>
+  <!-- Delete Confirmation Modal -->
+  @if (showDeleteConfirmModal() && deleteTargetTx()) {
+    <div class="add-item-overlay" (click)="cancelDelete()" style="z-index: 1100;">
+      <div (click)="$event.stopPropagation()" [class.rtl]="isArabic()" style="
+        background: var(--card-bg, #1a1a2e);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 16px;
+        padding: 28px 24px;
+        max-width: 420px;
+        width: 90%;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+        animation: slideUp 0.25s ease-out;
+      ">
+        <!-- Warning Icon -->
+        <div style="
+          width: 56px; height: 56px; border-radius: 50%;
+          background: rgba(239, 68, 68, 0.15);
+          display: flex; align-items: center; justify-content: center;
+          margin: 0 auto 16px;
+        ">
+          <svg viewBox="0 0 24 24" fill="none" width="28" height="28">
+            <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14zM10 11v6M14 11v6" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
         </div>
 
-        <form (ngSubmit)="submitAddItem()" style="display: flex; flex-direction: column; gap: 16px;">
-          <!-- Type Toggle: Expense vs Revenue -->
-          <div>
-            <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--text-dim); margin-bottom: 6px;">
-              {{ isArabic() ? 'نوع البند' : 'Item Type' }}
+        <!-- Title -->
+        <h3 style="color: var(--text-primary, #fff); margin: 0 0 8px; font-size: 1.15rem; font-weight: 700;">
+          {{ isArabic() ? 'تأكيد حذف البند' : 'Confirm Delete Item' }}
+        </h3>
+
+        <!-- Subtitle -->
+        <p style="color: var(--text-dim, #888); margin: 0 0 18px; font-size: 0.88rem; line-height: 1.6;">
+          {{ isArabic() ? 'هل أنت متأكد من حذف هذا البند من سجل الوردية؟ لا يمكن التراجع عن هذا الإجراء.' : 'Are you sure you want to delete this item from the shift ledger? This action cannot be undone.' }}
+        </p>
+
+        <!-- Item Details Card -->
+        <div style="
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 10px;
+          padding: 14px 16px;
+          margin-bottom: 20px;
+          text-align: start;
+        ">
+          <div style="color: var(--text-primary, #fff); font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; word-break: break-word;">
+            {{ deleteTargetTx()!.details }}
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--text-dim, #888); font-size: 0.78rem;">
+              ID: {{ deleteTargetTx()!.id | slice:0:12 }}
+            </span>
+            <span
+              [style.font-size]="'1rem'"
+              [style.font-weight]="'700'"
+              [style.color]="deleteTargetTx()!.amount >= 0 ? '#10b981' : '#ef4444'"
+            >
+              {{ deleteTargetTx()!.amount >= 0 ? '+' : '' }}{{ deleteTargetTx()!.amount.toFixed(2) }} {{ currencyText() }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 10px; justify-content: center;">
+          <button (click)="cancelDelete()" style="
+            flex: 1; padding: 11px 18px; border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.06);
+            color: var(--text-primary, #fff);
+            font-size: 0.9rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+          ">
+            {{ isArabic() ? 'إلغاء' : 'Cancel' }}
+          </button>
+          <button (click)="confirmDelete()" style="
+            flex: 1; padding: 11px 18px; border-radius: 10px;
+            border: none;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: #fff;
+            font-size: 0.9rem; font-weight: 700;
+            cursor: pointer; transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+          ">
+            🗑️ {{ isArabic() ? 'حذف البند' : 'Delete Item' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Add Shift Item / Expense Modal (Issue #15) -->
+  @if (showAddItemModal()) {
+    <div class="add-item-overlay" (click)="closeAddItemModal()">
+      <div class="add-item-card" [class.rtl]="isArabic()" (click)="$event.stopPropagation()">
+        
+        <!-- Header -->
+        <div class="add-item-header">
+          <div class="header-content">
+            <div class="header-icon-badge" [class.header-icon-badge--revenue]="newItemType() === 'revenue'">
+              @if (newItemType() === 'expense') {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="dialog-header-svg">
+                  <path d="M7 17L17 7M17 7H7M17 7V17"/>
+                </svg>
+              } @else {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="dialog-header-svg">
+                  <path d="M17 7L7 17M7 17H17M7 17V7"/>
+                </svg>
+              }
+            </div>
+            <div class="header-texts">
+              <h3 class="dialog-title">
+                {{ isArabic() ? 'إضافة بند جديد إلى الوردية' : 'Add Shift Transaction' }}
+              </h3>
+              <p class="dialog-subtitle">
+                {{ isArabic() ? 'تسجيل إيراد إضافي أو مصروفات نثرية ضمن الوردية النشطة' : 'Record petty cash expense or additional shift income' }}
+              </p>
+            </div>
+          </div>
+
+          <button type="button" class="btn-dialog-close" (click)="closeAddItemModal()" [title]="isArabic() ? 'إغلاق' : 'Close'" [disabled]="isSubmittingItem()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <form (ngSubmit)="submitAddItem()" class="add-item-form">
+          <!-- Type Switcher (Expense vs Revenue) -->
+          <div class="form-group">
+            <label class="form-label">
+              {{ isArabic() ? 'نوع البند المالي' : 'Transaction Type' }}
             </label>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: var(--surface-2); padding: 4px; border-radius: 10px; border: 1px solid var(--border);">
+            <div class="type-segmented-wrap">
               <button
                 type="button"
-                [style.background]="newItemType() === 'expense' ? '#ef4444' : 'transparent'"
-                [style.color]="newItemType() === 'expense' ? '#ffffff' : 'var(--text)'"
-                style="padding: 8px; border-radius: 8px; border: none; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s;"
-                (click)="newItemType.set('expense'); newItemCategory.set('expense')"
+                class="type-pill-btn type-pill-btn--expense"
+                [class.type-pill-btn--active]="newItemType() === 'expense'"
+                (click)="setItemType('expense')"
               >
-                {{ isArabic() ? 'مصروفات (خارج)' : 'Expense (Outflow)' }}
+                <span class="type-icon-circle">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="7" y1="17" x2="17" y2="7"></line>
+                    <polyline points="7 7 17 7 17 17"></polyline>
+                  </svg>
+                </span>
+                <span class="type-label">{{ isArabic() ? 'مصروفات (خارج)' : 'Expense (Outflow)' }}</span>
               </button>
+
               <button
                 type="button"
-                [style.background]="newItemType() === 'revenue' ? '#10b981' : 'transparent'"
-                [style.color]="newItemType() === 'revenue' ? '#ffffff' : 'var(--text)'"
-                style="padding: 8px; border-radius: 8px; border: none; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s;"
-                (click)="newItemType.set('revenue'); newItemCategory.set('other')"
+                class="type-pill-btn type-pill-btn--revenue"
+                [class.type-pill-btn--active]="newItemType() === 'revenue'"
+                (click)="setItemType('revenue')"
               >
-                {{ isArabic() ? 'إيراد (داخل)' : 'Revenue (Inflow)' }}
+                <span class="type-icon-circle">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="17" y1="7" x2="7" y2="17"></line>
+                    <polyline points="17 17 7 17 7 7"></polyline>
+                  </svg>
+                </span>
+                <span class="type-label">{{ isArabic() ? 'إيراد (داخل)' : 'Revenue (Inflow)' }}</span>
               </button>
             </div>
           </div>
 
           <!-- Amount -->
-          <div>
-            <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--text-dim); margin-bottom: 6px;">
-              {{ isArabic() ? 'المبلغ (جنيه)' : 'Amount (EGP)' }} *
-            </label>
-            <input
-              type="number"
-              step="0.5"
-              min="0.01"
-              required
-              [placeholder]="isArabic() ? 'أدخل المبلغ...' : 'Enter amount...'"
-              [ngModel]="newItemAmount()"
-              (ngModelChange)="newItemAmount.set($event)"
-              name="itemAmount"
-              style="width: 100%; padding: 10px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 1rem; font-weight: 700; outline: none;"
-            />
+          <div class="form-group">
+            <div class="label-row">
+              <label class="form-label">
+                {{ isArabic() ? 'المبلغ المطلوب' : 'Amount' }} <span class="required-star">*</span>
+              </label>
+              @if (newItemAmount()) {
+                <button type="button" class="btn-clear-field" (click)="clearAmount()">
+                  {{ isArabic() ? 'تفريغ' : 'Clear' }}
+                </button>
+              }
+            </div>
+
+            <div class="amount-input-box" [class.amount-input-box--error]="amountErrorMessage()">
+              <input
+                type="number"
+                step="0.5"
+                min="0.01"
+                required
+                [placeholder]="isArabic() ? '0.00' : '0.00'"
+                [ngModel]="newItemAmount()"
+                (ngModelChange)="onAmountChange($event)"
+                name="itemAmount"
+                class="amount-input font-num"
+                id="shiftItemAmountInput"
+              />
+              <span class="currency-badge">{{ currencyText() }}</span>
+            </div>
+
+            @if (amountErrorMessage()) {
+              <div class="field-error-hint">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="error-svg">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <span>{{ amountErrorMessage() }}</span>
+              </div>
+            }
+
+            <!-- Quick Add Chips -->
+            <div class="quick-amounts-strip">
+              <span class="quick-strip-lbl">{{ isArabic() ? 'إضافة سريعة:' : 'Quick Add:' }}</span>
+              <div class="quick-chips-list">
+                @for (val of quickAmounts; track val) {
+                  <button type="button" class="quick-chip-btn" (click)="applyQuickAmount(val)">
+                    +{{ val }}
+                  </button>
+                }
+              </div>
+            </div>
           </div>
 
           <!-- Payment Way / Channel -->
-          <div>
-            <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--text-dim); margin-bottom: 6px;">
-              {{ isArabic() ? 'طريقة / قناة الدفع' : 'Payment Method / Channel' }}
+          <div class="form-group">
+            <label class="form-label">
+              {{ isArabic() ? 'طريقة / قناة الدفع والتحصيل' : 'Payment Method & Channel' }}
             </label>
-            <select
-              [ngModel]="newItemPayWay()"
-              (ngModelChange)="newItemPayWay.set($event)"
-              name="itemPayWay"
-              style="width: 100%; padding: 10px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 0.9rem; outline: none; font-weight: 600;"
-            >
-              <option value="cash">{{ isArabic() ? 'خزينة نقدية (Cash)' : 'Cash Drawer' }}</option>
-              <option value="vodafone">{{ isArabic() ? 'فودافون كاش (Vodafone Cash)' : 'Vodafone Cash' }}</option>
-              <option value="instapay">{{ isArabic() ? 'إنستاباي (InstaPay)' : 'InstaPay' }}</option>
-              <option value="fawry">{{ isArabic() ? 'فوري (Fawry / POS)' : 'Fawry / POS' }}</option>
-            </select>
+            <div class="modal-channels-grid">
+              @for (ch of paymentChannels; track ch.key) {
+                <button
+                  type="button"
+                  class="channel-pill"
+                  [class.channel-pill--active]="newItemPayWay() === ch.key"
+                  (click)="setPaymentChannel(ch.key)"
+                >
+                  <div class="channel-pill-left">
+                    <span class="channel-emoji">{{ ch.icon }}</span>
+                    <span class="channel-name">{{ isArabic() ? ch.labelAr : ch.labelEn }}</span>
+                  </div>
+                  <span class="channel-check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </span>
+                </button>
+              }
+            </div>
+          </div>
+
+          <!-- Category Chips -->
+          <div class="form-group">
+            <label class="form-label">
+              {{ isArabic() ? 'تصنيف مقترح' : 'Suggested Category' }}
+            </label>
+            <div class="category-chips-list">
+              @if (newItemType() === 'expense') {
+                @for (cat of expenseCategories; track cat.key) {
+                  <button
+                    type="button"
+                    class="category-chip"
+                    [class.category-chip--active]="newItemCategory() === cat.key"
+                    (click)="selectCategoryChip(cat)"
+                  >
+                    <span>{{ cat.icon }}</span>
+                    <span>{{ isArabic() ? cat.labelAr : cat.labelEn }}</span>
+                  </button>
+                }
+              } @else {
+                @for (cat of revenueCategories; track cat.key) {
+                  <button
+                    type="button"
+                    class="category-chip"
+                    [class.category-chip--active]="newItemCategory() === cat.key"
+                    (click)="selectCategoryChip(cat)"
+                  >
+                    <span>{{ cat.icon }}</span>
+                    <span>{{ isArabic() ? cat.labelAr : cat.labelEn }}</span>
+                  </button>
+                }
+              }
+            </div>
           </div>
 
           <!-- Description / Details -->
-          <div>
-            <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--text-dim); margin-bottom: 6px;">
-              {{ isArabic() ? 'الوصف / تفاصيل البند' : 'Description / Details' }}
+          <div class="form-group">
+            <label class="form-label">
+              {{ isArabic() ? 'الوصف وتفاصيل الحركة' : 'Description & Details' }}
             </label>
-            <input
-              type="text"
-              [placeholder]="isArabic() ? 'مثال: مصاريف ضيافة، أدوات مكتبية...' : 'e.g. Catering expenses, stationery...'"
-              [ngModel]="newItemDescription()"
-              (ngModelChange)="newItemDescription.set($event)"
-              name="itemDescription"
-              style="width: 100%; padding: 10px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 0.9rem; outline: none;"
-            />
+            <div class="desc-input-wrap">
+              <input
+                type="text"
+                [placeholder]="isArabic() ? 'اكتب تفاصيل البند للمراجعة والتسوية في نهاية الوردية...' : 'Enter transaction details for shift reconciliation...'"
+                [ngModel]="newItemDescription()"
+                (ngModelChange)="newItemDescription.set($event)"
+                name="itemDescription"
+                class="desc-input"
+              />
+            </div>
           </div>
 
           <!-- Form Actions -->
-          <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+          <div class="dialog-actions">
             <button
               type="button"
+              class="btn-dialog-cancel"
               (click)="closeAddItemModal()"
-              style="padding: 10px 18px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-weight: 600; cursor: pointer;"
+              [disabled]="isSubmittingItem()"
             >
-              {{ t().cancelBtn }}
+              {{ isArabic() ? 'إلغاء' : 'Cancel' }}
             </button>
+
             <button
               type="submit"
-              [disabled]="!newItemAmount() || newItemAmount()! <= 0"
-              style="padding: 10px 22px; border-radius: 10px; border: none; background: #f5b921; color: #16130a; font-weight: 800; cursor: pointer;"
+              class="btn-dialog-submit"
+              [class.btn-dialog-submit--loading]="isSubmittingItem()"
+              [disabled]="isSubmittingItem() || !newItemAmount() || newItemAmount()! <= 0"
             >
-              {{ t().save }}
+              @if (isSubmittingItem()) {
+                <span class="btn-spinner"></span>
+                <span>{{ isArabic() ? 'جاري التسجيل...' : 'Saving...' }}</span>
+              } @else {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-action-svg">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <span>{{ isArabic() ? 'حفظ وإضافة للوردية' : 'Save & Record Item' }}</span>
+              }
             </button>
           </div>
         </form>
       </div>
     </div>
   }
+
+
   }
 </div>
 

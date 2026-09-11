@@ -185,6 +185,13 @@ export class AddDiscountComponent implements OnInit {
     this.discounts().reduce((sum, d) => sum + (d.totalDiscountSaved || 0), 0)
   );
 
+  getUsagePercent(d: DiscountCode): number {
+    const count = Number(d.usageCount) || 0;
+    const limit = Number(d.usageLimit) || 100;
+    if (limit <= 0) return 0;
+    return Math.min(100, Math.max(0, (count / limit) * 100));
+  }
+
   // Pagination Computations
   totalPages = computed(() => Math.ceil(this.filteredDiscounts().length / this.pageSize()) || 1);
 

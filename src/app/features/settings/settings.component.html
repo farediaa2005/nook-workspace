@@ -144,9 +144,16 @@
     @for (room of rooms(); track room.id) {
     <div class="room-card" [class.room-card--disabled]="!room.isActive">
       <div class="room-card-img-wrap">
-        @if (room.imageUrl) {
-        <img [src]="room.imageUrl" (error)="onImageError($event)" [alt]="room.name"
+        @if (getRoomImage(room.imageUrl)) {
+        <img [src]="getRoomImage(room.imageUrl)" (error)="onImageError($event)" [alt]="room.name"
           class="room-img" loading="lazy" />
+        <div class="room-img-placeholder" style="display: none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M9 3v18M15 3v18M3 9h18M3 15h18" />
+          </svg>
+          <span>{{ isArabic() ? 'بدون صورة' : 'No image' }}</span>
+        </div>
         } @else {
         <div class="room-img-placeholder">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40">

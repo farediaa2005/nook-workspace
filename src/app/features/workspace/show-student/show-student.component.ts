@@ -934,6 +934,15 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
             this.workspaceService.showToast(this.isArabic() ? 'كود الكوبون منتهي الصلاحية' : 'Coupon code expired', 'error');
             return;
           }
+          const maxLimit = (coupon as any).usageLimit ?? (coupon as any).UsageLimit ?? (coupon as any).maxUsage ?? (coupon as any).maxUses;
+          const currentUses = (coupon as any).usageCount ?? (coupon as any).UsageCount ?? (coupon as any).currentRedemptions ?? 0;
+          if (maxLimit !== null && maxLimit !== undefined && maxLimit > 0 && currentUses >= maxLimit) {
+            this.workspaceService.showToast(
+              this.isArabic() ? 'تم استنفاد الحد الأقصى لاستخدام هذا الكود' : 'Coupon usage limit reached',
+              'error'
+            );
+            return;
+          }
           const discountPercent = coupon.discountType === 1 ? (coupon.value || 15) : 15;
           this.ciCouponDiscountPercent.set(discountPercent);
           this.ciCouponApplied.set(true);
@@ -1196,9 +1205,10 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     +(this.coBaseCost() + this.coCateringTotal() + this.coPrintingTotal()).toFixed(2)
   );
 
-  coTotalDiscounts = computed(() =>
-    +(this.coDiscountAmount() + this.coCouponDiscount()).toFixed(2)
-  );
+  coTotalDiscounts = computed(() => {
+    const raw = +(this.coDiscountAmount() + this.coCouponDiscount()).toFixed(2);
+    return Math.min(raw, this.coSubtotal());
+  });
 
   coFinalAmount = computed(() =>
     Math.max(0, +(this.coSubtotal() - this.coTotalDiscounts()).toFixed(2))
@@ -1976,11 +1986,24 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
             this.workspaceService.showToast(this.isArabic() ? 'كود الكوبون منتهي الصلاحية' : 'Coupon code expired', 'error');
             return;
           }
-          const discountVal = coupon.value || 10;
-          this.coCouponDiscount.set(discountVal);
+          const maxLimit = (coupon as any).usageLimit ?? (coupon as any).UsageLimit ?? (coupon as any).maxUsage ?? (coupon as any).maxUses;
+          const currentUses = (coupon as any).usageCount ?? (coupon as any).UsageCount ?? (coupon as any).currentRedemptions ?? 0;
+          if (maxLimit !== null && maxLimit !== undefined && maxLimit > 0 && currentUses >= maxLimit) {
+            this.workspaceService.showToast(
+              this.isArabic() ? 'تم استنفاد الحد الأقصى لاستخدام هذا الكود' : 'Coupon usage limit reached',
+              'error'
+            );
+            return;
+          }
+          let discountVal = coupon.value || 10;
+          if (coupon.discountType === 1) {
+            discountVal = +((this.coSubtotal() * discountVal) / 100).toFixed(2);
+          }
+          const clampedDiscount = Math.min(discountVal, this.coSubtotal());
+          this.coCouponDiscount.set(clampedDiscount);
           this.coCouponApplied.set(true);
           this.workspaceService.showToast(
-            this.isArabic() ? `تم تطبيق الكوبون "${code}": خصم ${discountVal} ج.م` : `Coupon "${code}" applied: ${discountVal} EGP off!`,
+            this.isArabic() ? `تم تطبيق الكوبون "${code}": خصم ${clampedDiscount} ج.م` : `Coupon "${code}" applied: ${clampedDiscount} EGP off!`,
             'success'
           );
         } else {
@@ -2125,10 +2148,32 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       const isPartial = remaining > 0;
       const paymentMethod = event?.paymentMethod || this.coPaymentMethod();
 
-      if (paymentMethod === 'package') {
-        this.packageService.deductStudentPackageHours(student.phone || student.id, this.coDurationHours());
+      // Detect if student has active package or session is billed via package
+      const cleanDigits = (student.phone || '').replace(/\D/g, '');
+      const matchedPkg = this.packageService.studentPackages().find(p =>
+        (p.status === 'active' || p.status === 'near_expiry') &&
+        p.remainingHours > 0 &&
+        (
+          p.id === student.id ||
+          (student.studentId && p.memberId === student.studentId) ||
+          (cleanDigits && p.memberPhone?.replace(/\D/g, '') === cleanDigits) ||
+          (p.memberNameAr && p.memberNameAr === student.name)
+        )
+      );
+
+      const isPackageBilling = paymentMethod === 'package' || student.billingType === 'package' || !!matchedPkg;
+
+      if (isPackageBilling) {
+        let durHours = this.coDurationHours();
+        if (!durHours || durHours <= 0) {
+          const elapsedMins = this.getLiveElapsedMinutes(student.checkInTime, student.date);
+          durHours = Math.max(1, Math.round(elapsedMins / 60));
+        }
+        const finalDeductHours = Math.max(1, Math.round(durHours));
+        const targetIdentifier = matchedPkg?.id || student.phone || student.studentId || student.id || student.name;
+        this.packageService.deductStudentPackageHours(targetIdentifier, finalDeductHours);
         this.workspaceService.showToast(
-          this.isArabic() ? `تم خصم ${this.coDurationHours()} ساعة من باقة الطالب بنجاح!` : `Deducted ${this.coDurationHours()} hrs from student package!`,
+          this.isArabic() ? `تم خصم ${finalDeductHours} ساعة من باقة الطالب بنجاح!` : `Deducted ${finalDeductHours} hrs from student package!`,
           'success'
         );
       }
@@ -2140,8 +2185,22 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
         outstandingBalance: remaining,
         walletAmount: newWallet,
         paymentStatus: isPartial ? 'partially_paid' : 'paid',
-        duration: this.coDurationDisplay()
+        duration: this.coDurationDisplay(),
+        packageHoursAlreadyDeducted: isPackageBilling,
+        cateringAmount: Number(this.coCateringTotal() || student.cateringTotal || 0),
+        printingAmount: Number(this.coPrintingTotal() || 0)
       });
+
+      // Redeem coupon in backend if applied
+      if (this.coCouponApplied() && this.coCouponInput().trim()) {
+        this.couponApi.redeemCoupon(this.coCouponInput().trim().toUpperCase(), {
+          studentId: student.studentId || student.id,
+          discountApplied: this.coCouponDiscount()
+        }).subscribe({
+          next: () => console.log('[ShowStudent] Coupon redeemed successfully'),
+          error: (err) => console.warn('[ShowStudent] Coupon redeem notice:', err?.message || err)
+        });
+      }
 
       this.closeCheckoutModal();
     }

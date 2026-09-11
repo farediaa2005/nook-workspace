@@ -77,6 +77,7 @@ export interface CateringProduct {
   barcode?: string;
   reorderLevel?: number;
   image?: string;
+  localPreview?: string;
   imageFile?: File;
   icon?: string;
   sellingPrice: number;

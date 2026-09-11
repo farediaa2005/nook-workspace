@@ -169,16 +169,8 @@ export class CateringPosModalComponent {
     return this.failedImages().has(productId);
   }
 
-  getProductImage(img?: string | null, id?: string): string {
-    const resolved = resolveImageUrl(img);
-    if (resolved) return resolved;
-    if (id) {
-      try {
-        const cached = localStorage.getItem('nook_product_img_' + id);
-        if (cached) return cached;
-      } catch {}
-    }
-    return '';
+  getProductImage(img?: string | null): string {
+    return resolveImageUrl(img);
   }
 
   getProductType(product: CateringProduct): 'coffee' | 'water' | 'beverage' | 'snack' {
@@ -190,12 +182,17 @@ export class CateringPosModalComponent {
   }
 
   getAvailableStock(product: CateringProduct): number {
+    // When sale is committed and showing success state, product.stock was already decremented by processPosSale.
+    // Do NOT subtract inCart again, otherwise it visually double-deducts before the cart is cleared!
+    if (this.isSuccessState()) {
+      return Math.max(0, product.stock);
+    }
     const inCart = this.cartItems().find(i => i.product.id === product.id)?.quantity || 0;
     return Math.max(0, product.stock - inCart);
   }
 
   addToCart(product: CateringProduct): void {
-    if (this.isProductExpired(product) || this.getAvailableStock(product) <= 0) return;
+    if (this.isSuccessState() || this.isProductExpired(product) || this.getAvailableStock(product) <= 0) return;
 
     this.cartItems.update(items => {
       const existing = items.find(i => i.product.id === product.id);
@@ -204,10 +201,10 @@ export class CateringPosModalComponent {
         return items.map(i =>
           i.product.id === product.id
             ? {
-                ...i,
-                quantity: i.quantity + 1,
-                totalPrice: (i.quantity + 1) * i.unitPrice
-              }
+              ...i,
+              quantity: i.quantity + 1,
+              totalPrice: (i.quantity + 1) * i.unitPrice
+            }
             : i
         );
       } else {
@@ -223,6 +220,7 @@ export class CateringPosModalComponent {
   }
 
   incrementItem(productId: string): void {
+    if (this.isSuccessState()) return;
     this.cartItems.update(items => {
       return items.map(item => {
         if (item.product.id !== productId) return item;
@@ -239,6 +237,7 @@ export class CateringPosModalComponent {
   }
 
   decrementItem(productId: string): void {
+    if (this.isSuccessState()) return;
     this.cartItems.update(items => {
       return items
         .map(item => {
@@ -255,6 +254,7 @@ export class CateringPosModalComponent {
   }
 
   removeItem(productId: string): void {
+    if (this.isSuccessState()) return;
     this.cartItems.update(items => items.filter(i => i.product.id !== productId));
   }
 
@@ -263,6 +263,7 @@ export class CateringPosModalComponent {
   }
 
   completeCashSale(): void {
+    if (this.isSuccessState()) return;
     if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إتمام عملية البيع' : 'Complete Sale')) {
       return;
     }
@@ -297,6 +298,7 @@ export class CateringPosModalComponent {
   }
 
   confirmAddToRoomSession(): void {
+    if (this.isSuccessState()) return;
     if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إضافة طلب للقاعة' : 'Add to Room Session')) {
       return;
     }

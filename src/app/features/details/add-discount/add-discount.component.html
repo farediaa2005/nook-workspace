@@ -145,11 +145,13 @@
               <!-- Usage Progress -->
               <td class="cell-center">
                 <div class="usage-progress-wrap">
-                  <span class="usage-count-text">{{ d.usageCount }} / {{ d.usageLimit }}</span>
+                  <span class="usage-count-text">
+                    {{ isArabic() ? ((d.usageCount || 0) + ' من ' + (d.usageLimit || 100)) : ((d.usageCount || 0) + ' / ' + (d.usageLimit || 100)) }}
+                  </span>
                   <div class="progress-bar-bg">
                     <div
                       class="progress-bar-fill"
-                      [style.width.%]="(d.usageCount / d.usageLimit) * 100"
+                      [style.width.%]="getUsagePercent(d)"
                     ></div>
                   </div>
                 </div>

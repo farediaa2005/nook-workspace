@@ -234,9 +234,9 @@
                   </span>
                 }
 
-                @if (getProductImage(product.image, product.id) && !isImageFailed(product.id)) {
+                @if (getProductImage(product.image) && !isImageFailed(product.id)) {
                   <img
-                    [src]="getProductImage(product.image, product.id)"
+                    [src]="getProductImage(product.image)"
                     alt=""
                     class="product-img"
                     loading="lazy"
@@ -360,8 +360,8 @@
           @for (item of cartItems(); track item.product.id) {
             <div class="order-item-row">
               <div class="order-item-thumb">
-                @if (getProductImage(item.product.image, item.product.id)) {
-                  <img [src]="getProductImage(item.product.image, item.product.id)" [alt]="item.product.name" class="item-img" />
+                @if (getProductImage(item.product.image)) {
+                  <img [src]="getProductImage(item.product.image)" [alt]="item.product.name" class="item-img" />
                 } @else {
                   <div class="item-fallback-icon">☕</div>
                 }

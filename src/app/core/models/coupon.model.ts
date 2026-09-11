@@ -68,6 +68,7 @@ export interface CreateCouponDto {
 
 /** Update coupon request — PUT /api/Coupons/{id} */
 export interface UpdateCouponDto {
+  code?: string;
   discountType?: DiscountType | number;
   value?: number;
   expiryDate?: string;
@@ -89,4 +90,21 @@ export interface RedeemCouponRequestDto {
   sessionId?: string;
   sessionType?: 'Workspace' | 'Classroom';
 }
+
+/** Check if a coupon has reached or exceeded its maximum usage limit */
+export function isCouponExhausted(coupon?: Partial<CouponDto> | null): boolean {
+  if (!coupon) return true;
+  const maxLimit = coupon.usageLimit ?? (coupon as any)?.UsageLimit ?? (coupon as any)?.maxUsage ?? (coupon as any)?.maxUses ?? coupon.maxRedemptions;
+  const currentUses = coupon.usageCount ?? (coupon as any)?.UsageCount ?? (coupon as any)?.currentRedemptions ?? 0;
+  return maxLimit !== null && maxLimit !== undefined && maxLimit > 0 && currentUses >= maxLimit;
+}
+
+/** Check if a coupon is expired */
+export function isCouponExpired(coupon?: Partial<CouponDto> | null): boolean {
+  if (!coupon) return true;
+  const exp = coupon.expiryDate || (coupon as any)?.expiresAt;
+  if (!exp) return false;
+  return new Date(exp) < new Date();
+}
+
 

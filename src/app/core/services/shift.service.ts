@@ -1,12 +1,12 @@
 import { Injectable, signal, computed, inject, OnDestroy } from '@angular/core';
-import { catchError, of, finalize, Observable, map } from 'rxjs';
-import { ShiftRecord, ShiftTransaction, ShiftHistoryItem, ShiftPaymentMethod } from '../models/shift.model';
+import { catchError, of, finalize, Observable, map, tap, throwError, switchMap } from 'rxjs';
+import { ShiftRecord, ShiftTransaction, ShiftHistoryItem, ShiftPaymentMethod, ShiftTransactionType } from '../models/shift.model';
 import { AuthService } from './auth.service';
 import { ShiftApiService } from './api/shift-api.service';
 import { AccountApiService } from './api/account-api.service';
 import { LanguageService } from './language.service';
 import { NotificationService } from './notification.service';
-import { ShiftDto, CreateShiftItemDto } from '../models/shift-api.model';
+import { ShiftDto, CreateShiftItemDto, ShiftItemCategory } from '../models/shift-api.model';
 import { getSafeAvatar } from '../utils/avatar.util';
 import { parseIsoToLocal12h, parseIsoToLocalDate, getTodayDateISO } from '../utils/date-time.util';
 
@@ -143,14 +143,36 @@ export class ShiftService implements OnDestroy {
     this.workspaceCash() + this.classroomCash() + this.packageCash() + this.cateringCash() + this.otherIncome()
   );
 
-  // Physical Expected Drawer Cash
-  readonly expectedCash = computed(() =>
-    this.openingCash() + this.posReceipts() - this.adminExpenses()
+  // Digital Receipts Total (فودافون كاش + إنستاباي + فوري)
+  readonly digitalReceipts = computed(() =>
+    this.vodafoneInside() + this.instapayInside() + this.fawryInside()
   );
+
+  // Physical Expected Drawer Cash (الخزينة النقدية الفعلية - يستبعد المحافظ الرقمية وإيرادات الباقات)
+  readonly expectedCash = computed(() => {
+    const shift = this.currentShift();
+    if (!shift) return 0;
+
+    const txs = shift.transactions || [];
+    if (txs.length > 0) {
+      const cashIn = txs
+        .filter(t => t.paymentMethod === 'cash' && t.type !== 'system' && t.type !== 'expense' && t.amount > 0)
+        .reduce((sum, t) => sum + t.amount, 0);
+      const cashOut = txs
+        .filter(t => (t.paymentMethod === 'cash' || t.paymentMethod === 'petty_cash') && (t.type === 'expense' || t.amount < 0))
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+      return +(this.openingCash() + cashIn - cashOut).toFixed(2);
+    }
+
+    // Fallback formula: Opening Cash + (Total Receipts - Digital Receipts) - Admin Expenses
+    const netCashIn = Math.max(0, this.posReceipts() - this.digitalReceipts());
+    return +(this.openingCash() + netCashIn - this.adminExpenses()).toFixed(2);
+  });
 
   // Total Combined Business Balance across all 4 channels
   readonly totalFinancialBalance = computed(() =>
-    this.expectedCash() + this.vodafoneTotal() + this.instapayTotal() + this.fawryTotal()
+    +(this.expectedCash() + this.vodafoneTotal() + this.instapayTotal() + this.fawryTotal()).toFixed(2)
   );
 
   // Live Transaction Ledger
@@ -181,7 +203,73 @@ export class ShiftService implements OnDestroy {
   }
 
   /**
-   * Fetch current active shift from backend API
+   * Robust helper to accurately detect if a ShiftDto represents an active open shift.
+   * Handles numeric SessionStatus enum (1=Active, 2=Completed, 3=Scheduled, 4=Cancelled),
+   * string enums ('active', 'completed'), null/undefined end timestamps, and default C# DateTime ('0001-01-01T00:00:00').
+   */
+  public isShiftActiveDto(dto: any): boolean {
+    if (!dto || typeof dto !== 'object') return false;
+
+    // 1. Explicit status field check
+    const rawStatus = dto.status !== undefined && dto.status !== null ? String(dto.status).toLowerCase().trim() : '';
+    if (rawStatus === '1' || rawStatus === 'active') {
+      return true;
+    }
+    if (rawStatus === '2' || rawStatus === 'completed' || rawStatus === 'closed' || rawStatus === 'cancelled' || rawStatus === '4') {
+      return false;
+    }
+
+    // 2. End time check (timeTo / endTime)
+    const rawEndTime = dto.timeTo || dto.endTime;
+    if (!rawEndTime || rawEndTime === 'null' || rawEndTime === 'undefined') {
+      return true;
+    }
+    const strEndTime = String(rawEndTime).trim();
+    if (strEndTime === '' || strEndTime.startsWith('0001') || strEndTime.startsWith('1970')) {
+      return true;
+    }
+
+    try {
+      const endDate = new Date(strEndTime);
+      if (isNaN(endDate.getTime()) || endDate.getFullYear() < 2000) {
+        return true;
+      }
+    } catch {}
+
+    return false;
+  }
+
+  /**
+   * Helper to load full shift details (including items ledger) and set current active shift
+   */
+  private loadAndSetActiveShift(activeDto: ShiftDto): void {
+    if (activeDto.id && !activeDto.id.startsWith('SHIFT-')) {
+      this.shiftApi.getShiftById(activeDto.id).subscribe({
+        next: (detailDto) => {
+          this.isLoading.set(false);
+          const merged: ShiftDto = {
+            ...activeDto,
+            ...(detailDto || {}),
+            items: detailDto?.items || activeDto.items || []
+          };
+          this.currentShift.set(this.mapDtoToShiftRecord(merged));
+        },
+        error: () => {
+          this.isLoading.set(false);
+          this.currentShift.set(this.mapDtoToShiftRecord(activeDto));
+        }
+      });
+    } else {
+      this.isLoading.set(false);
+      this.currentShift.set(this.mapDtoToShiftRecord(activeDto));
+    }
+  }
+
+  /**
+   * Fetch current active shift from backend API across all fallback endpoints:
+   * 1. GET /api/Shifts/current
+   * 2. GET /api/Shifts/open/{userId}
+   * 3. GET /api/Shifts (find any active shift in system)
    */
   fetchCurrentShiftFromApi(): void {
     if (!this.authService.isAuthenticated()) return;
@@ -189,40 +277,51 @@ export class ShiftService implements OnDestroy {
     this.error.set(null);
 
     // Call dedicated GET /api/Shifts/current
-    this.shiftApi.getCurrentShift().pipe(
-      catchError((err) => {
-        if (err?.status === 403) {
-          console.info('[ShiftService] Shift API requires elevated role (403 Forbidden).');
-        } else {
-          console.warn('[ShiftService] Failed to fetch current shift from API:', err?.message || err);
-        }
-        return of(null);
-      }),
-      finalize(() => this.isLoading.set(false))
-    ).subscribe({
+    this.shiftApi.getCurrentShift().subscribe({
       next: (currentDto) => {
-        if (currentDto && (currentDto.status === 1 || !currentDto.timeTo)) {
-          const record = this.mapDtoToShiftRecord(currentDto);
-          this.currentShift.set(record);
+        if (currentDto && this.isShiftActiveDto(currentDto)) {
+          this.loadAndSetActiveShift(currentDto);
         } else {
-          // Fallback: check getShifts() in case current endpoint returned empty
-          this.shiftApi.getShifts().pipe(
-            catchError(() => of([] as ShiftDto[]))
-          ).subscribe({
-            next: (apiShifts) => {
-              if (Array.isArray(apiShifts) && apiShifts.length > 0) {
-                const activeDto = apiShifts.find((s: any) => s.status === 1 || (!s.timeTo && s.status !== 2));
-                if (activeDto) {
-                  this.currentShift.set(this.mapDtoToShiftRecord(activeDto));
-                } else {
-                  this.currentShift.set(null);
-                }
+          // Fallback 1: check getOpenShift(userId)
+          const user = this.authService.getUser();
+          const userId = user?.id || (user as any)?.userId || (user as any)?.sub;
+          const checkOpenShift$ = userId ? this.shiftApi.getOpenShift(userId) : of(null);
+
+          checkOpenShift$.subscribe({
+            next: (openDto) => {
+              if (openDto && this.isShiftActiveDto(openDto)) {
+                this.loadAndSetActiveShift(openDto);
               } else {
-                this.currentShift.set(null);
+                // Fallback 2: check full getShifts() list to find any active shift opened by any device/staff
+                this.shiftApi.getShifts().subscribe({
+                  next: (apiShifts) => {
+                    if (Array.isArray(apiShifts) && apiShifts.length > 0) {
+                      const activeDto = apiShifts.find((s: any) => this.isShiftActiveDto(s));
+                      if (activeDto) {
+                        this.loadAndSetActiveShift(activeDto);
+                      } else {
+                        this.isLoading.set(false);
+                        this.currentShift.set(null);
+                      }
+                    } else {
+                      this.isLoading.set(false);
+                      this.currentShift.set(null);
+                    }
+                  },
+                  error: () => {
+                    this.isLoading.set(false);
+                  }
+                });
               }
+            },
+            error: () => {
+              this.isLoading.set(false);
             }
           });
         }
+      },
+      error: () => {
+        this.isLoading.set(false);
       }
     });
   }
@@ -234,35 +333,34 @@ export class ShiftService implements OnDestroy {
     if (!this.authService.isAuthenticated()) return;
     this.isLoadingHistory.set(true);
 
-    this.shiftApi.getShifts().pipe(
-      catchError((err) => {
-        if (err?.status === 403) {
-          console.info('[ShiftService] Shift history API requires elevated role (403 Forbidden).');
-        } else {
-          console.warn('[ShiftService] Error syncing shifts from backend:', err?.message || err);
-        }
-        return of([] as ShiftDto[]);
-      }),
-      finalize(() => this.isLoadingHistory.set(false))
-    ).subscribe({
+    this.shiftApi.getShifts().subscribe({
       next: (apiShifts) => {
+        this.isLoadingHistory.set(false);
         if (Array.isArray(apiShifts)) {
           // Active shift
-          const activeDto = apiShifts.find((s: any) => s.status === 1 || (!s.timeTo && s.status !== 2));
+          const activeDto = apiShifts.find((s: any) => this.isShiftActiveDto(s));
           if (activeDto) {
             const mappedActive = this.mapDtoToShiftRecord(activeDto);
             this.currentShift.set(mappedActive);
-          } else {
+          } else if (!this.hasActiveShift()) {
             this.currentShift.set(null);
           }
 
           // Closed shifts
-          const closedDtos = apiShifts.filter((s: any) => s.status === 2 || !!s.timeTo);
+          const closedDtos = apiShifts.filter((s: any) => !this.isShiftActiveDto(s));
           const records = closedDtos.map(s => this.mapDtoToShiftRecord(s));
           const items = closedDtos.map(s => this.mapDtoToHistoryItem(s));
 
           this.shiftHistory.set(records);
           this.historyItems.set(items);
+        }
+      },
+      error: (err) => {
+        this.isLoadingHistory.set(false);
+        if (err?.status === 403) {
+          console.info('[ShiftService] Shift history API requires elevated role (403 Forbidden).');
+        } else {
+          console.warn('[ShiftService] Error syncing shifts from backend:', err?.message || err);
         }
       }
     });
@@ -397,6 +495,12 @@ export class ShiftService implements OnDestroy {
 
           this.isLoading.set(false);
           const finalMsg = errorMsg || (this.langService.isArabic() ? 'فشل فتح الشفت' : 'Failed to start shift');
+
+          // If backend indicates an active shift already exists across the system, sync it immediately
+          if (errorMsg.includes('وردية نشطة') || errorMsg.includes('already') || errorMsg.includes('active') || err?.status === 400) {
+            this.fetchCurrentShiftFromApi();
+          }
+
           if (onComplete) onComplete(false, finalMsg);
         }
       });
@@ -444,7 +548,10 @@ export class ShiftService implements OnDestroy {
    * Record a transaction under the currently active shift
    * POST /api/Shifts/{id}/items
    */
-  recordTransaction(tx: Omit<ShiftTransaction, 'id' | 'timestamp' | 'staffName'> & { staffName?: string; timestamp?: string }): void {
+  recordTransaction(
+    tx: Omit<ShiftTransaction, 'id' | 'timestamp' | 'staffName'> & { staffName?: string; timestamp?: string },
+    skipApi: boolean = false
+  ): void {
     const staff = tx.staffName || this.activeStaffName();
     const formattedTime = tx.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const newTx: ShiftTransaction = {
@@ -471,17 +578,35 @@ export class ShiftService implements OnDestroy {
     let fwIn = current.fawryCashInside || 0;
     let fwOut = current.fawryCashOutside || 0;
 
-    if (tx.type === 'canteen') canteenRev += amount;
-    else if (tx.type === 'classroom') classroomRev += amount;
-    else if (tx.type === 'workspace') workspaceRev += amount;
-    else if (tx.type === 'package') packageRev += amount;
-    else if (tx.type === 'expense') expenses += Math.abs(amount);
-    else if (tx.type === 'vodafone_in') vfIn += amount;
-    else if (tx.type === 'vodafone_out') vfOut += Math.abs(amount);
-    else if (tx.type === 'instapay_in') ipIn += amount;
-    else if (tx.type === 'instapay_out') ipOut += Math.abs(amount);
-    else if (tx.type === 'fawry_in') fwIn += amount;
-    else if (tx.type === 'fawry_out') fwOut += Math.abs(amount);
+    const method = tx.paymentMethod;
+
+    // 1. Digital Payment Channel Allocation
+    if (method === 'vodafone') {
+      if (tx.type === 'expense') vfOut += Math.abs(amount);
+      else vfIn += amount;
+    } else if (method === 'instapay') {
+      if (tx.type === 'expense') ipOut += Math.abs(amount);
+      else ipIn += amount;
+    } else if (method === 'fawry') {
+      if (tx.type === 'expense') fwOut += Math.abs(amount);
+      else fwIn += amount;
+    }
+
+    // 2. Operational Revenue Categories (Skip adding new revenue if payment is by prepaid package usage)
+    if (method !== 'package') {
+      if (tx.type === 'canteen') canteenRev += amount;
+      else if (tx.type === 'classroom') classroomRev += amount;
+      else if (tx.type === 'workspace') workspaceRev += amount;
+      else if (tx.type === 'package') packageRev += amount;
+      else if (tx.type === 'other' || tx.type === 'printing' || (tx.type as string) === 'extra' || (tx.type as string) === 'settlement' || (tx.type as string) === 'deposit' || (tx.type as string) === 'revenue') otherRev += amount;
+      else if (tx.type === 'expense') expenses += Math.abs(amount);
+      else if (tx.type === 'vodafone_in') vfIn += amount;
+      else if (tx.type === 'vodafone_out') vfOut += Math.abs(amount);
+      else if (tx.type === 'instapay_in') ipIn += amount;
+      else if (tx.type === 'instapay_out') ipOut += Math.abs(amount);
+      else if (tx.type === 'fawry_in') fwIn += amount;
+      else if (tx.type === 'fawry_out') fwOut += Math.abs(amount);
+    }
 
     const total = canteenRev + classroomRev + workspaceRev + packageRev + otherRev;
 
@@ -506,20 +631,142 @@ export class ShiftService implements OnDestroy {
 
     this.currentShift.set(updated);
 
-    // Call Backend API to register item if shift has a valid ID
-    if (current.id && !current.id.startsWith('SHIFT-')) {
+    // Call Backend API ONLY for true expenses/petty cash items (غاز، مياه، نت، صيانة، نظافة، نثريات).
+    // Business revenues (workspace sessions, classrooms, packages, canteen) are tracked by their own
+    // respective backend APIs and aggregated into shift revenue automatically.
+    // Posting revenues to /api/Shifts/{id}/items causes the backend to mistakenly accumulate them as Administrative expenses!
+    if (!skipApi && current.id && !current.id.startsWith('SHIFT-') && tx.type === 'expense') {
       const payWayCode = tx.paymentMethod === 'vodafone' ? 2 : (tx.paymentMethod === 'instapay' ? 3 : (tx.paymentMethod === 'fawry' ? 4 : 1));
       const itemDto: CreateShiftItemDto = {
-        cost: amount,
-        type: tx.type === 'expense' ? 'Expense' : 'Revenue',
+        cost: Math.abs(amount),
+        type: 'Expense',
         payWay: payWayCode,
-        item: tx.details || 'Transaction'
+        item: tx.details || 'مصروفات ونثريات'
       };
 
       this.shiftApi.addShiftItem(current.id, itemDto).subscribe({
-        error: (err) => console.warn('[ShiftService] Could not persist shift item to API:', err)
+        error: (err) => console.warn('[ShiftService] Could not persist shift expense to API:', err)
       });
     }
+  }
+
+  /**
+   * Add a manual shift item (Expense or Revenue) with full Observable lifecycle and server sync.
+   * POST /api/Shifts/{id}/items
+   */
+  addManualShiftItem(params: {
+    amount: number;
+    type: 'expense' | 'revenue';
+    paymentMethod: 'cash' | 'vodafone' | 'instapay' | 'fawry';
+    description: string;
+    category?: string;
+  }): Observable<any> {
+    const current = this.currentShift();
+    if (!current) {
+      return throwError(() => new Error('لا توجد وردية نشطة حالياً'));
+    }
+
+    const payWayCode = params.paymentMethod === 'vodafone' ? 2 : (params.paymentMethod === 'instapay' ? 3 : (params.paymentMethod === 'fawry' ? 4 : 1));
+    const itemDto: CreateShiftItemDto = {
+      cost: params.amount,
+      type: params.type === 'expense' ? 'Expense' : 'Revenue',
+      payWay: payWayCode,
+      item: params.description
+    };
+
+    // 1. Record locally immediately for instant feedback
+    const resolvedType = params.type === 'expense'
+      ? 'expense'
+      : (params.category === 'canteen' ? 'canteen' : 'other');
+
+    this.recordTransaction({
+      amount: params.amount,
+      type: resolvedType as any,
+      paymentMethod: params.paymentMethod,
+      details: params.description
+    }, true);
+
+    // 2. Call backend API if real ID
+    if (current.id && !current.id.startsWith('SHIFT-')) {
+      return this.shiftApi.addShiftItem(current.id, itemDto).pipe(
+        tap(() => {
+          this.fetchCurrentShiftFromApi();
+        })
+      );
+    }
+
+    return of({ success: true });
+  }
+
+  /**
+   * Adjust and reallocate shift revenues across operational categories.
+   * Maintains total receipts and expected physical cash balance.
+   */
+  adjustShiftRevenues(adjustments: {
+    canteenRevenue?: number;
+    otherIncome?: number;
+    workspaceRevenue?: number;
+    classroomRevenue?: number;
+  }): void {
+    const current = this.currentShift();
+    if (!current) return;
+
+    const newCanteen = adjustments.canteenRevenue !== undefined ? Math.max(0, +adjustments.canteenRevenue.toFixed(2)) : (current.canteenRevenue || 0);
+    const newOther = adjustments.otherIncome !== undefined ? Math.max(0, +adjustments.otherIncome.toFixed(2)) : (current.otherIncome || 0);
+    const newClassroom = adjustments.classroomRevenue !== undefined ? Math.max(0, +adjustments.classroomRevenue.toFixed(2)) : (current.classroomRevenue || 0);
+
+    let newWorkspace = current.workspaceRevenue || 0;
+    if (adjustments.workspaceRevenue !== undefined) {
+      newWorkspace = Math.max(0, +adjustments.workspaceRevenue.toFixed(2));
+    } else {
+      // Rebalance from workspace if canteen or other increased
+      const pool = (current.workspaceRevenue || 0) + (current.canteenRevenue || 0) + (current.otherIncome || 0);
+      const allocatedOthers = newCanteen + newOther;
+      if (pool >= allocatedOthers) {
+        newWorkspace = +(pool - allocatedOthers).toFixed(2);
+      }
+    }
+
+    const total = +(newWorkspace + newClassroom + (current.packageRevenue || 0) + newCanteen + newOther).toFixed(2);
+
+    this.currentShift.set({
+      ...current,
+      canteenRevenue: newCanteen,
+      otherIncome: newOther,
+      classroomRevenue: newClassroom,
+      workspaceRevenue: newWorkspace,
+      totalRevenue: total
+    });
+  }
+
+  /**
+   * Delete a shift transaction item from both the backend and local state.
+   * DELETE /api/Shifts/{shiftId}/items/{itemId}
+   */
+  deleteShiftItem(itemId: string): Observable<boolean> {
+    const current = this.currentShift();
+    if (!current || !current.id || current.id.startsWith('SHIFT-')) {
+      return throwError(() => new Error('لا توجد وردية نشطة'));
+    }
+
+    return this.shiftApi.deleteShiftItem(current.id, itemId).pipe(
+      tap(() => {
+        // Remove from local transactions immediately
+        const updatedTxs = (current.transactions || []).filter(tx => tx.id !== itemId);
+        this.currentShift.set({
+          ...current,
+          transactions: updatedTxs,
+          transactionsCount: updatedTxs.length
+        });
+        // Re-fetch from API for accurate totals
+        this.fetchCurrentShiftFromApi();
+      }),
+      map(() => true),
+      catchError((err) => {
+        console.warn('[ShiftService] Failed to delete shift item:', err);
+        return of(false);
+      })
+    );
   }
 
   /**
@@ -645,22 +892,135 @@ export class ShiftService implements OnDestroy {
   private mapDtoToShiftRecord(dto: ShiftDto | any): ShiftRecord {
     const rawTime = dto.timeFrom || dto.startTime || dto.date;
     const rawEndTime = dto.timeTo || dto.endTime;
-    const isClosed = dto.status === 2 || !!rawEndTime;
+    const isActive = this.isShiftActiveDto(dto);
+    const isClosed = !isActive;
     const opening = dto.previousTotal ?? dto.startCash ?? 0;
 
-    const formattedStart = rawTime ? parseIsoToLocal12h(rawTime) : '09:00 AM';
-    const formattedEnd: string | undefined = rawEndTime ? parseIsoToLocal12h(rawEndTime) : undefined;
+    const formattedStart = rawTime && !String(rawTime).startsWith('0001') ? parseIsoToLocal12h(rawTime) : '09:00 AM';
+    const isRealEndTime = rawEndTime && !String(rawEndTime).startsWith('0001') && new Date(rawEndTime).getFullYear() >= 2000;
+    const formattedEnd: string | undefined = isRealEndTime ? parseIsoToLocal12h(rawEndTime) : undefined;
 
     const mappedTransactions: ShiftTransaction[] = Array.isArray(dto.items) && dto.items.length > 0
-      ? dto.items.map((it: any, idx: number) => ({
-          id: it.id || `TX-${idx + 1}`,
-          timestamp: it.createdAt ? parseIsoToLocal12h(it.createdAt) : formattedStart,
-          details: it.item || it.description || 'معاملة',
-          type: (it.type || 'system') as any,
-          paymentMethod: it.payWay === 2 ? 'vodafone' : (it.payWay === 3 ? 'instapay' : (it.payWay === 4 ? 'fawry' : 'cash')),
-          amount: it.cost ?? it.amount ?? 0,
-          staffName: dto.userName || 'موظف الاستقبال'
-        }))
+      ? dto.items.map((it: any, idx: number) => {
+          const itemDesc = String(it.item || it.description || 'معاملة');
+          const rawType = String(it.type || '').toLowerCase();
+          const descLower = itemDesc.toLowerCase();
+
+          // Prioritize revenue categories FIRST so that student sessions, classrooms, and canteen
+          // are NEVER classified as expenses, even if the backend previously saved them with category=5 or type='Expense'
+          const isWorkspaceRevenue =
+            rawType === 'workspace' ||
+            descLower.includes('جلسة طالب') ||
+            descLower.includes('محاسبة جلسة') ||
+            descLower.includes('ساعات وقعدة') ||
+            descLower.includes('جلسة') ||
+            descLower.includes('طالب') ||
+            descLower.includes('ورك سبيس') ||
+            descLower.includes('workspace') ||
+            descLower.includes('قعدة') ||
+            descLower.includes('ساعات');
+
+          const isClassroomRevenue =
+            rawType === 'classroom' ||
+            descLower.includes('حجز قاعة') ||
+            descLower.includes('إيجار قاعة') ||
+            descLower.includes('قاعة') ||
+            descLower.includes('classroom') ||
+            descLower.includes('ورشة') ||
+            descLower.includes('workshop');
+
+          const isPackageRevenue =
+            rawType === 'package' ||
+            descLower.includes('شراء باقة') ||
+            descLower.includes('باقة') ||
+            descLower.includes('package');
+
+          const isCanteenRevenue =
+            rawType === 'canteen' ||
+            descLower.includes('كاترنج') ||
+            descLower.includes('كافيتريا') ||
+            descLower.includes('مشروبات') ||
+            descLower.includes('سناكس') ||
+            descLower.includes('كافيه') ||
+            descLower.includes('قهوة') ||
+            descLower.includes('شاي') ||
+            descLower.includes('عصير') ||
+            descLower.includes('مياه معدنية') ||
+            descLower.includes('كانز') ||
+            descLower.includes('بيبسي') ||
+            descLower.includes('بوفيه') ||
+            descLower.includes('canteen') ||
+            descLower.includes('catering');
+
+          const isOtherRevenue =
+            rawType === 'other' ||
+            rawType === 'revenue' ||
+            descLower.includes('طباعة') ||
+            descLower.includes('برنت') ||
+            descLower.includes('ورق') ||
+            descLower.includes('تصوير') ||
+            descLower.includes('مطبوعات') ||
+            descLower.includes('printing') ||
+            descLower.includes('خدمات');
+
+          let resolvedType: ShiftTransactionType = 'workspace';
+          let isExpenseItem = false;
+
+          if (isCanteenRevenue) {
+            resolvedType = 'canteen';
+          } else if (isOtherRevenue) {
+            resolvedType = 'other';
+          } else if (isClassroomRevenue) {
+            resolvedType = 'classroom';
+          } else if (isPackageRevenue) {
+            resolvedType = 'package';
+          } else if (isWorkspaceRevenue) {
+            resolvedType = 'workspace';
+          } else if (
+            rawType === 'expense' ||
+            rawType.includes('expense') ||
+            Number(it.category) === 5 ||
+            descLower.includes('مصروف') ||
+            descLower.includes('نثريات') ||
+            descLower.includes('فاتورة') ||
+            descLower.includes('صيانة') ||
+            descLower.includes('نظافة') ||
+            descLower.includes('ضيافة') ||
+            descLower.includes('غاز') ||
+            (descLower.includes('مياه') && !descLower.includes('معدنية')) ||
+            descLower.includes('كهرباء') ||
+            descLower.includes('نت')
+          ) {
+            resolvedType = 'expense';
+            isExpenseItem = true;
+          } else if (descLower.includes('فودافون')) {
+            resolvedType = isExpenseItem ? 'vodafone_out' : 'vodafone_in';
+          } else if (descLower.includes('إنستاباي') || descLower.includes('انستاباي')) {
+            resolvedType = isExpenseItem ? 'instapay_out' : 'instapay_in';
+          } else if (descLower.includes('فوري')) {
+            resolvedType = isExpenseItem ? 'fawry_out' : 'fawry_in';
+          } else {
+            resolvedType = 'workspace';
+          }
+
+          const rawAmount = Number(it.cost ?? it.amount ?? 0);
+          const finalAmount = isExpenseItem ? -Math.abs(rawAmount) : Math.abs(rawAmount);
+
+          const flowDirection: 'inside' | 'outside' | 'none' = isExpenseItem
+            ? 'outside'
+            : 'inside';
+
+          return {
+            id: it.id || `TX-${idx + 1}`,
+            timestamp: it.createdAt ? parseIsoToLocal12h(it.createdAt) : formattedStart,
+            details: itemDesc,
+            type: resolvedType,
+            paymentMethod: it.payWay === 2 ? 'vodafone' : (it.payWay === 3 ? 'instapay' : (it.payWay === 4 ? 'fawry' : 'cash')),
+            amount: finalAmount,
+            flowDirection,
+            staffName: dto.userName || 'موظف الاستقبال'
+          };
+        })
       : [
           {
             id: `TX-${(dto.id || '').slice(-4)}`,
@@ -678,7 +1038,68 @@ export class ShiftService implements OnDestroy {
     let workspaceRev = dto.workspaceRevenue !== undefined ? Number(dto.workspaceRevenue) : 0;
     let packageRev = dto.packageRevenue !== undefined ? Number(dto.packageRevenue) : 0;
     let otherRev = dto.otherIncome !== undefined ? Number(dto.otherIncome) : 0;
-    let expenses = dto.administrative ?? dto.totalExpenses ?? 0;
+    let expenses = 0;
+
+    if (Array.isArray(dto.items) && dto.items.length > 0) {
+      const expenseItems = dto.items.filter((it: any) => {
+        const cat = Number(it.category);
+        const t = String(it.type || '').toLowerCase();
+        const desc = String(it.item || it.description || '').toLowerCase();
+
+        // Exclude revenue descriptions that were sent due to previous checkout bug
+        const isRevenueText =
+          desc.includes('جلسة طالب') ||
+          desc.includes('حجز قاعة') ||
+          desc.includes('شراء باقة') ||
+          desc.includes('كافيتريا') ||
+          desc.includes('طلب كاترنج') ||
+          desc.includes('مشروبات') ||
+          desc.includes('سناكس') ||
+          desc.includes('شحن محفظة') ||
+          desc.includes('طباعة') ||
+          desc.includes('تصوير') ||
+          desc.includes('طالب') ||
+          desc.includes('ساعات') ||
+          desc.includes('قعدة') ||
+          desc.includes('محاسبة') ||
+          desc.includes('ورك سبيس') ||
+          desc.includes('بوفيه') ||
+          t === 'revenue' ||
+          t === 'workspace' ||
+          t === 'classroom' ||
+          t === 'package' ||
+          t === 'canteen' ||
+          t === 'other';
+
+        const isExpenseType =
+          cat === 5 ||
+          t === 'expense' ||
+          String(it.category).toLowerCase() === 'expense' ||
+          desc.includes('مصروف') ||
+          desc.includes('نثريات') ||
+          desc.includes('فاتورة') ||
+          desc.includes('صيانة') ||
+          desc.includes('نظافة') ||
+          desc.includes('ضيافة') ||
+          desc.includes('غاز') ||
+          (desc.includes('مياه') && !desc.includes('معدنية')) ||
+          desc.includes('كهرباء') ||
+          desc.includes('نت');
+
+        return isExpenseType && !isRevenueText && Number(it.cost ?? it.amount ?? 0) > 0;
+      });
+      expenses = expenseItems.reduce((sum: number, it: any) => sum + Math.abs(Number(it.cost ?? it.amount ?? 0)), 0);
+    } else {
+      const rawAdmin = Number(dto.administrative ?? 0);
+      const totalRev = Number(dto.totalRevenue ?? (canteenRev + classroomRev + workspaceRev + packageRev + otherRev));
+      // Guard against corrupted administrative total where checkout revenues were accumulated as expenses
+      if (rawAdmin > 0 && Math.abs(rawAdmin - totalRev) < 1.0 && totalRev > 0) {
+        expenses = Number(dto.totalExpenses ?? 0);
+      } else {
+        expenses = Number(dto.totalExpenses ?? dto.administrative ?? 0);
+      }
+    }
+
     let vfIn = dto.vfCashInside ?? 0;
     let vfOut = dto.vfCashOutside ?? 0;
     let ipIn = dto.instapayInside ?? 0;
@@ -686,18 +1107,58 @@ export class ShiftService implements OnDestroy {
     let fwIn = dto.fawryInside ?? 0;
     let fwOut = dto.fawryOutside ?? 0;
 
+    if (Array.isArray(mappedTransactions) && mappedTransactions.length > 0) {
+      const vfSum = mappedTransactions.filter(t => t.paymentMethod === 'vodafone' && t.amount > 0).reduce((s, t) => s + t.amount, 0);
+      const ipSum = mappedTransactions.filter(t => t.paymentMethod === 'instapay' && t.amount > 0).reduce((s, t) => s + t.amount, 0);
+      const fwSum = mappedTransactions.filter(t => t.paymentMethod === 'fawry' && t.amount > 0).reduce((s, t) => s + t.amount, 0);
+
+      if (vfSum > vfIn) vfIn = vfSum;
+      if (ipSum > ipIn) ipIn = ipSum;
+      if (fwSum > fwIn) fwIn = fwSum;
+    }
+
+    // Separate Canteen & Other revenues from ledger transactions if backend returns 0 for them
+    const ledgerCanteen = mappedTransactions
+      .filter(t => t.type === 'canteen')
+      .reduce((s, t) => s + Math.max(0, t.amount), 0);
+
+    const ledgerOther = mappedTransactions
+      .filter(t => t.type === 'other' || (t.type as string) === 'printing')
+      .reduce((s, t) => s + Math.max(0, t.amount), 0);
+
+    if (ledgerCanteen > 0 && (canteenRev === 0 || canteenRev < ledgerCanteen)) {
+      const diff = +(ledgerCanteen - canteenRev).toFixed(2);
+      canteenRev = ledgerCanteen;
+      if (workspaceRev >= diff) {
+        workspaceRev = +(workspaceRev - diff).toFixed(2);
+      }
+    }
+
+    if (ledgerOther > 0 && (otherRev === 0 || otherRev < ledgerOther)) {
+      const diff = +(ledgerOther - otherRev).toFixed(2);
+      otherRev = ledgerOther;
+      if (workspaceRev >= diff) {
+        workspaceRev = +(workspaceRev - diff).toFixed(2);
+      }
+    }
+
     if (dto.canteenRevenue === undefined && dto.classroomRevenue === undefined && Array.isArray(dto.items)) {
       for (const it of dto.items) {
         const amt = Number(it.cost ?? it.amount ?? 0);
         const t = String(it.type || '').toLowerCase();
         const pay = Number(it.payWay); // 1=Cash, 2=Vodafone, 3=Instapay, 4=Fawry
 
-        if (t === 'canteen' || t.includes('canteen') || t.includes('catering')) canteenRev += amt;
-        else if (t === 'classroom' || t.includes('classroom') || t.includes('room')) classroomRev += amt;
-        else if (t === 'workspace' || t.includes('workspace') || t.includes('student')) workspaceRev += amt;
-        else if (t === 'package' || t.includes('package')) packageRev += amt;
-        else if (t === 'expense' || t.includes('expense')) expenses += Math.abs(amt);
-        else otherRev += amt;
+        if (t === 'canteen' || t.includes('canteen') || t.includes('catering')) {
+          if (canteenRev === 0) canteenRev += amt;
+        } else if (t === 'classroom' || t.includes('classroom') || t.includes('room')) {
+          if (classroomRev === 0) classroomRev += amt;
+        } else if (t === 'workspace' || t.includes('workspace') || t.includes('student')) {
+          if (workspaceRev === 0) workspaceRev += amt;
+        } else if (t === 'package' || t.includes('package')) {
+          if (packageRev === 0) packageRev += amt;
+        } else if (t !== 'expense' && !t.includes('expense')) {
+          otherRev += amt;
+        }
 
         if (pay === 2) {
           if (t === 'expense') vfOut += Math.abs(amt);
@@ -784,12 +1245,24 @@ export class ShiftService implements OnDestroy {
     }
 
     return this.shiftApi.recalculateShift(shift.id).pipe(
-      map((updatedDto) => {
-        if (updatedDto) {
-          this.currentShift.set(this.mapDtoToShiftRecord(updatedDto));
-          return true;
-        }
-        return false;
+      switchMap((updatedDto) => {
+        return this.shiftApi.getShiftById(shift.id).pipe(
+          map((detailDto) => {
+            const finalDto = detailDto || updatedDto;
+            if (finalDto) {
+              this.currentShift.set(this.mapDtoToShiftRecord(finalDto));
+              return true;
+            }
+            return false;
+          }),
+          catchError(() => {
+            if (updatedDto) {
+              this.currentShift.set(this.mapDtoToShiftRecord(updatedDto));
+              return of(true);
+            }
+            return of(false);
+          })
+        );
       }),
       catchError((err) => {
         console.warn('[ShiftService] Recalculate failed:', err);

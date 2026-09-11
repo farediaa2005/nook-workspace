@@ -90,7 +90,10 @@ export class WorkspaceCheckoutComponent implements OnInit {
   couponApplied = signal(false);
   couponDiscount = signal<number>(0);
 
-  totalDiscounts = computed(() => +(this.discountAmount() + this.couponDiscount()).toFixed(2));
+  totalDiscounts = computed(() => {
+    const raw = +(this.discountAmount() + this.couponDiscount()).toFixed(2);
+    return Math.min(raw, this.subtotal());
+  });
 
   // Summary Totals
   subtotal = computed(() => +(this.baseCost() + this.cateringTotal() + this.printingTotal() + this.wifiCost()).toFixed(2));
@@ -330,19 +333,42 @@ export class WorkspaceCheckoutComponent implements OnInit {
         if (coupon && coupon.isActive !== false) {
           const isExpired = coupon.expiryDate ? new Date(coupon.expiryDate) < new Date() : false;
           if (isExpired) {
-            this.workspaceService.showToast('كود الكوبون منتهي الصلاحية', 'error');
+            this.workspaceService.showToast(this.isArabic() ? 'كود الكوبون منتهي الصلاحية' : 'Coupon code expired', 'error');
             return;
           }
-          const discountVal = coupon.value || 10;
-          this.couponDiscount.set(discountVal);
+          const maxLimit = (coupon as any).usageLimit ?? (coupon as any).UsageLimit ?? (coupon as any).maxUsage ?? (coupon as any).maxUses;
+          const currentUses = (coupon as any).usageCount ?? (coupon as any).UsageCount ?? (coupon as any).currentRedemptions ?? 0;
+          if (maxLimit !== null && maxLimit !== undefined && maxLimit > 0 && currentUses >= maxLimit) {
+            this.workspaceService.showToast(
+              this.isArabic() ? 'تم استنفاد الحد الأقصى لاستخدام هذا الكود' : 'Coupon usage limit reached',
+              'error'
+            );
+            return;
+          }
+          let discountVal = coupon.value || 10;
+          if (coupon.discountType === 1) {
+            discountVal = +((this.subtotal() * discountVal) / 100).toFixed(2);
+          }
+          // Clamp fixed discount to subtotal so invoice never goes negative
+          const clampedDiscount = Math.min(discountVal, this.subtotal());
+          this.couponDiscount.set(clampedDiscount);
           this.couponApplied.set(true);
-          this.workspaceService.showToast(`تم تطبيق الكوبون "${code}": ${discountVal} ج.م!`, 'success');
+          this.workspaceService.showToast(
+            this.isArabic() ? `تم تطبيق الكوبون "${code}": ${clampedDiscount} ج.م!` : `Coupon "${code}" applied: ${clampedDiscount} EGP!`,
+            'success'
+          );
         } else {
-          this.workspaceService.showToast('كود الكوبون غير صالح أو غير مفعل', 'error');
+          this.workspaceService.showToast(
+            this.isArabic() ? 'كود الكوبون غير صالح أو غير مفعل' : 'Invalid or inactive coupon code',
+            'error'
+          );
         }
       },
       error: () => {
-        this.workspaceService.showToast('كود الكوبون غير موجود في النظام', 'error');
+        this.workspaceService.showToast(
+          this.isArabic() ? 'كود الكوبون غير موجود في النظام' : 'Coupon code not found',
+          'error'
+        );
       }
     });
   }
@@ -388,10 +414,26 @@ export class WorkspaceCheckoutComponent implements OnInit {
 
   finalizeAndClose(): void {
     // 1. Package deduction
-    if (this.selectedPaymentMethod() === 'package') {
-      this.packageService.deductStudentPackageHours(this.phone() || this.studentId(), this.durationHours());
+    const cleanDigits = (this.phone() || '').replace(/\D/g, '');
+    const matchedPkg = this.packageService.studentPackages().find(p =>
+      (p.status === 'active' || p.status === 'near_expiry') &&
+      p.remainingHours > 0 &&
+      (
+        p.id === this.studentId() ||
+        p.memberId === this.studentId() ||
+        (cleanDigits && p.memberPhone?.replace(/\D/g, '') === cleanDigits) ||
+        (p.memberNameAr && p.memberNameAr === this.studentName())
+      )
+    );
+
+    const isPackageSession = this.selectedPaymentMethod() === 'package' || !!matchedPkg;
+
+    if (isPackageSession) {
+      const dur = this.durationHours() > 0 ? Math.max(1, Math.round(this.durationHours())) : 1;
+      const targetIdentifier = matchedPkg?.id || this.phone() || this.studentId() || this.studentName();
+      this.packageService.deductStudentPackageHours(targetIdentifier, dur);
       this.workspaceService.showToast(
-        `تم خصم ${this.durationHours()} ساعة من باقة الطالب بنجاح!`,
+        `تم خصم ${dur} ساعة من باقة الطالب بنجاح!`,
         'success'
       );
     }
@@ -416,6 +458,17 @@ export class WorkspaceCheckoutComponent implements OnInit {
       });
     }
 
+    // 3. Redeem coupon in backend if applied
+    if (this.couponApplied() && this.couponInput().trim()) {
+      this.couponApi.redeemCoupon(this.couponInput().trim().toUpperCase(), {
+        studentId: this.studentId(),
+        discountApplied: this.couponDiscount()
+      }).subscribe({
+        next: () => console.log('[Checkout] Coupon redeemed successfully'),
+        error: (err) => console.warn('[Checkout] Coupon redeem notice:', err?.message || err)
+      });
+    }
+
     const finalAmt = this.finalAmount();
     const amtReceived = this.amountReceived() > 0 ? this.amountReceived() : finalAmt;
     const remaining = this.outstandingBalance();
@@ -425,7 +478,9 @@ export class WorkspaceCheckoutComponent implements OnInit {
       totalCost: finalAmt,
       amountReceived: amtReceived,
       outstandingBalance: remaining,
-      duration: this.durationDisplay()
+      duration: this.durationDisplay(),
+      cateringAmount: this.cateringTotal(),
+      printingAmount: +(this.printingTotal() + this.wifiCost()).toFixed(2)
     });
 
     if (remaining > 0) {

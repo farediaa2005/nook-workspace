@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { LanguageService } from '../../../core/services/language.service';
 import { ClassroomService } from '../../../core/services/classroom.service';
 import { PackageService } from '../../../core/services/package.service';
+import { WorkspaceService } from '../../../core/services/workspace.service';
 import { ClassroomCard, PaymentMethod } from '../../../core/models/classroom.model';
 import { PackageItem } from '../../../core/models/package.model';
 
@@ -18,6 +19,7 @@ export class ClassroomCheckoutComponent implements OnInit {
   private langService = inject(LanguageService);
   private classroomService = inject(ClassroomService);
   private packageService = inject(PackageService);
+  private workspaceService = inject(WorkspaceService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
@@ -142,6 +144,14 @@ export class ClassroomCheckoutComponent implements OnInit {
     }
 
     if (card) {
+      if (card.status === 'completed' || this.classroomService.isCardCompleted(card.id)) {
+        this.workspaceService.showToast(
+          this.isArabic() ? 'هذا الحجز تم تسجيل المغادرة له بالفعل (Checked-Out)' : 'This booking has already been checked out.',
+          'info'
+        );
+        this.router.navigate(['/classroom/show-classroom']);
+        return;
+      }
       this.initFromCard(card);
     }
   }

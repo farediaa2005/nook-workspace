@@ -67,6 +67,7 @@ export class MainLayoutComponent implements OnInit {
   );
 
   ngOnInit(): void {
+    this.shiftService.fetchCurrentShiftFromApi();
     this.router.events.pipe(
       filter((event): event is NavigationEnd => event instanceof NavigationEnd),
       takeUntilDestroyed(this.destroyRef)

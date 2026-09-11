@@ -69,12 +69,12 @@ export class ProductGraphComponent implements OnInit {
     const totalRev = this.totalRevenue();
     if (totalRev <= 0) return 0;
 
-    const breakdown = this.cateringService.paymentBreakdown();
+    const breakdown = this.paymentBreakdown();
+    const sumSoldCount = this.cateringService.products().reduce((sum, p) => sum + (p.soldCount || 0), 0);
     const orderCount = breakdown.totalTxns > 0
       ? breakdown.totalTxns
-      : this.cateringService.products().reduce((sum, p) => sum + (p.soldCount || 0), 0);
+      : (sumSoldCount > 0 ? sumSoldCount : 1);
 
-    if (orderCount <= 0) return 0;
     const avg = totalRev / orderCount;
     return Math.round(avg * 100) / 100;
   });
@@ -110,10 +110,12 @@ export class ProductGraphComponent implements OnInit {
     const cats = this.categoryRevenue();
     const maxAmount = cats.reduce((m, c) => Math.max(m, c.amount), 0);
     if (maxAmount <= 0) return 100;
-    if (maxAmount <= 100) return 100;
-    if (maxAmount <= 200) return 200;
-    if (maxAmount <= 400) return 400;
-    return Math.ceil(maxAmount / 100) * 100;
+    // Add at least 25% padding headroom so the tallest bar never overflows the Y-axis
+    const withHeadroom = maxAmount * 1.25;
+    if (withHeadroom <= 100) return 100;
+    if (withHeadroom <= 200) return 200;
+    if (withHeadroom <= 500) return Math.ceil(withHeadroom / 50) * 50;
+    return Math.ceil(withHeadroom / 100) * 100;
   });
 
   // Payment breakdown data for donut chart

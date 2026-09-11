@@ -14,6 +14,8 @@ import {
 
 import { ShiftService } from '../../../core/services/shift.service';
 import { SettingsService } from '../../../core/services/settings.service';
+import { CouponApiService } from '../../../core/services/api/coupon-api.service';
+import { isCouponExhausted, isCouponExpired } from '../../../core/models/coupon.model';
 import { getTodayDateISO, addDaysToDateISO } from '../../../core/utils/date-time.util';
 
 @Component({
@@ -27,6 +29,7 @@ export class ShowInstructorPackageComponent implements OnInit {
   protected packageService = inject(PackageService);
   protected settingsService = inject(SettingsService);
   protected shiftService = inject(ShiftService);
+  private couponApi = inject(CouponApiService);
   private cdr = inject(ChangeDetectorRef);
   private route = inject(ActivatedRoute);
 
@@ -461,17 +464,44 @@ export class ShowInstructorPackageComponent implements OnInit {
   applyCoupon(): void {
     const code = this.couponCode().trim().toUpperCase();
     if (!code) return;
-    if (code === 'CORP10' || code === 'NOOK10') {
-      this.discountType.set('percentage');
-      this.discountValue.set(10);
-      this.packageService.showToast(this.isArabic() ? 'تم تطبيق خصم 10%' : '10% discount applied!', 'success');
-    } else if (code === 'CORP100' || code === 'WELCOME100') {
-      this.discountType.set('fixed');
-      this.discountValue.set(100);
-      this.packageService.showToast(this.isArabic() ? 'تم تطبيق خصم 100 ج.م' : '100 EGP discount applied!', 'success');
-    } else {
-      this.packageService.showToast(this.isArabic() ? 'كود الخصم غير صالح' : 'Invalid coupon code', 'error');
-    }
+    this.couponApi.getCouponByCode(code).subscribe({
+      next: (coupon) => {
+        if (!coupon || coupon.isActive === false) {
+          this.packageService.showToast(this.isArabic() ? 'كود الخصم غير صالح' : 'Invalid coupon code', 'error');
+          return;
+        }
+        if (isCouponExpired(coupon)) {
+          this.packageService.showToast(this.isArabic() ? 'كود الكوبون منتهي الصلاحية' : 'Coupon code expired', 'error');
+          return;
+        }
+        if (isCouponExhausted(coupon)) {
+          this.packageService.showToast(this.isArabic() ? 'تم استنفاد الحد الأقصى لاستخدام هذا الكود' : 'Coupon usage limit reached', 'error');
+          return;
+        }
+        if (coupon.discountType === 2) {
+          this.discountType.set('fixed');
+          this.discountValue.set(coupon.value || 0);
+        } else {
+          this.discountType.set('percentage');
+          this.discountValue.set(coupon.value || 0);
+        }
+        this.packageService.showToast(this.isArabic() ? `تم تطبيق الكوبون "${code}"!` : `Coupon "${code}" applied!`, 'success');
+      },
+      error: () => {
+        // Fallback for demo mock codes if backend doesn't have them
+        if (code === 'CORP10' || code === 'NOOK10') {
+          this.discountType.set('percentage');
+          this.discountValue.set(10);
+          this.packageService.showToast(this.isArabic() ? 'تم تطبيق خصم 10%' : '10% discount applied!', 'success');
+        } else if (code === 'CORP100' || code === 'WELCOME100') {
+          this.discountType.set('fixed');
+          this.discountValue.set(100);
+          this.packageService.showToast(this.isArabic() ? 'تم تطبيق خصم 100 ج.م' : '100 EGP discount applied!', 'success');
+        } else {
+          this.packageService.showToast(this.isArabic() ? 'كود الخصم غير صالح' : 'Invalid coupon code', 'error');
+        }
+      }
+    });
   }
 
   onAmountReceivedInput(val: string): void {

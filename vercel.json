@@ -6,6 +6,14 @@
       "destination": "https://nook.runasp.net/api/:match*"
     },
     {
+      "source": "/uploads/:match*",
+      "destination": "https://nook.runasp.net/uploads/:match*"
+    },
+    {
+      "source": "/Uploads/:match*",
+      "destination": "https://nook.runasp.net/Uploads/:match*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

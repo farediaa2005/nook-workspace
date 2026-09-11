@@ -122,7 +122,10 @@ export class RoomApiService extends BaseApiService {
   /** Upload room image — POST /api/Rooms/{id}/image */
   uploadRoomImage(id: string, file: File): Observable<RoomDto> {
     const formData = new FormData();
-    formData.append('imageFile', file);
+    formData.append('imageFile', file, file.name);
+    formData.append('file', file, file.name);
+    formData.append('image', file, file.name);
+    formData.append('Image', file, file.name);
     return this.post<ApiResponse<RoomDto>>(API_ENDPOINTS.ROOMS.IMAGE(id), formData).pipe(
       map(extractData)
     );

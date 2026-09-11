@@ -4,6 +4,8 @@ export type ShiftTransactionType =
   | 'workspace' 
   | 'package' 
   | 'expense' 
+  | 'other'
+  | 'printing'
   | 'vodafone_in' 
   | 'vodafone_out' 
   | 'instapay_in' 

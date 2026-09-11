@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { ShiftService } from '../../../core/services/shift.service';
 import { LanguageService } from '../../../core/services/language.service';
+import { WorkspaceService } from '../../../core/services/workspace.service';
 import { EndOfShiftModalComponent } from '../../../shared/components/end-of-shift-modal/end-of-shift-modal.component';
 import { CustomSelectComponent, SelectOption } from '../../../shared/components/custom-select/custom-select.component';
 
@@ -17,6 +18,7 @@ import { CustomSelectComponent, SelectOption } from '../../../shared/components/
 export class ActiveShiftComponent implements OnInit {
   private shiftService = inject(ShiftService);
   private langService = inject(LanguageService);
+  private workspaceService = inject(WorkspaceService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private destroyRef = inject(DestroyRef);
@@ -107,13 +109,44 @@ export class ActiveShiftComponent implements OnInit {
   // Modal State for Close Shift
   showCloseModal = signal<boolean>(false);
 
+  // ============================================================
   // Modal State for Add Shift Item (Expense / Income) - Issue #15
+  // ============================================================
   showAddItemModal = signal<boolean>(false);
   newItemType = signal<'expense' | 'revenue'>('expense');
-  newItemCategory = signal<string>('expense');
+  newItemCategory = signal<string>('hospitality');
   newItemAmount = signal<number | null>(null);
   newItemPayWay = signal<'cash' | 'vodafone' | 'instapay' | 'fawry'>('cash');
   newItemDescription = signal<string>('');
+  isSubmittingItem = signal<boolean>(false);
+  amountErrorMessage = signal<string | null>(null);
+
+  quickAmounts = [20, 50, 100, 200, 500];
+
+  readonly expenseCategories = [
+    { key: 'hospitality', labelAr: 'ضيافة وبوفيه', labelEn: 'Hospitality', icon: '☕', defaultDescAr: 'مصاريف ضيافة وبوفيه', defaultDescEn: 'Hospitality & Refreshments' },
+    { key: 'cleaning', labelAr: 'نظافة ومستهلكات', labelEn: 'Cleaning', icon: '🧹', defaultDescAr: 'أدوات نظافة ومستهلكات', defaultDescEn: 'Cleaning supplies' },
+    { key: 'maintenance', labelAr: 'صيانة وإصلاحات', labelEn: 'Maintenance', icon: '🔧', defaultDescAr: 'أعمال صيانة وإصلاحات', defaultDescEn: 'Maintenance & Repairs' },
+    { key: 'stationery', labelAr: 'ورق ومطبوعات', labelEn: 'Stationery', icon: '📄', defaultDescAr: 'أدوات مكتبية ومطبوعات', defaultDescEn: 'Stationery & Printing' },
+    { key: 'utilities', labelAr: 'فواتير وخدمات', labelEn: 'Utilities', icon: '💡', defaultDescAr: 'سداد فواتير وخدمات', defaultDescEn: 'Utility & Services Bill' },
+    { key: 'other', labelAr: 'أخرى', labelEn: 'Other', icon: '🏷️', defaultDescAr: 'مصروفات نثرية متنوعة', defaultDescEn: 'Petty Cash Expense' },
+  ];
+
+  readonly revenueCategories = [
+    { key: 'canteen', labelAr: 'كافيه ومشروبات', labelEn: 'Cafe & Drinks', icon: '☕', defaultDescAr: 'مبيعات كافيه ومشروبات سريعة', defaultDescEn: 'Cafe & Beverages Sale' },
+    { key: 'printing', labelAr: 'طباعة وتصوير ورق', labelEn: 'Printing & Handouts', icon: '🖨️', defaultDescAr: 'خدمات طباعة وتصوير أوراق', defaultDescEn: 'Printing & Paper Handouts' },
+    { key: 'extra', labelAr: 'إيراد إضافي', labelEn: 'Extra Income', icon: '💰', defaultDescAr: 'إيراد إضافي متنوع', defaultDescEn: 'Additional Revenue' },
+    { key: 'settlement', labelAr: 'تسوية حساب', labelEn: 'Settlement', icon: '🔄', defaultDescAr: 'تسوية حساب وفروق نقدية', defaultDescEn: 'Account settlement' },
+    { key: 'deposit', labelAr: 'تغذية خزينة', labelEn: 'Drawer Top-up', icon: '📥', defaultDescAr: 'إيداع وتغذية الخزينة', defaultDescEn: 'Cash Drawer Top-up' },
+    { key: 'other', labelAr: 'أخرى', labelEn: 'Other', icon: '🏷️', defaultDescAr: 'إيراد تشغيلي آخر', defaultDescEn: 'Other Operating Income' },
+  ];
+
+  readonly paymentChannels: { key: 'cash' | 'vodafone' | 'instapay' | 'fawry'; labelAr: string; labelEn: string; icon: string; badge: string }[] = [
+    { key: 'cash', labelAr: 'خزينة نقدية (الدرج)', labelEn: 'Cash Drawer', icon: '💵', badge: 'Cash' },
+    { key: 'vodafone', labelAr: 'فودافون كاش', labelEn: 'Vodafone Cash', icon: '📱', badge: 'VF Cash' },
+    { key: 'instapay', labelAr: 'إنستاباي', labelEn: 'InstaPay', icon: '⚡', badge: 'InstaPay' },
+    { key: 'fawry', labelAr: 'فوري / POS', labelEn: 'Fawry / POS', icon: '💳', badge: 'POS' },
+  ];
 
   openCloseShiftModal(): void {
     this.showCloseModal.set(true);
@@ -130,20 +163,72 @@ export class ActiveShiftComponent implements OnInit {
 
   openAddItemModal(): void {
     this.newItemType.set('expense');
-    this.newItemCategory.set('expense');
+    this.newItemCategory.set('hospitality');
     this.newItemAmount.set(null);
     this.newItemPayWay.set('cash');
-    this.newItemDescription.set('');
+    this.newItemDescription.set(this.isArabic() ? 'مصاريف ضيافة وبوفيه' : 'Hospitality & Refreshments');
+    this.amountErrorMessage.set(null);
+    this.isSubmittingItem.set(false);
     this.showAddItemModal.set(true);
   }
 
   closeAddItemModal(): void {
+    if (this.isSubmittingItem()) return;
     this.showAddItemModal.set(false);
+    this.amountErrorMessage.set(null);
+  }
+
+  setItemType(type: 'expense' | 'revenue'): void {
+    this.newItemType.set(type);
+    this.amountErrorMessage.set(null);
+    if (type === 'expense') {
+      this.newItemCategory.set('hospitality');
+      this.newItemDescription.set(this.isArabic() ? 'مصاريف ضيافة وبوفيه' : 'Hospitality & Refreshments');
+    } else {
+      this.newItemCategory.set('extra');
+      this.newItemDescription.set(this.isArabic() ? 'إيراد إضافي متنوع' : 'Additional Revenue');
+    }
+  }
+
+  setPaymentChannel(channel: 'cash' | 'vodafone' | 'instapay' | 'fawry'): void {
+    this.newItemPayWay.set(channel);
+  }
+
+  selectCategoryChip(cat: any): void {
+    this.newItemCategory.set(cat.key);
+    this.newItemDescription.set(this.isArabic() ? cat.defaultDescAr : cat.defaultDescEn);
+  }
+
+  applyQuickAmount(amount: number): void {
+    const cur = this.newItemAmount() || 0;
+    this.newItemAmount.set(+(cur + amount).toFixed(2));
+    this.amountErrorMessage.set(null);
+  }
+
+  clearAmount(): void {
+    this.newItemAmount.set(null);
+    this.amountErrorMessage.set(null);
+  }
+
+  onAmountChange(val: number | null): void {
+    this.newItemAmount.set(val);
+    if (val && val > 0) {
+      this.amountErrorMessage.set(null);
+    }
   }
 
   submitAddItem(): void {
+    if (this.isSubmittingItem()) return;
+
     const amt = this.newItemAmount();
-    if (!amt || amt <= 0) return;
+    if (!amt || amt <= 0) {
+      this.amountErrorMessage.set(this.isArabic() ? 'يرجى إدخال مبلغ صحيح أكبر من صفر' : 'Please enter a valid amount greater than zero');
+      return;
+    }
+
+    this.isSubmittingItem.set(true);
+    this.amountErrorMessage.set(null);
+
     const type = this.newItemType();
     const cat = this.newItemCategory();
     const pay = this.newItemPayWay();
@@ -151,13 +236,107 @@ export class ActiveShiftComponent implements OnInit {
       ? (this.isArabic() ? 'مصروفات وردية' : 'Shift Expense') 
       : (this.isArabic() ? 'إيراد إضافي' : 'Additional Income'));
 
-    this.shiftService.recordTransaction({
+    this.shiftService.addManualShiftItem({
       amount: amt,
-      type: (type === 'expense' ? 'expense' : (cat === 'expense' ? 'other' : cat)) as any,
+      type,
       paymentMethod: pay,
-      details: desc
+      description: desc,
+      category: cat
+    }).subscribe({
+      next: () => {
+        this.isSubmittingItem.set(false);
+        const toastMsg = this.isArabic()
+          ? (type === 'expense' ? `تم تسجيل مصروف بقيمة ${amt.toFixed(2)} ج.م بنجاح` : `تم تسجيل إيراد بقيمة ${amt.toFixed(2)} ج.م بنجاح`)
+          : (type === 'expense' ? `Expense of ${amt.toFixed(2)} EGP recorded successfully` : `Revenue of ${amt.toFixed(2)} EGP recorded successfully`);
+        this.workspaceService.showToast(toastMsg, 'success');
+        this.closeAddItemModal();
+      },
+      error: (err) => {
+        this.isSubmittingItem.set(false);
+        const msg = err?.error?.message || err?.message || (this.isArabic() ? 'تعذر تسجيل البند في السيرفر' : 'Failed to record item on server');
+        this.workspaceService.showToast(msg, 'error');
+      }
     });
-
-    this.showAddItemModal.set(false);
   }
+
+  isRecalculating = signal<boolean>(false);
+
+  recalculateShift(): void {
+    if (this.isRecalculating()) return;
+    this.isRecalculating.set(true);
+
+    this.shiftService.recalculateCurrentShift().subscribe({
+      next: (ok) => {
+        this.isRecalculating.set(false);
+        if (ok) {
+          this.workspaceService.showToast(
+            this.isArabic() ? 'تم تحديث وتدقيق حسابات الوردية بنجاح!' : 'Shift accounts updated and recalculated successfully!',
+            'success'
+          );
+        } else {
+          this.shiftService.fetchCurrentShiftFromApi();
+          this.workspaceService.showToast(
+            this.isArabic() ? 'تمت مزامنة بيانات الوردية' : 'Shift data synchronized',
+            'info'
+          );
+        }
+      },
+      error: () => {
+        this.isRecalculating.set(false);
+        this.shiftService.fetchCurrentShiftFromApi();
+      }
+    });
+  }
+
+  // ============================================================
+  // Delete Shift Transaction Item
+  // ============================================================
+  isDeletingItem = signal<string | null>(null);
+  showDeleteConfirmModal = signal<boolean>(false);
+  deleteTargetTx = signal<{ id: string; details: string; amount: number } | null>(null);
+
+  deleteTransaction(tx: { id: string; details: string; amount: number }): void {
+    if (this.isDeletingItem()) return;
+    this.deleteTargetTx.set(tx);
+    this.showDeleteConfirmModal.set(true);
+  }
+
+  cancelDelete(): void {
+    this.showDeleteConfirmModal.set(false);
+    this.deleteTargetTx.set(null);
+  }
+
+  confirmDelete(): void {
+    const tx = this.deleteTargetTx();
+    if (!tx) return;
+
+    this.showDeleteConfirmModal.set(false);
+    this.isDeletingItem.set(tx.id);
+    this.shiftService.deleteShiftItem(tx.id).subscribe({
+      next: (ok) => {
+        this.isDeletingItem.set(null);
+        this.deleteTargetTx.set(null);
+        if (ok) {
+          this.workspaceService.showToast(
+            this.isArabic() ? 'تم حذف البند بنجاح' : 'Item deleted successfully',
+            'success'
+          );
+        } else {
+          this.workspaceService.showToast(
+            this.isArabic() ? 'تعذر حذف البند من السيرفر' : 'Failed to delete item from server',
+            'error'
+          );
+        }
+      },
+      error: () => {
+        this.isDeletingItem.set(null);
+        this.deleteTargetTx.set(null);
+        this.workspaceService.showToast(
+          this.isArabic() ? 'حدث خطأ أثناء حذف البند' : 'Error deleting item',
+          'error'
+        );
+      }
+    });
+  }
+
 }

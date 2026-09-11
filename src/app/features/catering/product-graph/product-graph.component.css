@@ -338,6 +338,7 @@
   flex-direction: column;
   justify-content: space-between;
   pointer-events: none;
+  padding-bottom: 24px;
 }
 
 .grid-line-row {
@@ -402,10 +403,13 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  overflow: visible;
+  position: relative;
 }
 
 .bar-fill {
   width: 48px;
+  max-height: 100%;
   background: #f5b921;
   border-radius: 8px 8px 0 0;
   transition: height 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.15s;

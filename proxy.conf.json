@@ -10,5 +10,11 @@
     "secure": false,
     "changeOrigin": true,
     "logLevel": "debug"
+  },
+  "/Uploads": {
+    "target": "https://nook.runasp.net",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
   }
 }

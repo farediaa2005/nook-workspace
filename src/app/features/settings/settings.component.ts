@@ -9,6 +9,7 @@ import {
   RoomEntity,
   QuickPackagePreset
 } from '../../core/services/settings.service';
+import { resolveImageUrl } from '../../core/utils/image-url.util';
 import { RouterLink } from '@angular/router';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { PrimaryButtonComponent } from '../../shared/components/primary-button/primary-button.component';
@@ -301,8 +302,24 @@ export class SettingsComponent implements OnInit {
       return;
     }
 
-    const labelAr = this.formTierLabelAr().trim() || `${from} - ${to} ${this.isArabic() ? 'ساعة' : 'hrs'}`;
-    const labelEn = this.formTierLabelEn().trim() || `${from} - ${to} hrs`;
+    // Overlap validation: prevent saving overlapping tiers
+    const editingId = this.editingTierId();
+    const existingTiers = this.settingsService.pricingTiers();
+    const hasOverlap = existingTiers.some(t => {
+      if (this.tierModalMode() === 'edit' && t.id === editingId) return false;
+      return !(to <= t.fromHours || from >= t.toHours);
+    });
+
+    if (hasOverlap) {
+      this.tierFormError.set(this.isArabic()
+        ? 'يوجد تداخل وتعارض بين نطاق هذه الشريحة وشريحة أخرى مسجلة مسبقاً!'
+        : 'This hourly range overlaps with an existing pricing tier!');
+      return;
+    }
+
+    // Auto-generate description directly from the actual from/to bounds
+    const labelAr = `${from} - ${to} ساعة`;
+    const labelEn = `${from} - ${to} hrs`;
 
     if (this.tierModalMode() === 'add') {
       this.settingsService.addPricingTier({
@@ -498,13 +515,17 @@ export class SettingsComponent implements OnInit {
   }
 
   getRoomImage(imageUrl?: string | null): string {
-    return (imageUrl && imageUrl.trim()) ? imageUrl.trim() : '';
+    return resolveImageUrl(imageUrl);
   }
 
   onImageError(event: Event): void {
     const img = event.target as HTMLImageElement;
     if (img) {
       img.style.display = 'none';
+      const placeholder = img.nextElementSibling as HTMLElement;
+      if (placeholder) {
+        placeholder.style.display = 'flex';
+      }
     }
   }
 

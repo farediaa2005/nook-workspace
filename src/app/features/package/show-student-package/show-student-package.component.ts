@@ -14,6 +14,7 @@ import {
 
 import { ShiftService } from '../../../core/services/shift.service';
 import { CouponApiService } from '../../../core/services/api/coupon-api.service';
+import { isCouponExhausted, isCouponExpired } from '../../../core/models/coupon.model';
 import { SettingsService } from '../../../core/services/settings.service';
 import { getTodayDateISO, addDaysToDateISO } from '../../../core/utils/date-time.util';
 
@@ -462,18 +463,26 @@ export class ShowStudentPackageComponent implements OnInit {
     if (!code) return;
     this.couponApi.getCouponByCode(code).subscribe({
       next: (coupon) => {
-        if (coupon && coupon.isActive !== false) {
-          if (coupon.discountType === 2) {
-            this.discountType.set('fixed');
-            this.discountValue.set(coupon.value || 0);
-          } else {
-            this.discountType.set('percentage');
-            this.discountValue.set(coupon.value || 0);
-          }
-          this.packageService.showToast(this.isArabic() ? `تم تطبيق الكوبون "${code}"!` : `Coupon "${code}" applied!`, 'success');
-        } else {
+        if (!coupon || coupon.isActive === false) {
           this.packageService.showToast(this.isArabic() ? 'كود الخصم غير صالح' : 'Invalid coupon code', 'error');
+          return;
         }
+        if (isCouponExpired(coupon)) {
+          this.packageService.showToast(this.isArabic() ? 'كود الكوبون منتهي الصلاحية' : 'Coupon code expired', 'error');
+          return;
+        }
+        if (isCouponExhausted(coupon)) {
+          this.packageService.showToast(this.isArabic() ? 'تم استنفاد الحد الأقصى لاستخدام هذا الكود' : 'Coupon usage limit reached', 'error');
+          return;
+        }
+        if (coupon.discountType === 2) {
+          this.discountType.set('fixed');
+          this.discountValue.set(coupon.value || 0);
+        } else {
+          this.discountType.set('percentage');
+          this.discountValue.set(coupon.value || 0);
+        }
+        this.packageService.showToast(this.isArabic() ? `تم تطبيق الكوبون "${code}"!` : `Coupon "${code}" applied!`, 'success');
       },
       error: () => {
         this.packageService.showToast(this.isArabic() ? 'كود الخصم غير صالح' : 'Invalid coupon code', 'error');

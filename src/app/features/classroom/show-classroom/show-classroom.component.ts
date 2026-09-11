@@ -7,6 +7,8 @@ import { ClassroomService } from '../../../core/services/classroom.service';
 import { PackageService } from '../../../core/services/package.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { ShiftService } from '../../../core/services/shift.service';
+import { CouponApiService } from '../../../core/services/api/coupon-api.service';
+import { isCouponExhausted, isCouponExpired } from '../../../core/models/coupon.model';
 import { PackageItem, PackageMemberOption } from '../../../core/models/package.model';
 import {
   ClassroomCard,
@@ -40,6 +42,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   protected packageService = inject(PackageService);
   protected workspaceService = inject(WorkspaceService);
   protected shiftService = inject(ShiftService);
+  protected couponApi = inject(CouponApiService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private destroyRef = inject(DestroyRef);
@@ -1364,12 +1367,29 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       this.couponError.set(this.t().pleaseEnterCoupon);
       return;
     }
-    this.classroomService.validateCoupon(code).subscribe(coupon => {
-      if (coupon) {
-        this.appliedCoupon.set(coupon);
+    this.couponApi.getCouponByCode(code).subscribe({
+      next: (coupon) => {
+        if (!coupon || !coupon.isActive) {
+          this.couponError.set(this.t().invalidCoupon);
+          return;
+        }
+        if (isCouponExpired(coupon)) {
+          this.couponError.set(this.isArabic() ? 'كود الكوبون منتهي الصلاحية' : 'Coupon code expired');
+          return;
+        }
+        if (isCouponExhausted(coupon)) {
+          this.couponError.set(this.isArabic() ? 'تم استنفاد الحد الأقصى لاستخدام هذا الكود' : 'Coupon usage limit reached');
+          return;
+        }
+        this.appliedCoupon.set({
+          code: coupon.code,
+          discountPercent: coupon.value || 10,
+          discountName: `${coupon.value || 10}% OFF`
+        });
         this.couponError.set('');
         this.isBookingDiscountSectionOpen.set(false);
-      } else {
+      },
+      error: () => {
         this.couponError.set(this.t().invalidCoupon);
       }
     });
@@ -1777,6 +1797,13 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إنهاء جلسة القاعة والدفع' : 'Classroom Checkout')) {
       return;
     }
+    if (card.status === 'completed' || this.classroomService.isCardCompleted(card.id)) {
+      this.workspaceService.showToast(
+        this.isArabic() ? 'هذا الحجز تم تسجيل المغادرة له بالفعل (Checked-Out)' : 'This booking has already been checked out.',
+        'info'
+      );
+      return;
+    }
     this.activeCheckoutCard.set(card);
     this.classroomService.setActiveCheckoutCard(card);
 
@@ -1935,6 +1962,15 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       }).subscribe({
         next: () => {
           this.workspaceService.showToast(this.isArabic() ? 'تم إنهاء وتسوية حجز القاعة بنجاح!' : 'Classroom checked out successfully!', 'success');
+          // Redeem coupon in backend if applied
+          if (this.appliedCoupon()?.code) {
+            this.couponApi.redeemCoupon(this.appliedCoupon()!.code, {
+              classroomId: currentCard.id
+            }).subscribe({
+              next: () => console.log('[ShowClassroom] Coupon redeemed successfully'),
+              error: (err) => console.warn('[ShowClassroom] Coupon redeem notice:', err?.message || err)
+            });
+          }
         },
         error: (err) => {
           console.error('Failed to checkout room:', err);

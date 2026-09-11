@@ -492,6 +492,7 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
 
     return {
       id: card.id,
+      isClassroomSession: true,
       displayId: card.id.startsWith('res-') ? card.id.toUpperCase() : `RES-${card.id.substring(0, 4).toUpperCase()}`,
       instructor: card.instructor,
       activity: card.activity,
@@ -543,6 +544,13 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
   }
 
   onCheckoutReservation(res: AdminReservation): void {
+    if (res.status === 'completed' || (res as any).isCheckedOut) {
+      this.workspaceService.showToast(
+        this.isArabic() ? 'هذا الحجز تم تسجيل المغادرة له بالفعل (Checked-Out)' : 'This reservation has already been checked out.',
+        'info'
+      );
+      return;
+    }
     this.closeDetailPanel();
     this.router.navigate(['/classroom/show-classroom'], {
       queryParams: { checkout: res.id }
@@ -586,6 +594,11 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
   isRecurringEditScopeModalOpen = signal(false);
   selectedRecurringEditRes = signal<AdminReservation | null>(null);
   recurringEditScope = signal<'single' | 'all'>('single');
+
+  // Custom Delete Confirmation Modal State
+  isDeleteModalOpen = signal<boolean>(false);
+  reservationToDelete = signal<AdminReservation | null>(null);
+  isDeleting = signal<boolean>(false);
 
   // Conflict Check Result State
   conflictDetails = signal<ReservationConflictCheckResultDto | null>(null);
@@ -1562,11 +1575,56 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
       }
     };
 
-    // Step 1: Standalone Conflict Check
-    if (realRoomId && /^[0-9a-fA-F-]{36}$/.test(realRoomId)) {
-      const targetRes = this.selectedRecurringEditRes();
-      const excludeId = this.modalMode() === 'edit' ? (targetRes?.reservationId || this.resId() || null) : null;
+    // Generate dates list for conflict checking
+    const targetDates: string[] = [];
+    if (!freq) {
+      targetDates.push(dateStr);
+    } else {
+      const maxSessions = totalSessions || 8;
+      const [startYear, startMonth, startDay] = dateStr.split('-').map(Number);
+      const curr = new Date(startYear, startMonth - 1, startDay);
+      const endLimit = new Date(endDateStr);
+      let sessionCount = 0;
 
+      while (sessionCount < maxSessions && curr <= endLimit) {
+        const yStr = curr.getFullYear();
+        const mStr = String(curr.getMonth() + 1).padStart(2, '0');
+        const dStr = String(curr.getDate()).padStart(2, '0');
+        const isoD = `${yStr}-${mStr}-${dStr}`;
+        const dayNum = curr.getDay();
+
+        if (daysOfWeek.includes(dayNum)) {
+          targetDates.push(isoD);
+          sessionCount++;
+        }
+        curr.setDate(curr.getDate() + 1);
+      }
+      if (targetDates.length === 0) targetDates.push(dateStr);
+    }
+
+    const targetRes = this.selectedRecurringEditRes();
+    const excludeId = this.modalMode() === 'edit' ? (targetRes?.reservationId || this.resId() || null) : null;
+
+    // Step 1: Pre-save In-Memory & Active Sessions Overlap Check (Strict Double Booking Prevention)
+    const localConflict = this.findLocalReservationConflict(
+      realRoomId,
+      this.resRoomName(),
+      targetDates,
+      startTimeStr,
+      endTimeStr,
+      excludeId
+    );
+
+    if (localConflict.hasConflict) {
+      this.isSaving.set(false);
+      const msg = localConflict.reason || (this.isArabic() ? 'تعارض في الموعد: هذه القاعة محجوزة بالفعل في هذا التوقيت.' : 'Conflict: Room is already booked for this time slot.');
+      this.modalErrorMessage.set(msg);
+      this.workspaceService.showToast(msg, 'error');
+      return;
+    }
+
+    // Step 2: Standalone Conflict Check via Backend API
+    if (realRoomId && /^[0-9a-fA-F-]{36}$/.test(realRoomId)) {
       this.classroomService.checkReservationConflict({
         roomId: realRoomId,
         dateFrom: isoDateFrom,
@@ -1599,6 +1657,90 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     } else {
       executeSave();
     }
+  }
+
+  findLocalReservationConflict(
+    roomId: string,
+    roomName: string,
+    checkDates: string[],
+    startTimeStr: string,
+    endTimeStr: string,
+    excludeResId?: string | null
+  ): { hasConflict: boolean; reason?: string; conflictingDate?: string } {
+    const newStart = this.classroomService.parseTimeToMinutes(startTimeStr);
+    const newEnd = this.classroomService.parseTimeToMinutes(endTimeStr);
+    if (newStart >= newEnd) return { hasConflict: false };
+
+    const cleanRoomName = (roomName || '').trim().toLowerCase();
+    const cleanRoomId = (roomId || '').trim().toLowerCase();
+
+    const matchesRoom = (rId?: string, rName?: string) => {
+      const id = (rId || '').trim().toLowerCase();
+      const name = (rName || '').trim().toLowerCase();
+      return (cleanRoomId && id && id === cleanRoomId) ||
+             (cleanRoomName && name && (name === cleanRoomName || name.includes(cleanRoomName) || cleanRoomName.includes(name)));
+    };
+
+    const isExcluded = (id?: string, resId?: string) => {
+      if (!excludeResId) return false;
+      return id === excludeResId || resId === excludeResId;
+    };
+
+    // 1. Check existing reservations in calendar
+    const existingList = this.reservations();
+    for (const d of checkDates) {
+      for (const res of existingList) {
+        if (isExcluded(res.id, res.reservationId)) continue;
+        if (res.status === 'cancelled') continue;
+        if (!matchesRoom(res.roomId, res.roomName || res.classroom)) continue;
+
+        const resDate = res.occurrenceDate || res.fullDate || res.date;
+        if (!resDate || !resDate.startsWith(d)) continue;
+
+        const exStart = this.classroomService.parseTimeToMinutes(res.startTime);
+        const exEnd = this.classroomService.parseTimeToMinutes(res.endTime);
+        if (exStart >= exEnd) continue;
+
+        // Time Overlap: newStart < exEnd && newEnd > exStart
+        if (newStart < exEnd && newEnd > exStart) {
+          const conflictName = res.activity || res.instructor || 'حجز آخر';
+          const conflictTime = `${res.startTime} - ${res.endTime}`;
+          return {
+            hasConflict: true,
+            conflictingDate: d,
+            reason: this.isArabic()
+              ? `تعارض: القاعة محجوزة بالفعل بتاريخ ${d} في التوقيت (${conflictTime}) لـ "${conflictName}". لا يمكن تكرار الحجز.`
+              : `Conflict: Room is already booked on ${d} at (${conflictTime}) for "${conflictName}". Double booking is not allowed.`
+          };
+        }
+      }
+
+      // 2. Check active classroom cards in space
+      const activeCards = this.classroomService.cards();
+      for (const card of activeCards) {
+        if (card.status === 'available' || card.status === 'completed' || card.status === 'cancelled') continue;
+        if (!matchesRoom(card.roomId, card.name)) continue;
+
+        const cardDate = card.bookingDate;
+        if (cardDate && !cardDate.startsWith(d)) continue;
+
+        const cStart = this.classroomService.parseTimeToMinutes(card.startTime);
+        const cEnd = this.classroomService.parseTimeToMinutes(card.endTime);
+        if (cStart >= cEnd) continue;
+
+        if (newStart < cEnd && newEnd > cStart) {
+          return {
+            hasConflict: true,
+            conflictingDate: d,
+            reason: this.isArabic()
+              ? `تعارض: القاعة قيد الاستخدام حالياً في هذا التوقيت (${card.startTime} - ${card.endTime}) لـ "${card.instructor || card.activity || 'جلسة نشطة'}".`
+              : `Conflict: Room is currently active at (${card.startTime} - ${card.endTime}) for "${card.instructor || 'Active Session'}".`
+          };
+        }
+      }
+    }
+
+    return { hasConflict: false };
   }
 
   private computeEndDate(startDateStr: string, count: number, unit: 'day' | 'week' | 'month', interval: number): string {
@@ -1644,7 +1786,6 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
 
   deleteReservation(res: AdminReservation): void {
     if (!res || (!res.id && !res.reservationId)) return;
-    const isAr = this.isArabic();
 
     if (res.isRecurring) {
       this.selectedRecurringRes.set(res);
@@ -1653,19 +1794,58 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
       return;
     }
 
-    const promptMsg = `${isAr ? 'هل أنت متأكد من إلغاء هذا الحجز؟' : 'Are you sure you want to cancel this reservation?'} (${res.classroom} - ${res.instructor})`;
-    if (confirm(promptMsg)) {
-      this.classroomService.deleteReservation(res.reservationId || res.id).subscribe({
-        next: () => {
-          this.workspaceService.showToast(isAr ? 'تم إلغاء الحجز بنجاح' : 'Reservation cancelled', 'success');
-          this.classroomService.syncWithBackend();
-        },
-        error: (e) => {
-          const msg = e?.error?.message || (isAr ? 'فشل إلغاء الحجز' : 'Failed to cancel reservation');
-          this.workspaceService.showToast(msg, 'error');
-        }
-      });
-    }
+    this.reservationToDelete.set(res);
+    this.isDeleteModalOpen.set(true);
+  }
+
+  closeDeleteModal(): void {
+    this.isDeleteModalOpen.set(false);
+    this.reservationToDelete.set(null);
+    this.isDeleting.set(false);
+  }
+
+  confirmDelete(): void {
+    const res = this.reservationToDelete();
+    if (!res) return;
+
+    this.isDeleting.set(true);
+    const isAr = this.isArabic();
+    const isClassroom = res.isClassroomSession || !res.reservationId || this.classroomService.cards().some(c => c.id === res.id);
+
+    const deleteObs$ = isClassroom
+      ? this.classroomService.deleteBooking(res.id)
+      : this.classroomService.deleteReservation(res.reservationId || res.id);
+
+    deleteObs$.subscribe({
+      next: () => {
+        this.isDeleting.set(false);
+        this.closeDeleteModal();
+        this.workspaceService.showToast(isAr ? 'تم الحذف بنجاح' : 'Deleted successfully', 'success');
+        this.classroomService.loadClassrooms().subscribe();
+        this.classroomService.loadReservations().subscribe();
+      },
+      error: (e) => {
+        // If 404, gracefully attempt the opposite endpoint in case of ID mix-up
+        const fallback$ = isClassroom
+          ? this.classroomService.deleteReservation(res.id)
+          : this.classroomService.deleteBooking(res.id);
+
+        fallback$.subscribe({
+          next: () => {
+            this.isDeleting.set(false);
+            this.closeDeleteModal();
+            this.workspaceService.showToast(isAr ? 'تم الحذف بنجاح' : 'Deleted successfully', 'success');
+            this.classroomService.loadClassrooms().subscribe();
+            this.classroomService.loadReservations().subscribe();
+          },
+          error: (err2) => {
+            this.isDeleting.set(false);
+            const msg = err2?.error?.message || e?.error?.message || (isAr ? 'فشل الحذف' : 'Failed to delete');
+            this.workspaceService.showToast(msg, 'error');
+          }
+        });
+      }
+    });
   }
 
   confirmRecurringCancellation(): void {

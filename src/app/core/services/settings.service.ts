@@ -1,11 +1,12 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
-import { catchError, of, forkJoin, finalize, Observable, map } from 'rxjs';
+import { catchError, of, forkJoin, finalize, Observable, map, switchMap } from 'rxjs';
 import { RoomApiService } from './api/room-api.service';
 import { PricingPlanApiService } from './api/pricing-plan-api.service';
 import { PackagePricingPlanApiService } from './api/package-pricing-plan-api.service';
 import { AuthService } from './auth.service';
 import { RoomDto } from '../models/classroom-session.model';
 import { PricingPlanDto, PackagePricingPlanDto, PackageType } from '../models/pricing-plan.model';
+import { resolveImageUrl } from '../utils/image-url.util';
 
 export interface StudentPricingTier {
   id: string;
@@ -115,7 +116,7 @@ export class SettingsService {
             type: r.supportsClassroom ? 'Classroom' : (r.workspaceZone === 2 ? 'Silent Zone' : 'Shared Space'),
             capacity: r.capacity || 0,
             hourlyPrice: r.hourlyPrice || 0,
-            imageUrl: r.imageUrl || '',
+            imageUrl: resolveImageUrl(r.imageUrl),
             isActive: r.isActive !== false
           }));
 
@@ -133,8 +134,8 @@ export class SettingsService {
               fromHours: from,
               toHours: to,
               priceEgp: p.baseCost,
-              labelAr: p.note || `${from} - ${to} ساعة`,
-              labelEn: p.note || `${from} - ${to} hrs`
+              labelAr: `${from} - ${to} ساعة`,
+              labelEn: `${from} - ${to} hrs`
             };
           });
 
@@ -177,7 +178,7 @@ export class SettingsService {
           type: r.supportsClassroom ? 'Classroom' : (r.workspaceZone === 2 ? 'Silent Zone' : 'Shared Space'),
           capacity: r.capacity || 0,
           hourlyPrice: r.hourlyPrice || 0,
-          imageUrl: r.imageUrl || '',
+          imageUrl: resolveImageUrl(r.imageUrl),
           isActive: r.isActive !== false
         }));
         this.settingsState.update(s => ({ ...s, rooms: mapped }));
@@ -207,8 +208,8 @@ export class SettingsService {
             fromHours: from,
             toHours: to,
             priceEgp: p.baseCost,
-            labelAr: p.note || `${from} - ${to} ساعة`,
-            labelEn: p.note || `${from} - ${to} hrs`
+            labelAr: `${from} - ${to} ساعة`,
+            labelEn: `${from} - ${to} hrs`
           };
         });
         this.settingsState.update(s => ({ ...s, pricingTiers: mapped }));
@@ -373,6 +374,23 @@ export class SettingsService {
       imageUrl: isAbsoluteUrl ? room.imageUrl : undefined,
       imageFile: imageFile
     }).pipe(
+      switchMap(created => {
+        if (imageFile && created && created.id) {
+          return this.roomApi.uploadRoomImage(created.id, imageFile).pipe(
+            map(imgDto => {
+              if (imgDto && imgDto.imageUrl) {
+                created.imageUrl = imgDto.imageUrl;
+              }
+              return created;
+            }),
+            catchError(err => {
+              console.warn('[SettingsService] uploadRoomImage error:', err);
+              return of(created);
+            })
+          );
+        }
+        return of(created);
+      }),
       map((created) => {
         const newRoom: RoomEntity = {
           id: created.id,
@@ -381,10 +399,10 @@ export class SettingsService {
           type: created.supportsClassroom ? 'Classroom' : (created.workspaceZone === 2 ? 'Silent Zone' : 'Shared Space'),
           capacity: room.capacity || 0,
           hourlyPrice: room.hourlyPrice || 0,
-          imageUrl: created.imageUrl || room.imageUrl || '',
+          imageUrl: resolveImageUrl(created.imageUrl),
           isActive: created.isActive !== false
         };
-        this.settingsState.update(s => ({ ...s, rooms: [newRoom, ...s.rooms] }));
+        this.settingsState.update(s => ({ ...s, rooms: [newRoom, ...s.rooms.filter(r => r.id !== created.id)] }));
         return newRoom;
       })
     );
@@ -405,10 +423,33 @@ export class SettingsService {
       imageUrl: isAbsoluteUrl ? room.imageUrl : undefined,
       imageFile: imageFile
     }).pipe(
+      switchMap(updated => {
+        if (imageFile && updated && updated.id) {
+          return this.roomApi.uploadRoomImage(updated.id, imageFile).pipe(
+            map(imgDto => {
+              if (imgDto && imgDto.imageUrl) {
+                updated.imageUrl = imgDto.imageUrl;
+              }
+              return updated;
+            }),
+            catchError(err => {
+              console.warn('[SettingsService] uploadRoomImage error on update:', err);
+              return of(updated);
+            })
+          );
+        }
+        return of(updated);
+      }),
       map((updated) => {
         const updatedRoom: RoomEntity = {
           ...room,
-          imageUrl: updated.imageUrl || room.imageUrl || ''
+          name: updated.name || room.name,
+          nameEn: updated.nameEn || room.nameEn,
+          type: updated.supportsClassroom ? 'Classroom' : (updated.workspaceZone === 2 ? 'Silent Zone' : 'Shared Space'),
+          capacity: updated.capacity ?? room.capacity,
+          hourlyPrice: updated.hourlyPrice ?? room.hourlyPrice,
+          imageUrl: resolveImageUrl(updated.imageUrl || (imageFile ? '' : (room.imageUrl?.startsWith('data:') ? '' : room.imageUrl))),
+          isActive: updated.isActive !== false
         };
         const updatedList = this.rooms().map(r => (r.id === room.id ? updatedRoom : r));
         this.settingsState.update(s => ({ ...s, rooms: updatedList }));

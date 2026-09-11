@@ -101,8 +101,15 @@
                 <td class="td-product">
                   <div class="product-info-cell">
                     <div class="product-img-box">
-                      @if (getProductImage(prod.image, prod.id) && !isImageFailed(prod.id)) {
-                        <img [src]="getProductImage(prod.image, prod.id)" alt="" class="product-thumb-img" (error)="onImageError(prod.id)" />
+                      @if (getProductImage(prod.image) && !isImageFailed(prod.id)) {
+                        <img
+                          [src]="getProductImage(prod.image)"
+                          alt=""
+                          class="product-thumb-img"
+                          loading="lazy"
+                          (error)="onImageError(prod.id)"
+                          [style.display]="isImageFailed(prod.id) ? 'none' : 'block'"
+                        />
                       } @else {
                         <div class="product-img-fallback">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -395,6 +402,43 @@
                   </span>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <!-- Product Image Dropzone / Preview -->
+          <div class="form-field-group">
+            <label class="form-label">{{ t().productImageOptional }}</label>
+            <div class="upload-container">
+              @if (editImagePreview()) {
+                <div class="image-preview-card">
+                  <img [src]="editImagePreview()" alt="Product preview" class="preview-img" />
+                  <button type="button" class="btn-delete-img" (click)="removeEditImage()" [title]="t().removeImage">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                  </button>
+                </div>
+              } @else {
+                <label class="upload-dropzone">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    class="file-input-hidden"
+                    (change)="onEditImageFileChange($event)"
+                  />
+                  <div class="upload-placeholder">
+                    <div class="camera-circle-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                        <circle cx="12" cy="13" r="4"></circle>
+                      </svg>
+                    </div>
+                    <span class="upload-text">{{ t().uploadProductImage }}</span>
+                    <span class="upload-subtext">{{ t().imageFileFormat }}</span>
+                  </div>
+                </label>
+              }
             </div>
           </div>
 

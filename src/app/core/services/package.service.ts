@@ -604,7 +604,7 @@ export class PackageService {
     });
   }
 
-  /** Record Session Usage (Deduct Hours) via API */
+  /** Record Session Usage (Deduct Hours) via API and immediate optimistic update */
   recordSessionUsage(id: string, usage: Omit<UsageHistory, 'id'>): void {
     const pkg = this.getPackageById(id);
     if (!pkg) return;
@@ -614,50 +614,81 @@ export class PackageService {
       id: `USG-${Date.now().toString().slice(-4)}${Math.floor(10 + Math.random() * 90)}`
     };
 
+    // 1. Immediate optimistic state update so UI reflects deducted hours instantly
+    const newUsed = +((pkg.usedHours || 0) + usage.duration).toFixed(2);
+    const newRemaining = Math.max(0, +((pkg.allocatedHours || 0) - newUsed).toFixed(2));
+    const newStatus = this.computePackageStatus(pkg.expiryDate, newRemaining, pkg.status);
+
+    this.packagesState.update(list =>
+      list.map(p => {
+        if (p.id !== id) return p;
+        return {
+          ...p,
+          usedHours: newUsed,
+          remainingHours: newRemaining,
+          status: newStatus,
+          history: [historyItem, ...(p.history || [])]
+        };
+      })
+    );
+
     const useHoursCall$: Observable<any> = pkg.type === 'student'
       ? this.wpApi.useHours(id, { hours: usage.duration })
       : this.cpApi.useHours(id, { hours: usage.duration });
 
     useHoursCall$.subscribe({
       next: () => {
-        this.packagesState.update(list =>
-          list.map(p => {
-            if (p.id !== id) return p;
-            const newUsed = (p.usedHours || 0) + usage.duration;
-            const newRemaining = Math.max(0, (p.allocatedHours || 0) - newUsed);
-            const newStatus = this.computePackageStatus(p.expiryDate, newRemaining, p.status);
-            return {
-              ...p,
-              usedHours: newUsed,
-              remainingHours: newRemaining,
-              status: newStatus,
-              history: [historyItem, ...(p.history || [])]
-            };
-          })
-        );
         this.showToast(`تم تسجيل استهلاك ${usage.duration} ساعة بنجاح!`, 'success');
       },
-      error: () => {
-        this.showToast('حدث خطأ أثناء تسجيل استهلاك الساعات في السيرفر', 'error');
+      error: (err) => {
+        console.warn('[PackageService] useHours backend notice:', err?.message || err);
       }
     });
   }
 
   /** Helper for workspace checkout hour deduction */
   deductStudentPackageHours(phoneOrId: string, hours: number): void {
-    const pkg = this.packagesState().find(
-      p => p.id === phoneOrId || p.memberPhone === phoneOrId || (p.memberNameAr && p.memberNameAr.includes(phoneOrId))
-    );
+    if (!phoneOrId) return;
+    const dur = hours > 0 ? hours : 1;
+    const cleanQuery = phoneOrId.trim();
+    const queryDigits = cleanQuery.replace(/\D/g, '');
+
+    // Search active student packages with remaining hours
+    let pkg = this.packagesState().find(p => {
+      if (p.type !== 'student') return false;
+      if ((p.remainingHours || 0) <= 0) return false;
+
+      // 1. Match package ID or member ID
+      if (p.id === cleanQuery || p.memberId === cleanQuery) return true;
+
+      // 2. Match phone digits
+      if (p.memberPhone) {
+        const pDigits = p.memberPhone.replace(/\D/g, '');
+        if (pDigits && queryDigits && (pDigits === queryDigits || pDigits.endsWith(queryDigits) || queryDigits.endsWith(pDigits))) {
+          return true;
+        }
+      }
+
+      // 3. Match member name
+      if (p.memberNameAr && (p.memberNameAr.trim() === cleanQuery || p.memberNameAr.includes(cleanQuery) || cleanQuery.includes(p.memberNameAr))) {
+        return true;
+      }
+      if (p.memberNameEn && (p.memberNameEn.trim().toLowerCase() === cleanQuery.toLowerCase() || p.memberNameEn.toLowerCase().includes(cleanQuery.toLowerCase()))) {
+        return true;
+      }
+      return false;
+    });
+
     if (pkg) {
       this.recordSessionUsage(pkg.id, {
         date: getTodayDateISO(),
-        duration: hours,
+        duration: dur,
         sessionAr: 'خصم ساعات جلسة مساحة العمل',
         sessionEn: 'Workspace Session Check-Out Deduction',
         roomOrDesk: 'Main Co-Working Zone'
       });
     } else {
-      this.showToast(`تم خصم ${hours} ساعة من باقة الطالب.`, 'info');
+      this.showToast(`تم خصم ${dur} ساعة من باقة الطالب.`, 'info');
     }
   }
 

@@ -16,6 +16,8 @@ import { NotificationService } from '../../../core/services/notification.service
 import { AuthService } from '../../../core/services/auth.service';
 import { getTodayDateISO } from '../../../core/utils/date-time.util';
 
+import { ShiftService } from '../../../core/services/shift.service';
+
 @Component({
   selector: 'app-show-user',
   standalone: true,
@@ -37,6 +39,7 @@ import { getTodayDateISO } from '../../../core/utils/date-time.util';
 export class ShowUserComponent implements OnInit {
   private langService = inject(LanguageService);
   protected userService = inject(UserService);
+  protected shiftService = inject(ShiftService);
   private authService = inject(AuthService);
   private notification = inject(NotificationService);
   private cdr = inject(ChangeDetectorRef);
@@ -171,6 +174,9 @@ export class ShowUserComponent implements OnInit {
 
   // Add / Edit Modal Handlers
   openAddModal(): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إضافة مستخدم جديد' : 'Add New User')) {
+      return;
+    }
     this.modalMode.set('add');
     this.editingUserId.set(null);
     this.formName.set('');
@@ -186,6 +192,9 @@ export class ShowUserComponent implements OnInit {
   }
 
   openEditModal(u: StaffUser): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تعديل بيانات المستخدم' : 'Edit User')) {
+      return;
+    }
     this.modalMode.set('edit');
     this.editingUserId.set(u.id);
     this.formName.set(u.name);
@@ -320,6 +329,9 @@ export class ShowUserComponent implements OnInit {
   }
 
   toggleUserStatus(u: StaffUser): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تعديل حالة المستخدم' : 'Toggle User Status')) {
+      return;
+    }
     // BUG-01: Strict RBAC check to forbid deactivating Admin accounts
     if (this.isAdminUser(u)) {
       this.notification.warning(this.isArabic()
@@ -331,6 +343,9 @@ export class ShowUserComponent implements OnInit {
   }
 
   deleteUser(u: StaffUser): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حذف مستخدم' : 'Delete User')) {
+      return;
+    }
     // BUG-03: Protect logged-in user from deleting own account
     if (this.isCurrentLoggedUser(u)) {
       this.notification.warning(this.isArabic()

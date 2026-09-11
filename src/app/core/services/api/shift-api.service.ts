@@ -18,23 +18,31 @@ import {
 export class ShiftApiService extends BaseApiService {
   /** Get all shifts with optional filtering */
   getShifts(params?: ShiftFilterParams): Observable<ShiftDto[]> {
-    return this.get<ApiResponse<ShiftDto[] | { items: ShiftDto[] }>>(
+    return this.get<any>(
       API_ENDPOINTS.SHIFTS.LIST,
       params as unknown as Record<string, string | number>
     ).pipe(
       map(res => {
-        if (Array.isArray(res.data)) {
-          return res.data;
-        }
-        return (res.data as { items: ShiftDto[] })?.items ?? [];
-      })
+        if (!res) return [];
+        if (Array.isArray(res)) return res;
+        if (Array.isArray(res.data)) return res.data;
+        if (Array.isArray(res.items)) return res.items;
+        if (res.data && Array.isArray(res.data.items)) return res.data.items;
+        return [];
+      }),
+      catchError(() => of([] as ShiftDto[]))
     );
   }
 
   /** Check if there is an active open shift for a user */
   getOpenShift(userId: string): Observable<ShiftDto | null> {
-    return this.get<ApiResponse<ShiftDto>>(API_ENDPOINTS.SHIFTS.OPEN(userId)).pipe(
-      map(res => res?.data ?? null),
+    return this.get<any>(API_ENDPOINTS.SHIFTS.OPEN(userId)).pipe(
+      map(res => {
+        if (!res) return null;
+        if (res.data) return res.data;
+        if (res.id) return res;
+        return null;
+      }),
       catchError(() => of(null))
     );
   }
@@ -44,8 +52,13 @@ export class ShiftApiService extends BaseApiService {
    * GET /api/Shifts/current
    */
   getCurrentShift(): Observable<ShiftDto | null> {
-    return this.get<ApiResponse<ShiftDto>>(API_ENDPOINTS.SHIFTS.CURRENT).pipe(
-      map(res => res?.data ?? null),
+    return this.get<any>(API_ENDPOINTS.SHIFTS.CURRENT).pipe(
+      map(res => {
+        if (!res) return null;
+        if (res.data) return res.data;
+        if (res.id) return res;
+        return null;
+      }),
       catchError(() => of(null))
     );
   }

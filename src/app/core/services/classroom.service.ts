@@ -28,6 +28,8 @@ import { ReservationApiService } from './api/reservation-api.service';
 import { RoomApiService } from './api/room-api.service';
 import { InstructorApiService } from './api/instructor-api.service';
 import { CouponApiService } from './api/coupon-api.service';
+import { isCouponExhausted, isCouponExpired } from '../models/coupon.model';
+import { resolveImageUrl } from '../utils/image-url.util';
 import { ShiftService } from './shift.service';
 import { AuthService } from './auth.service';
 import { LanguageService } from './language.service';
@@ -244,7 +246,8 @@ export class ClassroomService {
           '/images/rooms/room-design.jpg'
         ];
         const mapped: SelectableRoom[] = activeRooms.map((r, idx) => {
-          const roomImg = r.imageUrl && r.imageUrl.trim() ? r.imageUrl.trim() : roomImages[idx % roomImages.length];
+          const resolved = resolveImageUrl(r.imageUrl);
+          const roomImg = resolved || roomImages[idx % roomImages.length];
           return {
             id: r.id,
             name: r.name,
@@ -820,13 +823,44 @@ export class ClassroomService {
       tap(() => {
         this.completedCardIds.add(cardId);
 
-        // Record shift transaction
-        this.shiftService.recordTransaction({
-          type: 'classroom',
-          paymentMethod: checkoutData?.paymentMethod || 'cash',
-          amount: finalAmt,
-          details: `إنهاء حجز قاعة - ${card?.name || 'Classroom'} (${card?.instructor || 'حجز'})`
-        });
+        const totalPaid = checkoutData?.amountReceived ?? finalAmt;
+        const cateringAmt = Number(card?.catering || (card as any)?.cateringTotal || checkoutData?.cateringAmount || 0);
+        const printingAmt = Number(checkoutData?.printingAmount || card?.printingCharges || 0);
+
+        const effectiveCatering = Math.min(cateringAmt, totalPaid);
+        const effectivePrinting = Math.min(printingAmt, Math.max(0, +(totalPaid - effectiveCatering).toFixed(2)));
+        const roomOnlyAmt = Math.max(0, +(totalPaid - effectiveCatering - effectivePrinting).toFixed(2));
+        const payMethod = checkoutData?.paymentMethod || 'cash';
+
+        // 1. Record classroom rental revenue
+        if (roomOnlyAmt > 0 || (effectiveCatering === 0 && effectivePrinting === 0)) {
+          this.shiftService.recordTransaction({
+            type: 'classroom',
+            paymentMethod: payMethod,
+            amount: roomOnlyAmt > 0 ? roomOnlyAmt : totalPaid,
+            details: `إنهاء حجز قاعة (إيجار) - ${card?.name || 'Classroom'} (${card?.instructor || 'حجز'})`
+          });
+        }
+
+        // 2. Record catering / buffet revenue
+        if (effectiveCatering > 0) {
+          this.shiftService.recordTransaction({
+            type: 'canteen',
+            paymentMethod: payMethod,
+            amount: effectiveCatering,
+            details: `بوفيه ومشروبات قاعة - ${card?.name || 'Classroom'} (${card?.instructor || 'حجز'})`
+          });
+        }
+
+        // 3. Record printing / handouts revenue
+        if (effectivePrinting > 0) {
+          this.shiftService.recordTransaction({
+            type: 'other',
+            paymentMethod: payMethod,
+            amount: effectivePrinting,
+            details: `مطبوعات وورق قاعة - ${card?.name || 'Classroom'} (${card?.instructor || 'حجز'})`
+          });
+        }
 
         // Reset card in memory state
         this.removeClassroomCateringCache(cardId);
@@ -867,6 +901,11 @@ export class ClassroomService {
         throw err;
       })
     );
+  }
+
+  /** Check if a card has already been checked out in this session */
+  isCardCompleted(cardId: string): boolean {
+    return this.completedCardIds.has(cardId);
   }
 
   /** Add catering order to a classroom card */
@@ -1075,6 +1114,9 @@ export class ClassroomService {
         this.reservationsState.update(list => list.filter(r => r.id !== id && r.reservationId !== id));
       }),
       catchError(err => {
+        if (err?.status === 404) {
+          return this.deleteBooking(id);
+        }
         console.error('[ClassroomService] Error deleting reservation:', err);
         throw err;
       })
@@ -1148,6 +1190,7 @@ export class ClassroomService {
     return this.couponApi.getCouponByCode(cleanCode).pipe(
       map(coupon => {
         if (!coupon || !coupon.isActive) return null;
+        if (isCouponExpired(coupon) || isCouponExhausted(coupon)) return null;
         return {
           code: coupon.code,
           discountPercent: coupon.value || 10,
