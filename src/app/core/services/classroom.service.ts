@@ -31,6 +31,7 @@ import { CouponApiService } from './api/coupon-api.service';
 import { isCouponExhausted, isCouponExpired } from '../models/coupon.model';
 import { resolveImageUrl } from '../utils/image-url.util';
 import { ShiftService } from './shift.service';
+import { ShiftPaymentMethod } from '../models/shift.model';
 import { AuthService } from './auth.service';
 import { LanguageService } from './language.service';
 import { CateringService } from './catering.service';
@@ -217,18 +218,19 @@ export class ClassroomService {
   /** Complete backend data synchronization */
   public syncWithBackend(): void {
     if (!this.authService.isAuthenticated()) return;
+    const todayIso = getTodayDateISO();
     forkJoin([
       this.loadInstructors(),
       this.loadRooms()
     ]).subscribe({
       next: () => {
         forkJoin([
-          this.loadClassrooms(),
+          this.loadClassrooms({ DateFrom: todayIso }),
           this.loadReservations()
         ]).subscribe();
       },
       error: () => {
-        this.loadClassrooms().subscribe();
+        this.loadClassrooms({ DateFrom: todayIso }).subscribe();
         this.loadReservations().subscribe();
       }
     });
@@ -459,7 +461,15 @@ export class ClassroomService {
           };
         });
 
-        this.cardsState.set(mappedCards);
+        const existingCompleted = this.cardsState().filter(c => c.status === 'completed' || this.completedCardIds.has(c.id));
+        const mergedCards = [...mappedCards];
+        for (const comp of existingCompleted) {
+          if (!mergedCards.some(c => c.id === comp.id)) {
+            mergedCards.push(comp);
+          }
+        }
+
+        this.cardsState.set(mergedCards);
         this.loadingState.set(false);
 
         // Sync catering items from backend API for active classroom sessions
@@ -803,17 +813,20 @@ export class ClassroomService {
     const staffId = checkoutData?.staffId || currentUser?.id || null;
     const shiftId = checkoutData?.shiftId || activeShift?.id || null;
 
+    const payMethodStr = (checkoutData?.paymentMethod || 'cash').toLowerCase();
+    const validPayMethod: 'cash' | 'vodafone' | 'instapay' | 'fawry' = (payMethodStr === 'vodafone' || payMethodStr === 'instapay' || payMethodStr === 'fawry') ? (payMethodStr as 'vodafone' | 'instapay' | 'fawry') : 'cash';
+
     const payload: CheckoutClassroomDto = {
       timeTo: new Date().toISOString(),
       actualAttendees: checkoutData?.attendeesCount ?? null,
-      paymentMethod: checkoutData?.paymentMethod || 'Cash',
+      paymentMethod: payMethodStr === 'instapay' ? 'Instapay' : (payMethodStr === 'vodafone' ? 'Vodafone' : (payMethodStr === 'fawry' ? 'Fawry' : 'Cash')),
       usePackageHours: checkoutData?.usePackageHours ?? 0,
       packageId: checkoutData?.packageId ?? null,
       paidAmount: checkoutData?.amountReceived ?? finalAmt,
       reservationCost: finalAmt,
       printing: checkoutData?.printingAmount || card?.printingCharges || 0,
       discount: checkoutData?.loyaltyDiscount || 0,
-      payWay: checkoutData?.paymentMethod === 'vodafone' ? 2 : (checkoutData?.paymentMethod === 'instapay' ? 3 : (checkoutData?.paymentMethod === 'fawry' ? 4 : 1)),
+      payWay: payMethodStr === 'vodafone' ? 2 : (payMethodStr === 'instapay' ? 3 : (payMethodStr === 'fawry' ? 4 : 1)),
       note: card ? `${card.name} - ${card.instructor}` : null,
       shiftId: shiftId,
       staffId: staffId
@@ -830,36 +843,39 @@ export class ClassroomService {
         const effectiveCatering = Math.min(cateringAmt, totalPaid);
         const effectivePrinting = Math.min(printingAmt, Math.max(0, +(totalPaid - effectiveCatering).toFixed(2)));
         const roomOnlyAmt = Math.max(0, +(totalPaid - effectiveCatering - effectivePrinting).toFixed(2));
-        const payMethod = checkoutData?.paymentMethod || 'cash';
 
-        // 1. Record classroom rental revenue
+        // 1. Record classroom rental revenue (الرومات والكلاسات)
         if (roomOnlyAmt > 0 || (effectiveCatering === 0 && effectivePrinting === 0)) {
-          this.shiftService.recordTransaction({
-            type: 'classroom',
-            paymentMethod: payMethod,
-            amount: roomOnlyAmt > 0 ? roomOnlyAmt : totalPaid,
-            details: `إنهاء حجز قاعة (إيجار) - ${card?.name || 'Classroom'} (${card?.instructor || 'حجز'})`
-          });
+          const roomAmt = roomOnlyAmt > 0 ? roomOnlyAmt : totalPaid;
+          this.shiftService.addManualShiftItem({
+            amount: roomAmt,
+            type: 'revenue',
+            paymentMethod: validPayMethod,
+            description: `[قاعة] تشيك أوت قاعة: ${card?.activity || card?.name || 'قاعة'} - ${card?.instructor || 'حجز'}`,
+            category: 'classroom'
+          }).subscribe();
         }
 
-        // 2. Record catering / buffet revenue
+        // 2. Record catering & drinks revenue (الكافيه والمشروبات)
         if (effectiveCatering > 0) {
-          this.shiftService.recordTransaction({
-            type: 'canteen',
-            paymentMethod: payMethod,
+          this.shiftService.addManualShiftItem({
             amount: effectiveCatering,
-            details: `بوفيه ومشروبات قاعة - ${card?.name || 'Classroom'} (${card?.instructor || 'حجز'})`
-          });
+            type: 'revenue',
+            paymentMethod: validPayMethod,
+            description: `[كافيه] مشروبات وبوفيه قاعة - ${card?.name || 'قاعة'} (${card?.instructor || 'حجز'})`,
+            category: 'canteen'
+          }).subscribe();
         }
 
-        // 3. Record printing / handouts revenue
+        // 3. Record printing & handouts revenue (إيرادات تانية - طباعة وورق)
         if (effectivePrinting > 0) {
-          this.shiftService.recordTransaction({
-            type: 'other',
-            paymentMethod: payMethod,
+          this.shiftService.addManualShiftItem({
             amount: effectivePrinting,
-            details: `مطبوعات وورق قاعة - ${card?.name || 'Classroom'} (${card?.instructor || 'حجز'})`
-          });
+            type: 'revenue',
+            paymentMethod: validPayMethod,
+            description: `[طباعة] مطبوعات وورق قاعة - ${card?.name || 'قاعة'} (${card?.instructor || 'حجز'})`,
+            category: 'printing'
+          }).subscribe();
         }
 
         // Reset card in memory state

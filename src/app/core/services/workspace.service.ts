@@ -939,12 +939,15 @@ export class WorkspaceService {
 
     // 1. Record Workspace Seating Session (ساعات وقعدة الورك سبيس)
     if (workspaceOnlyAmt > 0 || (effectiveCatering === 0 && effectivePrinting === 0)) {
-      this.shiftService.recordTransaction({
-        type: 'workspace',
-        paymentMethod: payMethod,
-        amount: workspaceOnlyAmt > 0 ? workspaceOnlyAmt : receivedAmt,
-        details: `محاسبة جلسة طالب (ساعات وقعدة) - ${student.name}${isPartial ? ` (دفع جزئي: مستلم ${workspaceOnlyAmt} ج.م)` : ''}`
-      });
+      const wsAmt = workspaceOnlyAmt > 0 ? workspaceOnlyAmt : receivedAmt;
+      const validPayMethod = (payMethod === 'vodafone' || payMethod === 'instapay' || payMethod === 'fawry') ? payMethod : 'cash';
+      this.shiftService.addManualShiftItem({
+        amount: wsAmt,
+        type: 'revenue',
+        paymentMethod: validPayMethod,
+        description: `محاسبة جلسة طالب (ساعات وقعدة) - ${student.name}${isPartial ? ` (دفع جزئي: مستلم ${workspaceOnlyAmt} ج.م)` : ''}`,
+        category: 'workspace'
+      }).subscribe();
     }
 
     // 2. Record Catering & Drinks separately (الكافيه والمشروبات)
@@ -952,22 +955,26 @@ export class WorkspaceService {
       const itemsList = student.cateringItems && student.cateringItems.length > 0
         ? `: ${student.cateringItems.map((i: any) => `${i.name || 'طلب'} (x${i.quantity || 1})`).join(', ')}`
         : '';
-      this.shiftService.recordTransaction({
-        type: 'canteen',
-        paymentMethod: payMethod,
+      const validPayMethod = (payMethod === 'vodafone' || payMethod === 'instapay' || payMethod === 'fawry') ? payMethod : 'cash';
+      this.shiftService.addManualShiftItem({
         amount: effectiveCatering,
-        details: `مشروبات وكافيه طالب - ${student.name}${itemsList}`
-      });
+        type: 'revenue',
+        paymentMethod: validPayMethod,
+        description: `مشروبات وكافيه طالب - ${student.name}${itemsList}`,
+        category: 'canteen'
+      }).subscribe();
     }
 
     // 3. Record Printing & Handouts separately (إيرادات تانية - برنت ورق وخدمات)
     if (effectivePrinting > 0) {
-      this.shiftService.recordTransaction({
-        type: 'other',
-        paymentMethod: payMethod,
+      const validPayMethod = (payMethod === 'vodafone' || payMethod === 'instapay' || payMethod === 'fawry') ? payMethod : 'cash';
+      this.shiftService.addManualShiftItem({
         amount: effectivePrinting,
-        details: `خدمات طباعة وتصوير ورق - ${student.name}${student.printingCount ? ` (${student.printingCount} ورقة)` : ''}`
-      });
+        type: 'revenue',
+        paymentMethod: validPayMethod,
+        description: `خدمات طباعة وتصوير ورق - ${student.name}${student.printingCount ? ` (${student.printingCount} ورقة)` : ''}`,
+        category: 'printing'
+      }).subscribe();
     }
 
     // Call Backend Dedicated Student Checkout API (Section 4.1)

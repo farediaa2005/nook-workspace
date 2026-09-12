@@ -179,9 +179,10 @@ export class ClassroomCheckoutComponent implements OnInit {
     this.overtimeAlertMessage.set(overtimeInfo.alertMessage);
 
     const totalBilledHours = agreedHours + overtimeInfo.extraHours;
+    const cachedCatering = card ? (this.classroomService.getClassroomCateringCache(card.id) || (card.roomId ? this.classroomService.getClassroomCateringCache(card.roomId) : null)) : null;
+    const catering = Number(card.catering || (card as any)?.cateringTotal || (cachedCatering ? cachedCatering.total : 0));
+    const printing = Number(card.printingCharges !== undefined && card.printingCharges !== null ? card.printingCharges : ((card as any)?.printing !== undefined && (card as any)?.printing !== null ? (card as any).printing : 0));
     const hourlyRate = card.hourlyRate || (card.rental && agreedHours ? Math.round(card.rental / agreedHours) : 0);
-    const catering = card.catering || 0;
-    const printing = card.printingCharges !== undefined ? card.printingCharges : 0;
 
     this.roomRate.set(hourlyRate);
     this.durationHours.set(totalBilledHours);

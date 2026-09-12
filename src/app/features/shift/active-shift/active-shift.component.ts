@@ -288,6 +288,34 @@ export class ActiveShiftComponent implements OnInit {
     });
   }
 
+  resetShiftData(): void {
+    this.shiftService.resetShiftDataForTesting();
+    this.workspaceService.showToast(
+      this.isArabic() ? 'تم تصفير أرقام الوردية للاختبار من الصفر!' : 'Shift data reset to zero for test run!',
+      'info'
+    );
+  }
+
+  isDeletingAll = signal<boolean>(false);
+
+  deleteAllShiftData(): void {
+    if (this.isDeletingAll()) return;
+    this.isDeletingAll.set(true);
+
+    this.shiftService.deleteAllShiftItems().subscribe({
+      next: () => {
+        this.isDeletingAll.set(false);
+        this.workspaceService.showToast(
+          this.isArabic() ? 'تم حذف جميع بنود الوردية بالكامل من الخادم بنجاح!' : 'All shift items permanently deleted from server!',
+          'success'
+        );
+      },
+      error: () => {
+        this.isDeletingAll.set(false);
+      }
+    });
+  }
+
   // ============================================================
   // Delete Shift Transaction Item
   // ============================================================

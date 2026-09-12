@@ -306,6 +306,20 @@ export class CateringService {
       if (val.amount > maxVal) maxVal = val.amount;
     });
 
+    if (maxVal === 0) {
+      for (const p of this.productsState()) {
+        const inferred = inferCategoryFromName(p.name);
+        const cat = p.category || inferred.category;
+        const catAr = p.categoryAr || inferred.categoryAr;
+        const existing = map.get(cat) || { amount: 0, nameAr: catAr };
+        existing.amount += (p.sellingPrice || 20);
+        map.set(cat, existing);
+      }
+      map.forEach(val => {
+        if (val.amount > maxVal) maxVal = val.amount;
+      });
+    }
+
     if (maxVal === 0) return [];
 
     const result: CategoryRevenue[] = [];

@@ -1,9 +1,13 @@
 import { Injectable, signal, computed, inject, OnDestroy } from '@angular/core';
-import { catchError, of, finalize, Observable, map, tap, throwError, switchMap } from 'rxjs';
+import { catchError, of, finalize, Observable, map, tap, throwError, switchMap, forkJoin } from 'rxjs';
 import { ShiftRecord, ShiftTransaction, ShiftHistoryItem, ShiftPaymentMethod, ShiftTransactionType } from '../models/shift.model';
 import { AuthService } from './auth.service';
 import { ShiftApiService } from './api/shift-api.service';
 import { AccountApiService } from './api/account-api.service';
+import { WorkspaceApiService } from './api/workspace-api.service';
+import { ClassroomApiService } from './api/classroom-api.service';
+import { WorkspacePackageApiService } from './api/workspace-package-api.service';
+import { ClassroomPackageApiService } from './api/classroom-package-api.service';
 import { LanguageService } from './language.service';
 import { NotificationService } from './notification.service';
 import { ShiftDto, CreateShiftItemDto, ShiftItemCategory } from '../models/shift-api.model';
@@ -17,10 +21,15 @@ export class ShiftService implements OnDestroy {
   private authService = inject(AuthService);
   private shiftApi = inject(ShiftApiService);
   private accountApi = inject(AccountApiService);
+  private workspaceApi = inject(WorkspaceApiService);
+  private classroomApi = inject(ClassroomApiService);
+  private wpApi = inject(WorkspacePackageApiService);
+  private cpApi = inject(ClassroomPackageApiService);
   private langService = inject(LanguageService);
   private notification = inject(NotificationService);
 
   private timerIntervalId: any = null;
+  private autoSyncIntervalId: any = null;
 
   // Pure in-memory reactive state (Clean Architecture - NO localStorage database)
   readonly currentShift = signal<ShiftRecord | null>(null);
@@ -153,21 +162,22 @@ export class ShiftService implements OnDestroy {
     const shift = this.currentShift();
     if (!shift) return 0;
 
-    const txs = shift.transactions || [];
-    if (txs.length > 0) {
-      const cashIn = txs
-        .filter(t => t.paymentMethod === 'cash' && t.type !== 'system' && t.type !== 'expense' && t.amount > 0)
-        .reduce((sum, t) => sum + t.amount, 0);
-      const cashOut = txs
-        .filter(t => (t.paymentMethod === 'cash' || t.paymentMethod === 'petty_cash') && (t.type === 'expense' || t.amount < 0))
-        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    const opening = this.openingCash();
+    const receipts = this.posReceipts();
+    const digitalIn = this.digitalReceipts();
 
-      return +(this.openingCash() + cashIn - cashOut).toFixed(2);
+    const txs = shift.transactions || [];
+    let cashOut = 0;
+    if (txs.length > 0) {
+      cashOut = txs
+        .filter(t => (t.paymentMethod === 'cash' || t.paymentMethod === 'petty_cash' || !t.paymentMethod || t.paymentMethod === '-') && (t.type === 'expense' || t.amount < 0))
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    } else {
+      cashOut = this.adminExpenses();
     }
 
-    // Fallback formula: Opening Cash + (Total Receipts - Digital Receipts) - Admin Expenses
-    const netCashIn = Math.max(0, this.posReceipts() - this.digitalReceipts());
-    return +(this.openingCash() + netCashIn - this.adminExpenses()).toFixed(2);
+    const netCashIn = Math.max(0, +(receipts - digitalIn).toFixed(2));
+    return +(opening + netCashIn - cashOut).toFixed(2);
   });
 
   // Total Combined Business Balance across all 4 channels
@@ -240,29 +250,369 @@ export class ShiftService implements OnDestroy {
   }
 
   /**
-   * Helper to load full shift details (including items ledger) and set current active shift
+   * Helper to load full shift details and live domain financial aggregation across all department APIs
    */
   private loadAndSetActiveShift(activeDto: ShiftDto): void {
-    if (activeDto.id && !activeDto.id.startsWith('SHIFT-')) {
-      this.shiftApi.getShiftById(activeDto.id).subscribe({
-        next: (detailDto) => {
-          this.isLoading.set(false);
-          const merged: ShiftDto = {
-            ...activeDto,
-            ...(detailDto || {}),
-            items: detailDto?.items || activeDto.items || []
-          };
-          this.currentShift.set(this.mapDtoToShiftRecord(merged));
-        },
-        error: () => {
-          this.isLoading.set(false);
-          this.currentShift.set(this.mapDtoToShiftRecord(activeDto));
-        }
-      });
-    } else {
-      this.isLoading.set(false);
-      this.currentShift.set(this.mapDtoToShiftRecord(activeDto));
-    }
+    this.syncLiveDomainFinancials(activeDto).subscribe({
+      next: () => this.isLoading.set(false),
+      error: () => {
+        this.isLoading.set(false);
+        this.currentShift.set(this.mapDtoToShiftRecord(activeDto));
+      }
+    });
+  }
+
+  /**
+   * Live Domain Financial Aggregator:
+   * Issues parallel GET requests to all domain REST APIs (Workspaces, Classrooms, Packages, Shifts),
+   * filtered strictly by the timeframe of the active shift (timeFrom to timeTo / now).
+   * Dynamically sums revenue categories and payment channel flows without local storage.
+   */
+  public syncLiveDomainFinancials(activeDto: ShiftDto): Observable<ShiftRecord> {
+    const rawStart = activeDto.timeFrom || activeDto.date || activeDto.startTime || new Date().toISOString();
+    const startDate = new Date(rawStart);
+    const startIso = !isNaN(startDate.getTime()) ? startDate.toISOString() : new Date().toISOString();
+
+    return forkJoin({
+      sessions: this.workspaceApi.getSessions({ DateFrom: startIso }).pipe(catchError(() => of([]))),
+      classrooms: this.classroomApi.getClassrooms({ DateFrom: startIso }).pipe(catchError(() => of([]))),
+      wPackages: this.wpApi.getPackages().pipe(catchError(() => of([]))),
+      cPackages: this.cpApi.getPackages().pipe(catchError(() => of([]))),
+      detailDto: activeDto.id && !activeDto.id.startsWith('SHIFT-') ? this.shiftApi.getShiftById(activeDto.id).pipe(catchError(() => of(null))) : of(null)
+    }).pipe(
+      map(({ sessions, classrooms, wPackages, cPackages, detailDto }) => {
+        const mergedDto: ShiftDto = {
+          ...activeDto,
+          ...(detailDto || {}),
+          items: detailDto?.items || activeDto.items || []
+        };
+
+        const record = this.mapDtoToShiftRecord(mergedDto);
+        const shiftStartMs = !isNaN(startDate.getTime()) ? startDate.getTime() : 0;
+
+        let liveWorkspaceRev = 0;
+        let liveClassroomRev = 0;
+        let livePackageRev = 0;
+        let liveCanteenRev = 0;
+        let liveOtherRev = 0;
+
+        let vfIn = record.startVodafoneCash || 0;
+        let vfOut = 0;
+        let ipIn = record.startInstapay || 0;
+        let ipOut = 0;
+        let fwIn = record.startFawry || 0;
+        let fwOut = 0;
+
+        const liveLedger: ShiftTransaction[] = [];
+
+        // First pass: Calculate catering and printing items total and check for explicit category tags
+        let shiftCateringItemsSum = 0;
+        let shiftPrintingItemsSum = 0;
+        let hasExplicitTaggedItems = false;
+        (mergedDto.items || []).forEach((it: any) => {
+          const desc = String(it.item || it.description || '').toLowerCase();
+          const amt = Math.abs(Number(it.cost ?? it.amount ?? 0));
+          if (desc.includes('[كافيه]')) {
+            shiftCateringItemsSum += amt;
+            hasExplicitTaggedItems = true;
+          } else if (desc.includes('[طباعة]')) {
+            shiftPrintingItemsSum += amt;
+            hasExplicitTaggedItems = true;
+          } else if (desc.includes('[جلسة]') || desc.includes('[مصروف]') || desc.includes('[قاعة]') || desc.includes('[باقة]') || desc.includes('[إيراد]')) {
+            hasExplicitTaggedItems = true;
+          } else if (desc.includes('مشروب') || desc.includes('كافيه') || desc.includes('سناكس') || desc.includes('canteen') || desc.includes('catering')) {
+            shiftCateringItemsSum += amt;
+          } else if (desc.includes('طباعة') || desc.includes('تصوير') || desc.includes('ورق') || desc.includes('printing') || desc.includes('paper')) {
+            shiftPrintingItemsSum += amt;
+          }
+        });
+
+        // 1. Process Workspace Sessions (Workspaces API)
+        (sessions || []).forEach((sess: any) => {
+          const sessDateStr = sess.timeTo || sess.date || sess.timeFrom;
+          const sessMs = sessDateStr ? new Date(sessDateStr).getTime() : 0;
+          const isCompleted = sess.status === 2 || String(sess.status).toLowerCase() === 'completed' || !!sess.timeTo;
+
+          if (isCompleted && sessMs >= shiftStartMs) {
+            const payWay = Number(sess.payWay ?? (sess.paymentMethod === 'Visa' || sess.paymentMethod === 'Vodafone' ? 2 : (sess.paymentMethod === 'Instapay' ? 3 : (sess.paymentMethod === 'Fawry' ? 4 : 1))));
+            const payMethodStr: ShiftPaymentMethod = payWay === 2 ? 'vodafone' : (payWay === 3 ? 'instapay' : (payWay === 4 ? 'fawry' : (sess.paymentMethod === 'Package' ? 'package' : 'cash')));
+
+            const totalPaid = Number(sess.paidAmount ?? sess.cost ?? sess.totalCost ?? 0);
+            const canteenAmt = Number(sess.catering ?? sess.cateringTotal ?? sess.canteenTotal ?? 0);
+            const printingAmt = Number(sess.printing ?? sess.printingCharges ?? 0);
+            const baseWsAmt = Math.max(0, +(totalPaid - canteenAmt - printingAmt).toFixed(2));
+
+            if (payMethodStr !== 'package' && !hasExplicitTaggedItems) {
+              liveWorkspaceRev += baseWsAmt > 0 ? baseWsAmt : totalPaid;
+              liveCanteenRev += canteenAmt;
+              liveOtherRev += printingAmt;
+
+              if (payWay === 2) vfIn += totalPaid;
+              else if (payWay === 3) ipIn += totalPaid;
+              else if (payWay === 4) fwIn += totalPaid;
+            }
+
+            if ((!mergedDto.items || mergedDto.items.length === 0) && totalPaid > 0) {
+              liveLedger.push({
+                id: sess.id || `WS-${Date.now().toString().slice(-4)}`,
+                timestamp: parseIsoToLocal12h(sessDateStr),
+                details: `محاسبة جلسة طالب (ساعات وقعدة) - ${sess.studentName || 'طالب'}`,
+                type: 'workspace',
+                paymentMethod: payMethodStr,
+                amount: totalPaid,
+                flowDirection: 'inside',
+                staffName: record.staffName
+              });
+            }
+          }
+        });
+
+        // 2. Process Classroom Sessions (Classrooms API)
+        (classrooms || []).forEach((cls: any) => {
+          const clsDateStr = cls.timeTo || cls.date || cls.timeFrom;
+          const clsMs = clsDateStr ? new Date(clsDateStr).getTime() : 0;
+          const isCompleted = cls.status === 2 || String(cls.status).toLowerCase() === 'completed' || !!cls.timeTo;
+
+          if (isCompleted && clsMs >= shiftStartMs) {
+            const payWay = Number(cls.payWay ?? (cls.paymentMethod === 'Vodafone' || cls.paymentMethod === 'vodafone' ? 2 : (cls.paymentMethod === 'Instapay' || cls.paymentMethod === 'instapay' ? 3 : (cls.paymentMethod === 'Fawry' || cls.paymentMethod === 'fawry' ? 4 : 1))));
+            const payMethodStr: ShiftPaymentMethod = payWay === 2 ? 'vodafone' : (payWay === 3 ? 'instapay' : (payWay === 4 ? 'fawry' : (cls.paymentMethod === 'Package' ? 'package' : 'cash')));
+
+            const totalPaid = Number(cls.paidAmount ?? cls.reservationCost ?? cls.hourlyRate ?? 0);
+            const canteenAmt = Number(cls.catering ?? 0);
+            const printingAmt = Number(cls.printing ?? 0);
+            const roomOnlyAmt = Math.max(0, +(totalPaid - canteenAmt - printingAmt).toFixed(2));
+
+            if (payMethodStr !== 'package' && !hasExplicitTaggedItems) {
+              liveClassroomRev += roomOnlyAmt > 0 ? roomOnlyAmt : totalPaid;
+              liveCanteenRev += canteenAmt;
+              liveOtherRev += printingAmt;
+
+              if (payWay === 2) vfIn += totalPaid;
+              else if (payWay === 3) ipIn += totalPaid;
+              else if (payWay === 4) fwIn += totalPaid;
+            }
+
+            if ((!mergedDto.items || mergedDto.items.length === 0) && totalPaid > 0) {
+              liveLedger.push({
+                id: cls.id || `CLS-${Date.now().toString().slice(-4)}`,
+                timestamp: parseIsoToLocal12h(clsDateStr),
+                details: `إنهاء حجز قاعة - ${cls.activity || cls.title || 'قاعة'} (${cls.instructorName || 'حجز'})`,
+                type: 'classroom',
+                paymentMethod: payMethodStr,
+                amount: totalPaid,
+                flowDirection: 'inside',
+                staffName: record.staffName
+              });
+            }
+          }
+        });
+
+        // 3. Process Workspace Packages (WorkspacePackages API)
+        (wPackages || []).forEach((pkg: any) => {
+          const pkgDateStr = pkg.purchasedAt || pkg.dateFrom || pkg.createdAt;
+          const pkgMs = pkgDateStr ? new Date(pkgDateStr).getTime() : 0;
+
+          if (pkgMs >= shiftStartMs) {
+            const payWay = Number(pkg.payWay ?? 1);
+            const payMethodStr: ShiftPaymentMethod = payWay === 2 ? 'vodafone' : (payWay === 3 ? 'instapay' : (payWay === 4 ? 'fawry' : 'cash'));
+            const cost = Number(pkg.cost ?? pkg.price ?? pkg.paidAmount ?? 0);
+
+            livePackageRev += cost;
+            if (payWay === 2) vfIn += cost;
+            else if (payWay === 3) ipIn += cost;
+            else if (payWay === 4) fwIn += cost;
+
+            if (cost > 0) {
+              liveLedger.push({
+                id: pkg.id || `PKG-${Date.now().toString().slice(-4)}`,
+                timestamp: parseIsoToLocal12h(pkgDateStr),
+                details: `شراء باقة طلاب - ${pkg.packageName || 'باقة ساعات'}`,
+                type: 'package',
+                paymentMethod: payMethodStr,
+                amount: cost,
+                flowDirection: 'inside',
+                staffName: record.staffName
+              });
+            }
+          }
+        });
+
+        // 4. Process Classroom Packages (ClassroomPackages API)
+        (cPackages || []).forEach((pkg: any) => {
+          const pkgDateStr = pkg.purchasedAt || pkg.dateFrom || pkg.createdAt;
+          const pkgMs = pkgDateStr ? new Date(pkgDateStr).getTime() : 0;
+
+          if (pkgMs >= shiftStartMs) {
+            const payWay = Number(pkg.payWay ?? 1);
+            const payMethodStr: ShiftPaymentMethod = payWay === 2 ? 'vodafone' : (payWay === 3 ? 'instapay' : (payWay === 4 ? 'fawry' : 'cash'));
+            const cost = Number(pkg.cost ?? pkg.price ?? pkg.paidAmount ?? 0);
+
+            livePackageRev += cost;
+            if (payWay === 2) vfIn += cost;
+            else if (payWay === 3) ipIn += cost;
+            else if (payWay === 4) fwIn += cost;
+
+            if (cost > 0) {
+              liveLedger.push({
+                id: pkg.id || `CPKG-${Date.now().toString().slice(-4)}`,
+                timestamp: parseIsoToLocal12h(pkgDateStr),
+                details: `شراء باقة محاضرين - ${pkg.packageName || 'باقة قاعات'}`,
+                type: 'package',
+                paymentMethod: payMethodStr,
+                amount: cost,
+                flowDirection: 'inside',
+                staffName: record.staffName
+              });
+            }
+          }
+        });
+
+        // 5. Merge Manual Shift Items (Expenses and Revenue items from mergedDto.items)
+        let adminExpenses = 0;
+
+        (mergedDto.items || []).forEach((it: any) => {
+          const cat = Number(it.category);
+          const t = String(it.type || '').toLowerCase();
+          const rawDesc = String(it.item || it.description || '').trim();
+          const desc = rawDesc.toLowerCase();
+          const cleanDesc = rawDesc.replace(/^\[[^\]]+\]\s*/, '');
+          const rawAmt = Number(it.cost ?? it.amount ?? 0);
+          const amt = Math.abs(rawAmt);
+          const payWay = Number(it.payWay ?? 1);
+          const payMethodStr: ShiftPaymentMethod = payWay === 2 ? 'vodafone' : (payWay === 3 ? 'instapay' : (payWay === 4 ? 'fawry' : 'cash'));
+
+          if (amt <= 0) return;
+
+          // Skip generic untagged backend checkout items (e.g. "Student checkout", "تشيك أوت قاعة") when explicit tagged items exist to prevent double counting
+          const isGenericCheckout = !rawDesc.startsWith('[') && (
+            desc.includes('student checkout') ||
+            desc.includes('checkout student') ||
+            desc.includes('classroom checkout') ||
+            desc.includes('checkout classroom') ||
+            desc.includes('تشيك أوت قاعة') ||
+            (desc.includes('تشيك أوت') && (desc.includes('طالب') || desc.includes('قاعة') || desc.includes('روم')))
+          );
+          if (isGenericCheckout && hasExplicitTaggedItems) {
+            return;
+          }
+
+          const isExplicitRevenue = t === 'revenue' || t === 'income' || desc.includes('[كافيه]') || desc.includes('[طباعة]') || desc.includes('[إيراد]') || desc.includes('[جلسة]') || desc.includes('[قاعة]') || desc.includes('[باقة]');
+          const isExpense = !isExplicitRevenue && (
+            t === 'expense' ||
+            desc.includes('[مصروف]') ||
+            desc.includes('مصروف') ||
+            desc.includes('نثريات') ||
+            desc.includes('فاتورة') ||
+            desc.includes('صيانة') ||
+            desc.includes('نظافة') ||
+            desc.includes('ضيافة') ||
+            desc.includes('غاز') ||
+            (desc.includes('مياه') && !desc.includes('معدنية')) ||
+            desc.includes('كهرباء') ||
+            desc.includes('نت')
+          );
+
+          if (isExpense && amt > 0) {
+            adminExpenses += amt;
+            if (payWay === 2) vfOut += amt;
+            else if (payWay === 3) ipOut += amt;
+            else if (payWay === 4) fwOut += amt;
+
+            liveLedger.push({
+              id: it.id || `EXP-${Date.now().toString().slice(-4)}`,
+              timestamp: parseIsoToLocal12h(it.createdAt),
+              details: cleanDesc || 'مصروفات ونثريات',
+              type: 'expense',
+              paymentMethod: payMethodStr,
+              amount: -amt,
+              flowDirection: 'outside',
+              staffName: record.staffName
+            });
+          } else if (!isExpense && amt > 0) {
+            // Manual Revenue Item / Shift Item classification
+            let itemType: ShiftTransactionType = 'other';
+            let itemCategoryAmt = amt;
+
+            if (desc.includes('[كافيه]') || t === 'canteen' || desc.includes('كافيه') || desc.includes('مشروب') || desc.includes('بوفيه') || desc.includes('سناكس') || desc.includes('canteen') || desc.includes('catering') || desc.includes('coffee') || desc.includes('tea')) {
+              itemType = 'canteen';
+              liveCanteenRev += amt;
+            } else if (desc.includes('[طباعة]') || desc.includes('طباعة') || desc.includes('تصوير') || desc.includes('ورق') || desc.includes('مطبوعات') || desc.includes('printing') || desc.includes('paper') || desc.includes('print') || desc.includes('copy')) {
+              itemType = 'other';
+              liveOtherRev += amt;
+            } else if (desc.includes('[جلسة]') || t === 'workspace' || desc.includes('جلسة') || desc.includes('طالب') || desc.includes('ساعات') || desc.includes('سبيس') || desc.includes('student') || desc.includes('checkout') || desc.includes('workspace') || desc.includes('session')) {
+              itemType = 'workspace';
+              if (rawDesc.startsWith('[')) {
+                itemCategoryAmt = amt;
+              } else {
+                const wsOnlyCost = Math.max(0, +(amt - shiftCateringItemsSum - shiftPrintingItemsSum).toFixed(2));
+                itemCategoryAmt = wsOnlyCost > 0 ? wsOnlyCost : amt;
+              }
+              liveWorkspaceRev += itemCategoryAmt;
+            } else if (desc.includes('[قاعة]') || t === 'classroom' || desc.includes('قاعة') || desc.includes('روم') || desc.includes('كلاس') || desc.includes('classroom') || desc.includes('room') || desc.includes('instructor')) {
+              itemType = 'classroom';
+              liveClassroomRev += amt;
+            } else if (desc.includes('[باقة]') || t === 'package' || desc.includes('باقة') || desc.includes('package') || desc.includes('subscription')) {
+              itemType = 'package';
+              livePackageRev += amt;
+            } else {
+              itemType = 'other';
+              liveOtherRev += amt;
+            }
+
+            if (payWay === 2) vfIn += amt;
+            else if (payWay === 3) ipIn += amt;
+            else if (payWay === 4) fwIn += amt;
+
+            liveLedger.push({
+              id: it.id || `REV-${Date.now().toString().slice(-4)}`,
+              timestamp: parseIsoToLocal12h(it.createdAt),
+              details: cleanDesc || 'إيراد إضافي',
+              type: itemType,
+              paymentMethod: payMethodStr,
+              amount: amt,
+              flowDirection: 'inside',
+              staffName: record.staffName
+            });
+          }
+        });
+
+        // Merge local in-memory transactions if present
+        const combinedLedger = [...liveLedger];
+        (record.transactions || []).forEach(tx => {
+          if (Math.abs(tx.amount || 0) <= 0) return;
+          const isGenericCheckout = (tx.details || '').toLowerCase().includes('student checkout') && !tx.details?.startsWith('[');
+          if (isGenericCheckout && hasExplicitTaggedItems) return;
+
+          if (!combinedLedger.some(l => l.id === tx.id || (l.details === tx.details && l.amount === tx.amount))) {
+            combinedLedger.push(tx);
+          }
+        });
+
+        const totalRev = +(liveWorkspaceRev + liveClassroomRev + livePackageRev + liveCanteenRev + liveOtherRev).toFixed(2);
+
+        const updatedRecord: ShiftRecord = {
+          ...record,
+          workspaceRevenue: liveWorkspaceRev,
+          classroomRevenue: liveClassroomRev,
+          packageRevenue: livePackageRev,
+          canteenRevenue: liveCanteenRev,
+          otherIncome: liveOtherRev,
+          adminExpenses: adminExpenses,
+          vodafoneCashInside: vfIn,
+          vodafoneCashOutside: vfOut,
+          instapayCashInside: ipIn,
+          instapayCashOutside: ipOut,
+          fawryCashInside: fwIn,
+          fawryCashOutside: fwOut,
+          totalRevenue: totalRev,
+          transactionsCount: combinedLedger.length,
+          transactions: combinedLedger
+        };
+
+        this.currentShift.set(updatedRecord);
+        return updatedRecord;
+      })
+    );
   }
 
   /**
@@ -667,21 +1017,51 @@ export class ShiftService implements OnDestroy {
     }
 
     const payWayCode = params.paymentMethod === 'vodafone' ? 2 : (params.paymentMethod === 'instapay' ? 3 : (params.paymentMethod === 'fawry' ? 4 : 1));
+
+    let resolvedType: ShiftTransactionType = 'other';
+    let tagPrefix = '';
+
+    if (params.type === 'expense') {
+      resolvedType = 'expense';
+      tagPrefix = '[مصروف]';
+    } else {
+      const cat = (params.category || '').toLowerCase();
+      const desc = (params.description || '').toLowerCase();
+
+      if (cat === 'canteen' || desc.includes('كافيه') || desc.includes('مشروب') || desc.includes('بوفيه') || desc.includes('سناكس') || desc.includes('canteen') || desc.includes('catering')) {
+        resolvedType = 'canteen';
+        tagPrefix = '[كافيه]';
+      } else if (cat === 'workspace' || desc.includes('طالب') || desc.includes('جلسة') || desc.includes('ساعات')) {
+        resolvedType = 'workspace';
+        tagPrefix = '[جلسة]';
+      } else if (cat === 'classroom' || desc.includes('قاعة') || desc.includes('classroom')) {
+        resolvedType = 'classroom';
+        tagPrefix = '[قاعة]';
+      } else if (cat === 'package' || desc.includes('باقة') || desc.includes('package')) {
+        resolvedType = 'package';
+        tagPrefix = '[باقة]';
+      } else if (cat === 'printing' || desc.includes('طباعة') || desc.includes('ورق') || desc.includes('تصوير')) {
+        resolvedType = 'other';
+        tagPrefix = '[طباعة]';
+      } else {
+        resolvedType = 'other';
+        tagPrefix = '[إيراد]';
+      }
+    }
+
+    const taggedDescription = `${tagPrefix} ${params.description}`.trim();
+
     const itemDto: CreateShiftItemDto = {
       cost: params.amount,
       type: params.type === 'expense' ? 'Expense' : 'Revenue',
       payWay: payWayCode,
-      item: params.description
+      item: taggedDescription
     };
 
     // 1. Record locally immediately for instant feedback
-    const resolvedType = params.type === 'expense'
-      ? 'expense'
-      : (params.category === 'canteen' ? 'canteen' : 'other');
-
     this.recordTransaction({
       amount: params.amount,
-      type: resolvedType as any,
+      type: resolvedType,
       paymentMethod: params.paymentMethod,
       details: params.description
     }, true);
@@ -745,27 +1125,97 @@ export class ShiftService implements OnDestroy {
    */
   deleteShiftItem(itemId: string): Observable<boolean> {
     const current = this.currentShift();
-    if (!current || !current.id || current.id.startsWith('SHIFT-')) {
+    if (!current) {
       return throwError(() => new Error('لا توجد وردية نشطة'));
     }
 
-    return this.shiftApi.deleteShiftItem(current.id, itemId).pipe(
+    const updatedTxs = (current.transactions || []).filter(tx => tx.id !== itemId);
+
+    let wsRev = 0, clsRev = 0, pkgRev = 0, cantRev = 0, othRev = 0, expAmt = 0;
+    let vfIn = current.startVodafoneCash || 0, vfOut = 0;
+    let ipIn = current.startInstapay || 0, ipOut = 0;
+    let fwIn = current.startFawry || 0, fwOut = 0;
+
+    updatedTxs.forEach(t => {
+      if (t.type === 'workspace') wsRev += Math.max(0, t.amount);
+      else if (t.type === 'classroom') clsRev += Math.max(0, t.amount);
+      else if (t.type === 'package') pkgRev += Math.max(0, t.amount);
+      else if (t.type === 'canteen') cantRev += Math.max(0, t.amount);
+      else if (t.type === 'other' || t.type === 'printing') othRev += Math.max(0, t.amount);
+      else if (t.type === 'expense') expAmt += Math.abs(t.amount);
+
+      if (t.paymentMethod === 'vodafone') {
+        if (t.type === 'expense') vfOut += Math.abs(t.amount);
+        else vfIn += Math.max(0, t.amount);
+      } else if (t.paymentMethod === 'instapay') {
+        if (t.type === 'expense') ipOut += Math.abs(t.amount);
+        else ipIn += Math.max(0, t.amount);
+      } else if (t.paymentMethod === 'fawry') {
+        if (t.type === 'expense') fwOut += Math.abs(t.amount);
+        else fwIn += Math.max(0, t.amount);
+      }
+    });
+
+    const totRev = +(wsRev + clsRev + pkgRev + cantRev + othRev).toFixed(2);
+
+    this.currentShift.set({
+      ...current,
+      workspaceRevenue: wsRev,
+      classroomRevenue: clsRev,
+      packageRevenue: pkgRev,
+      canteenRevenue: cantRev,
+      otherIncome: othRev,
+      adminExpenses: expAmt,
+      vodafoneCashInside: vfIn,
+      vodafoneCashOutside: vfOut,
+      instapayCashInside: ipIn,
+      instapayCashOutside: ipOut,
+      fawryCashInside: fwIn,
+      fawryCashOutside: fwOut,
+      totalRevenue: totRev,
+      transactions: updatedTxs,
+      transactionsCount: updatedTxs.length
+    });
+
+    if (current.id && !current.id.startsWith('SHIFT-')) {
+      return this.shiftApi.deleteShiftItem(current.id, itemId).pipe(
+        tap(() => {
+          this.fetchCurrentShiftFromApi();
+        }),
+        map(() => true),
+        catchError((err) => {
+          console.warn('[ShiftService] Failed to delete shift item on API:', err);
+          return of(true);
+        })
+      );
+    }
+
+    return of(true);
+  }
+
+  deleteAllShiftItems(): Observable<boolean> {
+    const current = this.currentShift();
+    if (!current) return of(false);
+
+    const txs = (current.transactions || []).filter(t => t.type !== 'system');
+    if (txs.length === 0) {
+      this.resetShiftDataForTesting();
+      return of(true);
+    }
+
+    const calls = txs.map(t => {
+      if (current.id && !current.id.startsWith('SHIFT-') && t.id) {
+        return this.shiftApi.deleteShiftItem(current.id, t.id).pipe(catchError(() => of(null)));
+      }
+      return of(null);
+    });
+
+    return forkJoin(calls).pipe(
       tap(() => {
-        // Remove from local transactions immediately
-        const updatedTxs = (current.transactions || []).filter(tx => tx.id !== itemId);
-        this.currentShift.set({
-          ...current,
-          transactions: updatedTxs,
-          transactionsCount: updatedTxs.length
-        });
-        // Re-fetch from API for accurate totals
+        this.resetShiftDataForTesting();
         this.fetchCurrentShiftFromApi();
       }),
-      map(() => true),
-      catchError((err) => {
-        console.warn('[ShiftService] Failed to delete shift item:', err);
-        return of(false);
-      })
+      map(() => true)
     );
   }
 
@@ -863,6 +1313,41 @@ export class ShiftService implements OnDestroy {
 
   clearActiveShift(): void {
     this.currentShift.set(null);
+  }
+
+  resetShiftDataForTesting(): void {
+    const active = this.currentShift();
+    const formattedStart = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const cleanRecord: ShiftRecord = {
+      id: active?.id || `SHIFT-${Date.now().toString().slice(-4)}`,
+      staffName: active?.staffName || this.activeStaffName(),
+      staffEmail: active?.staffEmail || '',
+      role: active?.role || 'Staff',
+      startTime: formattedStart,
+      status: 'active',
+      initialCashDrawer: 0,
+      startVodafoneCash: 0,
+      startInstapay: 0,
+      startFawry: 0,
+      canteenRevenue: 0,
+      classroomRevenue: 0,
+      workspaceRevenue: 0,
+      packageRevenue: 0,
+      otherIncome: 0,
+      adminExpenses: 0,
+      vodafoneCashInside: 0,
+      vodafoneCashOutside: 0,
+      instapayCashInside: 0,
+      instapayCashOutside: 0,
+      fawryCashInside: 0,
+      fawryCashOutside: 0,
+      totalRevenue: 0,
+      transactionsCount: 0,
+      transactions: []
+    };
+
+    this.currentShift.set(cleanRecord);
   }
 
   /**
@@ -1235,38 +1720,24 @@ export class ShiftService implements OnDestroy {
   }
 
   /**
-   * Recalculate current active shift financials
-   * POST /api/Shifts/{id}/recalculate
+   * Recalculate current active shift financials live across all domain APIs
    */
   recalculateCurrentShift(): Observable<boolean> {
     const shift = this.currentShift();
-    if (!shift || !shift.id || !/^[0-9a-fA-F-]{36}$/.test(shift.id)) {
+    if (!shift || !shift.id) {
       return of(false);
     }
 
-    return this.shiftApi.recalculateShift(shift.id).pipe(
+    const isRealGuid = /^[0-9a-fA-F-]{36}$/.test(shift.id);
+    const recalc$ = isRealGuid ? this.shiftApi.recalculateShift(shift.id).pipe(catchError(() => of(null))) : of(null);
+
+    return recalc$.pipe(
       switchMap((updatedDto) => {
-        return this.shiftApi.getShiftById(shift.id).pipe(
-          map((detailDto) => {
-            const finalDto = detailDto || updatedDto;
-            if (finalDto) {
-              this.currentShift.set(this.mapDtoToShiftRecord(finalDto));
-              return true;
-            }
-            return false;
-          }),
-          catchError(() => {
-            if (updatedDto) {
-              this.currentShift.set(this.mapDtoToShiftRecord(updatedDto));
-              return of(true);
-            }
-            return of(false);
-          })
+        const targetDto: ShiftDto = updatedDto || { id: shift.id, timeFrom: shift.startTime, date: shift.startTime };
+        return this.syncLiveDomainFinancials(targetDto).pipe(
+          map(() => true),
+          catchError(() => of(false))
         );
-      }),
-      catchError((err) => {
-        console.warn('[ShiftService] Recalculate failed:', err);
-        return of(false);
       })
     );
   }

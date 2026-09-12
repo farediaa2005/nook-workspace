@@ -529,7 +529,7 @@
 
                 <!-- Delete Action -->
                 <td style="text-align: center; padding: 4px;">
-                  @if (tx.type !== 'system' && !tx.id.startsWith('TX-')) {
+                  @if (tx.type !== 'system') {
                     <button
                       class="delete-tx-btn"
                       [disabled]="isDeletingItem() === tx.id"

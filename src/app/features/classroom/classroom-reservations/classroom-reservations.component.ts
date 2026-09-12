@@ -130,9 +130,10 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     const nowMins = now.getHours() * 60 + now.getMinutes();
 
     return combined.map(res => {
-      if (res.status === 'cancelled') return res;
+      if (res.status === 'cancelled' || res.status === 'completed') return res;
 
-      const resDate = res.date === 'Today' ? todayISO : (res.date || todayISO);
+      const rawResDate = res.date === 'Today' ? todayISO : (res.date || todayISO);
+      const resDate = (rawResDate || '').split('T')[0];
       let calculatedStatus: 'active' | 'upcoming' | 'completed' | 'cancelled' = res.status || 'upcoming';
 
       if (resDate < todayISO) {
@@ -186,7 +187,8 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
       const crossesMidnight = endMins < startMins;
 
       // Handle raw date conversion
-      const resDateISO = res.date === 'Today' ? todayISO : (res.date || todayISO);
+      const rawDateISO = res.date === 'Today' ? todayISO : (res.date || todayISO);
+      const resDateISO = (rawDateISO || '').split('T')[0];
 
       // Normal booking: must match selected date
       // Cross-midnight booking: matches starting date or ending date (tomorrow)
@@ -333,7 +335,8 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
       const crossesMidnight = endMins < startMins;
 
       // Handle raw date conversion
-      const resDateISO = res.date === 'Today' ? todayISO : (res.date || todayISO);
+      const rawDateISO = res.date === 'Today' ? todayISO : (res.date || todayISO);
+      const resDateISO = (rawDateISO || '').split('T')[0];
 
       const posStyle = `calc(75px + ${roomIndex} * ((100% - 75px) / ${totalRooms}) + 3px)`;
       const leftStyle = isRtl ? 'auto' : posStyle;
