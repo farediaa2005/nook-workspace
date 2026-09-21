@@ -45,6 +45,8 @@ export interface StudentDirectoryItem {
   totalSpent: number;
 }
 
+import { StudentAnalyticsModalComponent } from '../../../shared/components/student-analytics-modal/student-analytics-modal.component';
+
 @Component({
   selector: 'app-show-students',
   standalone: true,
@@ -56,7 +58,8 @@ export interface StudentDirectoryItem {
     MetricCardComponent,
     SearchBoxComponent,
     CustomSelectComponent,
-    PaginationComponent
+    PaginationComponent,
+    StudentAnalyticsModalComponent
   ],
   templateUrl: './show-students.component.html',
   styleUrl: './show-students.component.css'
@@ -67,6 +70,17 @@ export class ShowStudentsComponent implements OnInit, OnDestroy {
   private shiftService = inject(ShiftService);
   private packageService = inject(PackageService);
   private router = inject(Router);
+
+  // Student Analytics Drawer State
+  selectedStudentForAnalytics = signal<{ id: string; name: string } | null>(null);
+
+  openAnalytics(student: StudentDirectoryItem): void {
+    this.selectedStudentForAnalytics.set({ id: student.id, name: student.name });
+  }
+
+  closeAnalytics(): void {
+    this.selectedStudentForAnalytics.set(null);
+  }
 
   t = this.langService.t;
   isArabic = this.langService.isArabic;

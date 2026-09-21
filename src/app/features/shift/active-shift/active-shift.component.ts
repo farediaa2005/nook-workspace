@@ -9,6 +9,8 @@ import { WorkspaceService } from '../../../core/services/workspace.service';
 import { EndOfShiftModalComponent } from '../../../shared/components/end-of-shift-modal/end-of-shift-modal.component';
 import { CustomSelectComponent, SelectOption } from '../../../shared/components/custom-select/custom-select.component';
 
+import { AuthService } from '../../../core/services/auth.service';
+
 @Component({
   selector: 'app-active-shift',
   imports: [CommonModule, FormsModule, RouterLink, EndOfShiftModalComponent, CustomSelectComponent],
@@ -19,6 +21,7 @@ export class ActiveShiftComponent implements OnInit {
   private shiftService = inject(ShiftService);
   private langService = inject(LanguageService);
   private workspaceService = inject(WorkspaceService);
+  private authService = inject(AuthService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private destroyRef = inject(DestroyRef);
@@ -27,6 +30,12 @@ export class ActiveShiftComponent implements OnInit {
   isArabic = this.langService.isArabic;
   hasActiveShift = this.shiftService.hasActiveShift;
   isLoading = this.shiftService.isLoading;
+  isAdmin = computed(() => this.authService.isAdmin());
+
+  // Edit Shift Time (Item 7 - Admin Only)
+  showEditShiftModal = signal<boolean>(false);
+  editStartTimeInput = signal<string>('');
+  isSavingShiftTime = signal<boolean>(false);
 
   ngOnInit(): void {
     this.shiftService.fetchCurrentShiftFromApi();
@@ -42,6 +51,8 @@ export class ActiveShiftComponent implements OnInit {
   staffName = this.shiftService.activeStaffName;
   staffAvatar = this.shiftService.activeStaffAvatar;
   shiftStartTime = this.shiftService.shiftStartTime;
+  shiftStartDate = this.shiftService.shiftStartDate;
+  isShiftStartedToday = this.shiftService.isShiftStartedToday;
   shiftDuration = this.shiftService.shiftDuration;
 
   // 4 Payment Channels Signals
@@ -367,4 +378,58 @@ export class ActiveShiftComponent implements OnInit {
     });
   }
 
+  // ============================================================
+  // Admin-Only Shift Time Edit (Item 7)
+  // ============================================================
+  openEditShiftModal(): void {
+    if (!this.isAdmin()) {
+      this.workspaceService.showToast(
+        this.isArabic() ? 'غير مصرح: تعديل وقت الشيفت متاح للمسؤول (Admin) فقط' : 'Unauthorized: Shift time editing is Admin only',
+        'error'
+      );
+      return;
+    }
+    this.editStartTimeInput.set(this.shiftStartTime());
+    this.showEditShiftModal.set(true);
+  }
+
+  closeEditShiftModal(): void {
+    this.showEditShiftModal.set(false);
+  }
+
+  saveShiftTime(): void {
+    if (!this.isAdmin()) return;
+    const curShift = this.shiftService.currentShift();
+    if (!curShift) return;
+
+    const newTime = this.editStartTimeInput().trim();
+    if (!newTime) {
+      this.workspaceService.showToast(
+        this.isArabic() ? 'يرجى إدخال وقت صحيح' : 'Please enter a valid time',
+        'error'
+      );
+      return;
+    }
+
+    this.isSavingShiftTime.set(true);
+    this.shiftService.updateShiftTime(curShift.id, newTime).subscribe({
+      next: () => {
+        this.isSavingShiftTime.set(false);
+        this.showEditShiftModal.set(false);
+        this.workspaceService.showToast(
+          this.isArabic() ? 'تم تعديل وقت بداية الشيفت بنجاح' : 'Shift start time updated successfully',
+          'success'
+        );
+      },
+      error: (err) => {
+        this.isSavingShiftTime.set(false);
+        this.workspaceService.showToast(
+          err?.message || (this.isArabic() ? 'فشل تعديل وقت الشيفت' : 'Failed to update shift time'),
+          'error'
+        );
+      }
+    });
+  }
+
 }
+

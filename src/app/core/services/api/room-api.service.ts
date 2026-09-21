@@ -65,6 +65,17 @@ export class RoomApiService extends BaseApiService {
 
     formData.append('IsActive', String(dto.isActive !== false));
 
+    if (dto.capacity != null) {
+      formData.append('Capacity', String(dto.capacity));
+      formData.append('capacity', String(dto.capacity));
+    }
+    if (dto.hourlyPrice != null) {
+      formData.append('HourlyPrice', String(dto.hourlyPrice));
+      formData.append('hourlyPrice', String(dto.hourlyPrice));
+      formData.append('HourlyRate', String(dto.hourlyPrice));
+      formData.append('hourlyRate', String(dto.hourlyPrice));
+    }
+
     if (dto.imageFile instanceof File) {
       formData.append('imageFile', dto.imageFile, dto.imageFile.name);
     } else if (dto.imageUrl && typeof dto.imageUrl === 'string' && (dto.imageUrl.startsWith('http://') || dto.imageUrl.startsWith('https://'))) {
@@ -107,6 +118,17 @@ export class RoomApiService extends BaseApiService {
     }
 
     if (dto.isActive != null) formData.append('IsActive', String(dto.isActive));
+
+    if (dto.capacity != null) {
+      formData.append('Capacity', String(dto.capacity));
+      formData.append('capacity', String(dto.capacity));
+    }
+    if (dto.hourlyPrice != null) {
+      formData.append('HourlyPrice', String(dto.hourlyPrice));
+      formData.append('hourlyPrice', String(dto.hourlyPrice));
+      formData.append('HourlyRate', String(dto.hourlyPrice));
+      formData.append('hourlyRate', String(dto.hourlyPrice));
+    }
 
     if (dto.imageFile instanceof File) {
       formData.append('imageFile', dto.imageFile, dto.imageFile.name);

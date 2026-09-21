@@ -32,28 +32,37 @@ function parseTimeToHour(timeStr?: string): number | null {
 
 function parseDurationHours(durStr?: string): number {
   if (!durStr) return 1;
-  const hMatch = durStr.match(/(\d+)\s*h/i);
-  const mMatch = durStr.match(/(\d+)\s*m/i);
-  let totalMinutes = 0;
-  if (hMatch) totalMinutes += parseInt(hMatch[1], 10) * 60;
-  if (mMatch) totalMinutes += parseInt(mMatch[1], 10);
+  const totalMinutes = parseDurationMinutes(durStr);
   return totalMinutes > 0 ? Math.max(1, Math.ceil(totalMinutes / 60)) : 1;
 }
 
 function parseDurationMinutes(durStr?: string): number {
   if (!durStr) return 0;
   let total = 0;
-  const hMatch = durStr.match(/(\d+)\s*h/i);
-  const mMatch = durStr.match(/(\d+)\s*m/i);
+  const dMatch = durStr.match(/(\d+)\s*(?:d|days?|day|يوم|أيام|ي)(?!\w)/i);
+  const hMatch = durStr.match(/(\d+)\s*(?:h|hours?|hour|hrs?|ساعات|ساعة|س)(?!\w)/i);
+  const mMatch = durStr.match(/(\d+)\s*(?:m|mins?|min|دقائق|دقيقة|د)(?!\w)/i);
+  if (dMatch) total += parseInt(dMatch[1], 10) * 1440;
   if (hMatch) total += parseInt(hMatch[1], 10) * 60;
   if (mMatch) total += parseInt(mMatch[1], 10);
+  if (!dMatch && !hMatch && !mMatch) {
+    const colonMatch = durStr.match(/^(\d{1,3}):(\d{1,2})$/);
+    if (colonMatch) {
+      total = parseInt(colonMatch[1], 10) * 60 + parseInt(colonMatch[2], 10);
+    }
+  }
   return total;
 }
 
 function formatMinutesToDuration(totalMinutes: number): string {
   if (!totalMinutes || totalMinutes <= 0) return '0h 00m';
-  const h = Math.floor(totalMinutes / 60);
-  const m = Math.round(totalMinutes % 60);
+  const d = Math.floor(totalMinutes / 1440);
+  const remMins = Math.round(totalMinutes % 1440);
+  const h = Math.floor(remMins / 60);
+  const m = remMins % 60;
+  if (d > 0) {
+    return `${d}d ${h}h ${String(m).padStart(2, '0')}m`;
+  }
   return `${h}h ${String(m).padStart(2, '0')}m`;
 }
 

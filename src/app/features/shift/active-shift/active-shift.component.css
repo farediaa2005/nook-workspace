@@ -4,6 +4,18 @@
   margin: 0 auto;
   font-family: var(--font-body);
   color: var(--text);
+  animation: pageFadeIn 0.35s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ============================================================
@@ -235,22 +247,23 @@
   position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-xl, 20px);
   padding: 18px 20px;
   min-height: 135px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: 12px;
-  box-shadow: var(--shadow);
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: var(--shadow-sm, 0 4px 12px rgba(0, 0, 0, 0.08));
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, box-shadow 0.25s ease;
   overflow: hidden;
+  backdrop-filter: blur(12px);
 }
 
 .channel-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--border-strong);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md, 0 12px 28px -4px rgba(0, 0, 0, 0.25));
+  border-color: rgba(245, 185, 33, 0.4);
 }
 
 .channel-meta {

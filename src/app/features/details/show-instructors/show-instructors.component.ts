@@ -15,7 +15,6 @@ import { NotificationService } from '../../../core/services/notification.service
 import { Instructor } from '../../../core/models/details.model';
 import { exportToCsv } from '../../../core/utils/csv.util';
 import { getTodayDateISO } from '../../../core/utils/date-time.util';
-// [MOCK DATA DISABLED FOR LIVE API - See src/testing/mocks/details.mock.ts for offline presentation/testing]
 
 export type { Instructor };
 

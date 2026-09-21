@@ -1,4 +1,4 @@
-import { Injectable, signal, computed, inject } from '@angular/core';
+import { Injectable, signal, computed, inject, Injector } from '@angular/core';
 import { Observable, of, tap, catchError, forkJoin, map } from 'rxjs';
 import {
   ActiveStudentSession,
@@ -18,6 +18,7 @@ import { AuthService } from './auth.service';
 import { WalletApiService } from './api/wallet-api.service';
 import { CateringService } from './catering.service';
 import { PackageService } from './package.service';
+import { NotificationService } from './notification.service';
 import { parseIsoToLocalDate, getTodayDateISO, parseIsoToLocal24h } from '../utils/date-time.util';
 
 export interface ToastNotification {
@@ -46,6 +47,8 @@ export interface StudentProfileRecord {
   email?: string;
   college?: string;
   faculty?: string;
+  university?: string;
+  notes?: string;
   walletAmount?: number;
 }
 
@@ -64,17 +67,30 @@ export const isSameDayAsToday = (dateStr?: string): boolean => {
 export function parseDurationMinutes(durStr?: string): number {
   if (!durStr) return 0;
   let total = 0;
-  const hMatch = durStr.match(/(\d+)\s*(?:h|س|hours?|ساعة|ساعات)/i);
-  const mMatch = durStr.match(/(\d+)\s*(?:m|د|mins?|دقيقة|دقائق)/i);
+  const dMatch = durStr.match(/(\d+)\s*(?:d|days?|day|يوم|أيام|ي)(?!\w)/i);
+  const hMatch = durStr.match(/(\d+)\s*(?:h|hours?|hour|hrs?|ساعات|ساعة|س)(?!\w)/i);
+  const mMatch = durStr.match(/(\d+)\s*(?:m|mins?|min|دقائق|دقيقة|د)(?!\w)/i);
+  if (dMatch) total += parseInt(dMatch[1], 10) * 1440;
   if (hMatch) total += parseInt(hMatch[1], 10) * 60;
   if (mMatch) total += parseInt(mMatch[1], 10);
+  if (!dMatch && !hMatch && !mMatch) {
+    const colonMatch = durStr.match(/^(\d{1,3}):(\d{1,2})$/);
+    if (colonMatch) {
+      total = parseInt(colonMatch[1], 10) * 60 + parseInt(colonMatch[2], 10);
+    }
+  }
   return total;
 }
 
 export function formatMinutesToDuration(totalMinutes: number): string {
   if (!totalMinutes || totalMinutes <= 0) return '0h 00m';
-  const h = Math.floor(totalMinutes / 60);
-  const m = Math.round(totalMinutes % 60);
+  const d = Math.floor(totalMinutes / 1440);
+  const remMins = Math.round(totalMinutes % 1440);
+  const h = Math.floor(remMins / 60);
+  const m = remMins % 60;
+  if (d > 0) {
+    return `${d}d ${h}h ${String(m).padStart(2, '0')}m`;
+  }
   return `${h}h ${String(m).padStart(2, '0')}m`;
 }
 
@@ -167,30 +183,14 @@ export function calculateSessionDuration(timeFrom?: string, timeTo?: string, dat
     diffMs += 24 * 60 * 60 * 1000;
   }
 
-  // Prevent multi-day blowout when calculating live duration or missing checkout across dates
-  if (diffMs > 18 * 60 * 60 * 1000) {
-    if (timeTo) {
-      const sameDayStart = parseSessionTimeToDate(timeFrom, dateFrom);
-      const sameDayEnd = parseSessionTimeToDate(timeTo, dateFrom);
-      let sameDayDiff = sameDayEnd.getTime() - sameDayStart.getTime();
-      if (sameDayDiff < 0) sameDayDiff += 24 * 60 * 60 * 1000;
-      diffMs = sameDayDiff;
-    } else {
-      const todayStart = parseSessionTimeToDate(timeFrom, undefined);
-      const now = new Date();
-      let todayDiff = now.getTime() - todayStart.getTime();
-      if (todayDiff < 0) todayDiff += 24 * 60 * 60 * 1000;
-      if (todayDiff > 0 && todayDiff <= 18 * 60 * 60 * 1000) {
-        diffMs = todayDiff;
-      } else {
-        diffMs = 60 * 60 * 1000;
-      }
-    }
-  }
-
   const totalMins = Math.max(1, Math.floor(diffMs / 60000));
-  const h = Math.floor(totalMins / 60);
-  const m = totalMins % 60;
+  const d = Math.floor(totalMins / 1440);
+  const remMins = totalMins % 1440;
+  const h = Math.floor(remMins / 60);
+  const m = remMins % 60;
+  if (d > 0) {
+    return `${d}d ${h}h ${String(m).padStart(2, '0')}m`;
+  }
   return `${h}h ${String(m).padStart(2, '0')}m`;
 }
 
@@ -207,6 +207,17 @@ export class WorkspaceService {
   private walletApi = inject(WalletApiService);
   private cateringService = inject(CateringService);
   private packageService = inject(PackageService);
+  private injector = inject(Injector);
+
+  public triggerLiveAlertsEvaluation(): void {
+    try {
+      // Dynamic lookup avoids circular dependency during service bootstrap
+      const notif = this.injector.get<any>(NotificationService as any, null);
+      if (notif && typeof notif.evaluateLiveAlerts === 'function') {
+        notif.evaluateLiveAlerts();
+      }
+    } catch {}
+  }
 
   // Pure in-memory reactive state — ZERO localStorage dependencies
   private activeStudentsState = signal<ActiveStudentSession[]>([]);
@@ -227,27 +238,18 @@ export class WorkspaceService {
   private studentMap = new Map<string, BackendStudentDto>();
   private facultiesMap = new Map<string, string>(); // lowercase name -> id
 
-  // Persistent session catering cache prefix
-  private readonly CATERING_CACHE_PREFIX = 'nook_catering_session_';
+  private sessionCateringMem = new Map<string, { total: number; items: any[] }>();
 
   private getSessionCateringCache(sessionId: string): { total: number; items: any[] } | null {
-    try {
-      const raw = localStorage.getItem(this.CATERING_CACHE_PREFIX + sessionId);
-      if (raw) return JSON.parse(raw);
-    } catch {}
-    return null;
+    return this.sessionCateringMem.get(sessionId) || null;
   }
 
   private setSessionCateringCache(sessionId: string, total: number, items: any[]): void {
-    try {
-      localStorage.setItem(this.CATERING_CACHE_PREFIX + sessionId, JSON.stringify({ total, items }));
-    } catch {}
+    this.sessionCateringMem.set(sessionId, { total, items });
   }
 
   private removeSessionCateringCache(sessionId: string): void {
-    try {
-      localStorage.removeItem(this.CATERING_CACHE_PREFIX + sessionId);
-    } catch {}
+    this.sessionCateringMem.delete(sessionId);
   }
 
   /** Sync catering items directly from backend API for a workspace session */
@@ -320,7 +322,7 @@ export class WorkspaceService {
     // History completed sessions
     for (const s of history) {
       const rawMins = parseDurationMinutes(s.duration);
-      if (rawMins > 0 && rawMins <= 18 * 60) {
+      if (rawMins > 0 && rawMins <= 30 * 24 * 60) {
         validDurations.push(rawMins);
       } else if (s.checkInTime && s.checkOutTime) {
         const start = parseSessionTimeToDate(s.checkInTime, s.date);
@@ -328,7 +330,7 @@ export class WorkspaceService {
         let diffMs = end.getTime() - start.getTime();
         if (diffMs < 0) diffMs += 24 * 3600 * 1000;
         const computedMins = Math.floor(diffMs / 60000);
-        if (computedMins > 0 && computedMins <= 18 * 60) {
+        if (computedMins > 0 && computedMins <= 30 * 24 * 60) {
           validDurations.push(computedMins);
         }
       }
@@ -337,7 +339,7 @@ export class WorkspaceService {
     // Active sessions currently seated
     for (const s of active) {
       const rawMins = parseDurationMinutes(s.duration);
-      if (rawMins > 0 && rawMins <= 18 * 60) {
+      if (rawMins > 0 && rawMins <= 30 * 24 * 60) {
         validDurations.push(rawMins);
       }
     }
@@ -367,17 +369,39 @@ export class WorkspaceService {
     ).length;
   });
 
+  // 5. Occupancy Counts for Share and Silent seating
+  readonly shareOccupancyCount = computed(() => {
+    return this.activeStudentsState().filter(s =>
+      s.status === 'active' && (s.zone === 0 || (s.roomName || '').toLowerCase().includes('share') || (!s.zone && !(s.roomName || '').toLowerCase().includes('silent')))
+    ).length;
+  });
+
+  readonly silentOccupancyCount = computed(() => {
+    return this.activeStudentsState().filter(s =>
+      s.status === 'active' && (s.zone === 1 || (s.roomName || '').toLowerCase().includes('silent'))
+    ).length;
+  });
+
   // Toasts
   readonly toast = signal<ToastNotification | null>(null);
 
   constructor() {
+    if (typeof window !== 'undefined') {
+      try {
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('nook_catering_session_')) {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch {}
+    }
     if (this.authService.isAuthenticated()) {
       this.loadFromBackend();
     }
   }
 
   /** Save/Update student full profile in the in-memory registry */
-  public saveStudentProfile(profile: { name: string; phone: string; whatsapp?: string; email?: string; college?: string; faculty?: string; id?: string; walletAmount?: number }): void {
+  public saveStudentProfile(profile: { name: string; phone: string; whatsapp?: string; email?: string; college?: string; faculty?: string; university?: string; notes?: string; id?: string; walletAmount?: number }): void {
     if (!profile.name && !profile.phone) return;
     const cleanPhone = (profile.phone || '').trim();
     const cleanName = (profile.name || '').trim();
@@ -385,6 +409,8 @@ export class WorkspaceService {
     const cleanWhatsapp = profile.whatsapp && profile.whatsapp !== '-' ? profile.whatsapp.trim() : cleanPhone;
     const cleanCollege = profile.college && profile.college !== '-' ? profile.college.trim() : '';
     const cleanFaculty = profile.faculty && profile.faculty !== '-' ? profile.faculty.trim() : '';
+    const cleanUni = profile.university && profile.university !== '-' ? profile.university.trim() : cleanFaculty;
+    const cleanNotes = profile.notes || '';
 
     const newRecord: StudentProfileRecord = {
       id: profile.id,
@@ -393,7 +419,9 @@ export class WorkspaceService {
       whatsapp: cleanWhatsapp,
       email: cleanEmail,
       college: cleanCollege,
-      faculty: cleanFaculty,
+      faculty: cleanFaculty || cleanUni,
+      university: cleanUni || cleanFaculty,
+      notes: cleanNotes,
       walletAmount: profile.walletAmount
     };
 
@@ -433,14 +461,17 @@ export class WorkspaceService {
     );
     if (student) {
       const phone = student.phoneNumber || student.whatsapp || '';
+      const uni = student.university || student.facultyName || '';
       return {
         id: student.id,
         name: student.name || '',
         phone: phone,
         whatsapp: student.whatsapp || phone,
         email: student.email || '',
-        college: student.college || student.facultyName || '',
-        faculty: student.facultyName || ''
+        college: student.college || '',
+        faculty: uni,
+        university: uni,
+        notes: (student as any).notes || ''
       };
     }
 
@@ -453,14 +484,15 @@ export class WorkspaceService {
   }
 
   /** Direct registration of a new student */
-  public registerNewStudent(profile: { name: string; phone: string; whatsapp?: string; email?: string; college?: string; faculty?: string }): void {
+  public registerNewStudent(profile: { name: string; phone: string; whatsapp?: string; email?: string; college?: string; faculty?: string; notes?: string }): void {
     const cleanProfile: StudentProfileRecord = {
       name: profile.name.trim(),
       phone: profile.phone.trim(),
       whatsapp: profile.whatsapp?.trim() || profile.phone.trim(),
       email: profile.email?.trim() || '',
       college: profile.college?.trim() || '',
-      faculty: profile.faculty?.trim() || ''
+      faculty: profile.faculty?.trim() || '',
+      notes: profile.notes?.trim() || ''
     };
 
     const facName = (cleanProfile.faculty || cleanProfile.college || '').trim();
@@ -474,7 +506,7 @@ export class WorkspaceService {
         whatsapp: cleanProfile.whatsapp || cleanProfile.phone,
         email: cleanProfile.email || undefined,
         college: cleanProfile.college || undefined,
-        university: cleanProfile.college || undefined,
+        university: cleanProfile.faculty || cleanProfile.university || undefined,
         facultyId: facultyId || undefined
       }).subscribe({
         next: (created) => {
@@ -574,8 +606,10 @@ export class WorkspaceService {
             phone: phone,
             whatsapp: s.whatsapp || s.phoneNumber || '',
             email: s.email || '',
-            college: s.college || s.facultyName || '',
-            faculty: s.facultyName || ''
+            college: s.college || '',
+            faculty: s.university || s.facultyName || '',
+            university: s.university || s.facultyName || '',
+            notes: (s as any).notes || s.notes || ''
           });
         });
         this.backendStudentsState.set(profileList);
@@ -634,6 +668,7 @@ export class WorkspaceService {
 
           this.activeStudentsState.set(active);
           this.historyStudentsState.set(history);
+          this.triggerLiveAlertsEvaluation();
 
           // Synchronize catering items from backend API for all active sessions
           active.forEach(s => {
@@ -644,6 +679,7 @@ export class WorkspaceService {
         } else {
           this.activeStudentsState.set([]);
           this.historyStudentsState.set([]);
+          this.triggerLiveAlertsEvaluation();
         }
       }
     });
@@ -702,7 +738,8 @@ export class WorkspaceService {
       whatsapp: newStudent.whatsapp || newStudent.phone,
       email: newStudent.email && newStudent.email !== '-' ? newStudent.email : '',
       college: newStudent.college && newStudent.college !== '-' ? newStudent.college : '',
-      faculty: newStudent.faculty && newStudent.faculty !== '-' ? newStudent.faculty : ''
+      faculty: newStudent.faculty && newStudent.faculty !== '-' ? newStudent.faculty : '',
+      notes: newStudent.notes
     });
 
     const onCheckInSuccess = (createdSession: any, studentGuid?: string) => {
@@ -715,6 +752,7 @@ export class WorkspaceService {
         email: newStudent.email,
         faculty: newStudent.faculty,
         college: newStudent.college,
+        notes: newStudent.notes,
         date: newStudent.date || getTodayDateISO(),
         checkInTime: newStudent.checkInTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         duration: '0h 01m',
@@ -732,6 +770,7 @@ export class WorkspaceService {
       };
 
       this.activeStudentsState.update(list => [realSession, ...list]);
+      this.triggerLiveAlertsEvaluation();
       this.showToast(`تم تسجيل دخول الطالب "${realSession.name}" بنجاح!`, 'success');
     };
 
@@ -741,6 +780,10 @@ export class WorkspaceService {
     };
 
     const executeCheckIn = (studentGuid?: string) => {
+      if (studentGuid && /^[0-9a-fA-F-]{36}$/.test(studentGuid) && newStudent.notes) {
+        this.studentApi.updateStudent(studentGuid, { notes: newStudent.notes }).subscribe({ error: () => {} });
+      }
+
       const zone = newStudent.zone ?? (newStudent.roomName?.toLowerCase().includes('silent') ? 1 : 0);
       const payload = {
         studentId: studentGuid || null,
@@ -752,7 +795,8 @@ export class WorkspaceService {
         printing: newStudent.printingCount || 0,
         wallet: newStudent.walletAmount || 0,
         discount: newStudent.cost || 0,
-        note: newStudent.name
+        note: newStudent.notes || undefined,
+        notes: newStudent.notes || undefined
       };
 
       if (!studentGuid && newStudent.roomId) {
@@ -762,7 +806,7 @@ export class WorkspaceService {
           whatsapp: newStudent.whatsapp || newStudent.phone,
           facultyId: matchedFacultyId,
           roomId: newStudent.roomId,
-          notes: newStudent.name
+          notes: newStudent.notes
         }).subscribe({
           next: (created) => onCheckInSuccess(created, created?.studentId || undefined),
           error: () => {
@@ -805,7 +849,8 @@ export class WorkspaceService {
       roomId: newStudent.roomId || null,
       zone: newStudent.zone ?? (newStudent.roomName?.toLowerCase().includes('silent') ? 1 : 0),
       addedBy: newStudent.addedBy || this.shiftService.activeStaffName(),
-      printingPrice: newStudent.printingPrice || 2.0,
+      printingPrice: newStudent.printingPrice || 0,
+      notes: newStudent.notes,
       facultyId: matchedFacultyId
     }).subscribe({
       next: (createdStudent) => {
@@ -890,7 +935,7 @@ export class WorkspaceService {
 
     const completedStudent: ActiveStudentSession = {
       ...student,
-      date: student.date ? (isSameDayAsToday(student.date) ? student.date : today) : today,
+      date: student.date || today,
       checkOutDate: today,
       status: 'completed',
       checkOutTime: nowTime,
@@ -917,6 +962,7 @@ export class WorkspaceService {
     this.activeStudentsState.update(list => list.filter(s => s.id !== studentId));
     this.historyStudentsState.update(list => [completedStudent, ...list]);
     this.removeSessionCateringCache(studentId);
+    this.triggerLiveAlertsEvaluation();
 
     const receivedAmt = checkoutOptions?.amountReceived !== undefined ? checkoutOptions.amountReceived : (student.cost || 30);
     this.showToast(
@@ -1213,6 +1259,7 @@ export class WorkspaceService {
     const resolvedEmail = patch.email !== undefined ? patch.email : (merged.email || '');
     const resolvedCollege = patch.college !== undefined ? patch.college : (merged.college || '');
     const resolvedFaculty = patch.faculty !== undefined ? patch.faculty : (merged.faculty || '');
+    const resolvedNotes = patch.notes !== undefined ? patch.notes : (merged.notes || '');
     const resolvedStudentId = (patch as any).studentId || (merged as any).studentId || (/^[0-9a-fA-F-]{36}$/.test(targetId) && !this.activeStudentsState().some(s => s.id === targetId) ? targetId : (currentStudent as any)?.studentId || currentStudent?.id);
 
     // Update in-memory profile
@@ -1224,6 +1271,7 @@ export class WorkspaceService {
         email: resolvedEmail,
         college: resolvedCollege,
         faculty: resolvedFaculty,
+        notes: resolvedNotes,
         id: resolvedStudentId
       });
     }
@@ -1246,6 +1294,7 @@ export class WorkspaceService {
           email: resolvedEmail || undefined,
           college: resolvedCollege || undefined,
           university: resolvedCollege || undefined,
+          notes: resolvedNotes,
           facultyId: facultyId || undefined
         }).subscribe({
           next: (updated) => {
@@ -1298,12 +1347,71 @@ export class WorkspaceService {
     this.showToast('تم تحديث بيانات الطالب بنجاح!', 'success');
   }
 
+  /** Requirement 14: Edit active session time for Share / Silent students */
+  public updateSessionTime(sessionId: string, newCheckInTime: string, newExpectedCheckout?: string): void {
+    const session = this.activeStudentsState().find(s => s.id === sessionId);
+    if (!session) {
+      this.showToast('لم يتم العثور على الجلسة الحالية', 'error');
+      return;
+    }
+
+    const timeFromIso = parseSessionTimeToDate(newCheckInTime, session.date).toISOString();
+    const timeToIso = newExpectedCheckout ? parseSessionTimeToDate(newExpectedCheckout, session.date).toISOString() : null;
+
+    if (sessionId && /^[0-9a-fA-F-]{36}$/.test(sessionId)) {
+      this.api.updateSession(sessionId, {
+        timeFrom: timeFromIso,
+        timeTo: timeToIso
+      }).subscribe({
+        next: () => {
+          this.activeStudentsState.update(list => list.map(s => {
+            if (s.id === sessionId) {
+              return {
+                ...s,
+                checkInTime: newCheckInTime,
+                expectedCheckout: newExpectedCheckout || s.expectedCheckout
+              };
+            }
+            return s;
+          }));
+          this.showToast('تم تعديل وقت الجلسة بنجاح والتحديث على السيرفر!', 'success');
+        },
+        error: (err) => {
+          this.activeStudentsState.update(list => list.map(s => {
+            if (s.id === sessionId) {
+              return {
+                ...s,
+                checkInTime: newCheckInTime,
+                expectedCheckout: newExpectedCheckout || s.expectedCheckout
+              };
+            }
+            return s;
+          }));
+          this.showToast(`تم تعديل الوقت: ${err?.message || ''}`, 'info');
+        }
+      });
+    } else {
+      this.activeStudentsState.update(list => list.map(s => {
+        if (s.id === sessionId) {
+          return {
+            ...s,
+            checkInTime: newCheckInTime,
+            expectedCheckout: newExpectedCheckout || s.expectedCheckout
+          };
+        }
+        return s;
+      }));
+      this.showToast('تم تعديل وقت الجلسة محلياً!', 'info');
+    }
+  }
+
   deleteStudent(id: string): void {
     const student = this.activeStudentsState().find(s => s.id === id) || this.historyStudentsState().find(s => s.id === id);
 
     this.activeStudentsState.update(list => list.filter(s => s.id !== id));
     this.historyStudentsState.update(list => list.filter(s => s.id !== id));
     this.removeSessionCateringCache(id);
+    this.triggerLiveAlertsEvaluation();
 
     if (student) {
       this.showToast(`تم حذف جلسة الطالب "${student.name}" بنجاح!`, 'info');
@@ -1550,6 +1658,7 @@ export class WorkspaceService {
       email: email,
       faculty: faculty,
       college: college,
+      notes: profile?.notes || dto.notes || (dto.note && dto.note !== '-' ? dto.note : '') || (student as any)?.notes || '',
       date: sessionDate,
       checkInTime: formattedTime,
       checkOutTime: checkoutTimeStr,
@@ -1559,12 +1668,12 @@ export class WorkspaceService {
       status: isAct ? 'active' : 'completed',
       cateringTotal: resolvedCatering > 0 ? +Number(resolvedCatering).toFixed(2) : undefined,
       cateringItems: resolvedItems.length > 0 ? resolvedItems : undefined,
-      printingCount: dto.printing || 0,
+      printingCount: Number(dto.printing || 0),
       walletAmount: dto.wallet || 0,
       roomId: dto.roomId || undefined,
       roomName: dto.roomName || (dto.zone === 1 ? 'Silent Room' : (dto.roomId ? 'Shared Room' : undefined)),
       addedBy: dto.addedBy || dto.createdBy || dto.userName || undefined,
-      printingPrice: dto.printingPrice || undefined
+      printingPrice: dto.printingPrice ?? (dto.printing && dto.printing > 0 ? dto.printing : undefined)
     };
   }
 

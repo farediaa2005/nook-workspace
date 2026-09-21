@@ -8,10 +8,15 @@ import { WorkspaceService } from '../../../core/services/workspace.service';
 import { ClassroomCard, PaymentMethod } from '../../../core/models/classroom.model';
 import { PackageItem } from '../../../core/models/package.model';
 
+import { CheckoutSuccessModalComponent } from '../../../shared/components/checkout-success-modal/checkout-success-modal.component';
+import { InvoiceService } from '../../../core/services/invoice.service';
+import { AuditService } from '../../../core/services/audit.service';
+import { InvoiceData } from '../../../core/models/invoice.model';
+
 @Component({
   selector: 'app-classroom-checkout',
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, CheckoutSuccessModalComponent],
   templateUrl: './checkout.component.html',
   styleUrl: './checkout.component.css'
 })
@@ -20,8 +25,12 @@ export class ClassroomCheckoutComponent implements OnInit {
   private classroomService = inject(ClassroomService);
   private packageService = inject(PackageService);
   private workspaceService = inject(WorkspaceService);
+  private invoiceService = inject(InvoiceService);
+  private auditService = inject(AuditService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+
+  completedInvoice = signal<InvoiceData | null>(null);
 
   t = this.langService.t;
   isArabic = this.langService.isArabic;
@@ -275,7 +284,105 @@ export class ClassroomCheckoutComponent implements OnInit {
         packageId: isPkg && matchedPkg ? matchedPkg.id : undefined
       }).subscribe({
         next: () => {
-          this.router.navigate(['/classroom/show-classroom']);
+          // Log audit event
+          this.auditService.log(
+            'CheckedOut',
+            'Classroom',
+            card.id,
+            `إنهاء حجز قاعة ${card.name} بمبلغ ${finalAmt.toFixed(2)} ج.م (${this.selectedPaymentMethod()})`,
+            {
+              newValues: {
+                finalAmount: finalAmt,
+                paymentMethod: this.selectedPaymentMethod(),
+                durationHours: this.durationHours()
+              }
+            }
+          );
+
+          // Calculate session actual duration & comparison
+          const checkIn = card.startTime || '10:00 AM';
+          const now12h = this.classroomService.convertMinutesTo12h(new Date().getHours() * 60 + new Date().getMinutes());
+          const checkOut = card.endTime || now12h;
+          const durationDetails = this.classroomService.calculateSessionDurationDetails(
+            checkIn,
+            checkOut,
+            this.durationHours(),
+            this.isArabic()
+          );
+
+          // Get itemized catering breakdown
+          const itemizedCatering = this.classroomService.getItemizedCateringList(
+            card,
+            undefined,
+            this.cateringAmount(),
+            this.isArabic()
+          );
+
+          const cateringLineItems = itemizedCatering.map(it => ({
+            description: it.name,
+            quantity: it.quantity,
+            unitPrice: it.unitPrice,
+            totalPrice: it.totalPrice,
+            type: 'catering' as const
+          }));
+
+          // Build invoice data
+          const invoice: InvoiceData = {
+            invoiceNumber: this.invoiceService.generateInvoiceNumber('INV-CLS'),
+            issueDate: new Date().toLocaleDateString(this.isArabic() ? 'ar-EG' : 'en-US', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            clientType: 'Instructor',
+            clientName: card.instructor || (card as any).instructorName || (this.isArabic() ? 'محاضر' : 'Instructor'),
+            clientIdentifier: (card as any).instructorPhoneNumber || (card as any).phone || '',
+            roomOrDesk: card.name,
+            activity: card.activity,
+            checkInTime: checkIn,
+            checkOutTime: checkOut,
+            durationFormatted: durationDetails.billedDurationFormatted,
+            actualDurationFormatted: durationDetails.actualDurationFormatted,
+            actualMinutesSpent: durationDetails.actualMinutes,
+            billedDurationFormatted: durationDetails.billedDurationFormatted,
+            durationDifferenceText: durationDetails.differenceText,
+            cateringItemsBreakdown: itemizedCatering,
+            lineItems: [
+              {
+                description: `${this.isArabic() ? 'إيجار القاعة' : 'Room Rental'} - ${card.name}`,
+                quantity: this.durationHours(),
+                unitPrice: this.roomRate(),
+                totalPrice: this.roomRentalTotal(),
+                type: 'room'
+              },
+              ...cateringLineItems,
+              ...(this.printingAmount() > 0
+                ? [
+                    {
+                      description: this.isArabic() ? 'خدمات الطباعة' : 'Printing Services',
+                      quantity: 1,
+                      unitPrice: this.printingAmount(),
+                      totalPrice: this.printingAmount(),
+                      type: 'printing' as const
+                    }
+                  ]
+                : [])
+            ],
+            subtotal: this.roomRentalTotal() + this.cateringAmount() + this.printingAmount(),
+            discountAmount: this.loyaltyDiscount(),
+            cateringAmount: this.cateringAmount(),
+            printingAmount: this.printingAmount(),
+            taxAmount: 0,
+            finalTotal: finalAmt,
+            amountReceived: received,
+            changeDue: this.changeDue(),
+            paymentMethod: this.selectedPaymentMethod(),
+            cashierName: this.isArabic() ? 'كاشير الوردية' : 'Shift Cashier'
+          };
+
+          this.completedInvoice.set(invoice);
         },
         error: (err) => {
           console.error('Failed to checkout room:', err);
@@ -285,5 +392,10 @@ export class ClassroomCheckoutComponent implements OnInit {
     } else {
       this.router.navigate(['/classroom/show-classroom']);
     }
+  }
+
+  onCheckoutSuccessClose(): void {
+    this.completedInvoice.set(null);
+    this.router.navigate(['/classroom/show-classroom']);
   }
 }

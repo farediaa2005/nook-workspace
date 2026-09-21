@@ -280,31 +280,32 @@
       </form>
     }
 
-    <!-- Divider -->
-    <div class="divi">{{ t().loginFollowUs }}</div>
-
-    <!-- Social Buttons -->
-    <div class="sso">
-      <a class="ssobtn" href="https://www.instagram.com/nook.space" target="_blank" rel="noopener" aria-label="NOOK on Instagram">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
-          <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
-          <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
-        </svg>
-        <span>Instagram</span>
-      </a>
-
-      <a class="ssobtn" href="https://www.tiktok.com/@nook.space" target="_blank" rel="noopener" aria-label="NOOK on TikTok">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/>
-        </svg>
-        <span>TikTok</span>
-      </a>
-    </div>
-
     <!-- Footer Tagline -->
     <div class="foot">
       <div class="tag">{{ t().loginTagline }}</div>
+
+      <!-- Kernel Panic IT Team Attribution -->
+      <a
+        href="https://itkernelpanic.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="login-attribution-badge"
+        [title]="'Kernel Panic IT Team - https://itkernelpanic.com'"
+      >
+        <span class="attribution-label">{{ t().developedBy }}</span>
+        <div class="attribution-brand-lockup">
+          <div class="attribution-logo-pill">
+            <img src="/images/kp-mark-dark.png" alt="KP" class="attribution-logo logo-dark" />
+            <img src="/images/kp-mark-light.png" alt="KP" class="attribution-logo logo-light" />
+          </div>
+          <span class="attribution-name">Kernel Panic</span>
+          <span class="attribution-tag">IT</span>
+        </div>
+        <svg viewBox="0 0 24 24" fill="none" class="attribution-arrow" aria-hidden="true">
+          <line x1="7" y1="17" x2="17" y2="7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="7 7 17 7 17 17" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
     </div>
   </div>
 </div>

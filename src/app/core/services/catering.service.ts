@@ -17,6 +17,7 @@ import { ClassroomService } from './classroom.service';
 import { ShiftService } from './shift.service';
 import { parseIsoToLocalDate, parseIsoToLocalDateObj } from '../utils/date-time.util';
 import { resolveImageUrl } from '../utils/image-url.util';
+import { NotificationService } from './notification.service';
 
 export const DEFAULT_CATEGORIES: { value: string; labelEn: string; labelAr: string }[] = [
   { value: 'Snacks', labelEn: 'Snacks', labelAr: 'سناكس ومخبوزات' },
@@ -123,6 +124,15 @@ export class CateringService {
   private productApi = inject(ProductApiService);
   private authService = inject(AuthService);
   private injector = inject(Injector);
+
+  public triggerLiveAlertsEvaluation(): void {
+    try {
+      const notif = this.injector.get<any>(NotificationService as any, null);
+      if (notif && typeof notif.evaluateLiveAlerts === 'function') {
+        notif.evaluateLiveAlerts();
+      }
+    } catch {}
+  }
 
   // Private State Signals
   private productsState = signal<CateringProduct[]>([]);
@@ -439,6 +449,7 @@ export class CateringService {
       map(dtoList => {
         const mapped = (dtoList || []).map(dto => this.mapDtoToProduct(dto));
         this.productsState.set(mapped);
+        this.triggerLiveAlertsEvaluation();
         this.isLoadingState.set(false);
         return mapped;
       }),
@@ -683,6 +694,7 @@ export class CateringService {
         if (input.reorderLevel !== undefined) product.reorderLevel = input.reorderLevel;
 
         this.productsState.update(list => [product, ...list.filter(p => p.id !== product.id)]);
+        this.triggerLiveAlertsEvaluation();
         return product;
       })
     );
@@ -764,6 +776,7 @@ export class CateringService {
           product.image = '';
         }
         this.productsState.update(list => list.map(p => p.id === product.id ? product : p));
+        this.triggerLiveAlertsEvaluation();
         return product;
       })
     );
@@ -776,6 +789,7 @@ export class CateringService {
     return this.productApi.deleteProduct(id).pipe(
       tap(() => {
         this.productsState.update(list => list.filter(p => p.id !== id));
+        this.triggerLiveAlertsEvaluation();
       })
     );
   }
@@ -834,6 +848,7 @@ export class CateringService {
         };
       });
     });
+    this.triggerLiveAlertsEvaluation();
 
     // 3. Update manual payment breakdown statistics
     this._manualPaymentBreakdown.update(pb => {

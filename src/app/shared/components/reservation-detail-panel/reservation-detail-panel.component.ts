@@ -22,7 +22,8 @@ export class ReservationDetailPanelComponent {
   closePanel = output<void>();
   editReservation = output<AdminReservation>();
   checkoutReservation = output<AdminReservation>();
- 
+  deleteReservation = output<AdminReservation>();
+
   onClose(): void {
     this.closePanel.emit();
   }
@@ -38,6 +39,13 @@ export class ReservationDetailPanelComponent {
     const res = this.reservation();
     if (res && !this.isCompleted()) {
       this.checkoutReservation.emit(res);
+    }
+  }
+
+  onDelete(): void {
+    const res = this.reservation();
+    if (res) {
+      this.deleteReservation.emit(res);
     }
   }
 

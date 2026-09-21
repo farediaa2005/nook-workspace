@@ -45,9 +45,14 @@ describe('LanguageService', () => {
 
     service.setLanguage('ar');
     expect(service.formatDurationLocale('2h 15m')).toBe('2 س 15 د');
+    expect(service.formatDurationLocale('114 س 42 د')).toBe('4 يوم 18 س 42 د');
+    expect(service.formatDurationLocale('114h 42m')).toBe('4 يوم 18 س 42 د');
+    expect(service.formatDurationLocale('26h 10m')).toBe('1 يوم 2 س 10 د');
 
     service.setLanguage('en');
     expect(service.formatDurationLocale('2 س 15 د')).toBe('2h 15m');
+    expect(service.formatDurationLocale('114 س 42 د')).toBe('4d 18h 42m');
+    expect(service.formatDurationLocale('4 يوم 18 س 42 د')).toBe('4d 18h 42m');
   });
 
   it('should format relative dates correctly based on active language', () => {

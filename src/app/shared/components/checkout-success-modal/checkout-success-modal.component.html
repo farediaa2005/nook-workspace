@@ -1,0 +1,152 @@
+<div class="modal-backdrop" (click)="onClose()">
+  <div class="modal-card" (click)="$event.stopPropagation()">
+    <!-- Top Status Banner -->
+    <div class="success-banner">
+      <div class="success-icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      </div>
+      <h3 class="success-title">{{ t().checkoutSuccessTitle }}</h3>
+      <p class="invoice-number-tag">{{ invoiceData().invoiceNumber }}</p>
+    </div>
+
+    <!-- Summary Details Grid -->
+    <div class="details-grid">
+      <div class="grid-cell">
+        <span class="cell-label">{{ isArabic() ? 'القاعة' : 'Classroom' }}</span>
+        <span class="cell-value cell-value--room">{{ invoiceData().roomOrDesk }}</span>
+      </div>
+      <div class="grid-cell">
+        <span class="cell-label">{{ t().studentOrInstructor }}</span>
+        <span class="cell-value">{{ invoiceData().clientName }}</span>
+      </div>
+      @if (invoiceData().clientIdentifier) {
+        <div class="grid-cell">
+          <span class="cell-label">{{ isArabic() ? 'رقم الهاتف' : 'Phone' }}</span>
+          <span class="cell-value" dir="ltr">{{ invoiceData().clientIdentifier }}</span>
+        </div>
+      }
+      @if (invoiceData().activity) {
+        <div class="grid-cell">
+          <span class="cell-label">{{ isArabic() ? 'النشاط / المادة' : 'Activity' }}</span>
+          <span class="cell-value">{{ invoiceData().activity }}</span>
+        </div>
+      }
+      <div class="grid-cell">
+        <span class="cell-label">{{ isArabic() ? 'فترة الجلسة' : 'Period' }}</span>
+        <span class="cell-value" dir="ltr">{{ invoiceData().checkInTime }} - {{ invoiceData().checkOutTime }}</span>
+      </div>
+      <div class="grid-cell grid-cell--highlight">
+        <span class="cell-label">⏱️ {{ isArabic() ? 'المدة الفعلية المستغرقة' : 'Actual Duration' }}</span>
+        <span class="cell-value cell-value--actual">{{ invoiceData().actualDurationFormatted || invoiceData().durationFormatted }}</span>
+        @if (invoiceData().durationDifferenceText) {
+          <span class="cell-subtext">{{ invoiceData().durationDifferenceText }}</span>
+        }
+      </div>
+      <div class="grid-cell">
+        <span class="cell-label">{{ isArabic() ? 'المدة المحسوبة' : 'Billed Duration' }}</span>
+        <span class="cell-value">{{ invoiceData().billedDurationFormatted || invoiceData().durationFormatted }}</span>
+      </div>
+    </div>
+
+    <!-- Financial Breakdown Table -->
+    <div class="financial-breakdown">
+      <div class="breakdown-row">
+        <span>{{ t().roomRentalCost }}</span>
+        <span>{{ (invoiceData().subtotal - invoiceData().cateringAmount - invoiceData().printingAmount).toFixed(2) }} {{ isArabic() ? 'ج.م' : 'EGP' }}</span>
+      </div>
+
+      @if (invoiceData().cateringAmount > 0) {
+        <div class="breakdown-row breakdown-row--catering">
+          <span class="catering-title-box">
+            <span>☕</span>
+            <span>{{ t().cateringTotalLabel }}</span>
+          </span>
+          <span class="catering-amount-sum">+{{ invoiceData().cateringAmount.toFixed(2) }} {{ isArabic() ? 'ج.م' : 'EGP' }}</span>
+        </div>
+
+        @if (cateringItems().length > 0) {
+          <div class="catering-breakdown-box">
+            @for (item of cateringItems(); track $index) {
+              <div class="catering-item-line">
+                <span class="item-name-qty">
+                  <span class="item-bullet">•</span>
+                  <span class="item-name">{{ item.description }}</span>
+                  <span class="item-qty-tag">× {{ item.quantity }}</span>
+                </span>
+                <span class="item-calc">
+                  <span class="item-unit-tag">({{ item.unitPrice.toFixed(2) }} / قطعة)</span>
+                  <span class="item-total-tag">{{ item.totalPrice.toFixed(2) }} {{ isArabic() ? 'ج.م' : 'EGP' }}</span>
+                </span>
+              </div>
+            }
+          </div>
+        }
+      }
+
+      @if (invoiceData().printingAmount > 0) {
+        <div class="breakdown-row">
+          <span>{{ t().printingTotalLabel }}</span>
+          <span>+{{ invoiceData().printingAmount.toFixed(2) }} {{ isArabic() ? 'ج.م' : 'EGP' }}</span>
+        </div>
+      }
+
+      @if (invoiceData().discountAmount > 0) {
+        <div class="breakdown-row breakdown-row--discount">
+          <span>{{ t().appliedDiscount }}</span>
+          <span>-{{ invoiceData().discountAmount.toFixed(2) }} {{ isArabic() ? 'ج.م' : 'EGP' }}</span>
+        </div>
+      }
+
+      <div class="breakdown-row breakdown-row--total">
+        <span>{{ t().finalAmountDue }}</span>
+        <span class="grand-total-amount">{{ invoiceData().finalTotal.toFixed(2) }} {{ isArabic() ? 'ج.م' : 'EGP' }}</span>
+      </div>
+
+      <div class="breakdown-row breakdown-row--payment">
+        <span class="payment-method-badge">{{ invoiceData().paymentMethod }}</span>
+        <span class="change-text">
+          {{ t().changeDueLabel }}: <strong>{{ invoiceData().changeDue.toFixed(2) }} {{ isArabic() ? 'ج.م' : 'EGP' }}</strong>
+        </span>
+      </div>
+    </div>
+
+    <!-- Print Question Prompt -->
+    <div class="prompt-box">
+      <div class="printer-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6 9 6 2 18 2 18 9" />
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+          <rect width="12" height="8" x="6" y="14" />
+        </svg>
+      </div>
+      <p class="prompt-text">{{ t().printInvoiceQuestion }}</p>
+    </div>
+
+    <!-- Actions -->
+    <div class="modal-actions">
+      <button class="btn btn--print" (click)="onPrint()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6 9 6 2 18 2 18 9" />
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+          <rect width="12" height="8" x="6" y="14" />
+        </svg>
+        <span>{{ t().printInvoiceBtn }}</span>
+      </button>
+
+      <button class="btn btn--close" (click)="onClose()">
+        <span>{{ t().closeBtn }}</span>
+      </button>
+    </div>
+
+    <!-- Kernel Panic Attribution Footnote -->
+    <div class="modal-team-footnote">
+      <span>{{ t().poweredByTeam }}</span>
+      <div class="team-footnote-logo">
+        <img src="/images/kernel-panic-dark.png" alt="Kernel Panic IT Team" class="logo-dark" />
+        <img src="/images/kernel-panic-light.png" alt="Kernel Panic IT Team" class="logo-light" />
+      </div>
+    </div>
+  </div>
+</div>

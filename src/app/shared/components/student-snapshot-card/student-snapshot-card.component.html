@@ -1,0 +1,56 @@
+<div class="snapshot-popover" (click)="$event.stopPropagation()">
+  <div class="snapshot-header">
+    <div class="avatar-circle">
+      {{ getInitials() }}
+    </div>
+    <div class="student-meta">
+      <div class="name-row">
+        <h4 class="student-name">{{ student().name }}</h4>
+        @if (student().isBlacklisted) {
+          <span class="badge badge--danger">{{ isArabic() ? 'محظور' : 'Blacklisted' }}</span>
+        } @else {
+          <span class="badge badge--active">{{ isArabic() ? 'نشط' : 'Active' }}</span>
+        }
+      </div>
+      <span class="college-sub">{{ student().college || (isArabic() ? 'طالب عام' : 'General Student') }}</span>
+    </div>
+    <button class="close-btn" (click)="close.emit()" title="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 6 6 18M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+
+  <div class="snapshot-stats-grid">
+    <div class="stat-box">
+      <span class="stat-label">{{ isArabic() ? 'رصيد المحفظة' : 'Wallet' }}</span>
+      <span class="stat-value" [class.negative]="(student().walletBalance || 0) < 0">
+        {{ (student().walletBalance || 0).toFixed(2) }} {{ isArabic() ? 'ج.م' : 'EGP' }}
+      </span>
+    </div>
+
+    <div class="stat-box">
+      <span class="stat-label">{{ isArabic() ? 'مدة الجلسة' : 'Current Session' }}</span>
+      <span class="stat-value">{{ student().duration || '00:00' }}</span>
+    </div>
+
+    <div class="stat-box">
+      <span class="stat-label">{{ isArabic() ? 'إجمالي الزيارات' : 'Visits' }}</span>
+      <span class="stat-value">{{ student().visits || 12 }}</span>
+    </div>
+
+    <div class="stat-box">
+      <span class="stat-label">{{ isArabic() ? 'ساعات الحضور' : 'Hours' }}</span>
+      <span class="stat-value">{{ student().hours || 48.5 }} {{ isArabic() ? 'س' : 'h' }}</span>
+    </div>
+  </div>
+
+  <div class="snapshot-footer">
+    <button class="view-profile-btn" (click)="viewFullProfile.emit(student().id)">
+      <span>{{ isArabic() ? 'عرض ملف الطالب الكامل والتحليلات' : 'View Full Profile & Analytics' }}</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M5 12h14M12 5l7 7-7 7" />
+      </svg>
+    </button>
+  </div>
+</div>

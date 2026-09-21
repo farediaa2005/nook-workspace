@@ -99,8 +99,9 @@ export class ShowInstructorPackageComponent implements OnInit {
     ];
   });
 
-  // Validity options restricted strictly to: [15 يوم, 30 يوم, 60 يوم, مخصص حر]
+  // Validity options: [7 أيام (أسبوع), 15 يوم, 30 يوم, 60 يوم, مخصص حر]
   validityPresets = signal([
+    { id: 'val-7', days: 7 as const, labelAr: '7 أيام (أسبوع)', labelEn: '7 Days (1 Week)' },
     { id: 'val-15', days: 15 as const, labelAr: '15 يوم', labelEn: '15 Days' },
     { id: 'val-30', days: 30 as const, labelAr: '30 يوم', labelEn: '30 Days' },
     { id: 'val-60', days: 60 as const, labelAr: '60 يوم', labelEn: '60 Days' },

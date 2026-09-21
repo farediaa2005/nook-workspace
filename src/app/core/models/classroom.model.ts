@@ -145,6 +145,11 @@ export interface UpdateClassroomDto {
   note?: string | null;
   instructorId?: string | null;
   // UI convenience
+  instructorName?: string;
+  instructorPhone?: string;
+  instructorEmail?: string;
+  hourlyRate?: number;
+  printingCharges?: number;
   startTime?: string;
   endTime?: string;
   shiftId?: string | null;
@@ -197,6 +202,9 @@ export interface ReservationDto {
   reservationCost?: number;
   activity?: string | null;
   note?: string | null;
+  notes?: string | null;
+  phoneNumber?: string | null;
+  phone?: string | null;
   instructorId?: string | null;
   instructorName?: string | null;
   instructorPhone?: string | null;
@@ -224,20 +232,26 @@ export interface CreateReservationDto {
   reservationCost?: number;
   activity?: string | null;
   note?: string | null;
+  notes?: string | null;
+  phoneNumber?: string | null;
+  phone?: string | null;
   instructorId?: string | null;
   recurrenceFrequency?: RecurrenceFrequency | number | null;
   recurrenceInterval?: number;
   daysOfWeek?: number[] | string | null;
   totalSessions?: number | null;
   isOngoing?: boolean;
-  // UI convenience
   instructorName?: string;
   instructorPhone?: string;
+  email?: string | null;
+  instructorEmail?: string | null;
   roomName?: string;
 }
 
 /** Update reservation request — PUT /api/Reservations/{id} */
-export interface UpdateReservationDto extends Partial<CreateReservationDto> {}
+export interface UpdateReservationDto extends Partial<CreateReservationDto> {
+  id?: string;
+}
 
 /** Standalone Reservation Conflict Check Request — POST /api/Reservations/check-conflict */
 export interface CheckReservationConflictDto {
@@ -246,12 +260,12 @@ export interface CheckReservationConflictDto {
   dateTo?: string;
   timeFrom: string;
   timeTo: string;
+  excludeReservationId?: string | null;
   recurrenceFrequency?: RecurrenceFrequency | number;
   recurrenceInterval?: number;
   daysOfWeek?: number[];
   totalSessions?: number;
   isOngoing?: boolean;
-  excludeReservationId?: string | null;
 }
 
 /** Individual Conflict Details */
@@ -386,6 +400,7 @@ export interface Classroom {
 /** Live Board Classroom Card entity */
 export interface ClassroomCard {
   id: string;
+  reservationId?: string;
   roomId?: string;
   instructorId?: string;
   name: string;
@@ -507,8 +522,15 @@ export interface AdminReservation {
   occurrenceDate?: string;
   displayId: string;
   instructor: string;
+  instructorId?: string | null;
   instructorTitle?: string;
   instructorAvatar?: string;
+  phoneNumber?: string | null;
+  instructorPhone?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  instructorEmail?: string | null;
+  notes?: string | null;
   activity: string;
   classroom: string;
   capacity?: number;

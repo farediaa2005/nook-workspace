@@ -246,6 +246,15 @@
               <!-- Actions (Only Edit and Delete) -->
               <td class="col-actions">
                 <div class="actions-group">
+                  <!-- Analytics Button -->
+                  <button type="button" class="btn-action-icon btn-analytics-icon" (click)="openAnalytics(student)" [title]="isArabic() ? 'عرض تحليلات وسجل الطالب' : 'View Student Analytics'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="18" y1="20" x2="18" y2="10"/>
+                      <line x1="12" y1="20" x2="12" y2="4"/>
+                      <line x1="6" y1="20" x2="6" y2="14"/>
+                    </svg>
+                  </button>
+
                   <button type="button" class="btn-action-icon" (click)="openEditModal(student)" [title]="isArabic() ? 'تعديل بيانات الطالب' : 'Edit Student'">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -448,5 +457,13 @@
         </div>
       </div>
     </div>
+  }
+
+  @if (selectedStudentForAnalytics()) {
+    <app-student-analytics-modal
+      [studentId]="selectedStudentForAnalytics()!.id"
+      [studentName]="selectedStudentForAnalytics()!.name"
+      (close)="closeAnalytics()"
+    />
   }
 </div>

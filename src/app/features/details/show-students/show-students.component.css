@@ -930,3 +930,47 @@ app-primary-button.students-add-btn,
     grid-column: 1 / -1 !important;
   }
 }
+
+/* Action Buttons & Analytics Icon */
+.actions-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-action-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--surface, #ffffff);
+  color: var(--text-secondary, #64748b);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-action-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.btn-action-icon:hover {
+  background: var(--surface-2, #f1f5f9);
+  color: var(--text, #0f172a);
+}
+
+.btn-analytics-icon:hover {
+  background: rgba(13, 148, 136, 0.12) !important;
+  color: #0d9488 !important;
+  border-color: rgba(13, 148, 136, 0.3) !important;
+}
+
+.btn-delete-icon:hover {
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: #ef4444 !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+

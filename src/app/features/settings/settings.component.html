@@ -49,6 +49,16 @@
       <span>{{ t().rolesAndPermissionsTab }}</span>
     </button>
 
+    <button type="button" class="tab-btn tab-btn--team" [class.tab-btn--active]="activeTab() === 'team'" (click)="setTab('team')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+      <span>{{ t().aboutTeamTitle }}</span>
+    </button>
+
     <a routerLink="/settings/discounts" class="tab-btn" style="text-decoration: none; color: inherit;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
         <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
@@ -380,6 +390,91 @@
           }
         </tbody>
       </table>
+    </div>
+  </div>
+  }
+
+  <!-- TAB 5: About System & Kernel Panic IT Team -->
+  @if (activeTab() === 'team') {
+  <div class="team-showcase-card">
+    <div class="team-showcase-hero">
+      <div class="team-hero-logo-container">
+        <img src="/images/kernel-panic-dark.png" alt="Kernel Panic IT Team" class="team-hero-img logo-dark" />
+        <img src="/images/kernel-panic-light.png" alt="Kernel Panic IT Team" class="team-hero-img logo-light" />
+      </div>
+      <div class="team-hero-details">
+        <div class="team-hero-badge-pill">
+          <span class="pulse-dot"></span>
+          <span>{{ isArabic() ? 'فريق الهندسة والبرمجيات المعتمد' : 'Official Software Engineering Team' }}</span>
+        </div>
+        <h2 class="team-hero-title">KERNEL PANIC IT TEAM</h2>
+        <p class="team-hero-subtitle">
+          {{ isArabic() 
+            ? 'تصميم وتطوير وهندسة منصة NOOK Workspace لإدارة مساحات العمل المشتركة والقاعات التعليمية بأعلى معايير الدقة والسرعة والاعتمادية.' 
+            : 'Design, architecture and development of the NOOK Workspace platform. Delivering modern, reactive, high-performance management systems for educational spaces and coworking environments.' }}
+        </p>
+        <div class="team-hero-actions">
+          <a
+            href="https://itkernelpanic.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn-visit-agency"
+          >
+            <span>{{ isArabic() ? 'زيارة الموقع الرسمي للفريق (itkernelpanic.com)' : 'Visit Official Website (itkernelpanic.com)' }}</span>
+            <svg viewBox="0 0 24 24" fill="none" class="btn-arrow-svg">
+              <line x1="7" y1="17" x2="17" y2="7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+              <polyline points="7 7 17 7 17 17" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tech Stack & Highlights Grid -->
+    <div class="team-highlights-grid">
+      <div class="team-highlight-card">
+        <div class="highlight-icon-box">⚡</div>
+        <h4 class="highlight-title">{{ isArabic() ? 'بنية معمارية تفاعلية فائقة' : 'High-Performance Reactive Engine' }}</h4>
+        <p class="highlight-desc">
+          {{ isArabic() ? 'نظام متكامل مبني بأحدث تقنيات Angular الحديثة وإشارات السيجنالز لمعالجة حية وسريعة لكافة العمليات.' : 'State-of-the-art Angular reactive signals architecture for real-time responsiveness and instant updates.' }}
+        </p>
+      </div>
+
+      <div class="team-highlight-card">
+        <div class="highlight-icon-box">🛡️</div>
+        <h4 class="highlight-title">{{ isArabic() ? 'إدارة مالية وتدقيق متقدم' : 'Precision Financial Audit' }}</h4>
+        <p class="highlight-desc">
+          {{ isArabic() ? 'تصفية شفتات مجمعة متعددة القنوات (نقدي، فودافون كاش، إنستاباي، فوري) مع تدقيق دقيق للأرصدة والفواتير.' : 'Multi-channel shift reconciliation with zero-discrepancy precision and comprehensive audit trails.' }}
+        </p>
+      </div>
+
+      <div class="team-highlight-card">
+        <div class="highlight-icon-box">🎨</div>
+        <h4 class="highlight-title">{{ isArabic() ? 'واجهة مستخدم احترافية' : 'Premium Ergonomic UX' }}</h4>
+        <p class="highlight-desc">
+          {{ isArabic() ? 'تصميم بصري متطور يدعم الوضعين الليلي والنهاري بشكل ديناميكي مع توافق ثنائي اللغة (عربي / إنجليزي).' : 'Bilingual RTL/LTR interface with curated dark/light palettes, micro-animations, and responsive layout.' }}
+        </p>
+      </div>
+    </div>
+
+    <!-- System Version & Credits Footer -->
+    <div class="team-card-footer">
+      <div class="system-meta-info">
+        <span class="meta-tag"><strong>Platform:</strong> NOOK Workspace OS</span>
+        <span class="meta-tag"><strong>Version:</strong> v2.4.0 Pro</span>
+        <span class="meta-tag"><strong>Release:</strong> Enterprise Edition</span>
+        <span class="meta-tag"><strong>Status:</strong> Stable & Verified</span>
+      </div>
+      <div class="team-signature">
+        <span>{{ t().engineeredBy }}</span>
+        <a href="https://itkernelpanic.com" target="_blank" rel="noopener noreferrer" class="signature-link">
+          <strong>Kernel Panic IT Team</strong>
+          <svg viewBox="0 0 24 24" fill="none" width="13" height="13">
+            <line x1="7" y1="17" x2="17" y2="7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline points="7 7 17 7 17 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
+      </div>
     </div>
   </div>
   }

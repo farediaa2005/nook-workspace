@@ -42,6 +42,9 @@ export interface StudentDirectoryItem {
   email: string;
   faculty: string;
   college: string;
+  university?: string;
+  notes?: string;
+  seatingType?: 'Share' | 'Silent' | 'Shared' | string;
   currentStatus: 'active' | 'offline' | 'blocked';
   activeSession?: ActiveStudentSession;
   packageInfo?: {
@@ -54,6 +57,7 @@ export interface StudentDirectoryItem {
     status?: string;
   };
   totalVisits: number;
+  totalHours?: number;
   lastVisitDate?: string;
   lastVisitTime?: string;
   totalSpent: number;
@@ -121,6 +125,40 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   formatDuration = (str?: string) => this.langService.formatDurationLocale(str);
   formatName = (str?: string) => this.langService.formatNameLocale(str);
 
+  getStudentSeatingType(student?: { seatingType?: string; zone?: number; roomName?: string; activeSession?: any; currentStatus?: string; status?: string } | null): 'Shared' | 'Silent' | null {
+    if (!student) return null;
+    if (student.activeSession) {
+      const isSilent = student.activeSession.zone === 1 || (student.activeSession.roomName && student.activeSession.roomName.toLowerCase().includes('silent'));
+      return isSilent ? 'Silent' : 'Shared';
+    }
+    // Seating is strictly for active sessions in workspace
+    const isActive = student.currentStatus === 'active' || student.status === 'active' || (student as any).inWorkspace;
+    if (isActive) {
+      if (student.seatingType === 'Silent' || student.zone === 1 || (student.roomName && student.roomName.toLowerCase().includes('silent'))) {
+        return 'Silent';
+      }
+      return 'Shared';
+    }
+    // If student is offline, they are not seated anywhere in the workspace
+    return null;
+  }
+
+  getStudentVisitStats(student?: any): { visits: number; hours: number } {
+    if (!student) return { visits: 1, hours: 2 };
+    const map = this.studentVisitStatsMap();
+    const phone = (student.phone || '').trim();
+    const name = (student.name || '').trim().toLowerCase();
+    const id = student.id;
+    const studentId = (student as any).studentId;
+
+    if (id && map.has(id)) return map.get(id)!;
+    if (studentId && map.has(studentId)) return map.get(studentId)!;
+    if (phone && map.has(phone)) return map.get(phone)!;
+    if (name && map.has(name)) return map.get(name)!;
+
+    return { visits: 1, hours: 2 };
+  }
+
   getStudentAvatar(student: { avatar?: string; name: string } | null | undefined): string {
     if (!student) return generateAvatarSvg('طالب');
     return getSafeAvatar(student.avatar, student.name);
@@ -129,8 +167,19 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   onAvatarError(event: Event, name?: string): void {
     const img = event.target as HTMLImageElement;
     if (img) {
+      img.onerror = null;
       img.src = generateAvatarSvg(name || 'طالب');
     }
+  }
+
+  shouldShowStudentNote(student: { notes?: string; name?: string } | null | undefined): boolean {
+    if (!student || !student.notes) return false;
+    const note = student.notes.trim().toLowerCase();
+    const name = (student.name || '').trim().toLowerCase();
+    if (!note || note === '-' || note === 'null' || note === 'undefined') return false;
+    // Do not show internal system room tags as user-facing notes
+    if (note.startsWith('[roomid:') || note.includes('roomid:')) return false;
+    return note !== name;
   }
 
   parseTimeAndDateToDate(timeStr?: string, dateStr?: string): Date {
@@ -226,16 +275,6 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     // If start is slightly in the future due to clock skew or just checked in
     if (diffMs <= 0) return 1;
 
-    // If start date was on a previous date with huge diff (> 18h),
-    // recalculate using today's time to keep the active display natural
-    if (diffMs > 18 * 60 * 60 * 1000) {
-      const todayStart = this.parseTimeAndDateToDate(timeStr, undefined);
-      const todayDiffMs = now.getTime() - todayStart.getTime();
-      if (todayDiffMs > 0 && todayDiffMs <= 18 * 60 * 60 * 1000) {
-        diffMs = todayDiffMs;
-      }
-    }
-
     const mins = Math.floor(diffMs / 60000);
     return Math.max(1, mins);
   }
@@ -244,7 +283,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     if (student.status !== 'active') {
       const rawDur = student.duration?.trim();
       const mins = parseDurationMinutes(rawDur);
-      const isAnomalous = !rawDur || mins === 0 || mins > 18 * 60 || rawDur === '0h 00m' || rawDur === '0 س 00 د' || rawDur === '0h 0m' || rawDur === '0m';
+      const isAnomalous = !rawDur || mins === 0 || rawDur === '0h 00m' || rawDur === '0 س 00 د' || rawDur === '0h 0m' || rawDur === '0m';
 
       if (!isAnomalous) {
         return this.formatDuration(rawDur);
@@ -264,35 +303,168 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
         if (diffMs < 0) {
           diffMs += 24 * 60 * 60 * 1000;
         }
-        if (diffMs > 18 * 60 * 60 * 1000) {
-          const sameDayStart = this.parseTimeAndDateToDate(student.checkInTime, student.date);
-          const sameDayEnd = this.parseTimeAndDateToDate(student.checkOutTime || student.checkInTime, student.date);
-          let sameDayDiff = sameDayEnd.getTime() - sameDayStart.getTime();
-          if (sameDayDiff < 0) sameDayDiff += 24 * 60 * 60 * 1000;
-          diffMs = sameDayDiff > 0 ? sameDayDiff : 60 * 60 * 1000;
-        }
         const totalMins = Math.max(1, Math.floor(diffMs / 60000));
-        const h = Math.floor(totalMins / 60);
-        const m = totalMins % 60;
-        return this.formatDuration(`${h}h ${String(m).padStart(2, '0')}m`);
+        const d = Math.floor(totalMins / 1440);
+        const remMins = totalMins % 1440;
+        const h = Math.floor(remMins / 60);
+        const m = remMins % 60;
+        const durStr = d > 0 ? `${d}d ${h}h ${String(m).padStart(2, '0')}m` : `${h}h ${String(m).padStart(2, '0')}m`;
+        return this.formatDuration(durStr);
       }
 
       // If cost is available, compute estimated duration
       if (student.cost && student.cost > 0) {
         const mins = Math.max(15, Math.round((student.cost / 30) * 60));
-        const h = Math.floor(mins / 60);
-        const m = mins % 60;
-        return this.formatDuration(`${h}h ${String(m).padStart(2, '0')}m`);
+        const d = Math.floor(mins / 1440);
+        const remMins = mins % 1440;
+        const h = Math.floor(remMins / 60);
+        const m = remMins % 60;
+        const durStr = d > 0 ? `${d}d ${h}h ${String(m).padStart(2, '0')}m` : `${h}h ${String(m).padStart(2, '0')}m`;
+        return this.formatDuration(durStr);
       }
 
       return this.formatDuration('1h 00m');
     }
 
     const elapsedMins = this.getLiveElapsedMinutes(student.checkInTime, student.date);
-    const h = Math.floor(elapsedMins / 60);
-    const m = elapsedMins % 60;
-    const durStr = `${h}h ${String(m).padStart(2, '0')}m`;
+    const d = Math.floor(elapsedMins / 1440);
+    const remMins = elapsedMins % 1440;
+    const h = Math.floor(remMins / 60);
+    const m = remMins % 60;
+    const durStr = d > 0 ? `${d}d ${h}h ${String(m).padStart(2, '0')}m` : `${h}h ${String(m).padStart(2, '0')}m`;
     return this.formatDuration(durStr);
+  }
+
+  getStudentTimeStatus(student?: ActiveStudentSession): {
+    status: 'active' | 'ending_soon' | 'ended_grace' | 'overtime' | 'blocked' | 'left';
+    badgeClass: string;
+    badgeLabel: string;
+    subText?: string;
+  } {
+    if (!student) {
+      return {
+        status: 'left',
+        badgeClass: 'badge-status--left',
+        badgeLabel: this.t().statusOffline || 'غير متواجد'
+      };
+    }
+
+    if (student.status === 'blocked') {
+      return {
+        status: 'blocked',
+        badgeClass: 'badge-status--blocked',
+        badgeLabel: this.t().statusBlocked
+      };
+    }
+
+    if (student.status !== 'active') {
+      return {
+        status: 'left',
+        badgeClass: 'badge-status--left',
+        badgeLabel: this.t().statusLeft
+      };
+    }
+
+    const isAr = this.isArabic();
+    // Read reactive signal to update every second with the live timer
+    const now = this.currentLiveTime();
+
+    if (student.expectedCheckout) {
+      const endObj = this.parseTimeAndDateToDate(student.expectedCheckout, student.date);
+      const diffMs = endObj.getTime() - now.getTime();
+
+      if (diffMs > 0) {
+        const remMins = Math.max(1, Math.floor(diffMs / 60000));
+        if (remMins <= 5) {
+          return {
+            status: 'ending_soon',
+            badgeClass: 'badge-status--warning',
+            badgeLabel: isAr ? `متبقي ${remMins} د` : `${remMins}m left`,
+            subText: isAr ? 'اقترب الانتهاء' : 'Ending soon'
+          };
+        }
+        if (remMins <= 15) {
+          return {
+            status: 'ending_soon',
+            badgeClass: 'badge-status--info',
+            badgeLabel: isAr ? `متبقي ${remMins} د` : `${remMins}m left`,
+            subText: isAr ? 'اقترب الموعد' : 'Ending soon'
+          };
+        }
+        return {
+          status: 'active',
+          badgeClass: 'badge-status--active',
+          badgeLabel: this.t().statusActive
+        };
+      } else {
+        // Expired -> Grace or Overtime
+        const overdueMins = Math.max(1, Math.floor((now.getTime() - endObj.getTime()) / 60000));
+        if (overdueMins <= 10) {
+          const graceLeft = Math.max(0, 10 - overdueMins);
+          return {
+            status: 'ended_grace',
+            badgeClass: 'badge-status--warning',
+            badgeLabel: isAr ? `سماح: ${graceLeft} د` : `Grace: ${graceLeft}m`,
+            subText: isAr ? `انتهى الوقت (فترة سماح ${graceLeft} د)` : `Ended (Grace ${graceLeft}m)`
+          };
+        } else {
+          let durationStr = '';
+          if (overdueMins < 60) {
+            durationStr = isAr ? `${overdueMins} دقيقة` : `${overdueMins}m`;
+          } else {
+            const h = Math.floor(overdueMins / 60);
+            const m = overdueMins % 60;
+            durationStr = m === 0
+              ? (isAr ? `${h} ساعة` : `${h}h`)
+              : (isAr ? `${h} س و ${m} د` : `${h}h ${m}m`);
+          }
+
+          return {
+            status: 'overtime',
+            badgeClass: 'badge-status--overdue',
+            badgeLabel: isAr ? `متأخر (${durationStr})` : `Overdue (${durationStr})`,
+            subText: isAr ? `تجاوز الوقت بـ ${durationStr}` : `Overdue by ${durationStr}`
+          };
+        }
+      }
+    }
+
+    // No expected checkout: check long stay
+    if (student.checkInTime) {
+      const startObj = this.parseTimeAndDateToDate(student.checkInTime, student.date);
+      const elapsedHours = (now.getTime() - startObj.getTime()) / (1000 * 60 * 60);
+      if (elapsedHours >= 4) {
+        const totalHours = Math.floor(elapsedHours);
+        const d = Math.floor(totalHours / 24);
+        const remH = totalHours % 24;
+        let badgeLabel = '';
+        let subText = '';
+        if (d > 0) {
+          if (isAr) {
+            badgeLabel = remH > 0 ? `إقامة طويلة (${d} يوم ${remH} س)` : `إقامة طويلة (${d} يوم)`;
+            subText = remH > 0 ? `متواجد منذ ${d} يوم و ${remH} ساعة` : `متواجد منذ ${d} يوم`;
+          } else {
+            badgeLabel = remH > 0 ? `Long stay (${d}d ${remH}h)` : `Long stay (${d}d)`;
+            subText = remH > 0 ? `In workspace for ${d}d ${remH}h` : `In workspace for ${d}d`;
+          }
+        } else {
+          badgeLabel = isAr ? `إقامة طويلة (${totalHours} س)` : `Long stay (${totalHours}h)`;
+          subText = isAr ? `متواجد منذ أكثر من ${totalHours} ساعات` : `In workspace for ${totalHours}+ hours`;
+        }
+        return {
+          status: 'active',
+          badgeClass: 'badge-status--info',
+          badgeLabel,
+          subText
+        };
+      }
+    }
+
+    return {
+      status: 'active',
+      badgeClass: 'badge-status--active',
+      badgeLabel: this.t().statusActive
+    };
   }
 
   getStudentCostBreakdown(student: ActiveStudentSession): {
@@ -304,7 +476,8 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   } {
     const isPackage = student.billingType === 'package' || (!!student.packageOrCoupon && student.packageOrCoupon.toLowerCase().includes('package'));
     const cateringCost = Number(student.cateringTotal || (student.cateringItems || []).reduce((sum: number, it: any) => sum + (it.totalPrice || it.total || ((it.unitPrice || it.price || 0) * (it.quantity || 1)) || 0), 0)) || 0;
-    const printingCost = Number(((student.printingCount || student.printingPages || 0) * 1.5).toFixed(2)) || 0;
+    const pPages = (student.printingCount && student.printingCount > 0) ? Number(student.printingCount) : 0;
+    const printingCost = pPages > 0 ? Number((pPages * 1.5).toFixed(2)) : 0;
 
     if (student.status === 'completed' || student.status === 'blocked') {
       const storedCost = typeof student.cost === 'number' ? student.cost : (parseFloat(String(student.cost)) || 0);
@@ -359,6 +532,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   regEmail = signal('');
   regCollege = signal('');
   regFaculty = signal('');
+  regNotes = signal('');
 
   // ----------------------------------------------------
   // UNIFIED REGISTERED STUDENTS DIRECTORY
@@ -375,6 +549,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     const studentMap = new Map<string, StudentDirectoryItem>();
 
     const getOrCreateKey = (phone?: string, name?: string, id?: string): string => {
+      if (id && /^[0-9a-fA-F-]{36}$/.test(id)) return id.toLowerCase();
       const cleanP = clean(phone);
       const cleanN = clean(name).toLowerCase();
       if (cleanP) return cleanP;
@@ -396,8 +571,10 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
         phone: clean(p.phone),
         whatsapp: clean(p.whatsapp) || clean(p.phone),
         email: clean(p.email),
-        faculty: faculty || '',
-        college: college && college !== faculty ? college : '',
+        faculty: clean(p.university) || faculty || '',
+        college: college || '',
+        notes: clean(p.notes) || '',
+        seatingType: 'Share',
         currentStatus: 'offline',
         totalVisits: 0,
         totalSpent: 0
@@ -455,9 +632,12 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
           email: clean(pkg.memberEmail),
           faculty: pkg.memberSubAr && pkg.memberSubAr !== '-' ? pkg.memberSubAr : '',
           college: '',
+          notes: '',
+          seatingType: 'Share',
           currentStatus: 'offline',
           packageInfo: pkgInfo,
           totalVisits: 0,
+          totalHours: 0,
           totalSpent: pkg.cost || 0
         });
       }
@@ -469,9 +649,11 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       const key = getOrCreateKey(s.phone, s.name, s.studentId || s.id);
       let student = studentMap.get(key);
 
+      const seating = this.getStudentSeatingType(s);
+
       if (!student) {
         const name = clean(s.name) || 'طالب';
-        student = {
+        const newStudent: StudentDirectoryItem = {
           id: s.studentId || s.id,
           studentId: s.studentId,
           name,
@@ -481,13 +663,23 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
           email: clean(s.email),
           faculty: clean(s.faculty) || '',
           college: '',
+          notes: clean(s.notes) || '',
+          seatingType: seating || undefined,
           currentStatus: 'offline',
           totalVisits: 0,
+          totalHours: 0,
           totalSpent: 0
         };
+        studentMap.set(key, newStudent);
+        student = newStudent;
+      } else {
+        if (s.notes) student.notes = clean(s.notes);
+        if (seating === 'Silent') student.seatingType = 'Silent';
       }
 
       student.totalVisits += 1;
+      const dur = typeof (s as any).durationHours === 'number' && (s as any).durationHours > 0 ? (s as any).durationHours : 2;
+      student.totalHours = (student.totalHours || 0) + dur;
       const sessionCost = typeof s.cost === 'number' ? s.cost : (parseFloat(String(s.cost)) || 0);
       student.totalSpent += sessionCost + (s.cateringTotal || 0);
 
@@ -509,6 +701,8 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       if (activeMatch) {
         student.currentStatus = 'active';
         student.activeSession = activeMatch;
+        const isSilent = activeMatch.zone === 1 || (activeMatch.roomName && activeMatch.roomName.toLowerCase().includes('silent'));
+        student.seatingType = isSilent ? 'Silent' : 'Share';
       }
 
       // Check blacklist
@@ -533,6 +727,21 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
 
   totalRegisteredStudentsCount = computed(() => this.allStudentsDirectory().length);
   packageSubscribersCount = computed(() => this.allStudentsDirectory().filter(s => s.packageInfo?.hasPackage).length);
+
+  studentVisitStatsMap = computed(() => {
+    const dir = this.allStudentsDirectory();
+    const map = new Map<string, { visits: number; hours: number }>();
+    for (const d of dir) {
+      const visits = Math.max(1, d.totalVisits || 1);
+      const hours = Math.max(1, Math.round(d.totalHours || (visits * 2)));
+      const stat = { visits, hours };
+      if (d.id) map.set(d.id, stat);
+      if (d.studentId) map.set(d.studentId, stat);
+      if (d.phone) map.set(d.phone.trim(), stat);
+      if (d.name) map.set(d.name.trim().toLowerCase(), stat);
+    }
+    return map;
+  });
 
   filteredDirectoryStudents = computed(() => {
     const query = this.searchQuery().toLowerCase().trim();
@@ -601,8 +810,10 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   ciPhone = signal('');
   ciEmail = signal('');
   ciWhatsapp = signal('');
+  ciUniversity = signal('');
   ciCollege = signal('');
   ciFaculty = signal('');
+  ciNotes = signal('');
   todayDate = getTodayDateISO();
   ciDate = signal(getTodayDateISO());
 
@@ -712,7 +923,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
             whatsapp: clean(p.whatsapp) || clean(p.phone),
             email: clean(p.email),
             college: clean(p.college),
-            faculty: clean(p.faculty)
+            faculty: clean(p.university) || clean(p.faculty)
           },
           hasActivePackage: false
         });
@@ -849,7 +1060,8 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     const whatsapp = clean(fullProfile?.whatsapp) || clean(item.profile.whatsapp) || phone;
     const email = clean(fullProfile?.email) || clean(item.profile.email);
     const college = clean(fullProfile?.college) || clean(item.profile.college);
-    const faculty = clean(fullProfile?.faculty) || clean(item.profile.faculty) || college;
+    const faculty = clean(fullProfile?.university) || clean(fullProfile?.faculty) || clean(item.profile.university) || clean(item.profile.faculty);
+    const notes = clean(fullProfile?.notes) || clean(item.profile.notes);
 
     this.ciSelectedStudent.set({
       ...item.profile,
@@ -858,7 +1070,8 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       whatsapp,
       email,
       college,
-      faculty
+      faculty,
+      notes
     });
 
     this.ciName.set(name);
@@ -867,6 +1080,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     this.ciWhatsapp.set(whatsapp);
     this.ciCollege.set(college);
     this.ciFaculty.set(faculty);
+    this.ciNotes.set(notes);
     this.ciSearchQuery.set(name);
     this.ciIsSearchDropdownOpen.set(false);
     this.ciExistingStudentFound.set(true);
@@ -892,6 +1106,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     this.ciWhatsapp.set('');
     this.ciCollege.set('');
     this.ciFaculty.set('');
+    this.ciNotes.set('');
     this.ciSearchQuery.set('');
     this.ciExistingStudentFound.set(false);
   }
@@ -1308,11 +1523,37 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   editPhone = signal('');
   editWhatsapp = signal('');
   editEmail = signal('');
+  editUniversity = signal('');
   editCollege = signal('');
   editFaculty = signal('');
+  editNotes = signal('');
   editPackage = signal('');
   editPrinting = signal(0);
   editWallet = signal(0);
+
+  // ----------------------------------------------------
+  // Edit Session Time Modal State (Item 12)
+  // ----------------------------------------------------
+  isEditSessionTimeModalOpen = signal(false);
+  sessionTimeToEdit = signal<ActiveStudentSession | null>(null);
+  editCheckInTimeInput = signal('');
+  editExpectedCheckoutInput = signal('');
+  editExtraMinutesInput = signal(0);
+
+  editRecalculatedPrice = computed(() => {
+    const s = this.sessionTimeToEdit();
+    if (!s) return 0;
+    const isPkg = s.billingType === 'package' || (!!s.packageOrCoupon && s.packageOrCoupon.toLowerCase().includes('package'));
+    if (isPkg) return 0;
+    const checkIn = this.editCheckInTimeInput();
+    const elapsedMins = this.getLiveElapsedMinutes(checkIn, s.date) + (this.editExtraMinutesInput() || 0);
+    const hoursFloat = Math.max(0.25, +(elapsedMins / 60).toFixed(2));
+    const base = this.settingsService.calculateStudentCost(hoursFloat);
+    const catering = Number(s.cateringTotal || 0);
+    const pCount = (s.printingCount && s.printingCount > 0) ? Number(s.printingCount) : 0;
+    const printing = pCount > 0 ? +(pCount * 1.5).toFixed(2) : 0;
+    return +(base + catering + printing).toFixed(2);
+  });
 
   // Stats from service
   insideCount = this.workspaceService.insideCount;
@@ -1433,8 +1674,10 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     this.ciPhone.set('');
     this.ciEmail.set('');
     this.ciWhatsapp.set('');
+    this.ciUniversity.set('');
     this.ciCollege.set('');
     this.ciFaculty.set('');
+    this.ciNotes.set('');
     this.ciDate.set(getTodayDateISO());
 
     this.setStartTimeToNow();
@@ -1500,8 +1743,9 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
         if (!this.ciName() && existing.name) this.ciName.set(existing.name);
         if (!this.ciWhatsapp() && existing.whatsapp) this.ciWhatsapp.set(existing.whatsapp);
         if (!this.ciEmail() && existing.email) this.ciEmail.set(existing.email);
-        if (!this.ciFaculty() && existing.faculty) this.ciFaculty.set(existing.faculty);
-        if (!this.ciCollege() && existing.college) this.ciCollege.set(existing.college);
+        if (!this.ciUniversity() && existing.university) this.ciUniversity.set(existing.university);
+        if (!this.ciCollege() && (existing.college || existing.faculty)) this.ciCollege.set(existing.college || existing.faculty || '');
+        if (!this.ciFaculty() && (existing.faculty || existing.college)) this.ciFaculty.set(existing.faculty || existing.college || '');
         this.ciExistingStudentFound.set(true);
       }
     }
@@ -1609,8 +1853,10 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       phone: this.ciPhone().trim(),
       email: this.ciEmail().trim(),
       whatsapp: this.ciWhatsapp().trim() || this.ciPhone().trim(),
+      university: this.ciUniversity().trim(),
       college: this.ciCollege().trim(),
-      faculty: this.ciFaculty().trim(),
+      faculty: this.ciCollege().trim() || this.ciFaculty().trim(),
+      notes: this.ciNotes().trim(),
       date: this.ciDate(),
       checkInTime: this.formatTimeDisplay(this.ciTime()),
       expectedCheckout: this.ciExpectedCheckout() ? this.formatTimeDisplay(this.ciExpectedCheckout()) : undefined,
@@ -1648,9 +1894,11 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     // Dynamic Duration computation based on actual elapsed time
     const elapsedMins = this.getLiveElapsedMinutes(student.checkInTime, student.date);
     const hoursFloat = Math.max(0.25, +(elapsedMins / 60).toFixed(2));
-    const h = Math.floor(elapsedMins / 60);
-    const m = elapsedMins % 60;
-    const durStr = `${h}h ${String(m).padStart(2, '0')}m`;
+    const d = Math.floor(elapsedMins / 1440);
+    const remMins = elapsedMins % 1440;
+    const h = Math.floor(remMins / 60);
+    const m = remMins % 60;
+    const durStr = d > 0 ? `${d}d ${h}h ${String(m).padStart(2, '0')}m` : `${h}h ${String(m).padStart(2, '0')}m`;
 
     this.coDurationDisplay.set(durStr);
     this.coDurationHours.set(hoursFloat);
@@ -1871,6 +2119,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     this.regEmail.set('');
     this.regCollege.set('');
     this.regFaculty.set('');
+    this.regNotes.set('');
     this.isRegisterModalOpen.set(true);
   }
 
@@ -1895,7 +2144,8 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       whatsapp: this.regWhatsapp().trim() || phone,
       email: this.regEmail().trim(),
       college: this.regCollege().trim(),
-      faculty: this.regFaculty().trim()
+      faculty: this.regFaculty().trim(),
+      notes: this.regNotes().trim()
     });
 
     this.closeRegisterModal();
@@ -1909,6 +2159,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     this.ciEmail.set(student.email || '');
     this.ciCollege.set(student.college || '');
     this.ciFaculty.set(student.faculty || '');
+    this.ciNotes.set(student.notes || '');
     if (student.packageInfo?.hasPackage) {
       this.ciBilling.set('package');
       this.ciPaymentMethod.set('package');
@@ -1929,6 +2180,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       email: student.email,
       college: student.college,
       faculty: student.faculty,
+      notes: student.notes,
       status: student.currentStatus === 'active' ? 'active' : 'completed',
       billingType: student.packageInfo?.hasPackage ? 'package' : 'new-session'
     } as ActiveStudentSession);
@@ -1939,6 +2191,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     this.editEmail.set(student.email || '');
     this.editCollege.set(student.college || '');
     this.editFaculty.set(student.faculty || '');
+    this.editNotes.set(student.notes || '');
     this.editPackage.set(student.packageInfo?.packageName || '');
     this.editPrinting.set(0);
     this.editWallet.set(0);
@@ -2271,31 +2524,15 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Delete Modal with Shift Opener Password Requirement
-  deleteShiftPassword = signal('');
-  deletePasswordError = signal<string | null>(null);
-  isVerifyingDeletePassword = signal(false);
-
-  shiftOpenerName = computed(() => {
-    const shift = this.shiftService.currentShift();
-    return shift?.staffName || this.authService.getUser()?.name || 'مسؤول الوردية';
-  });
-
   openDeleteModal(student: ActiveStudentSession): void {
     if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حذف جلسة الطالب' : 'Delete Student Session')) {
       return;
     }
     this.closeActionMenu();
-    this.deleteShiftPassword.set('');
-    this.deletePasswordError.set(null);
-    this.isVerifyingDeletePassword.set(false);
     this.studentToDelete.set(student);
   }
 
   closeDeleteModal(): void {
-    this.deleteShiftPassword.set('');
-    this.deletePasswordError.set(null);
-    this.isVerifyingDeletePassword.set(false);
     this.studentToDelete.set(null);
   }
 
@@ -2303,49 +2540,11 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     const student = this.studentToDelete();
     if (!student) return;
 
-    const pwd = this.deleteShiftPassword().trim();
-    if (!pwd) {
-      this.deletePasswordError.set(
-        this.isArabic()
-          ? 'يرجى إدخال كلمة مرور مسؤول الوردية للتأكيد'
-          : 'Please enter shift opener password to confirm'
-      );
-      return;
+    this.workspaceService.deleteStudent(student.id);
+    this.closeDeleteModal();
+    if (this.currentPage() > this.totalPages()) {
+      this.currentPage.set(Math.max(1, this.totalPages()));
     }
-
-    this.isVerifyingDeletePassword.set(true);
-    this.deletePasswordError.set(null);
-
-    // Verify against shift opener / logged-in staff using dedicated POST /api/Shifts/{shiftId}/verify-password
-    const shift = this.shiftService.currentShift();
-    const identifier = shift?.staffName || this.authService.getUser()?.name || this.authService.getUser()?.email || '';
-
-    this.shiftService.verifyShiftOpenerPassword(pwd, shift?.id, identifier).subscribe({
-      next: (isValid) => {
-        this.isVerifyingDeletePassword.set(false);
-        if (isValid) {
-          this.workspaceService.deleteStudent(student.id);
-          this.closeDeleteModal();
-          if (this.currentPage() > this.totalPages()) {
-            this.currentPage.set(Math.max(1, this.totalPages()));
-          }
-        } else {
-          this.deletePasswordError.set(
-            this.isArabic()
-              ? 'كلمة مرور مسؤول الوردية غير صحيحة. تم إلغاء عملية الحذف.'
-              : 'Incorrect shift opener password. Deletion cancelled.'
-          );
-        }
-      },
-      error: () => {
-        this.isVerifyingDeletePassword.set(false);
-        this.deletePasswordError.set(
-          this.isArabic()
-            ? 'تعذر التحقق من كلمة المرور من الخادم'
-            : 'Failed to verify password with server'
-        );
-      }
-    });
   }
 
   openEditModal(student: ActiveStudentSession): void {
@@ -2362,15 +2561,19 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     const phone = clean(profile?.phone) || clean(student.phone);
     const whatsapp = clean(profile?.whatsapp) || clean(student.whatsapp) || phone;
     const email = clean(profile?.email) || clean(student.email);
-    const college = clean(profile?.college) || clean(student.college);
-    const faculty = clean(profile?.faculty) || clean(student.faculty) || college;
+    const university = clean(profile?.university) || clean((student as any).university) || '';
+    const college = clean(profile?.college) || clean(student.college) || clean(profile?.faculty) || clean(student.faculty);
+    const faculty = college;
+    const notes = clean(profile?.notes) || clean(student.notes);
 
     this.editName.set(name);
     this.editPhone.set(phone);
     this.editWhatsapp.set(whatsapp);
     this.editEmail.set(email);
+    this.editUniversity.set(university);
     this.editCollege.set(college);
     this.editFaculty.set(faculty);
+    this.editNotes.set(notes);
     this.editPackage.set('');
     this.editPrinting.set(student.printingCount || 0);
     this.editWallet.set(student.walletAmount || 0);
@@ -2389,14 +2592,74 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
         phone: this.editPhone().trim(),
         whatsapp: this.editWhatsapp().trim() || this.editPhone().trim(),
         email: this.editEmail().trim(),
+        university: this.editUniversity().trim(),
         college: this.editCollege().trim(),
-        faculty: this.editFaculty().trim(),
+        faculty: this.editCollege().trim() || this.editFaculty().trim(),
+        notes: this.editNotes().trim(),
         printingCount: this.editPrinting(),
         walletAmount: this.editWallet()
       };
       this.workspaceService.updateStudent(updated);
+      this.workspaceService.saveStudentProfile({
+        id: current.studentId || current.id,
+        name: updated.name,
+        phone: updated.phone,
+        whatsapp: updated.whatsapp,
+        email: updated.email,
+        university: updated.university,
+        college: updated.college,
+        faculty: updated.faculty,
+        notes: updated.notes
+      });
       this.closeEditModal();
     }
+  }
+
+  // ----------------------------------------------------
+  // Edit Session Time Modal Handlers (Item 12)
+  // ----------------------------------------------------
+  openEditSessionTimeModal(student: ActiveStudentSession): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تعديل وقت الجلسة' : 'Edit Session Time')) {
+      return;
+    }
+    this.closeActionMenu();
+    this.sessionTimeToEdit.set(student);
+    this.editCheckInTimeInput.set(student.checkInTime || '');
+    this.editExpectedCheckoutInput.set(student.expectedCheckout || '');
+    this.editExtraMinutesInput.set(0);
+    this.isEditSessionTimeModalOpen.set(true);
+  }
+
+  closeEditSessionTimeModal(): void {
+    this.isEditSessionTimeModalOpen.set(false);
+    this.sessionTimeToEdit.set(null);
+    this.editExtraMinutesInput.set(0);
+  }
+
+  addExtraMinutes(mins: number): void {
+    this.editExtraMinutesInput.update(cur => Math.max(0, cur + mins));
+  }
+
+  saveSessionTime(): void {
+    const s = this.sessionTimeToEdit();
+    if (!s) return;
+
+    const newCheckIn = this.editCheckInTimeInput().trim();
+    if (newCheckIn) {
+      s.checkInTime = newCheckIn;
+    }
+    if (this.editExpectedCheckoutInput()) {
+      s.expectedCheckout = this.editExpectedCheckoutInput().trim();
+    }
+    const newPrice = this.editRecalculatedPrice();
+    s.cost = newPrice;
+
+    this.workspaceService.updateSessionTime(s.id, s.checkInTime || '', s.expectedCheckout);
+    this.workspaceService.showToast(
+      this.isArabic() ? `تم تعديل وقت جلسة "${s.name}" وتحديث السعر إلى ${newPrice.toFixed(2)} ج.م` : `Session time updated for "${s.name}". Recalculated cost: ${newPrice.toFixed(2)} EGP`,
+      'success'
+    );
+    this.closeEditSessionTimeModal();
   }
 
   toggleDateDropdown(): void {

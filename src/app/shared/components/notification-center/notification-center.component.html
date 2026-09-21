@@ -1,0 +1,209 @@
+<div class="notification-panel" (click)="$event.stopPropagation()">
+  <!-- Top Ambient Glow Line -->
+  <div class="panel-glow-bar"></div>
+
+  <!-- Header -->
+  <div class="panel-header">
+    <div class="header-main">
+      <div class="bell-icon-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+          <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+        </svg>
+      </div>
+      <div class="title-with-badge">
+        <h3 class="panel-title">{{ isArabic() ? 'مركز الإشعارات' : 'Notifications' }}</h3>
+        @if (unreadCount() > 0) {
+          <span class="unread-chip">{{ unreadCount() }} {{ isArabic() ? 'جديد' : 'new' }}</span>
+        }
+      </div>
+    </div>
+
+    <div class="header-actions">
+      @if (unreadCount() > 0) {
+        <button type="button" class="action-btn-pill" (click)="markAllAsRead()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          <span>{{ isArabic() ? 'تحديد الكل كمقروء' : 'Mark all read' }}</span>
+        </button>
+      }
+      <button type="button" class="icon-close-circle" (click)="close.emit()" [title]="t().closeBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 6 6 18M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Modern Segmented Filter Tabs -->
+  <div class="segmented-control-wrap">
+    <div class="segmented-control">
+      <button
+        type="button"
+        class="segment-tab"
+        [class.active]="activeFilter() === 'all'"
+        (click)="setFilter('all')"
+      >
+        <span>{{ isArabic() ? 'الكل' : 'All' }}</span>
+        <span class="tab-count">{{ notifications().length }}</span>
+      </button>
+
+      <button
+        type="button"
+        class="segment-tab"
+        [class.active]="activeFilter() === 'unread'"
+        (click)="setFilter('unread')"
+      >
+        <span>{{ isArabic() ? 'غير مقروء' : 'Unread' }}</span>
+        @if (unreadCount() > 0) {
+          <span class="tab-count tab-count--alert">{{ unreadCount() }}</span>
+        }
+      </button>
+
+      <button
+        type="button"
+        class="segment-tab"
+        [class.active]="activeFilter() === 'critical'"
+        (click)="setFilter('critical')"
+      >
+        <span>{{ isArabic() ? 'تنبيهات هامة' : 'Alerts' }}</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Notification Cards Stream -->
+  <div class="notifications-scroll">
+    @if (filteredNotifications().length > 0) {
+      <div class="cards-stream">
+        @for (item of filteredNotifications(); track item.id) {
+          <div
+            class="notif-card"
+            [class.notif-card--unread]="!item.isRead"
+            [class.notif-card--warning]="item.severity === 'warning'"
+            [class.notif-card--critical]="item.severity === 'critical'"
+            (click)="onItemClick(item)"
+          >
+            <!-- Unread Pulse Dot -->
+            @if (!item.isRead) {
+              <div class="unread-dot" title="غير مقروء"></div>
+            }
+
+            <!-- Icon Box -->
+            <div class="card-icon-box card-icon-box--{{ item.type | lowercase }}">
+              @switch (item.type) {
+                @case ('Catering') {
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 8h1a4 4 0 1 1 0 8h-1M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" />
+                    <line x1="6" x2="6" y1="2" y2="4" />
+                    <line x1="10" x2="10" y1="2" y2="4" />
+                  </svg>
+                }
+                @case ('Classroom') {
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect width="18" height="18" x="3" y="3" rx="2" />
+                    <path d="M3 9h18M9 21V9" />
+                  </svg>
+                }
+                @case ('Workspace') {
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                  </svg>
+                }
+                @case ('LongStay') {
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                }
+                @default {
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" x2="12" y1="8" y2="12" />
+                    <line x1="12" x2="12.01" y1="16" y2="16" />
+                  </svg>
+                }
+              }
+            </div>
+
+            <!-- Card Body -->
+            <div class="card-body">
+              <div class="card-meta-top">
+                <span class="card-badge card-badge--{{ item.type | lowercase }}">
+                  @switch (item.type) {
+                    @case ('Catering') { {{ isArabic() ? 'الكاترينج والمخزون' : 'Catering' }} }
+                    @case ('Classroom') { {{ isArabic() ? 'حجوزات القاعات' : 'Classroom' }} }
+                    @case ('Workspace') { {{ isArabic() ? 'مساحة العمل' : 'Workspace' }} }
+                    @case ('LongStay') { {{ isArabic() ? 'إقامة طويلة' : 'Long Stay' }} }
+                    @default { {{ isArabic() ? 'تنبيه عام' : 'System' }} }
+                  }
+                </span>
+
+                <div class="card-time-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                  <span>{{ formatTime(item.createdAt) }}</span>
+                </div>
+              </div>
+
+              <h4 class="card-heading">{{ item.title }}</h4>
+              <p class="card-text">{{ item.message }}</p>
+
+              @if (item.actionUrl) {
+                <div class="card-action-bar">
+                  <span class="card-action-link">
+                    <span>{{ isArabic() ? 'الانتقال إلى التفاصيل' : 'View details' }}</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="arrow-icon">
+                      <path [attr.d]="isArabic() ? 'M19 12H5M12 19l-7-7 7-7' : 'M5 12h14M12 5l7 7-7 7'" />
+                    </svg>
+                  </span>
+                </div>
+              }
+            </div>
+
+            <!-- Dismiss Button -->
+            <button
+              type="button"
+              class="card-dismiss-btn"
+              (click)="dismiss($event, item.id)"
+              [title]="isArabic() ? 'حذف الإشعار' : 'Dismiss'"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        }
+      </div>
+    } @else {
+      <!-- Clean Empty State -->
+      <div class="empty-state-box">
+        <div class="empty-illustration">
+          <div class="empty-glow"></div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          </svg>
+        </div>
+        <p class="empty-heading">{{ isArabic() ? 'لا توجد إشعارات جديدة' : 'All caught up!' }}</p>
+        <span class="empty-sub">{{ isArabic() ? 'ستظهر هنا التنبيهات التشغيلية فور حدوثها' : 'Operational alerts and reminders will appear here' }}</span>
+      </div>
+    }
+  </div>
+
+  <!-- Footer -->
+  @if (notifications().length > 0) {
+    <div class="panel-bottom-bar">
+      <button type="button" class="btn-clear-all" (click)="clearAll()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+        </svg>
+        <span>{{ isArabic() ? 'مسح كافة الإشعارات' : 'Clear all notifications' }}</span>
+      </button>
+    </div>
+  }
+</div>

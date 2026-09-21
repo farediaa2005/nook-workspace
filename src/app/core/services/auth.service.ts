@@ -99,6 +99,12 @@ export class AuthService {
     return this.currentUser()?.role ?? null;
   }
 
+  /** Check if current user is an Admin */
+  isAdmin(): boolean {
+    const role = (this.getRole() || '').toLowerCase();
+    return role === 'admin' || role === 'superadmin' || role === 'owner';
+  }
+
   /** Get the stored access token (pure in-memory) */
   getToken(): string | null {
     return this.accessToken;

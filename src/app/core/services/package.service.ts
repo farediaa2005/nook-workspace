@@ -78,10 +78,12 @@ export class PackageService {
   // Toast Notification State
   readonly toast = signal<ToastNotification | null>(null);
 
-  // Dynamic Validity Presets
+  // Dynamic Validity Presets (Req 6: Weekly = 7 days, 15 days, Monthly)
   readonly studentValidityPresets = signal<ValidityPresetOption[]>([
     { id: 'custom', days: 'custom', labelAr: 'مخصص', labelEn: 'Custom', tagAr: 'حر', tagEn: 'Manual' },
-    { id: 'val-30', days: 30, hours: 10, labelAr: '30 يوم', labelEn: '30 Days', tagAr: '10 س', tagEn: '10 hrs' },
+    { id: 'val-7', days: 7, hours: 5, labelAr: 'أسبوعي (7 أيام)', labelEn: 'Weekly (7 Days)', tagAr: '7 أيام', tagEn: '7 Days' },
+    { id: 'val-15', days: 15, hours: 8, labelAr: '15 يوم', labelEn: '15 Days', tagAr: '15 يوم', tagEn: '15 Days' },
+    { id: 'val-30', days: 30, hours: 10, labelAr: 'شهري (30 يوم)', labelEn: 'Monthly (30 Days)', tagAr: '30 يوم', tagEn: '30 Days' },
     { id: 'val-60', days: 60, hours: 20, labelAr: '60 يوم', labelEn: '60 Days', tagAr: '20 س', tagEn: '20 hrs' },
     { id: 'val-90', days: 90, hours: 30, labelAr: '90 يوم', labelEn: '90 Days', tagAr: '30 س', tagEn: '30 hrs' },
     { id: 'val-120', days: 120, hours: 50, labelAr: '120 يوم', labelEn: '120 Days', tagAr: '50 س', tagEn: '50 hrs' }
@@ -89,9 +91,11 @@ export class PackageService {
 
   readonly instructorValidityPresets = signal<ValidityPresetOption[]>([
     { id: 'custom', days: 'custom', labelAr: 'مخصص', labelEn: 'Custom', tagAr: 'حر', tagEn: 'Manual' },
-    { id: 'val-30', days: 30, hours: 10, labelAr: '30 يوم', labelEn: '30 Days', tagAr: '10 س', tagEn: '10 hrs' },
+    { id: 'val-7', days: 7, hours: 5, labelAr: 'أسبوعي (7 أيام)', labelEn: 'Weekly (7 Days)', tagAr: '7 أيام', tagEn: '7 Days' },
+    { id: 'val-15', days: 15, hours: 8, labelAr: '15 يوم', labelEn: '15 Days', tagAr: '15 يوم', tagEn: '15 Days' },
+    { id: 'val-30', days: 30, hours: 10, labelAr: 'شهري (30 يوم)', labelEn: 'Monthly (30 Days)', tagAr: '30 يوم', tagEn: '30 Days' },
     { id: 'val-60', days: 60, hours: 25, labelAr: '60 يوم', labelEn: '60 Days', tagAr: '25 س', tagEn: '25 hrs' },
-    { id: 'val-90', days: 90, hours: 50, labelAr: '90 يوم', labelEn: '90 Days', tagAr: '50 س', tagEn: '50 hrs' },
+    { id: 'val-90', days: 90, hours: 50, labelAr: '90 يوم', labelEn: '90 Days', tagAr: '30 س', tagEn: '30 hrs' },
     { id: 'val-180', days: 180, hours: 100, labelAr: '180 يوم', labelEn: '180 Days', tagAr: '100 س', tagEn: '100 hrs' }
   ]);
 

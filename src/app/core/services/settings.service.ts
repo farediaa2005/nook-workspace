@@ -55,6 +55,17 @@ export class SettingsService {
   private packagePricingPlanApi = inject(PackagePricingPlanApiService);
   private authService = inject(AuthService);
 
+  private roomMetaMem = new Map<string, { capacity?: number; hourlyPrice?: number }>();
+
+  getRoomMeta(roomId: string): { capacity?: number; hourlyPrice?: number } {
+    return this.roomMetaMem.get(roomId) || {};
+  }
+
+  saveRoomMeta(roomId: string, meta: { capacity?: number; hourlyPrice?: number }): void {
+    const existing = this.getRoomMeta(roomId);
+    this.roomMetaMem.set(roomId, { ...existing, ...meta });
+  }
+
   // Pure In-Memory State (Signals only - ZERO localStorage)
   private settingsState = signal<SystemSettingsState>({
     pricingTiers: [],
@@ -108,17 +119,25 @@ export class SettingsService {
       )
       .subscribe({
         next: ({ rooms, plans, packages }) => {
-          // Map Rooms
-          const mappedRooms: RoomEntity[] = (rooms || []).map(r => ({
-            id: r.id,
-            name: r.name,
-            nameEn: r.nameEn || r.name,
-            type: r.supportsClassroom ? 'Classroom' : (r.workspaceZone === 2 ? 'Silent Zone' : 'Shared Space'),
-            capacity: r.capacity || 0,
-            hourlyPrice: r.hourlyPrice || 0,
-            imageUrl: resolveImageUrl(r.imageUrl),
-            isActive: r.isActive !== false
-          }));
+          // Map Rooms with capacity and hourly price from pricing plans and room metadata
+          const mappedRooms: RoomEntity[] = (rooms || []).map(r => {
+            const meta = this.getRoomMeta(r.id);
+            const matchedPlan = (plans || []).find(p => p.roomId === r.id);
+            const planPrice = matchedPlan ? (matchedPlan.baseCost || matchedPlan.overageHourlyRate || 0) : 0;
+            const hourlyPrice = r.hourlyPrice || planPrice || meta.hourlyPrice || 0;
+            const capacity = r.capacity || meta.capacity || (r.supportsClassroom ? 20 : 30);
+
+            return {
+              id: r.id,
+              name: r.name,
+              nameEn: r.nameEn || r.name,
+              type: r.supportsClassroom ? 'Classroom' : (r.workspaceZone === 2 ? 'Silent Zone' : 'Shared Space'),
+              capacity,
+              hourlyPrice,
+              imageUrl: resolveImageUrl(r.imageUrl),
+              isActive: r.isActive !== false
+            };
+          });
 
           // Map Pricing Plans (Tiers)
           const sortedPlans = [...(plans || [])].sort((a, b) => a.baseHours - b.baseHours);
@@ -171,16 +190,24 @@ export class SettingsService {
       finalize(() => this.isLoadingRooms.set(false))
     ).subscribe({
       next: (backendRooms) => {
-        const mapped: RoomEntity[] = (backendRooms || []).map(r => ({
-          id: r.id,
-          name: r.name,
-          nameEn: r.nameEn || r.name,
-          type: r.supportsClassroom ? 'Classroom' : (r.workspaceZone === 2 ? 'Silent Zone' : 'Shared Space'),
-          capacity: r.capacity || 0,
-          hourlyPrice: r.hourlyPrice || 0,
-          imageUrl: resolveImageUrl(r.imageUrl),
-          isActive: r.isActive !== false
-        }));
+        const mapped: RoomEntity[] = (backendRooms || []).map(r => {
+          const meta = this.getRoomMeta(r.id);
+          const matchedPlan = this.pricingTiers().find(p => p.roomId === r.id);
+          const planPrice = matchedPlan ? matchedPlan.priceEgp : 0;
+          const hourlyPrice = r.hourlyPrice || planPrice || meta.hourlyPrice || 0;
+          const capacity = r.capacity || meta.capacity || (r.supportsClassroom ? 20 : 30);
+
+          return {
+            id: r.id,
+            name: r.name,
+            nameEn: r.nameEn || r.name,
+            type: r.supportsClassroom ? 'Classroom' : (r.workspaceZone === 2 ? 'Silent Zone' : 'Shared Space'),
+            capacity,
+            hourlyPrice,
+            imageUrl: resolveImageUrl(r.imageUrl),
+            isActive: r.isActive !== false
+          };
+        });
         this.settingsState.update(s => ({ ...s, rooms: mapped }));
       }
     });
@@ -372,9 +399,27 @@ export class SettingsService {
       description: room.name,
       isActive: room.isActive,
       imageUrl: isAbsoluteUrl ? room.imageUrl : undefined,
-      imageFile: imageFile
+      imageFile: imageFile,
+      capacity: room.capacity,
+      hourlyPrice: room.hourlyPrice
     }).pipe(
       switchMap(created => {
+        if (created && created.id) {
+          this.saveRoomMeta(created.id, { capacity: room.capacity, hourlyPrice: room.hourlyPrice });
+          if (isClassroom && room.hourlyPrice > 0) {
+            this.pricingPlanApi.createPricingPlan({
+              roomId: created.id,
+              scope: 2,
+              baseHours: 1,
+              baseCost: room.hourlyPrice,
+              overageHourlyRate: room.hourlyPrice,
+              isActive: true,
+              note: room.name
+            }).subscribe({
+              next: () => this.syncPricingPlansFromBackend()
+            });
+          }
+        }
         if (imageFile && created && created.id) {
           return this.roomApi.uploadRoomImage(created.id, imageFile).pipe(
             map(imgDto => {
@@ -397,11 +442,12 @@ export class SettingsService {
           name: created.name,
           nameEn: created.nameEn || created.name,
           type: created.supportsClassroom ? 'Classroom' : (created.workspaceZone === 2 ? 'Silent Zone' : 'Shared Space'),
-          capacity: room.capacity || 0,
+          capacity: room.capacity || (created.supportsClassroom ? 20 : 30),
           hourlyPrice: room.hourlyPrice || 0,
           imageUrl: resolveImageUrl(created.imageUrl),
           isActive: created.isActive !== false
         };
+        this.saveRoomMeta(created.id, { capacity: newRoom.capacity, hourlyPrice: newRoom.hourlyPrice });
         this.settingsState.update(s => ({ ...s, rooms: [newRoom, ...s.rooms.filter(r => r.id !== created.id)] }));
         return newRoom;
       })
@@ -413,6 +459,38 @@ export class SettingsService {
     const isClassroom = room.type === 'Classroom';
     const zone = isClassroom ? undefined : (room.type === 'Silent Zone' ? 2 : 1);
 
+    this.saveRoomMeta(room.id, { capacity: room.capacity, hourlyPrice: room.hourlyPrice });
+
+    // Sync Classroom pricing plan with backend /api/PricingPlans
+    if (isClassroom && room.hourlyPrice !== undefined) {
+      const existingPlan = this.pricingTiers().find(p => p.roomId === room.id);
+      if (existingPlan && existingPlan.id) {
+        this.pricingPlanApi.updatePricingPlan(existingPlan.id, {
+          roomId: room.id,
+          scope: 2,
+          baseHours: 1,
+          baseCost: room.hourlyPrice,
+          overageHourlyRate: room.hourlyPrice,
+          isActive: true,
+          note: room.name
+        }).subscribe({
+          next: () => this.syncPricingPlansFromBackend()
+        });
+      } else if (room.hourlyPrice > 0) {
+        this.pricingPlanApi.createPricingPlan({
+          roomId: room.id,
+          scope: 2,
+          baseHours: 1,
+          baseCost: room.hourlyPrice,
+          overageHourlyRate: room.hourlyPrice,
+          isActive: true,
+          note: room.name
+        }).subscribe({
+          next: () => this.syncPricingPlansFromBackend()
+        });
+      }
+    }
+
     return this.roomApi.updateRoom(room.id, {
       name: room.name,
       supportsWorkspace: !isClassroom,
@@ -421,7 +499,9 @@ export class SettingsService {
       description: room.name,
       isActive: room.isActive,
       imageUrl: isAbsoluteUrl ? room.imageUrl : undefined,
-      imageFile: imageFile
+      imageFile: imageFile,
+      capacity: room.capacity,
+      hourlyPrice: room.hourlyPrice
     }).pipe(
       switchMap(updated => {
         if (imageFile && updated && updated.id) {
@@ -446,11 +526,12 @@ export class SettingsService {
           name: updated.name || room.name,
           nameEn: updated.nameEn || room.nameEn,
           type: updated.supportsClassroom ? 'Classroom' : (updated.workspaceZone === 2 ? 'Silent Zone' : 'Shared Space'),
-          capacity: updated.capacity ?? room.capacity,
-          hourlyPrice: updated.hourlyPrice ?? room.hourlyPrice,
+          capacity: room.capacity,
+          hourlyPrice: room.hourlyPrice,
           imageUrl: resolveImageUrl(updated.imageUrl || (imageFile ? '' : (room.imageUrl?.startsWith('data:') ? '' : room.imageUrl))),
           isActive: updated.isActive !== false
         };
+        this.saveRoomMeta(room.id, { capacity: updatedRoom.capacity, hourlyPrice: updatedRoom.hourlyPrice });
         const updatedList = this.rooms().map(r => (r.id === room.id ? updatedRoom : r));
         this.settingsState.update(s => ({ ...s, rooms: updatedList }));
         return updatedRoom;

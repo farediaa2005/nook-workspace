@@ -201,11 +201,21 @@ export const routes: Routes = [
               ),
           },
           {
+            path: 'active-shift',
+            redirectTo: 'active',
+            pathMatch: 'full',
+          },
+          {
             path: 'history',
             loadComponent: () =>
               import('./features/shift/shift-history/shift-history.component').then(
                 (m) => m.ShiftHistoryComponent
               ),
+          },
+          {
+            path: 'shift-history',
+            redirectTo: 'history',
+            pathMatch: 'full',
           },
           {
             path: 'end-of-shift-balance',

@@ -15,15 +15,41 @@
         (valueChange)="onSearchChange($event)"
       ></app-search-box>
 
-      <!-- Create Promo Code Primary CTA -->
+      <!-- Create Primary CTA -->
       <app-primary-button
         class="discounts-add-btn"
-        [text]="t().createPromoCodeBtn"
+        [text]="isArabic() ? '+ إضافة خصم جديد' : '+ Create Discount'"
         (clicked)="openAddModal()"
       ></app-primary-button>
     </div>
   </div>
 
+  <!-- Tab Switcher: Promo Codes vs Automatic Milestone Rules (Modern Segmented Tabs) -->
+  <div class="tabs-segmented-wrapper">
+    <button
+      type="button"
+      class="tab-segmented-item"
+      [class.active]="activeDiscountTab() === 'promos'"
+      (click)="activeDiscountTab.set('promos')"
+    >
+      <span class="tab-icon">🏷️</span>
+      <span class="tab-label">{{ isArabic() ? 'كوبونات الخصم والبرومو كود' : 'Promo Codes' }}</span>
+      <span class="tab-counter">{{ discounts().length }}</span>
+    </button>
+
+    <button
+      type="button"
+      class="tab-segmented-item"
+      [class.active]="activeDiscountTab() === 'auto_rules'"
+      (click)="activeDiscountTab.set('auto_rules')"
+    >
+      <span class="tab-icon">⚡</span>
+      <span class="tab-label">{{ isArabic() ? 'قواعد الخصم التلقائي' : 'Automatic Milestone Rules' }}</span>
+      <span class="tab-counter">{{ autoRules().length }}</span>
+    </button>
+  </div>
+
+  @if (activeDiscountTab() === 'promos') {
   <!-- 3 Summary Metric Cards Grid -->
   <div class="metrics-grid">
     <!-- Card 1: Active Promo Codes -->
@@ -108,93 +134,87 @@
                 </div>
               </td>
 
-              <!-- Title / Description -->
+              <!-- Title & Description -->
               <td>
-                <span class="discount-title">
-                  {{ isArabic() ? d.title : (d.titleEn || d.title) }}
-                </span>
+                <div class="discount-title-wrap">
+                  <strong class="discount-title">{{ isArabic() ? d.title : (d.titleEn || d.title) }}</strong>
+                </div>
               </td>
 
-              <!-- Value (% or EGP) -->
-              <td class="cell-center">
-                <span class="value-pill" [class.value-pill--fixed]="d.type === 'fixed'">
+              <!-- Discount Value -->
+              <td class="th-center">
+                <span class="discount-value-tag">
                   @if (d.type === 'percentage') {
-                    {{ d.value }}% {{ t().discountOffBadge }}
+                    {{ d.value }}%
                   } @else {
-                    {{ d.value }} {{ t().currency }} {{ t().discountOffBadge }}
+                    {{ d.value }} {{ t().currency }}
                   }
                 </span>
               </td>
 
-              <!-- Scope -->
+              <!-- Applicable Scope -->
               <td>
-                <span class="scope-text">
+                <span class="scope-badge">
                   {{ getScopeLabel(d.scope) }}
                 </span>
               </td>
 
               <!-- Validity Period -->
               <td>
-                <div class="validity-dates">
-                  <span>{{ d.startDate }}</span>
-                  <span class="date-sep">←</span>
-                  <span>{{ d.expiryDate }}</span>
+                <div class="validity-wrap">
+                  <span class="validity-dates">
+                    {{ d.startDate }} {{ t().to }} {{ d.expiryDate }}
+                  </span>
+                  @if (d.expiryDate < todayDate) {
+                    <span class="badge-expired">{{ t().statusExpired }}</span>
+                  }
                 </div>
               </td>
 
-              <!-- Usage Progress -->
-              <td class="cell-center">
+              <!-- Usage Limit vs Times Used -->
+              <td class="th-center">
                 <div class="usage-progress-wrap">
-                  <span class="usage-count-text">
-                    {{ isArabic() ? ((d.usageCount || 0) + ' من ' + (d.usageLimit || 100)) : ((d.usageCount || 0) + ' / ' + (d.usageLimit || 100)) }}
+                  <span class="usage-counter">
+                    {{ d.usageCount || 0 }} / {{ d.usageLimit }}
                   </span>
-                  <div class="progress-bar-bg">
+                  <div class="usage-progress-bar">
                     <div
-                      class="progress-bar-fill"
-                      [style.width.%]="getUsagePercent(d)"
+                      class="usage-fill"
+                      [style.width.%]="((d.usageCount || 0) / d.usageLimit) * 100"
                     ></div>
                   </div>
                 </div>
               </td>
 
-              <!-- Status Toggle Badge -->
-              <td class="cell-center">
+              <!-- Status Toggle Pill -->
+              <td class="th-center">
                 <button
                   type="button"
                   class="badge-status-btn"
                   [class.badge-status--active]="d.status === 'active'"
-                  [class.badge-status--expired]="d.status === 'expired'"
-                  [class.badge-status--disabled]="d.status === 'disabled'"
+                  [class.badge-status--disabled]="d.status !== 'active'"
                   (click)="toggleStatus(d)"
                   [title]="t().status"
                 >
                   <span class="status-dot"></span>
-                  <span>
-                    @if (d.status === 'active') {
-                      {{ t().active }}
-                    } @else if (d.status === 'expired') {
-                      {{ t().statusExpired }}
-                    } @else {
-                      {{ t().statusDisabled }}
-                    }
-                  </span>
+                  <span>{{ d.status === 'active' ? t().statusActive : t().statusDisabled }}</span>
                 </button>
               </td>
 
-              <!-- Actions (Copy, Edit, Delete) -->
-              <td class="cell-center">
-                <div class="actions-wrapper" style="justify-content: center; gap: 6px;">
+              <!-- Actions Buttons: Edit & Delete -->
+              <td class="th-center">
+                <div class="table-actions-inline">
                   <button
                     type="button"
                     class="btn-edit-direct"
                     (click)="openEditModal(d)"
-                    [title]="t().edit"
+                    [title]="t().editText"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                     </svg>
-                    <span>{{ t().edit }}</span>
+                    <span>{{ t().editText }}</span>
                   </button>
 
                   <button
@@ -236,135 +256,379 @@
       ></app-pagination>
     </div>
   </div>
+  } @else {
+  <!-- 2. AUTOMATIC MILESTONE RULES BUILDER (Item 16) -->
+  <div class="metrics-grid">
+    <app-metric-card
+      [title]="isArabic() ? 'إجمالي قواعد الخصم' : 'Total Rules'"
+      [value]="autoRules().length"
+      color="blue"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+      </svg>
+    </app-metric-card>
 
-  <!-- Create / Edit Promo Code Modal -->
+    <app-metric-card
+      [title]="isArabic() ? 'قواعد عدد الزيارات' : 'Visit-Count Rules'"
+      [value]="autoRules().filter(r => r.ruleType === 'VisitCountBased').length"
+      color="yellow"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+      </svg>
+    </app-metric-card>
+
+    <app-metric-card
+      [title]="isArabic() ? 'قواعد إجمالي الساعات' : 'Hours-Based Rules'"
+      [value]="autoRules().filter(r => r.ruleType === 'HoursBased').length"
+      color="green"
+    >
+      <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+      </svg>
+    </app-metric-card>
+  </div>
+
+  <div class="table-container-card">
+    <div class="table-responsive">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th>{{ isArabic() ? 'اسم ومكافأة القاعدة' : 'Rule Name & Reward' }}</th>
+            <th>{{ isArabic() ? 'نوع القياس' : 'Metric Type' }}</th>
+            <th class="th-center">{{ isArabic() ? 'شرط الاستحقاق' : 'Threshold' }}</th>
+            <th class="th-center">{{ isArabic() ? 'نسبة الخصم' : 'Discount %' }}</th>
+            <th class="th-center">{{ isArabic() ? 'أقصى خصم' : 'Max Discount' }}</th>
+            <th class="th-center">{{ t().status }}</th>
+            <th class="th-center">{{ t().actions }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (rule of autoRules(); track rule.id) {
+            <tr>
+              <td>
+                <strong>{{ isArabic() ? (rule.nameAr || rule.nameEn) : (rule.nameEn || rule.nameAr) }}</strong>
+              </td>
+              <td>
+                <span class="scope-badge">
+                  {{ rule.ruleType === 'VisitCountBased' ? (isArabic() ? 'عدد الزيارات' : 'Visit Count') : (isArabic() ? 'ساعات المذاكرة' : 'Study Hours') }}
+                </span>
+              </td>
+              <td class="th-center">
+                <span style="font-weight: 700; color: #4f46e5;">
+                  {{ rule.thresholdValue }} {{ rule.ruleType === 'VisitCountBased' ? (isArabic() ? 'زيارة' : 'visits') : (isArabic() ? 'ساعة' : 'hours') }}
+                </span>
+              </td>
+              <td class="th-center">
+                <span class="discount-value-tag">{{ rule.discountPercentage }}%</span>
+              </td>
+              <td class="th-center">
+                <span>{{ rule.maxDiscountAmount || 100 }} {{ t().currency }}</span>
+              </td>
+              <td class="th-center">
+                <button
+                  type="button"
+                  class="badge-status-btn"
+                  [class.badge-status--active]="rule.isActive"
+                  [class.badge-status--disabled]="!rule.isActive"
+                  (click)="toggleAutoRule(rule.id)"
+                  [title]="t().status"
+                >
+                  <span class="status-dot"></span>
+                  <span>{{ rule.isActive ? t().statusActive : t().statusDisabled }}</span>
+                </button>
+              </td>
+              <td class="th-center">
+                <button
+                  type="button"
+                  class="btn-delete-direct"
+                  (click)="deleteAutoRule(rule.id)"
+                  [title]="t().delete"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                  </svg>
+                  <span>{{ t().delete }}</span>
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7" class="cell-empty">
+                {{ isArabic() ? 'لا توجد قواعد خصم تلقائي حالياً' : 'No automatic discount rules found' }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+  }
+
+  <!-- Unified Create / Edit Discount Modal -->
   <app-modal
     [isOpen]="isModalOpen()"
     [title]="getModalTitle()"
     (close)="closeModal()"
   >
-    <form (submit)="saveDiscount(); $event.preventDefault()" class="discount-modal-form">
+    <form (submit)="onUnifiedFormSubmit(); $event.preventDefault()" class="discount-modal-form">
       @if (formError(); as err) {
         <div class="form-error-banner">
           {{ err }}
         </div>
       }
 
-      <div class="form-grid">
-        <!-- Promo Code Input & Generate Button -->
-        <div class="field-group full-width">
-          <label class="field-label">{{ t().promoCode }} *</label>
-          <div class="code-generator-input-wrap">
-            <input
-              type="text"
-              class="custom-input code-input-styled"
-              [placeholder]="isArabic() ? 'مثال: SUMMER25' : 'e.g. SUMMER25'"
-              [ngModel]="formCode()"
-              (ngModelChange)="formCode.set($event)"
-              name="formCode"
-            />
-            <button type="button" class="btn-generate-code" (click)="generateRandomCode()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
-                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-              </svg>
-              <span>{{ t().autoGenerate }}</span>
+      <!-- Category Selector: Only visible when adding new discount -->
+      @if (modalMode() === 'add') {
+        <div class="discount-category-picker">
+          <label class="field-label">{{ isArabic() ? 'اختر نوع الخصم المطلوب' : 'Select Discount Category' }} *</label>
+          <div class="category-cards-grid">
+            <button
+              type="button"
+              class="category-card-btn"
+              [class.active]="selectedDiscountCategory() === 'promo'"
+              (click)="selectedDiscountCategory.set('promo')"
+            >
+              <div class="card-radio-indicator">
+                <div class="radio-inner-dot"></div>
+              </div>
+              <div class="card-body-wrap">
+                <div class="card-header-row">
+                  <span class="card-icon">🏷️</span>
+                  <span class="card-title">{{ isArabic() ? 'كود خصم (Promo Code)' : 'Promo Code' }}</span>
+                </div>
+                <p class="card-desc">
+                  {{ isArabic() ? 'كوبون يدوي يدخله الموظف أو العميل برمز محدد (مثل: NOOK20)' : 'Manual code entered during checkout with specific usage limit' }}
+                </p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              class="category-card-btn"
+              [class.active]="selectedDiscountCategory() === 'auto_rule'"
+              (click)="selectedDiscountCategory.set('auto_rule')"
+            >
+              <div class="card-radio-indicator">
+                <div class="radio-inner-dot"></div>
+              </div>
+              <div class="card-body-wrap">
+                <div class="card-header-row">
+                  <span class="card-icon">⚡</span>
+                  <span class="card-title">{{ isArabic() ? 'خصم تلقائي (Milestone Rule)' : 'Auto Milestone Rule' }}</span>
+                </div>
+                <p class="card-desc">
+                  {{ isArabic() ? 'يطبق تلقائياً في الفاتورة عند وصول العميل لعدد زيارات أو ساعات معينة' : 'Applied automatically when customer reaches milestone visits or study hours' }}
+                </p>
+              </div>
             </button>
           </div>
         </div>
+      }
 
-        <!-- Discount Title -->
-        <div class="field-group full-width">
-          <label class="field-label">{{ t().titleDescription }} *</label>
-          <input
-            type="text"
-            class="custom-input"
-            [placeholder]="isArabic() ? 'مثال: خصم الطلاب لفترة الصيف' : 'e.g. Summer Student Special Offer'"
-            [ngModel]="formTitle()"
-            (ngModelChange)="formTitle.set($event)"
-            name="formTitle"
-          />
-        </div>
+      <!-- Promo Code Fields -->
+      @if (selectedDiscountCategory() === 'promo' || modalMode() === 'edit') {
+        <div class="form-grid">
+          <!-- Promo Code Input & Generate Button -->
+          <div class="field-group full-width">
+            <label class="field-label">{{ t().promoCode }} *</label>
+            <div class="code-generator-input-wrap">
+              <input
+                type="text"
+                class="custom-input code-input-styled"
+                [placeholder]="isArabic() ? 'مثال: SUMMER25' : 'e.g. SUMMER25'"
+                [ngModel]="formCode()"
+                (ngModelChange)="formCode.set($event)"
+                name="formCode"
+              />
+              <button type="button" class="btn-generate-code" (click)="generateRandomCode()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                </svg>
+                <span>{{ t().autoGenerate }}</span>
+              </button>
+            </div>
+          </div>
 
-        <!-- Discount Type -->
-        <div class="field-group">
-          <label class="field-label">{{ t().discountType }}</label>
-          <app-custom-select
-            [options]="typeOptions()"
-            [selectedValue]="formType()"
-            [fullWidth]="true"
-            (valueChange)="formType.set($any($event))"
-          ></app-custom-select>
-        </div>
+          <!-- Discount Title -->
+          <div class="field-group full-width">
+            <label class="field-label">{{ t().titleDescription }} *</label>
+            <input
+              type="text"
+              class="custom-input"
+              [placeholder]="isArabic() ? 'مثال: خصم الطلاب لفترة الصيف' : 'e.g. Summer Student Special Offer'"
+              [ngModel]="formTitle()"
+              (ngModelChange)="formTitle.set($event)"
+              name="formTitle"
+            />
+          </div>
 
-        <!-- Discount Value -->
-        <div class="field-group">
-          <label class="field-label">{{ t().discountValue }} *</label>
-          <input
-            type="number"
-            class="custom-input"
-            [class.input-error]="!!valueError()"
-            [min]="1"
-            [max]="formType() === 'percentage' ? 100 : 99999"
-            [placeholder]="formType() === 'percentage' ? '25' : '50'"
-            [ngModel]="formValue()"
-            (ngModelChange)="formValue.set($event)"
-            name="formValue"
-          />
-          @if (valueError(); as vErr) {
-            <span class="field-error-msg">{{ vErr }}</span>
-          }
-        </div>
+          <!-- Discount Type -->
+          <div class="field-group">
+            <label class="field-label">{{ t().discountType }}</label>
+            <app-custom-select
+              [options]="typeOptions()"
+              [selectedValue]="formType()"
+              [fullWidth]="true"
+              (valueChange)="formType.set($any($event))"
+            ></app-custom-select>
+          </div>
 
-        <!-- Applicable Scope -->
-        <div class="field-group">
-          <label class="field-label">{{ t().applicableOn }}</label>
-          <app-custom-select
-            [options]="scopeOptions()"
-            [selectedValue]="formScope()"
-            [fullWidth]="true"
-            (valueChange)="formScope.set($any($event))"
-          ></app-custom-select>
-        </div>
+          <!-- Discount Value -->
+          <div class="field-group">
+            <label class="field-label">{{ t().discountValue }} *</label>
+            <input
+              type="number"
+              class="custom-input"
+              [class.input-error]="!!valueError()"
+              [min]="1"
+              [max]="formType() === 'percentage' ? 100 : 99999"
+              [placeholder]="formType() === 'percentage' ? '25' : '50'"
+              [ngModel]="formValue()"
+              (ngModelChange)="formValue.set($event)"
+              name="formValue"
+            />
+            @if (valueError(); as vErr) {
+              <span class="field-error-msg">{{ vErr }}</span>
+            }
+          </div>
 
-        <!-- Usage Limit -->
-        <div class="field-group">
-          <label class="field-label">{{ t().usageLimitTh }}</label>
-          <input
-            type="number"
-            class="custom-input"
-            placeholder="100"
-            [ngModel]="formUsageLimit()"
-            (ngModelChange)="formUsageLimit.set($event)"
-            name="formUsageLimit"
-          />
-        </div>
+          <!-- Applicable Scope -->
+          <div class="field-group">
+            <label class="field-label">{{ t().applicableOn }}</label>
+            <app-custom-select
+              [options]="scopeOptions()"
+              [selectedValue]="formScope()"
+              [fullWidth]="true"
+              (valueChange)="formScope.set($any($event))"
+            ></app-custom-select>
+          </div>
 
-        <!-- Start Date -->
-        <div class="field-group">
-          <label class="field-label">{{ t().startDate }}</label>
-          <input
-            type="date"
-            class="custom-input"
-            [min]="todayDate"
-            [ngModel]="formStartDate()"
-            (ngModelChange)="formStartDate.set($event)"
-            name="formStartDate"
-          />
-        </div>
+          <!-- Usage Limit -->
+          <div class="field-group">
+            <label class="field-label">{{ t().usageLimitTh }}</label>
+            <input
+              type="number"
+              class="custom-input"
+              placeholder="100"
+              [ngModel]="formUsageLimit()"
+              (ngModelChange)="formUsageLimit.set($event)"
+              name="formUsageLimit"
+            />
+          </div>
 
-        <!-- Expiration Date -->
-        <div class="field-group">
-          <label class="field-label">{{ t().expirationDate }} *</label>
-          <input
-            type="date"
-            class="custom-input"
-            [min]="todayDate"
-            [ngModel]="formExpiryDate()"
-            (ngModelChange)="formExpiryDate.set($event)"
-            name="formExpiryDate"
-          />
+          <!-- Start Date -->
+          <div class="field-group">
+            <label class="field-label">{{ t().startDate }}</label>
+            <input
+              type="date"
+              class="custom-input"
+              [min]="todayDate"
+              [ngModel]="formStartDate()"
+              (ngModelChange)="formStartDate.set($event)"
+              name="formStartDate"
+            />
+          </div>
+
+          <!-- Expiration Date -->
+          <div class="field-group">
+            <label class="field-label">{{ t().expirationDate }} *</label>
+            <input
+              type="date"
+              class="custom-input"
+              [min]="todayDate"
+              [ngModel]="formExpiryDate()"
+              (ngModelChange)="formExpiryDate.set($event)"
+              name="formExpiryDate"
+            />
+          </div>
         </div>
-      </div>
+      } @else {
+        <!-- Automatic Milestone Rule Fields -->
+        <div class="form-grid">
+          <!-- Metric Type Selection -->
+          <div class="field-group full-width">
+            <label class="field-label">{{ isArabic() ? 'نوع القياس والاستحقاق' : 'Milestone Metric' }} *</label>
+            <div class="metric-pill-toggle">
+              <button
+                type="button"
+                class="metric-toggle-btn"
+                [class.active]="autoRuleType() === 'VisitCountBased'"
+                (click)="autoRuleType.set('VisitCountBased')"
+              >
+                <span>🚶‍♂️ {{ isArabic() ? 'عدد الزيارات (Visit Count)' : 'Visit Count' }}</span>
+              </button>
+              <button
+                type="button"
+                class="metric-toggle-btn"
+                [class.active]="autoRuleType() === 'HoursBased'"
+                (click)="autoRuleType.set('HoursBased')"
+              >
+                <span>⏱️ {{ isArabic() ? 'إجمالي الساعات (Study Hours)' : 'Total Hours' }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Threshold Value -->
+          <div class="field-group">
+            <label class="field-label">
+              {{ autoRuleType() === 'VisitCountBased' ? (isArabic() ? 'عدد الزيارات المطلوبة (مثال: 20)' : 'Min Visits Threshold') : (isArabic() ? 'عدد الساعات المطلوبة (مثال: 100)' : 'Min Hours Threshold') }} *
+            </label>
+            <input
+              type="number"
+              class="custom-input"
+              [ngModel]="autoRuleThreshold()"
+              (ngModelChange)="autoRuleThreshold.set($event)"
+              name="autoRuleThreshold"
+              min="1"
+            />
+          </div>
+
+          <!-- Discount Percentage -->
+          <div class="field-group">
+            <label class="field-label">{{ isArabic() ? 'نسبة الخصم (%)' : 'Discount Percentage (%)' }} *</label>
+            <input
+              type="number"
+              class="custom-input"
+              [ngModel]="autoRulePercentage()"
+              (ngModelChange)="autoRulePercentage.set($event)"
+              name="autoRulePercentage"
+              min="1"
+              max="100"
+            />
+          </div>
+
+          <!-- Max Discount Amount -->
+          <div class="field-group">
+            <label class="field-label">{{ isArabic() ? 'الحد الأقصى للخصم (ج.م)' : 'Max Discount Amount (EGP)' }}</label>
+            <input
+              type="number"
+              class="custom-input"
+              [ngModel]="autoRuleMaxAmount()"
+              (ngModelChange)="autoRuleMaxAmount.set($event)"
+              name="autoRuleMaxAmount"
+              min="0"
+            />
+          </div>
+
+          <!-- Rule Name -->
+          <div class="field-group full-width">
+            <label class="field-label">{{ isArabic() ? 'اسم أو عنوان القاعدة (اختياري)' : 'Rule Title (Optional)' }}</label>
+            <input
+              type="text"
+              class="custom-input"
+              [placeholder]="isArabic() ? 'مثال: مكافأة 20 زيارة (خصم 15%)' : 'e.g. 20 Visits Milestone (15% Off)'"
+              [ngModel]="autoRuleNameAr()"
+              (ngModelChange)="autoRuleNameAr.set($event)"
+              name="autoRuleNameAr"
+            />
+          </div>
+        </div>
+      }
 
       <div class="modal-footer-actions">
         <button type="button" class="btn-cancel" (click)="closeModal()">
@@ -372,7 +636,7 @@
         </button>
 
         <app-primary-button
-          [text]="t().saveCode"
+          [text]="modalMode() === 'edit' ? t().saveCode : (selectedDiscountCategory() === 'promo' ? t().saveCode : (isArabic() ? 'حفظ وتفعيل القاعدة' : 'Save & Activate Rule'))"
           [disabled]="isFormInvalid() || isSaving()"
           type="submit"
         ></app-primary-button>

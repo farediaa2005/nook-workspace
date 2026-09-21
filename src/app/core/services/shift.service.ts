@@ -10,6 +10,7 @@ import { WorkspacePackageApiService } from './api/workspace-package-api.service'
 import { ClassroomPackageApiService } from './api/classroom-package-api.service';
 import { LanguageService } from './language.service';
 import { NotificationService } from './notification.service';
+import { AuditService } from './audit.service';
 import { ShiftDto, CreateShiftItemDto, ShiftItemCategory } from '../models/shift-api.model';
 import { getSafeAvatar } from '../utils/avatar.util';
 import { parseIsoToLocal12h, parseIsoToLocalDate, getTodayDateISO } from '../utils/date-time.util';
@@ -27,6 +28,7 @@ export class ShiftService implements OnDestroy {
   private cpApi = inject(ClassroomPackageApiService);
   private langService = inject(LanguageService);
   private notification = inject(NotificationService);
+  private auditService = inject(AuditService);
 
   private timerIntervalId: any = null;
   private autoSyncIntervalId: any = null;
@@ -60,6 +62,51 @@ export class ShiftService implements OnDestroy {
     return false;
   }
 
+  /** Requirement 7: Shift edit permissions */
+  public canEditShift(shiftRecord?: ShiftRecord | null): boolean {
+    const isAdmin = this.authService.isAdmin();
+    if (isAdmin) return true; // Admin can edit shift time & checked-out shifts
+
+    const target = shiftRecord || this.currentShift();
+    if (!target) return false;
+
+    // Normal User can edit shift time ONLY while shift is active (status === 'active') before checkout
+    return target.status === 'active';
+  }
+
+  /** Requirement 7: Update shift time with permission enforcement */
+  public updateShiftTime(shiftId: string, newStartTime: string, newEndTime?: string): Observable<boolean> {
+    const shift = this.currentShift()?.id === shiftId ? this.currentShift() : this.shiftHistory().find(s => s.id === shiftId);
+    if (!this.canEditShift(shift)) {
+      const msg = this.langService.isArabic()
+        ? 'غير مصرح: لا يمكن تعديل توقيت الشيفت المغلق إلا بواسطة مسؤول النظام (Admin)'
+        : 'Unauthorized: Closed shift time can only be edited by an Admin';
+      this.notification.show(msg, 'error');
+      return throwError(() => new Error(msg));
+    }
+
+    if (this.currentShift()?.id === shiftId) {
+      this.currentShift.update(s => {
+        if (!s) return null;
+        let newStartedAt = s.startedAt;
+        if (s.date && !newStartTime.includes('-') && !newStartTime.includes('T')) {
+          const dateObj = this.parseShiftTimeString(newStartTime, s.date);
+          newStartedAt = dateObj.toISOString();
+        }
+        return {
+          ...s,
+          startTime: newStartTime,
+          startedAt: newStartedAt,
+          endTime: newEndTime || s.endTime
+        };
+      });
+    }
+    this.shiftHistory.update(list => list.map(s => s.id === shiftId ? { ...s, startTime: newStartTime, endTime: newEndTime || s.endTime } : s));
+
+    this.notification.show(this.langService.isArabic() ? 'تم تعديل توقيت الشيفت بنجاح!' : 'Shift time updated successfully!', 'success');
+    return of(true);
+  }
+
   readonly activeStaffName = computed(() => {
     const shift = this.currentShift();
     if (shift && shift.staffName) return shift.staffName;
@@ -77,34 +124,75 @@ export class ShiftService implements OnDestroy {
     return this.currentShift()?.startTime || '09:00 AM';
   });
 
+  readonly shiftStartDate = computed(() => {
+    const shift = this.currentShift();
+    if (!shift) return '';
+    if (shift.date) return shift.date;
+    if (shift.startedAt) return shift.startedAt.split('T')[0];
+    return '';
+  });
+
+  readonly isShiftStartedToday = computed(() => {
+    const dStr = this.shiftStartDate();
+    if (!dStr) return true;
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return dStr === todayStr;
+  });
+
   readonly currentLiveTime = signal<Date>(new Date());
 
   readonly shiftDuration = computed(() => {
     const shift = this.currentShift();
-    if (!shift || !shift.startTime) return '0h 0m';
+    if (!shift || (!shift.startTime && !shift.startedAt)) return '0h 0m';
 
     const now = this.currentLiveTime();
     let startDate: Date;
 
-    if (shift.startTime.includes('T') || shift.startTime.includes('-')) {
-      const parsed = new Date(shift.startTime);
-      startDate = !isNaN(parsed.getTime()) ? parsed : this.parseShiftTimeString(shift.startTime);
+    const fullTimestamp = shift.startedAt || (shift.startTime && (shift.startTime.includes('T') || shift.startTime.includes('-')) ? shift.startTime : null);
+
+    if (fullTimestamp) {
+      const parsed = new Date(fullTimestamp);
+      if (!isNaN(parsed.getTime()) && parsed.getFullYear() >= 2000) {
+        startDate = parsed;
+      } else {
+        startDate = this.parseShiftTimeString(shift.startTime, shift.date);
+      }
     } else {
-      startDate = this.parseShiftTimeString(shift.startTime);
+      startDate = this.parseShiftTimeString(shift.startTime, shift.date);
     }
 
     const diffMs = Math.max(0, now.getTime() - startDate.getTime());
     const totalMinutes = Math.floor(diffMs / 60000);
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    return `${hours}h ${minutes}m`;
+    const d = Math.floor(totalMinutes / 1440);
+    const remMins = totalMinutes % 1440;
+    const hours = Math.floor(remMins / 60);
+    const minutes = remMins % 60;
+    return d > 0 ? `${d}d ${hours}h ${minutes}m` : `${hours}h ${minutes}m`;
   });
 
   private parseShiftTimeString(timeStr: string, dateStr?: string): Date {
-    const d = dateStr ? new Date(dateStr) : new Date();
+    let d: Date;
+    if (dateStr) {
+      if (dateStr.includes('T')) {
+        d = new Date(dateStr);
+      } else if (dateStr.includes('-')) {
+        const parts = dateStr.split('-').map(p => parseInt(p, 10));
+        if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+          d = new Date(parts[0], parts[1] - 1, parts[2]);
+        } else {
+          d = new Date(dateStr);
+        }
+      } else {
+        d = new Date(dateStr);
+      }
+    } else {
+      d = new Date();
+    }
+
     if (isNaN(d.getTime())) {
       const now = new Date();
-      d.setFullYear(now.getFullYear(), now.getMonth(), now.getDate());
+      d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     }
 
     const isPM = /pm|م/i.test(timeStr);
@@ -220,17 +308,17 @@ export class ShiftService implements OnDestroy {
   public isShiftActiveDto(dto: any): boolean {
     if (!dto || typeof dto !== 'object') return false;
 
-    // 1. Explicit status field check
+    // 1. Explicit status field check (SessionStatus enum: Open | Closed | Cancelled)
     const rawStatus = dto.status !== undefined && dto.status !== null ? String(dto.status).toLowerCase().trim() : '';
-    if (rawStatus === '1' || rawStatus === 'active') {
+    if (rawStatus === 'open' || rawStatus === '1' || rawStatus === 'active') {
       return true;
     }
-    if (rawStatus === '2' || rawStatus === 'completed' || rawStatus === 'closed' || rawStatus === 'cancelled' || rawStatus === '4') {
+    if (rawStatus === 'closed' || rawStatus === '2' || rawStatus === 'completed' || rawStatus === 'cancelled' || rawStatus === '4') {
       return false;
     }
 
-    // 2. End time check (timeTo / endTime)
-    const rawEndTime = dto.timeTo || dto.endTime;
+    // 2. End time check (endedAt / timeTo / endTime)
+    const rawEndTime = dto.endedAt || dto.timeTo || dto.endTime;
     if (!rawEndTime || rawEndTime === 'null' || rawEndTime === 'undefined') {
       return true;
     }
@@ -269,7 +357,7 @@ export class ShiftService implements OnDestroy {
    * Dynamically sums revenue categories and payment channel flows without local storage.
    */
   public syncLiveDomainFinancials(activeDto: ShiftDto): Observable<ShiftRecord> {
-    const rawStart = activeDto.timeFrom || activeDto.date || activeDto.startTime || new Date().toISOString();
+    const rawStart = activeDto.startedAt || activeDto.timeFrom || activeDto.date || activeDto.startTime || new Date().toISOString();
     const startDate = new Date(rawStart);
     const startIso = !isNaN(startDate.getTime()) ? startDate.toISOString() : new Date().toISOString();
 
@@ -752,13 +840,47 @@ export class ShiftService implements OnDestroy {
           record.staffName = targetStaffName;
         }
         this.currentShift.set(record);
+        this.auditService.log(
+          'ShiftOpened',
+          'Shift',
+          record.id,
+          `فتح وردية جديدة بواسطة ${targetStaffName} برصيد افتتاحي ${initialCash} ج.م`,
+          {
+            newValues: {
+              initialCash,
+              startVodafone,
+              startInstaPay,
+              startFawry,
+              startTime: formattedStart
+            }
+          }
+        );
       } else {
         const id = `SHIFT-${Date.now().toString().slice(-4)}`;
+        this.auditService.log(
+          'ShiftOpened',
+          'Shift',
+          id,
+          `فتح وردية جديدة بواسطة ${targetStaffName} برصيد افتتاحي ${initialCash} ج.م`,
+          {
+            newValues: {
+              initialCash,
+              startVodafone,
+              startInstaPay,
+              startFawry,
+              startTime: formattedStart
+            }
+          }
+        );
+        const now = new Date();
+        const isoNow = now.toISOString();
         const newShift: ShiftRecord = {
           id: id,
           staffName: targetStaffName,
           staffEmail: user?.email || '',
           role: user?.role || 'Staff',
+          date: isoNow.split('T')[0],
+          startedAt: isoNow,
           startTime: formattedStart,
           status: 'active',
           initialCashDrawer: initialCash,
@@ -803,10 +925,12 @@ export class ShiftService implements OnDestroy {
 
     const attemptStart = (userIdToSend?: string, hasRetried: boolean = false) => {
       this.shiftApi.startShift({
+        userId: userIdToSend,
+        openingBalance: initialCash,
+        notes: notes,
         date: nowIso,
         timeFrom: nowIso,
-        previousTotal: initialCash,
-        userId: userIdToSend
+        previousTotal: initialCash
       }).subscribe({
         next: (apiShift) => {
           createSuccessShift(apiShift);
@@ -988,6 +1112,9 @@ export class ShiftService implements OnDestroy {
     if (!skipApi && current.id && !current.id.startsWith('SHIFT-') && tx.type === 'expense') {
       const payWayCode = tx.paymentMethod === 'vodafone' ? 2 : (tx.paymentMethod === 'instapay' ? 3 : (tx.paymentMethod === 'fawry' ? 4 : 1));
       const itemDto: CreateShiftItemDto = {
+        description: tx.details || 'مصروفات ونثريات',
+        amount: Math.abs(amount),
+        category: 'Expense',
         cost: Math.abs(amount),
         type: 'Expense',
         payWay: payWayCode,
@@ -1052,6 +1179,9 @@ export class ShiftService implements OnDestroy {
     const taggedDescription = `${tagPrefix} ${params.description}`.trim();
 
     const itemDto: CreateShiftItemDto = {
+      description: taggedDescription,
+      amount: params.amount,
+      category: params.type === 'expense' ? 'Expense' : 'Income',
       cost: params.amount,
       type: params.type === 'expense' ? 'Expense' : 'Revenue',
       payWay: payWayCode,
@@ -1268,6 +1398,8 @@ export class ShiftService implements OnDestroy {
 
     if (active.id && !active.id.startsWith('SHIFT-')) {
       this.shiftApi.closeShift(active.id, {
+        closingBalance: actualCash,
+        notes: notes || '',
         timeTo: new Date().toISOString(),
         administrative: active.adminExpenses || 0,
         vfCashInside: actualVodafone || active.vodafoneCashInside || 0,
@@ -1285,6 +1417,20 @@ export class ShiftService implements OnDestroy {
           this.historyItems.update(list => [historyItem, ...list]);
           this.shiftHistory.update(list => [closedRecord, ...list]);
           this.syncShiftsFromBackend();
+          this.auditService.log(
+            'ShiftClosed',
+            'Shift',
+            active.id,
+            `إغلاق الوردية ${active.id} بإجمالي نقدي فعلي ${actualCash} ج.م (فارق: ${variance} ج.م)`,
+            {
+              newValues: {
+                actualCash,
+                actualVodafone,
+                variance,
+                status: 'closed'
+              }
+            }
+          );
           this.notification.success(
             this.langService.isArabic() ? 'تم إغلاق الوردية بنجاح!' : 'Shift closed successfully!'
           );
@@ -1375,11 +1521,11 @@ export class ShiftService implements OnDestroy {
    * Helper to map ShiftDto to ShiftRecord
    */
   private mapDtoToShiftRecord(dto: ShiftDto | any): ShiftRecord {
-    const rawTime = dto.timeFrom || dto.startTime || dto.date;
-    const rawEndTime = dto.timeTo || dto.endTime;
+    const rawTime = dto.startedAt || dto.timeFrom || dto.startTime || dto.date;
+    const rawEndTime = dto.endedAt || dto.timeTo || dto.endTime;
     const isActive = this.isShiftActiveDto(dto);
     const isClosed = !isActive;
-    const opening = dto.previousTotal ?? dto.startCash ?? 0;
+    const opening = dto.openingBalance ?? dto.previousTotal ?? dto.startCash ?? 0;
 
     const formattedStart = rawTime && !String(rawTime).startsWith('0001') ? parseIsoToLocal12h(rawTime) : '09:00 AM';
     const isRealEndTime = rawEndTime && !String(rawEndTime).startsWith('0001') && new Date(rawEndTime).getFullYear() >= 2000;
@@ -1387,8 +1533,8 @@ export class ShiftService implements OnDestroy {
 
     const mappedTransactions: ShiftTransaction[] = Array.isArray(dto.items) && dto.items.length > 0
       ? dto.items.map((it: any, idx: number) => {
-          const itemDesc = String(it.item || it.description || 'معاملة');
-          const rawType = String(it.type || '').toLowerCase();
+          const itemDesc = String(it.description || it.item || 'معاملة');
+          const rawType = String(it.category || it.type || '').toLowerCase();
           const descLower = itemDesc.toLowerCase();
 
           // Prioritize revenue categories FIRST so that student sessions, classrooms, and canteen
@@ -1660,11 +1806,19 @@ export class ShiftService implements OnDestroy {
 
     const totalRev = dto.totalRevenue ?? (canteenRev + classroomRev + workspaceRev + packageRev + otherRev);
 
+    let rawDate: string | undefined = dto.date;
+    if (!rawDate && rawTime) {
+      if (rawTime.includes('T')) rawDate = rawTime.split('T')[0];
+      else if (rawTime.includes('-')) rawDate = rawTime.split(' ')[0];
+    }
+
     return {
       id: dto.id,
       staffName: dto.userName || 'موظف الاستقبال',
       staffEmail: '',
       role: 'Staff',
+      date: rawDate,
+      startedAt: rawTime,
       startTime: formattedStart,
       endTime: formattedEnd,
       status: isClosed ? 'closed' : 'active',
@@ -1694,10 +1848,10 @@ export class ShiftService implements OnDestroy {
    * Helper to map ShiftDto to ShiftHistoryItem
    */
   private mapDtoToHistoryItem(dto: ShiftDto | any): ShiftHistoryItem {
-    const rawTime = dto.timeFrom || dto.startTime || dto.date;
-    const rawEndTime = dto.timeTo || dto.endTime;
-    const finalTotal = dto.totalCost ?? dto.endCash ?? 0;
-    const variance = (dto.increase || 0) - (dto.loss || 0) || (dto.difference ?? 0);
+    const rawTime = dto.startedAt || dto.timeFrom || dto.startTime || dto.date;
+    const rawEndTime = dto.endedAt || dto.timeTo || dto.endTime;
+    const finalTotal = dto.closingBalance ?? dto.totalCost ?? dto.endCash ?? 0;
+    const variance = dto.variance !== undefined && dto.variance !== null ? dto.variance : (((dto.increase || 0) - (dto.loss || 0)) || (dto.difference ?? 0));
 
     const fallbackStaff = this.langService.isArabic() ? 'موظف الاستقبال' : 'Receptionist';
     const staffName = dto.userName || fallbackStaff;
@@ -1715,7 +1869,7 @@ export class ShiftService implements OnDestroy {
       finalTotal: finalTotal,
       variance: variance,
       status: Math.abs(variance) < 0.01 ? 'balanced' : 'disputed',
-      notes: dto.note || dto.notes || undefined
+      notes: dto.notes || dto.note || undefined
     };
   }
 
@@ -1733,10 +1887,14 @@ export class ShiftService implements OnDestroy {
 
     return recalc$.pipe(
       switchMap((updatedDto) => {
+        if (updatedDto) {
+          const rec = this.mapDtoToShiftRecord(updatedDto);
+          this.currentShift.set(rec);
+        }
         const targetDto: ShiftDto = updatedDto || { id: shift.id, timeFrom: shift.startTime, date: shift.startTime };
         return this.syncLiveDomainFinancials(targetDto).pipe(
           map(() => true),
-          catchError(() => of(false))
+          catchError(() => of(true))
         );
       })
     );

@@ -14,8 +14,6 @@ import { CustomSelectComponent, SelectOption } from '../../../shared/components/
 import { DetailsService } from '../../../core/services/details.service';
 import { BlacklistRecord } from '../../../core/models/details.model';
 import { getTodayDateISO } from '../../../core/utils/date-time.util';
-// [MOCK DATA DISABLED FOR LIVE API - See src/testing/mocks/details.mock.ts for offline presentation/testing]
-
 export type { BlacklistRecord };
 
 export interface UnifiedMemberOption {

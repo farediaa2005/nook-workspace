@@ -1,4 +1,4 @@
-import { Injectable, signal, computed, inject } from '@angular/core';
+import { Injectable, signal, computed, inject, Injector } from '@angular/core';
 import { Observable, of, map, catchError, tap, switchMap, forkJoin } from 'rxjs';
 import {
   ClassroomCard,
@@ -10,6 +10,7 @@ import {
   ClassroomCheckoutPayload,
   AdminReservation,
   ClassroomDto,
+  ClassroomDetailDto,
   CreateClassroomDto,
   UpdateClassroomDto,
   CheckoutClassroomDto,
@@ -28,6 +29,7 @@ import { ReservationApiService } from './api/reservation-api.service';
 import { RoomApiService } from './api/room-api.service';
 import { InstructorApiService } from './api/instructor-api.service';
 import { CouponApiService } from './api/coupon-api.service';
+import { PricingPlanApiService } from './api/pricing-plan-api.service';
 import { isCouponExhausted, isCouponExpired } from '../models/coupon.model';
 import { resolveImageUrl } from '../utils/image-url.util';
 import { ShiftService } from './shift.service';
@@ -35,6 +37,7 @@ import { ShiftPaymentMethod } from '../models/shift.model';
 import { AuthService } from './auth.service';
 import { LanguageService } from './language.service';
 import { CateringService } from './catering.service';
+import { NotificationService } from './notification.service';
 import {
   parseIsoToLocal12h,
   parseIsoToLocal24h,
@@ -61,10 +64,21 @@ export class ClassroomService {
   private roomApi = inject(RoomApiService);
   private instructorApi = inject(InstructorApiService);
   private couponApi = inject(CouponApiService);
+  private pricingPlanApi = inject(PricingPlanApiService);
   private shiftService = inject(ShiftService);
   private authService = inject(AuthService);
   private langService = inject(LanguageService);
   private cateringService = inject(CateringService);
+  private injector = inject(Injector);
+
+  public triggerLiveAlertsEvaluation(): void {
+    try {
+      const notif = this.injector.get<any>(NotificationService as any, null);
+      if (notif && typeof notif.evaluateLiveAlerts === 'function') {
+        notif.evaluateLiveAlerts();
+      }
+    } catch {}
+  }
 
   // ============================================================
   // REACTIVE STATE SIGNALS
@@ -97,48 +111,87 @@ export class ClassroomService {
     return Math.max(0, total - active);
   });
 
-  // Persistent classroom catering & instructor cache prefixes
-  private readonly CLASSROOM_CATERING_CACHE_PREFIX = 'nook_catering_classroom_';
-  private readonly CLASSROOM_INSTRUCTOR_CACHE_PREFIX = 'nook_instructor_classroom_';
+  // In-memory classroom catering & instructor caches (ZERO localStorage)
+  private instructorCacheMem = new Map<string, string>();
+  private metaCacheMem = new Map<string, { instructor?: string; phone?: string; email?: string; activity?: string }>();
+  private cateringCacheMem = new Map<string, { total: number; items: any[] }>();
   private instructorMap = new Map<string, any>();
 
   public getClassroomInstructorCache(cardId: string): string | null {
-    try {
-      return localStorage.getItem(this.CLASSROOM_INSTRUCTOR_CACHE_PREFIX + cardId);
-    } catch {
-      return null;
-    }
+    return this.instructorCacheMem.get(cardId) || null;
   }
 
   public setClassroomInstructorCache(cardId: string, instructor: string): void {
-    try {
-      if (instructor && instructor.trim() && instructor !== '-') {
-        localStorage.setItem(this.CLASSROOM_INSTRUCTOR_CACHE_PREFIX + cardId, instructor.trim());
-      }
-    } catch { }
+    if (instructor && instructor.trim() && instructor !== '-') {
+      this.instructorCacheMem.set(cardId, instructor.trim());
+    }
+  }
+
+  public getClassroomMetaCache(cardId: string): { instructor?: string; phone?: string; email?: string; activity?: string } | null {
+    if (!cardId) return null;
+    return this.metaCacheMem.get(cardId) || null;
+  }
+
+  public setClassroomMetaCache(cardId: string, data: { instructor?: string; phone?: string; email?: string; activity?: string }): void {
+    if (!cardId) return;
+    const existing = this.getClassroomMetaCache(cardId) || {};
+    const merged = { ...existing };
+    if (data.instructor && data.instructor.trim() && data.instructor !== '-') merged.instructor = data.instructor.trim();
+    if (data.phone && data.phone.trim()) merged.phone = data.phone.trim();
+    if (data.email && data.email.trim()) merged.email = data.email.trim();
+    if (data.activity && data.activity.trim() && data.activity !== '-') merged.activity = data.activity.trim();
+    this.metaCacheMem.set(cardId, merged);
+  }
+
+  /** Fetch detailed classroom session info from GET /api/Classrooms/{id} */
+  public getClassroomDetails(id: string): Observable<ClassroomDetailDto | null> {
+    if (!id || !/^[0-9a-fA-F-]{36}$/.test(id)) return of(null);
+    return this.classroomApi.getClassroomById(id).pipe(
+      tap(detail => {
+        if (detail) {
+          const phone = detail.instructorPhoneNumber || (detail as any).instructorPhone || (detail as any).phone;
+          const email = (detail as any).instructorEmail || (detail as any).email;
+          const instructor = detail.instructorName || detail.note;
+          const activity = detail.activity || (detail as any).title;
+          if (phone || email || instructor || activity) {
+            this.setClassroomMetaCache(id, {
+              phone: phone || undefined,
+              email: email || undefined,
+              instructor: instructor || undefined,
+              activity: activity || undefined
+            });
+          }
+          this.cardsState.update(cards => cards.map(c => {
+            if (c.id === id) {
+              return {
+                ...c,
+                phone: phone || c.phone,
+                email: email || c.email,
+                instructor: (instructor && instructor !== '-') ? instructor : c.instructor,
+                activity: (activity && activity !== '-') ? activity : c.activity
+              };
+            }
+            return c;
+          }));
+        }
+      }),
+      catchError(() => of(null))
+    );
   }
 
   public getClassroomCateringCache(cardId: string): { total: number; items: any[] } | null {
-    try {
-      if (!cardId) return null;
-      const raw = localStorage.getItem(this.CLASSROOM_CATERING_CACHE_PREFIX + cardId);
-      if (raw) return JSON.parse(raw);
-    } catch { }
-    return null;
+    if (!cardId) return null;
+    return this.cateringCacheMem.get(cardId) || null;
   }
 
   public setClassroomCateringCache(cardId: string, total: number, items: any[]): void {
-    try {
-      if (!cardId) return;
-      localStorage.setItem(this.CLASSROOM_CATERING_CACHE_PREFIX + cardId, JSON.stringify({ total, items }));
-    } catch { }
+    if (!cardId) return;
+    this.cateringCacheMem.set(cardId, { total, items });
   }
 
   public removeClassroomCateringCache(cardId: string): void {
-    try {
-      if (!cardId) return;
-      localStorage.removeItem(this.CLASSROOM_CATERING_CACHE_PREFIX + cardId);
-    } catch { }
+    if (!cardId) return;
+    this.cateringCacheMem.delete(cardId);
   }
 
   /** Load and cache all instructors from backend API */
@@ -206,6 +259,15 @@ export class ClassroomService {
   }
 
   constructor() {
+    if (typeof window !== 'undefined') {
+      try {
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('nook_catering_classroom_') || key.startsWith('nook_instructor_classroom_') || key.startsWith('nook_meta_classroom_') || key.startsWith('nook_room_meta_')) {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch {}
+    }
     if (this.authService.isAuthenticated()) {
       this.syncWithBackend();
     }
@@ -236,10 +298,13 @@ export class ClassroomService {
     });
   }
 
-  /** Load rooms from GET /api/Rooms */
+  /** Load rooms from GET /api/Rooms & pricing plans from /api/PricingPlans */
   public loadRooms(): Observable<SelectableRoom[]> {
-    return this.roomApi.getRooms().pipe(
-      map(rooms => {
+    return forkJoin({
+      rooms: this.roomApi.getRooms().pipe(catchError(() => of([]))),
+      plans: this.pricingPlanApi.getPricingPlans().pipe(catchError(() => of([])))
+    }).pipe(
+      map(({ rooms, plans }) => {
         const activeRooms = (rooms || []).filter(r => r.isActive !== false && r.supportsClassroom !== false);
         const themes = ['brown', 'blue', 'purple', 'emerald', 'orange', 'rose'] as const;
         const roomImages = [
@@ -250,15 +315,19 @@ export class ClassroomService {
         const mapped: SelectableRoom[] = activeRooms.map((r, idx) => {
           const resolved = resolveImageUrl(r.imageUrl);
           const roomImg = resolved || roomImages[idx % roomImages.length];
+          const matchedPlan = (plans || []).find(p => p.roomId === r.id);
+          const planCost = matchedPlan ? (matchedPlan.baseCost || matchedPlan.overageHourlyRate || 0) : 0;
+          const rate = r.hourlyPrice || (r as any).hourlyRate || planCost || 0;
+          const cap = r.capacity || 20;
           return {
             id: r.id,
             name: r.name,
             nameAr: r.name,
             nameEn: r.nameEn || r.name,
             type: 'Classroom',
-            capacity: r.capacity || 20,
-            maxCapacity: r.capacity || 20,
-            hourlyRate: r.hourlyPrice || 40,
+            capacity: cap,
+            maxCapacity: cap,
+            hourlyRate: rate,
             image: roomImg,
             imageUrl: roomImg,
             colorTheme: themes[idx % themes.length],
@@ -291,15 +360,13 @@ export class ClassroomService {
           const statusVal = c.status !== undefined && c.status !== null ? String(c.status).toLowerCase() : '';
           const statusNum = Number(c.status);
 
+          // Item 13: Strict Manual Checkout — Ending scheduled time != Check-out.
+          // Room stays active ('In Session') with live overtime calculation until staff explicitly checks it out.
           const isExplicitlyCompleted = this.completedCardIds.has(c.id) ||
-            statusNum === 2 ||
-            statusVal === '2' ||
-            statusVal === 'completed' ||
-            statusVal === 'left' ||
-            (c as any).isCompleted === true;
+            ((statusNum === 2 || statusVal === '2' || statusVal === 'completed' || statusVal === 'left' || (c as any).isCompleted === true) && (!!(c as any).checkedOutAt || !!(c as any).checkoutTime));
           const isCancelled = statusNum === 4 || statusVal === '4' || statusVal === 'cancelled';
-          const isScheduled = statusNum === 3 || statusVal === '3' || statusVal === 'scheduled';
-          const isActive = !isExplicitlyCompleted && !isCancelled && (statusNum === 1 || statusVal === '1' || statusVal === 'active' || (!c.timeTo && !isScheduled));
+          const isScheduled = (statusNum === 3 || statusVal === '3' || statusVal === 'scheduled') && !isExplicitlyCompleted;
+          const isActive = !isExplicitlyCompleted && !isCancelled;
 
           const roomMatch = currentRooms.find(r => r.id === c.roomId || (c.roomName && r.name.toLowerCase() === c.roomName.toLowerCase()));
 
@@ -417,10 +484,23 @@ export class ClassroomService {
             }
           }
 
-          const hourlyRate = c.hourlyRate || roomMatch?.hourlyRate || 40;
+          const hourlyRate = c.hourlyRate || roomMatch?.hourlyRate || 0;
           let normalRental = c.reservationCost ?? c.rentalCost ?? 0;
           if (normalRental <= 0 || normalRental > 50000) {
             normalRental = +(duration * hourlyRate).toFixed(2);
+          }
+
+          const cachedMeta = c.id ? this.getClassroomMetaCache(c.id) : null;
+          const phoneVal = c.instructorPhoneNumber || c.instructorPhone || (c as any).phone || (c as any).phoneNumber || cachedMeta?.phone || (insId ? (this.instructorMap.get(insId)?.phoneNumber || this.instructorMap.get(insId)?.phone) : undefined) || undefined;
+          const emailVal = (c as any).instructorEmail || (c as any).email || cachedMeta?.email || (insId ? this.instructorMap.get(insId)?.email : undefined) || undefined;
+
+          if (c.id && (phoneVal || emailVal || resolvedInstructor !== '-')) {
+            this.setClassroomMetaCache(c.id, {
+              instructor: resolvedInstructor !== '-' ? resolvedInstructor : undefined,
+              phone: phoneVal,
+              email: emailVal,
+              activity: resolvedActivity !== '-' ? resolvedActivity : undefined
+            });
           }
 
           return {
@@ -430,7 +510,8 @@ export class ClassroomService {
             name: c.roomName || roomMatch?.name || 'Classroom',
             activity: resolvedActivity,
             instructor: resolvedInstructor,
-            phone: c.instructorPhoneNumber || c.instructorPhone || (insId ? this.instructorMap.get(insId)?.phoneNumber : undefined),
+            phone: phoneVal,
+            email: emailVal,
             status: computedStatus,
             image: roomMatch?.image || '/images/rooms/room-workshop.jpg',
             colorTheme: themes[idx % themes.length],
@@ -541,6 +622,13 @@ export class ClassroomService {
                 occurrenceDate: dStr,
                 displayId: `RES-${r.id.substring(0, 4).toUpperCase()}`,
                 instructor: r.instructorName || r.note || 'Instructor',
+                instructorId: r.instructorId || null,
+                instructorPhone: r.instructorPhoneNumber || r.instructorPhone || (r as any).phone || (r as any).phoneNumber || null,
+                phoneNumber: r.instructorPhoneNumber || r.instructorPhone || (r as any).phone || (r as any).phoneNumber || null,
+                phone: r.instructorPhoneNumber || r.instructorPhone || (r as any).phone || (r as any).phoneNumber || null,
+                email: (r as any).email || (r as any).instructorEmail || null,
+                instructorEmail: (r as any).email || (r as any).instructorEmail || null,
+                notes: r.note || r.notes || null,
                 activity: r.activity || 'Classroom Reservation',
                 classroom: r.roomName || roomMatch?.name || 'Hall',
                 capacity: roomMatch?.maxCapacity || 20,
@@ -579,6 +667,13 @@ export class ClassroomService {
               occurrenceDate: baseDateStr,
               displayId: `RES-${r.id.substring(0, 4).toUpperCase()}`,
               instructor: r.instructorName || r.note || 'Instructor',
+              instructorId: r.instructorId || null,
+              instructorPhone: r.instructorPhoneNumber || r.instructorPhone || (r as any).phone || (r as any).phoneNumber || null,
+              phoneNumber: r.instructorPhoneNumber || r.instructorPhone || (r as any).phone || (r as any).phoneNumber || null,
+              phone: r.instructorPhoneNumber || r.instructorPhone || (r as any).phone || (r as any).phoneNumber || null,
+              email: (r as any).email || (r as any).instructorEmail || null,
+              instructorEmail: (r as any).email || (r as any).instructorEmail || null,
+              notes: r.note || r.notes || null,
               activity: r.activity || 'Classroom Reservation',
               classroom: r.roomName || roomMatch?.name || 'Hall',
               capacity: roomMatch?.maxCapacity || 20,
@@ -686,6 +781,67 @@ export class ClassroomService {
     return this.cardsState().find(c => c.id === id);
   }
 
+  /** Verify that a room ID actually exists in the loaded rooms from the backend */
+  public getValidRoomId(roomId?: string | null, roomName?: string | null): string | null {
+    const availableRooms = this.roomsState();
+    if (availableRooms.length === 0) {
+      return (roomId && /^[0-9a-fA-F-]{36}$/.test(roomId)) ? roomId : null;
+    }
+
+    // 1. Check if roomId matches a real room
+    if (roomId) {
+      const match = availableRooms.find(r => r.id && r.id.toLowerCase() === roomId.toLowerCase());
+      if (match) return match.id;
+    }
+
+    // 2. Check if roomName matches a real room
+    if (roomName) {
+      const clean = roomName.trim().toLowerCase();
+      const match = availableRooms.find(r =>
+        (r.name && r.name.trim().toLowerCase() === clean) ||
+        (r.nameAr && r.nameAr.trim().toLowerCase() === clean) ||
+        (r.nameEn && r.nameEn.trim().toLowerCase() === clean)
+      );
+      if (match) return match.id;
+    }
+
+    // 3. Fallback to the first available room from the backend
+    return availableRooms[0].id;
+  }
+
+  /**
+   * Verify that an instructor ID actually exists in dbo.Instructors on the backend.
+   * If not an instructor (e.g. is a student, or custom text name), return null to prevent
+   * foreign key constraint violation (FK_Classrooms_Instructors_InstructorId).
+   */
+  public getValidInstructorId(instructorId?: string | null, instructorName?: string | null): string | null {
+    const instructors = this.instructorsState();
+
+    // 1. If instructorId provided and exists in instructorMap or instructorsState
+    if (instructorId && /^[0-9a-fA-F-]{36}$/.test(instructorId)) {
+      if (this.instructorMap.has(instructorId) || instructors.some(ins => ins.id && ins.id.toLowerCase() === instructorId.toLowerCase())) {
+        return instructorId;
+      }
+    }
+
+    // 2. If not found by ID, try matching by name against real instructors in database
+    if (instructorName) {
+      const clean = instructorName.trim().toLowerCase();
+      for (const [id, ins] of this.instructorMap.entries()) {
+        if (ins.name && ins.name.trim().toLowerCase() === clean) {
+          return id;
+        }
+      }
+      const match = instructors.find(ins => ins.name && ins.name.trim().toLowerCase() === clean);
+      if (match?.id) {
+        return match.id;
+      }
+    }
+
+    // 3. Custom client name or student: return null so EF Core does NOT violate FK constraint
+    return null;
+  }
+
   /** Add a new classroom session via POST /api/Classrooms */
   public findInstructorIdByName(name: string): string | undefined {
     if (!name) return undefined;
@@ -700,8 +856,10 @@ export class ClassroomService {
 
   /** Add a new classroom session via POST /api/Classrooms */
   addBooking(newCard: ClassroomCard): Observable<ClassroomCard> {
-    const roomMatch = this.roomsState().find(r => r.id === newCard.roomId || r.name.toLowerCase() === newCard.name.toLowerCase());
-    const realRoomId = roomMatch?.id || newCard.roomId;
+    const realRoomId = this.getValidRoomId(newCard.roomId, newCard.name);
+    const matchedInsId = this.getValidInstructorId(newCard.instructorId, newCard.instructor);
+    const availableRooms = this.roomsState();
+    const roomMatch = availableRooms.find(r => r.id === realRoomId);
 
     const duration = newCard.durationHours && newCard.durationHours > 0 ? newCard.durationHours : 2;
     const startTime12 = newCard.startTime || this.convertMinutesTo12h(new Date().getHours() * 60 + new Date().getMinutes());
@@ -711,12 +869,12 @@ export class ClassroomService {
       endTime12 = this.convertMinutesTo12h(startMins + Math.round(duration * 60));
     }
 
-    const matchedInsId = newCard.instructorId || this.findInstructorIdByName(newCard.instructor);
-
     const payload: CreateClassroomDto = {
       roomId: realRoomId,
       instructorId: matchedInsId,
       instructorName: newCard.instructor,
+      instructorPhone: newCard.phone,
+      instructorEmail: newCard.email,
       activity: newCard.activity,
       bookingDate: newCard.bookingDate || this.getTodayDateISO(),
       startTime: this.convertTimeToISO(startTime12, newCard.bookingDate),
@@ -724,8 +882,8 @@ export class ClassroomService {
       timeFrom: this.convertTimeToISO(startTime12, newCard.bookingDate),
       timeTo: this.convertTimeToISO(endTime12, newCard.bookingDate),
       date: newCard.bookingDate ? new Date(newCard.bookingDate).toISOString() : new Date().toISOString(),
-      reservationCost: newCard.rental || newCard.hourlyRate || 40,
-      hourlyRate: newCard.hourlyRate || 40,
+      reservationCost: newCard.rental || (newCard.hourlyRate ? newCard.hourlyRate * duration : 0),
+      hourlyRate: newCard.hourlyRate || 0,
       printingCharges: newCard.printingCharges || 0,
       printing: newCard.printingCharges || 0,
       discount: 0,
@@ -739,8 +897,8 @@ export class ClassroomService {
         const card: ClassroomCard = {
           ...newCard,
           id: created.id,
-          roomId: created.roomId || realRoomId,
-          instructorId: matchedInsId,
+          roomId: created.roomId || realRoomId || undefined,
+          instructorId: matchedInsId || undefined,
           instructor: newCard.instructor || '-',
           name: roomMatch?.name || newCard.name,
           startTime: startTime12,
@@ -751,7 +909,16 @@ export class ClassroomService {
         if (card.id && card.instructor && card.instructor !== '-') {
           this.setClassroomInstructorCache(card.id, card.instructor);
         }
+        if (card.id) {
+          this.setClassroomMetaCache(card.id, {
+            instructor: card.instructor,
+            phone: card.phone,
+            email: card.email,
+            activity: card.activity
+          });
+        }
         this.cardsState.update(cards => [card, ...cards]);
+        this.triggerLiveAlertsEvaluation();
         return card;
       }),
       catchError(err => {
@@ -766,13 +933,27 @@ export class ClassroomService {
     if (card.id && card.instructor && card.instructor !== '-') {
       this.setClassroomInstructorCache(card.id, card.instructor);
     }
-    const matchedInsId = card.instructorId || this.findInstructorIdByName(card.instructor);
+    if (card.id) {
+      this.setClassroomMetaCache(card.id, {
+        instructor: card.instructor,
+        phone: card.phone,
+        email: card.email,
+        activity: card.activity
+      });
+    }
+    const realRoomId = this.getValidRoomId(card.roomId, card.name);
+    const matchedInsId = this.getValidInstructorId(card.instructorId, card.instructor);
 
     const payload: UpdateClassroomDto = {
-      roomId: card.roomId,
+      roomId: realRoomId,
       activity: card.activity,
       note: card.instructor,
       instructorId: matchedInsId,
+      instructorName: card.instructor,
+      instructorPhone: card.phone,
+      instructorEmail: card.email,
+      hourlyRate: card.hourlyRate,
+      printingCharges: card.printingCharges,
       timeFrom: this.convertTimeToISO(card.startTime, card.bookingDate),
       timeTo: this.convertTimeToISO(card.endTime, card.bookingDate),
       reservationCost: card.rental,
@@ -781,7 +962,8 @@ export class ClassroomService {
 
     return this.classroomApi.updateClassroom(card.id, payload).pipe(
       tap(() => {
-        this.cardsState.update(cards => cards.map(c => c.id === card.id ? { ...c, ...card, instructorId: matchedInsId } : c));
+        this.cardsState.update(cards => cards.map(c => c.id === card.id ? { ...c, ...card, instructorId: matchedInsId || undefined } : c));
+        this.triggerLiveAlertsEvaluation();
       }),
       catchError(err => {
         console.error('[ClassroomService] Error updating classroom session:', err);
@@ -806,7 +988,7 @@ export class ClassroomService {
   /** Checkout room session via PUT /api/Classrooms/{id}/checkout */
   checkoutRoom(cardId: string, checkoutData?: Partial<ClassroomCheckoutPayload>): Observable<any> {
     const card = this.getCardById(cardId);
-    const finalAmt = checkoutData?.finalAmount || card?.rental || 40;
+    const finalAmt = checkoutData?.finalAmount || card?.rental || 0;
 
     const activeShift = this.shiftService.currentShift();
     const currentUser = this.authService.getUser();
@@ -904,6 +1086,7 @@ export class ClassroomService {
               : c
           )
         );
+        this.triggerLiveAlertsEvaluation();
 
         // Fetch fresh state from backend
         this.loadClassrooms().subscribe();
@@ -1008,9 +1191,9 @@ export class ClassroomService {
     const isoStart = this.convertTimeToISO(dto.timeFrom, targetDate);
     const isoEnd = this.convertTimeToISO(dto.timeTo, targetDate);
 
-    const roomMatch = this.roomsState().find(rm => rm.id === dto.roomId || (dto.roomName && rm.name.toLowerCase() === dto.roomName.toLowerCase()));
-    const realRoomId = roomMatch?.id || dto.roomId;
-    const matchedInsId = dto.instructorId || this.findInstructorIdByName(dto.instructorName || '');
+    const realRoomId = this.getValidRoomId(dto.roomId, dto.roomName);
+    const roomMatch = this.roomsState().find(rm => rm.id === realRoomId);
+    const matchedInsId = this.getValidInstructorId(dto.instructorId, dto.instructorName);
     const finalDateTo = dto.dateTo || targetDate;
     const payload: CreateReservationDto = {
       ...dto,
@@ -1051,6 +1234,12 @@ export class ClassroomService {
           occurrenceDate: dateStr,
           displayId: `RES-${created.id.substring(0, 4).toUpperCase()}`,
           instructor: created.instructorName || dto.instructorName || 'Instructor',
+          instructorId: created.instructorId || dto.instructorId || null,
+          phoneNumber: created.phoneNumber || dto.phoneNumber || dto.phone || null,
+          instructorPhone: created.instructorPhone || dto.instructorPhone || dto.phoneNumber || null,
+          email: (created as any).email || dto.email || dto.instructorEmail || null,
+          instructorEmail: (created as any).email || dto.instructorEmail || dto.email || null,
+          notes: dto.notes || dto.note || null,
           activity: created.activity || dto.activity || 'Classroom Reservation',
           classroom: created.roomName || dto.roomName || roomMatch?.name || 'Hall',
           capacity: roomMatch?.maxCapacity || 20,
@@ -1173,7 +1362,7 @@ export class ClassroomService {
         startTime: card.startTime,
         endTime: formatMins(cutStartMins),
         durationHours: dur1,
-        rental: +(dur1 * (card.hourlyRate || 40)).toFixed(2)
+        rental: +(dur1 * (card.hourlyRate || 0)).toFixed(2)
       };
       this.addBooking(part1).subscribe();
     }
@@ -1186,7 +1375,7 @@ export class ClassroomService {
         startTime: formatMins(cutEndMins),
         endTime: card.endTime,
         durationHours: dur2,
-        rental: +(dur2 * (card.hourlyRate || 40)).toFixed(2)
+        rental: +(dur2 * (card.hourlyRate || 0)).toFixed(2)
       };
       this.addBooking(part2).subscribe();
     }
@@ -1572,5 +1761,249 @@ export class ClassroomService {
         this.loadClassrooms().subscribe();
       })
     );
+  }
+  /**
+   * Calculates actual duration spent in the room between check-in and check-out,
+   * formats it in Arabic / English, and provides comparison against billed hours.
+   */
+  calculateSessionDurationDetails(
+    checkInTime?: string | null,
+    checkOutTime?: string | null,
+    billedHours: number = 2,
+    isArabic: boolean = true
+  ): {
+    actualMinutes: number;
+    actualDurationFormatted: string;
+    billedMinutes: number;
+    billedDurationFormatted: string;
+    diffMinutes: number;
+    differenceText: string;
+    status: 'early' | 'exact' | 'overtime';
+  } {
+    const startMins = this.parseTimeToMinutes(checkInTime || '10:00 AM');
+    let endMins = this.parseTimeToMinutes(checkOutTime || '12:00 PM');
+    let actualMinutes = endMins - startMins;
+    if (actualMinutes < 0) {
+      actualMinutes += 1440; // crosses midnight
+    }
+    if (actualMinutes <= 0) {
+      actualMinutes = Math.max(1, Math.round(billedHours * 60));
+    }
+
+    const actualDays = Math.floor(actualMinutes / 1440);
+    const actualRemAfterDays = actualMinutes % 1440;
+    const actualHours = Math.floor(actualRemAfterDays / 60);
+    const actualRemMins = actualRemAfterDays % 60;
+
+    let actualDurationFormatted = '';
+    if (actualDays > 0) {
+      if (isArabic) {
+        let text = `${actualDays} يوم`;
+        if (actualHours > 0) text += ` و ${actualHours} ساعة`;
+        if (actualRemMins > 0) text += ` و ${actualRemMins} دقيقة`;
+        actualDurationFormatted = text;
+      } else {
+        actualDurationFormatted = `${actualDays}d ${actualHours}h ${actualRemMins}m`;
+      }
+    } else if (isArabic) {
+      if (actualHours === 0) {
+        actualDurationFormatted = `${actualRemMins} دقيقة`;
+      } else if (actualHours === 1) {
+        actualDurationFormatted = actualRemMins === 0 ? 'ساعة واحدة' : `ساعة و ${actualRemMins} دقيقة`;
+      } else if (actualHours === 2) {
+        actualDurationFormatted = actualRemMins === 0 ? 'ساعتان' : `ساعتان و ${actualRemMins} دقيقة`;
+      } else if (actualHours >= 3 && actualHours <= 10) {
+        actualDurationFormatted = actualRemMins === 0 ? `${actualHours} ساعات` : `${actualHours} ساعات و ${actualRemMins} دقيقة`;
+      } else {
+        actualDurationFormatted = actualRemMins === 0 ? `${actualHours} ساعة` : `${actualHours} ساعة و ${actualRemMins} دقيقة`;
+      }
+    } else {
+      if (actualHours === 0) {
+        actualDurationFormatted = `${actualRemMins} min`;
+      } else if (actualHours === 1) {
+        actualDurationFormatted = actualRemMins === 0 ? '1 hour' : `1 hr ${actualRemMins} min`;
+      } else {
+        actualDurationFormatted = actualRemMins === 0 ? `${actualHours} hours` : `${actualHours} hrs ${actualRemMins} min`;
+      }
+    }
+
+    const billedMinutes = Math.round(billedHours * 60);
+    const billedDays = Math.floor(billedHours / 24);
+    const billedRemHours = Math.round(billedHours % 24);
+    let billedDurationFormatted = '';
+    if (billedDays > 0) {
+      if (isArabic) {
+        billedDurationFormatted = `${billedDays} يوم` + (billedRemHours > 0 ? ` و ${billedRemHours} ساعة` : '');
+      } else {
+        billedDurationFormatted = `${billedDays}d` + (billedRemHours > 0 ? ` ${billedRemHours} hrs` : '');
+      }
+    } else if (isArabic) {
+      if (billedHours === 1) {
+        billedDurationFormatted = 'ساعة واحدة';
+      } else if (billedHours === 2) {
+        billedDurationFormatted = '2 ساعات';
+      } else if (billedHours >= 3 && billedHours <= 10) {
+        billedDurationFormatted = `${billedHours} ساعات`;
+      } else {
+        billedDurationFormatted = `${billedHours} ساعة`;
+      }
+    } else {
+      billedDurationFormatted = `${billedHours} ${billedHours === 1 ? 'hour' : 'hours'}`;
+    }
+
+    const diffMinutes = actualMinutes - billedMinutes;
+    let differenceText = '';
+    let status: 'early' | 'exact' | 'overtime' = 'exact';
+
+    if (diffMinutes < -1) {
+      status = 'early';
+      const remainingMins = Math.abs(diffMinutes);
+      const remH = Math.floor(remainingMins / 60);
+      const remM = remainingMins % 60;
+      let remStr = '';
+      if (isArabic) {
+        if (remH === 0) remStr = `${remM} دقيقة`;
+        else if (remH === 1) remStr = remM === 0 ? 'ساعة' : `ساعة و ${remM} دقيقة`;
+        else remStr = remM === 0 ? `${remH} ساعات` : `${remH} ساعات و ${remM} دقيقة`;
+        differenceText = `مغادرة مبكرة (متبقي ${remStr} من المحجوز)`;
+      } else {
+        remStr = remH === 0 ? `${remM}m` : `${remH}h ${remM}m`;
+        differenceText = `Early departure (${remStr} remaining)`;
+      }
+    } else if (diffMinutes > 1) {
+      status = 'overtime';
+      const extraMins = diffMinutes;
+      const exH = Math.floor(extraMins / 60);
+      const exM = extraMins % 60;
+      let exStr = '';
+      if (isArabic) {
+        if (exH === 0) exStr = `${exM} دقيقة`;
+        else if (exH === 1) exStr = exM === 0 ? 'ساعة' : `ساعة و ${exM} دقيقة`;
+        else exStr = exM === 0 ? `${exH} ساعات` : `${exH} ساعات و ${exM} دقيقة`;
+        differenceText = `وقت إضافي (${exStr} زيادة)`;
+      } else {
+        exStr = exH === 0 ? `${exM}m` : `${exH}h ${exM}m`;
+        differenceText = `Overtime (+${exStr})`;
+      }
+    } else {
+      status = 'exact';
+      differenceText = isArabic ? 'اكتملت المدة المحجوزة بالكامل' : 'Full duration completed';
+    }
+
+    return {
+      actualMinutes,
+      actualDurationFormatted,
+      billedMinutes,
+      billedDurationFormatted,
+      diffMinutes,
+      differenceText,
+      status
+    };
+  }
+
+  /**
+   * Consolidates and itemizes all catering products ordered for a classroom card.
+   * Deduplicates by product name and unit price, sums quantities, and matches against total amount.
+   */
+  getItemizedCateringList(
+    card: ClassroomCard | null,
+    stepperProducts?: any[],
+    totalCateringAmount: number = 0,
+    isArabic: boolean = true
+  ): Array<{ name: string; quantity: number; unitPrice: number; totalPrice: number }> {
+    const rawList: any[] = [];
+
+    if (card) {
+      // 1. Direct card catering items
+      if (card.cateringItems && Array.isArray(card.cateringItems) && card.cateringItems.length > 0) {
+        rawList.push(...card.cateringItems);
+      }
+      // 2. Cache by card ID
+      const cachedCard = this.getClassroomCateringCache(card.id);
+      if (cachedCard?.items && Array.isArray(cachedCard.items) && cachedCard.items.length > 0) {
+        rawList.push(...cachedCard.items);
+      }
+      // 3. Cache by room ID
+      if (card.roomId) {
+        const cachedRoom = this.getClassroomCateringCache(card.roomId);
+        if (cachedRoom?.items && Array.isArray(cachedRoom.items) && cachedRoom.items.length > 0) {
+          rawList.push(...cachedRoom.items);
+        }
+      }
+    }
+
+    // 4. Stepper products from POS or checkout modal
+    if (stepperProducts && Array.isArray(stepperProducts)) {
+      for (const p of stepperProducts) {
+        if (p.count > 0) {
+          rawList.push({
+            productId: p.id,
+            name: (isArabic ? (p.nameAr || p.name) : (p.name || p.nameAr)) || 'صنف كاترنج',
+            unitPrice: p.price,
+            quantity: p.count,
+            totalPrice: p.price * p.count
+          });
+        }
+      }
+    }
+
+    // Group and consolidate by unique key: (name + unitPrice)
+    const groupedMap = new Map<string, { name: string; quantity: number; unitPrice: number; totalPrice: number }>();
+    const seenItemIds = new Set<string>();
+
+    for (const item of rawList) {
+      if (!item) continue;
+      // If item has a unique id, prevent duplicate inclusion from card vs cache
+      if (item.id && seenItemIds.has(item.id)) {
+        continue;
+      }
+      if (item.id) {
+        seenItemIds.add(item.id);
+      }
+
+      const rawName = item.nameAr || item.name || item.product?.nameAr || item.product?.name || (isArabic ? 'صنف كاترنج' : 'Catering item');
+      const unitPrice = Number(item.unitPrice ?? item.price ?? item.product?.sellingPrice ?? item.product?.piecePrice ?? 0);
+      const quantity = Math.max(1, Number(item.quantity || 1));
+      const totalPrice = Number(item.totalPrice ?? item.total ?? (unitPrice * quantity));
+
+      const key = `${rawName.trim().toLowerCase()}_${unitPrice.toFixed(2)}`;
+      if (groupedMap.has(key)) {
+        const existing = groupedMap.get(key)!;
+        existing.quantity += quantity;
+        existing.totalPrice = +(existing.totalPrice + totalPrice).toFixed(2);
+      } else {
+        groupedMap.set(key, {
+          name: rawName,
+          quantity: quantity,
+          unitPrice: unitPrice,
+          totalPrice: totalPrice
+        });
+      }
+    }
+
+    const itemized = Array.from(groupedMap.values());
+    const itemsSum = itemized.reduce((sum, i) => sum + i.totalPrice, 0);
+
+    // If totalCateringAmount is greater than itemsSum, add difference as extra catering
+    if (totalCateringAmount > 0) {
+      const diff = +(totalCateringAmount - itemsSum).toFixed(2);
+      if (diff > 0.5) {
+        itemized.push({
+          name: isArabic ? 'طلبات كاترينج إضافية' : 'Additional Catering Orders',
+          quantity: 1,
+          unitPrice: diff,
+          totalPrice: diff
+        });
+      } else if (itemized.length === 0) {
+        itemized.push({
+          name: isArabic ? 'طلبات الكاترينج' : 'Catering Orders',
+          quantity: 1,
+          unitPrice: totalCateringAmount,
+          totalPrice: totalCateringAmount
+        });
+      }
+    }
+
+    return itemized;
   }
 }

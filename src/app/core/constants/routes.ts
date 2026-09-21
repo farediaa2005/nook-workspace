@@ -38,9 +38,12 @@ export const ROUTES = {
 
   SHIFT: {
     ROOT: 'shift',
+    ACTIVE: 'shift/active',
+    HISTORY: 'shift/history',
     ADD_SHIFT: 'shift/add-shift',
     SHOW_SHIFT: 'shift/show-shift',
     SEARCH_SHIFT: 'shift/search-shift',
+    END_OF_SHIFT_BALANCE: 'shift/end-of-shift-balance',
   },
 
   DETAILS: {

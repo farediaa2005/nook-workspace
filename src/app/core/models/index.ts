@@ -31,4 +31,9 @@ export type {
   CheckoutData,
   ProcessPaymentEvent
 } from './checkout.model';
+export * from './notification.model';
+export * from './audit.model';
+export * from './invoice.model';
+export * from './student-analytics.model';
+export * from './discount-rule.model';
 

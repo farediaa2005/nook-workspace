@@ -82,6 +82,8 @@ describe('PackageService Business Rules and Operations', () => {
           memberNameAr: 'أحمد محمود',
           memberNameEn: 'Ahmed Mahmoud',
           memberPhone: '01012345678',
+          memberSubAr: 'طالب',
+          memberSubEn: 'Student',
           type: 'student',
           packageNameAr: 'باقة دراسية',
           packageNameEn: 'Study Pass',
@@ -94,6 +96,7 @@ describe('PackageService Business Rules and Operations', () => {
           expiryDate: '2028-09-01',
           paymentMethod: 'cash',
           status: 'active',
+          createdAt: '2026-09-01T00:00:00Z',
           history: []
         }
       ];
@@ -113,6 +116,8 @@ describe('PackageService Business Rules and Operations', () => {
           memberNameAr: 'أحمد محمود',
           memberNameEn: 'Ahmed Mahmoud',
           memberPhone: '01012345678',
+          memberSubAr: 'طالب',
+          memberSubEn: 'Student',
           type: 'student',
           packageNameAr: 'باقة دراسية 1',
           packageNameEn: 'Study Pass 1',
@@ -125,24 +130,28 @@ describe('PackageService Business Rules and Operations', () => {
           expiryDate: '2028-09-01',
           paymentMethod: 'cash',
           status: 'active',
+          createdAt: '2026-09-01T00:00:00Z',
           history: []
         }
       ];
 
       (service as any).packagesState.set(mockPackages);
 
-      const newDto: CreatePackageDto = {
+      const newDto: any = {
         memberId: 'STU-100',
         memberNameAr: 'أحمد محمود',
+        memberNameEn: 'Ahmed Mahmoud',
         memberPhone: '01012345678',
         type: 'student',
         packageNameAr: 'باقة دراسية 2',
+        packageNameEn: 'Study Pass 2',
         allocatedHours: 10,
         cost: 200,
         hourlyRate: 20,
         purchaseDate: '2026-09-07',
         expiryDate: '2028-10-07',
-        paymentMethod: 'cash'
+        paymentMethod: 'cash',
+        status: 'active'
       };
 
       const result = service.addPackage(newDto);
@@ -157,6 +166,8 @@ describe('PackageService Business Rules and Operations', () => {
           memberNameAr: 'أحمد محمود',
           memberNameEn: 'Ahmed Mahmoud',
           memberPhone: '01012345678',
+          memberSubAr: 'طالب',
+          memberSubEn: 'Student',
           type: 'student',
           packageNameAr: 'باقة دراسية قديمة',
           packageNameEn: 'Old Study Pass',
@@ -169,6 +180,7 @@ describe('PackageService Business Rules and Operations', () => {
           expiryDate: '2025-02-01',
           paymentMethod: 'cash',
           status: 'exhausted',
+          createdAt: '2025-01-01T00:00:00Z',
           history: []
         }
       ];

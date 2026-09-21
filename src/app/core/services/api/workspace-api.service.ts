@@ -102,7 +102,12 @@ export class WorkspaceApiService extends BaseApiService {
       roomId: dto.roomId,
       seatElementId: dto.seatElementId || null,
       timeFrom: dto.timeFrom || new Date().toISOString(),
-      notes: dto.notes || null
+      notes: dto.notes || null,
+      printing: 0,
+      wiFi: 0,
+      registration: 0,
+      wallet: 0,
+      discount: 0
     };
 
     return this.post<ApiResponse<WorkspaceDto>>(API_ENDPOINTS.WORKSPACES.WALK_IN, payload).pipe(
@@ -178,6 +183,14 @@ export class WorkspaceApiService extends BaseApiService {
       map(extractData)
     );
   }
+
+  /** Get official session invoice — GET /api/Workspaces/{id}/invoice */
+  getInvoice(workspaceId: string): Observable<any> {
+    return this.get<ApiResponse<any>>(API_ENDPOINTS.INVOICES.WORKSPACE(workspaceId)).pipe(
+      map(extractData)
+    );
+  }
 }
+
 
 

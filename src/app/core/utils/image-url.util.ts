@@ -26,12 +26,10 @@ export function resolveImageUrl(url?: string | null, defaultFallback: string = '
 
   // 4. Local Angular public assets
   if (
-    trimmed.startsWith('/images/rooms/') ||
-    trimmed.startsWith('images/rooms/') ||
-    trimmed.startsWith('/images/logo') ||
-    trimmed.startsWith('images/logo') ||
-    trimmed.startsWith('/images/login-bg') ||
-    trimmed.startsWith('images/login-bg') ||
+    trimmed.startsWith('/images/') ||
+    trimmed.startsWith('images/') ||
+    trimmed.startsWith('/assets/') ||
+    trimmed.startsWith('assets/') ||
     trimmed.startsWith('/favicon.ico') ||
     trimmed.startsWith('favicon.ico')
   ) {
@@ -40,6 +38,14 @@ export function resolveImageUrl(url?: string | null, defaultFallback: string = '
 
   // 5. Backend relative uploads/images
   const cleanPath = trimmed.startsWith('/') ? trimmed.slice(1) : trimmed;
+  
+  // In local browser dev environment, use relative path so requests go through proxy.conf.json
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return `/${cleanPath}`;
+  }
+
   const backendBase = 'https://nook.runasp.net';
   return `${backendBase}/${cleanPath}`;
 }
+
+export const DEFAULT_ROOM_FALLBACK = '/images/rooms/room-workshop.jpg';

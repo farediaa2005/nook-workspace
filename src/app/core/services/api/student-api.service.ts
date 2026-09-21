@@ -25,6 +25,7 @@ export interface BackendStudentDto {
   blockReason?: string | null;
   facultyName?: string | null;
   parentName?: string | null;
+  notes?: string | null;
 }
 
 export interface CreateStudentPayload {
@@ -40,6 +41,7 @@ export interface CreateStudentPayload {
   printingPrice?: number;
   facultyId?: string | null;
   parentId?: string | null;
+  notes?: string | null;
 }
 
 export interface UpdateStudentPayload {
@@ -52,6 +54,7 @@ export interface UpdateStudentPayload {
   facultyId?: string | null;
   parentId?: string | null;
   canBook?: boolean;
+  notes?: string | null;
 }
 
 export interface StudentCheckoutPayload {
@@ -79,9 +82,10 @@ export interface StudentCheckoutResponse {
 export class StudentApiService extends BaseApiService {
   /** Get list of students */
   getStudents(params?: { FacultyId?: string; SearchTerm?: string; Page?: number; PageSize?: number }): Observable<BackendStudentDto[]> {
+    const finalParams = { PageSize: 1000, ...(params || {}) };
     return this.get<ApiResponse<BackendStudentDto[] | { items: BackendStudentDto[] }>>(
       API_ENDPOINTS.STUDENTS.LIST,
-      params as Record<string, string | number>
+      finalParams as Record<string, string | number>
     ).pipe(
       map(res => {
         if (Array.isArray(res.data)) {
@@ -143,4 +147,19 @@ export class StudentApiService extends BaseApiService {
       map(extractData)
     );
   }
+
+  /** Get student analytics summary — GET /api/Students/{id}/analytics */
+  getStudentAnalytics(id: string): Observable<any> {
+    return this.get<ApiResponse<any>>(API_ENDPOINTS.STUDENT_ANALYTICS.BY_ID(id)).pipe(
+      map(extractData)
+    );
+  }
+
+  /** Get student discount eligibility — GET /api/Students/{id}/discount-eligibility */
+  getDiscountEligibility(id: string): Observable<any> {
+    return this.get<ApiResponse<any>>(API_ENDPOINTS.DISCOUNT_RULES.STUDENT_ELIGIBILITY(id)).pipe(
+      map(extractData)
+    );
+  }
 }
+

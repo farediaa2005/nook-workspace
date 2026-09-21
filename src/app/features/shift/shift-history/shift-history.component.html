@@ -250,8 +250,40 @@
         <!-- Times & Period -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 20px;">
           <div>
-            <span style="font-size: 0.78rem; color: var(--text-dim); display: block; margin-bottom: 4px;">{{ t().shiftTimeColumn }}</span>
-            <strong style="font-size: 0.95rem; color: var(--text);">{{ shift.startTime }} &mdash; {{ shift.endTime }}</strong>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+              <span style="font-size: 0.78rem; color: var(--text-dim);">{{ t().shiftTimeColumn }}</span>
+              @if (isAdmin()) {
+                @if (!isEditingShiftTime()) {
+                  <button type="button" (click)="startEditingTime(shift)" style="background: rgba(245, 185, 33, 0.15); border: 1px solid rgba(245, 185, 33, 0.35); border-radius: 4px; padding: 2px 6px; color: #f5b921; cursor: pointer; font-size: 0.72rem; font-weight: 700;">
+                    ✏️ {{ isArabic() ? 'تعديل (Admin)' : 'Edit (Admin)' }}
+                  </button>
+                }
+              } @else {
+                <span style="font-size: 0.7rem; color: var(--text-dim); background: var(--surface); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border);">
+                  🔒 {{ isArabic() ? 'للقراءة فقط' : 'Read Only' }}
+                </span>
+              }
+            </div>
+
+            @if (isEditingShiftTime()) {
+              <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 6px;">
+                <div style="display: flex; gap: 4px; align-items: center;">
+                  <input type="text" [ngModel]="editShiftStart()" (ngModelChange)="editShiftStart.set($event)" style="width: 80px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.8rem; background: var(--surface); color: var(--text);" placeholder="Start" />
+                  <span>&mdash;</span>
+                  <input type="text" [ngModel]="editShiftEnd()" (ngModelChange)="editShiftEnd.set($event)" style="width: 80px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.8rem; background: var(--surface); color: var(--text);" placeholder="End" />
+                </div>
+                <div style="display: flex; gap: 6px;">
+                  <button type="button" (click)="saveShiftTime()" [disabled]="isSavingTime()" style="padding: 4px 10px; border-radius: 6px; background: #f5b921; color: #16130a; font-size: 0.75rem; font-weight: 700; border: none; cursor: pointer;">
+                    {{ isArabic() ? 'حفظ' : 'Save' }}
+                  </button>
+                  <button type="button" (click)="cancelEditingTime()" style="padding: 4px 8px; border-radius: 6px; background: var(--surface); color: var(--text-dim); font-size: 0.75rem; border: 1px solid var(--border); cursor: pointer;">
+                    {{ isArabic() ? 'إلغاء' : 'Cancel' }}
+                  </button>
+                </div>
+              </div>
+            } @else {
+              <strong style="font-size: 0.95rem; color: var(--text);">{{ shift.startTime }} &mdash; {{ shift.endTime }}</strong>
+            }
           </div>
           <div>
             <span style="font-size: 0.78rem; color: var(--text-dim); display: block; margin-bottom: 4px;">{{ t().statusColumn }}</span>

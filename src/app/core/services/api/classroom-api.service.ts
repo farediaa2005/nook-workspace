@@ -52,11 +52,14 @@ export class ClassroomApiService extends BaseApiService {
   /** Create a new classroom booking/session — POST /api/Classrooms */
   createClassroom(dto: CreateClassroomDto): Observable<ClassroomDto> {
     const titleVal = dto.title || dto.activity || null;
+    const cleanRoomId = dto.roomId && /^[0-9a-fA-F-]{36}$/.test(dto.roomId) ? dto.roomId : null;
+    const cleanInstructorId = dto.instructorId && /^[0-9a-fA-F-]{36}$/.test(dto.instructorId) ? dto.instructorId : null;
+
     const payload: Record<string, any> = {
       date: dto.date || dto.bookingDate || new Date().toISOString(),
       timeFrom: dto.timeFrom || new Date().toISOString(),
       timeTo: dto.timeTo || null,
-      roomId: dto.roomId || null,
+      roomId: cleanRoomId,
       title: titleVal,
       activity: titleVal,
       expectedAttendees: dto.expectedAttendees ?? null,
@@ -68,10 +71,14 @@ export class ClassroomApiService extends BaseApiService {
       discountType: dto.discountType ?? null,
       type: dto.type ?? 1,
       note: dto.note || dto.instructorName || null,
-      instructorId: dto.instructorId || null,
+      instructorId: cleanInstructorId,
       instructorName: dto.instructorName || dto.note || null,
-      shiftId: dto.shiftId || null,
-      staffId: dto.staffId || null
+      instructorPhone: dto.instructorPhone || (dto as any).instructorPhoneNumber || (dto as any).phone || null,
+      instructorPhoneNumber: dto.instructorPhone || (dto as any).instructorPhoneNumber || (dto as any).phone || null,
+      phone: (dto as any).phone || dto.instructorPhone || (dto as any).instructorPhoneNumber || null,
+      phoneNumber: (dto as any).phoneNumber || dto.instructorPhone || (dto as any).phone || null,
+      instructorEmail: dto.instructorEmail || (dto as any).email || null,
+      email: dto.instructorEmail || (dto as any).email || null
     };
 
     return this.post<ApiResponse<ClassroomDto>>(API_ENDPOINTS.CLASSROOMS.LIST, payload).pipe(
@@ -82,25 +89,33 @@ export class ClassroomApiService extends BaseApiService {
   /** Update classroom session — PUT /api/Classrooms/{id} */
   updateClassroom(id: string, dto: UpdateClassroomDto): Observable<ClassroomDto> {
     const titleVal = dto.title || dto.activity || null;
+    const cleanRoomId = dto.roomId && /^[0-9a-fA-F-]{36}$/.test(dto.roomId) ? dto.roomId : null;
+    const cleanInstructorId = dto.instructorId && /^[0-9a-fA-F-]{36}$/.test(dto.instructorId) ? dto.instructorId : null;
+
     const payload: Record<string, any> = {
       date: dto.date || null,
       timeFrom: dto.timeFrom || null,
       timeTo: dto.timeTo || null,
-      roomId: dto.roomId || null,
+      roomId: cleanRoomId,
       title: titleVal,
       activity: titleVal,
-      printing: dto.printing ?? 0,
+      printing: dto.printing ?? dto.printingCharges ?? 0,
       discount: dto.discount ?? 0,
-      reservationCost: dto.reservationCost ?? 0,
+      reservationCost: dto.reservationCost ?? dto.hourlyRate ?? 0,
+      hourlyRate: dto.hourlyRate ?? dto.reservationCost ?? 0,
       payWay: dto.payWay ?? 1,
       status: dto.status ?? 1,
       discountType: dto.discountType ?? null,
       type: dto.type ?? 1,
-      note: dto.note || (dto as any).instructorName || null,
-      instructorId: dto.instructorId || null,
-      instructorName: (dto as any).instructorName || dto.note || null,
-      shiftId: dto.shiftId || null,
-      staffId: dto.staffId || null
+      note: dto.note || dto.instructorName || null,
+      instructorId: cleanInstructorId,
+      instructorName: dto.instructorName || dto.note || null,
+      instructorPhone: dto.instructorPhone || (dto as any).instructorPhoneNumber || (dto as any).phone || null,
+      instructorPhoneNumber: dto.instructorPhone || (dto as any).instructorPhoneNumber || (dto as any).phone || null,
+      phone: (dto as any).phone || dto.instructorPhone || (dto as any).instructorPhoneNumber || null,
+      phoneNumber: (dto as any).phoneNumber || dto.instructorPhone || (dto as any).phone || null,
+      instructorEmail: dto.instructorEmail || (dto as any).email || null,
+      email: dto.instructorEmail || (dto as any).email || null
     };
 
     return this.put<ApiResponse<ClassroomDto>>(API_ENDPOINTS.CLASSROOMS.BY_ID(id), payload).pipe(
@@ -178,5 +193,13 @@ export class ClassroomApiService extends BaseApiService {
       map(extractData)
     );
   }
+
+  /** Get official session invoice — GET /api/Classrooms/{id}/invoice */
+  getInvoice(classroomId: string): Observable<any> {
+    return this.get<ApiResponse<any>>(API_ENDPOINTS.INVOICES.CLASSROOM(classroomId)).pipe(
+      map(extractData)
+    );
+  }
 }
+
 

@@ -43,6 +43,8 @@ export interface ShiftRecord {
   staffEmail: string;
   role: string;
   avatar?: string;
+  date?: string;
+  startedAt?: string;
   startTime: string;
   endTime?: string;
   status: 'active' | 'closed';

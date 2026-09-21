@@ -8,10 +8,10 @@
 
 /**
  * Base URL for the backend API.
- * An empty string '' is used so all API requests are routed through:
- * 1. Angular Dev Server Proxy (proxy.conf.json) in local dev.
+ * An empty string '' routes requests through:
+ * 1. Angular Dev Server Proxy (proxy.conf.json) in local development.
  * 2. Vercel Serverless Rewrites (vercel.json) in production.
- * This completely avoids browser CORS preflight issues across all environments.
+ * This completely avoids browser CORS preflight blocks.
  */
 export const API_BASE_URL = '';
 
@@ -161,15 +161,15 @@ export const API_ENDPOINTS = {
   },
 
   SHIFTS: {
-    LIST: '/api/Shifts',
-    CURRENT: '/api/Shifts/current',
-    BY_ID: (id: string) => `/api/Shifts/${id}`,
-    RECALCULATE: (id: string) => `/api/Shifts/${id}/recalculate`,
-    OPEN: (userId: string) => `/api/Shifts/open/${userId}`,
-    CLOSE: (id: string) => `/api/Shifts/${id}/close`,
-    ITEMS: (id: string) => `/api/Shifts/${id}/items`,
-    ITEM_BY_ID: (shiftId: string, itemId: string) => `/api/Shifts/${shiftId}/items/${itemId}`,
-    VERIFY_PASSWORD: (shiftId?: string) => (shiftId ? `/api/Shifts/${shiftId}/verify-password` : '/api/Shifts/verify-password'),
+    LIST: '/api/shifts',
+    CURRENT: '/api/shifts/current',
+    BY_ID: (id: string) => `/api/shifts/${id}`,
+    RECALCULATE: (id: string) => `/api/shifts/${id}/recalculate`,
+    OPEN: (userId: string) => `/api/shifts/open/${userId}`,
+    CLOSE: (id: string) => `/api/shifts/${id}/close`,
+    ITEMS: (id: string) => `/api/shifts/${id}/items`,
+    ITEM_BY_ID: (shiftId: string, itemId: string) => `/api/shifts/${shiftId}/items/${itemId}`,
+    VERIFY_PASSWORD: (shiftId?: string) => (shiftId ? `/api/shifts/${shiftId}/verify-password` : '/api/shifts/verify-password'),
   },
 
   STUDENTS: {
@@ -257,5 +257,39 @@ export const API_ENDPOINTS = {
     READ_NOTIFICATION: (id: string) => `/api/mobile/student/notifications/${id}/read`,
     READ_ALL_NOTIFICATIONS: '/api/mobile/student/notifications/read-all',
   },
+
+  STAFF_NOTIFICATIONS: {
+    LIST: '/api/Notifications',
+    READ: (id: string) => `/api/Notifications/${id}/read`,
+    READ_ALL: '/api/Notifications/read-all',
+    DELETE: (id: string) => `/api/Notifications/${id}`,
+  },
+
+  AUDIT_LOGS: {
+    LIST: '/api/AuditLogs',
+    CREATE: '/api/AuditLogs',
+    BY_ENTITY: (entityType: string, entityId: string) => `/api/AuditLogs/entity/${entityType}/${entityId}`,
+  },
+
+  STUDENT_ANALYTICS: {
+    BY_ID: (id: string) => `/api/Students/${id}/analytics`,
+  },
+
+  DISCOUNT_RULES: {
+    LIST: '/api/Discounts/rules',
+    BY_ID: (id: string) => `/api/Discounts/rules/${id}`,
+    REDEEM: '/api/Discounts/redeem',
+    STUDENT_ELIGIBILITY: (studentId: string) => `/api/Students/${studentId}/discount-eligibility`,
+  },
+
+  OPERATIONAL_SETTINGS: {
+    ALERTS: '/api/Settings/operational-alerts',
+  },
+
+  INVOICES: {
+    CLASSROOM: (id: string) => `/api/Classrooms/${id}/invoice`,
+    WORKSPACE: (id: string) => `/api/Workspaces/${id}/invoice`,
+  },
 } as const;
+
 

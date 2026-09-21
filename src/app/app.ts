@@ -10,4 +10,17 @@ import { ToastContainerComponent } from './shared/components/toast-container/toa
 })
 export class App {
   protected readonly title = signal('nook_website');
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      try {
+        const allowedKeys = new Set(['nook_token', 'nook_refresh_token', 'nook_user', 'nook_theme', 'nook_lang']);
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('nook_') && !allowedKeys.has(key)) {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch {}
+    }
+  }
 }

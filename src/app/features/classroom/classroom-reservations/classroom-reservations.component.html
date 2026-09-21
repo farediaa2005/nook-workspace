@@ -261,10 +261,10 @@
     </div>
   </section>
 
-  <!-- 3. Reservation Details Side Panel -->
   <app-reservation-detail-panel [isOpen]="isDetailPanelOpen()" [reservation]="selectedReservation()"
     (closePanel)="closeDetailPanel()" (editReservation)="onEditReservation($event)"
-    (checkoutReservation)="onCheckoutReservation($event)"></app-reservation-detail-panel>
+    (checkoutReservation)="onCheckoutReservation($event)"
+    (deleteReservation)="onDeleteFromDetailPanel($event)"></app-reservation-detail-panel>
 
   <!-- 4. ADD / EDIT / DUPLICATE RESERVATION MODAL (CLEAN NOOK UI/UX) -->
   @if (isReservationModalOpen()) {
@@ -334,13 +334,25 @@
 
         <!-- 1. Visual Room Selector with Photos -->
         <div class="field-wrap">
-          <label class="field-label">{{ t().classroomLabel }}</label>
+          <div class="field-label-row">
+            <label class="field-label">{{ isArabic() ? 'اختيار القاعة' : (t().classroomLabel || 'Select Room') }}</label>
+            <span class="field-label-hint">{{ isArabic() ? 'حدد القاعة المناسبة لحجم الفعالية' : 'Choose suitable room' }}</span>
+          </div>
           <div class="room-select-grid">
             @for (r of rooms(); track r.id) {
             <div class="room-thumb-card" [class.room-thumb-card--active]="resRoomName() === r.name"
               (click)="onRoomChange(r.name)">
               <div class="room-thumb-media">
                 <img [src]="r.image || '/images/rooms/room-workshop.jpg'" [alt]="r.name" class="room-thumb-img" />
+                @if (r.capacity) {
+                  <span class="room-thumb-cap-tag">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="9" cy="7" r="4"></circle>
+                    </svg>
+                    {{ r.capacity }} {{ isArabic() ? 'مقعد' : 'seats' }}
+                  </span>
+                }
                 @if (resRoomName() === r.name) {
                 <div class="room-thumb-check-badge">
                   <svg viewBox="0 0 20 20" fill="currentColor">
@@ -353,25 +365,33 @@
               </div>
               <div class="room-thumb-info">
                 <span class="room-thumb-name">{{ r.name }}</span>
-                <span class="room-thumb-rate">{{ r.hourlyRate || 40 }} {{ isArabic() ? 'ج.م / ساعة' : 'EGP / hr'
-                  }}</span>
+                <span class="room-thumb-rate">{{ r.hourlyRate || 0 }} {{ isArabic() ? 'ج.م / س' : 'EGP / hr' }}</span>
               </div>
             </div>
             }
           </div>
         </div>
 
-        <!-- 2. Instructor & Activity (2 Columns) -->
+        <!-- 2. Instructor & Activity -->
         <div class="row-grid-2">
-          <!-- Instructor with Autocomplete -->
+          <!-- Instructor with Autocomplete + Inline Add Button -->
           <div class="field-wrap instructor-autocomplete-wrap">
-            <label class="field-label">{{ t().instructor }}</label>
+            <div class="field-label-row">
+              <label class="field-label">{{ isArabic() ? 'المحاضر / المدرب' : t().instructor }}</label>
+              <button type="button" class="btn-add-inline-instructor" (click)="openAddInstructorModal()" title="{{ isArabic() ? 'إضافة محاضر جديد' : 'Add new instructor' }}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>{{ isArabic() ? 'محاضر جديد' : 'New' }}</span>
+              </button>
+            </div>
             <div class="input-container">
               <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                 <circle cx="12" cy="7" r="4"></circle>
               </svg>
-              <input type="text" class="custom-input" [placeholder]="t().instructorPlaceholder"
+              <input type="text" class="custom-input" [placeholder]="isArabic() ? 'ابحث أو اكتب اسم المحاضر...' : t().instructorPlaceholder"
                 [ngModel]="resInstructor()" (ngModelChange)="resInstructor.set($event)"
                 (focus)="isInstructorDropdownOpen.set(true)" (input)="isInstructorDropdownOpen.set(true)" />
               @if (resInstructor()) {
@@ -386,12 +406,12 @@
             </div>
 
             @if (isCurrentInstructorBlacklisted()) {
-              <div class="field-error-msg" style="color: #ef4444; font-weight: 600; display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 0.85rem; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px; padding: 6px 10px;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; flex-shrink: 0;">
+              <div class="field-error-msg blacklist-warning-banner">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="12" cy="12" r="10"></circle>
                   <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
                 </svg>
-                <span>{{ isArabic() ? 'تنبيه: هذا العميل محظور في القائمة السوداء (Blacklist) ولا يمكن حجز قاعة له!' : 'Warning: This client is blacklisted and cannot book a classroom!' }}</span>
+                <span>{{ isArabic() ? 'تنبيه: هذا العميل محظور في القائمة السوداء (Blacklist)!' : 'Warning: This client is blacklisted!' }}</span>
               </div>
             }
 
@@ -405,7 +425,13 @@
                 </div>
                 <div class="instructor-item-meta">
                   <strong class="instructor-item-name">{{ member.name }}</strong>
-                  <span class="instructor-item-sub">{{ member.phoneNumber || member.phone || '' }}</span>
+                  <span class="instructor-item-sub">
+                    <span dir="ltr">{{ member.phoneNumber || member.phone || '' }}</span>
+                    @if (member.email) {
+                      <span class="meta-dot">•</span>
+                      <span dir="ltr">{{ member.email }}</span>
+                    }
+                  </span>
                 </div>
               </div>
               }
@@ -415,35 +441,102 @@
 
           <!-- Activity / Subject -->
           <div class="field-wrap">
-            <label class="field-label">{{ t().activity }}</label>
+            <label class="field-label">{{ isArabic() ? 'النشاط / موضوع الورشة' : t().activity }}</label>
             <div class="input-container">
               <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
                 <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
               </svg>
-              <input type="text" class="custom-input" [placeholder]="t().activityPlaceholder" [ngModel]="resActivity()"
+              <input type="text" class="custom-input" [placeholder]="isArabic() ? 'مثال: ورشة تفاضل وتكامل، كورس برمجة...' : t().activityPlaceholder" [ngModel]="resActivity()"
                 (ngModelChange)="resActivity.set($event)" />
             </div>
           </div>
         </div>
 
-        <!-- 3. Google Calendar-Style Date, Time & Recurrence Card -->
+        <!-- 3. Contact Info (Phone & Email) -->
+        <div class="row-grid-2">
+          <!-- Phone Number Field -->
+          <div class="field-wrap">
+            <label class="field-label">{{ isArabic() ? 'رقم الهاتف' : 'Phone Number' }}</label>
+            <div class="input-container">
+              <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+              </svg>
+              <input type="tel" class="custom-input" dir="ltr" [placeholder]="isArabic() ? 'رقم هاتف المحاضر (اختياري)' : 'Instructor phone (optional)'"
+                [ngModel]="resPhone()" (ngModelChange)="resPhone.set($event)" />
+              @if (resPhone()) {
+              <button type="button" class="input-clear-btn" (click)="resPhone.set('')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="15" y1="9" x2="9" y2="15"></line>
+                  <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+              </button>
+              }
+            </div>
+          </div>
+
+          <!-- Email Address Field -->
+          <div class="field-wrap">
+            <label class="field-label">{{ isArabic() ? 'البريد الإلكتروني' : 'Email Address' }}</label>
+            <div class="input-container">
+              <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                <polyline points="22,6 12,13 2,6"></polyline>
+              </svg>
+              <input type="email" class="custom-input" dir="ltr" [placeholder]="isArabic() ? 'البريد الإلكتروني (اختياري)' : 'Instructor email (optional)'"
+                [ngModel]="resEmail()" (ngModelChange)="resEmail.set($event)" />
+              @if (resEmail()) {
+              <button type="button" class="input-clear-btn" (click)="resEmail.set('')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="15" y1="9" x2="9" y2="15"></line>
+                  <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+              </button>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Notes Field (Req 5) -->
         <div class="field-wrap">
-          <label class="field-label">{{ t().timing }}</label>
+          <label class="field-label">{{ isArabic() ? 'ملاحظات الحجز' : 'Reservation Notes' }}</label>
+          <div class="input-container">
+            <textarea class="custom-input" rows="2" style="padding-top: 10px; resize: vertical; min-height: 54px;"
+              [placeholder]="isArabic() ? 'أي متطلبات خاصة بالقاعة أو الحجز (شاشة، ترتيب المقاعد، ضيافة...)' : 'Special requirements, seating arrangement, catering...'"
+              [ngModel]="resNotes()" (ngModelChange)="resNotes.set($event)"></textarea>
+          </div>
+        </div>
+
+        <!-- 4. Google Calendar-Style Date, Time & Recurrence Card -->
+        <div class="field-wrap">
+          <div class="field-label-row">
+            <label class="field-label">{{ isArabic() ? 'الموعد والتوقيت' : t().timing }}</label>
+            @if (resDurationHours() > 0 && !isAllDay()) {
+              <span class="timing-duration-pill">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                {{ resDurationHours() }} {{ isArabic() ? 'ساعة' : 'hours' }}
+              </span>
+            }
+          </div>
+
           <div class="calendar-time-recurrence-card">
             <!-- Top Bar: Date chip + Time range chips -->
             <div class="cal-date-time-bar">
-              <!-- Date Chip (Click opens native calendar picker) -->
+              <!-- Date Chip -->
               <div class="cal-date-chip" (click)="openDatePicker(resDatePicker)">
                 <span class="cal-chip-text">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    style="width: 14px; height: 14px; display: inline-block; vertical-align: middle;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="cal-chip-icon">
                     <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                     <line x1="16" y1="2" x2="16" y2="6"></line>
                     <line x1="8" y1="2" x2="8" y2="6"></line>
                     <line x1="3" y1="10" x2="21" y2="10"></line>
                   </svg>
-                  {{ formattedDateDisplay() }}
+                  <span class="cal-chip-date-text">{{ formattedDateDisplay() }}</span>
                 </span>
                 <input #resDatePicker type="date" class="cal-hidden-date-input" [ngModel]="resDate()"
                   (ngModelChange)="resDate.set($event)" (click)="$event.stopPropagation()" />
@@ -451,19 +544,23 @@
 
               @if (!isAllDay()) {
               <div class="cal-time-range-group">
-                <!-- Start Time Chip (Selectable Dropdown) -->
+                <!-- Start Time Input & Chip -->
                 <div class="cal-time-chip-select-wrap cal-time-chip--start">
-                  <button type="button" class="btn-cal-time-chip"
-                    [class.btn-cal-time-chip--active]="isStartTimeDropdownOpen()"
-                    (click)="$event.stopPropagation(); isStartTimeDropdownOpen.set(!isStartTimeDropdownOpen()); isEndTimeDropdownOpen.set(false)">
-                    <span>{{ resStartTime() || '09:00 AM' }}</span>
-                    <svg class="chip-chevron" [class.chip-chevron--open]="isStartTimeDropdownOpen()" viewBox="0 0 20 20"
-                      fill="currentColor">
-                      <path fill-rule="evenodd"
-                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                        clip-rule="evenodd" />
-                    </svg>
-                  </button>
+                  <div class="cal-time-input-group" [class.cal-time-input-group--active]="isStartTimeDropdownOpen()">
+                    <input type="text" class="cal-manual-time-input"
+                      [value]="resStartTime() || '09:00 AM'"
+                      (change)="onManualStartTimeInput($any($event.target).value)"
+                      (keydown.enter)="onManualStartTimeInput($any($event.target).value)"
+                      (blur)="onManualStartTimeInput($any($event.target).value)"
+                      placeholder="09:00 AM" />
+                    <button type="button" class="btn-cal-time-picker-toggle"
+                      (click)="$event.stopPropagation(); isStartTimeDropdownOpen.set(!isStartTimeDropdownOpen()); isEndTimeDropdownOpen.set(false)"
+                      title="Select start time">
+                      <svg class="chip-chevron" [class.chip-chevron--open]="isStartTimeDropdownOpen()" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
 
                   @if (isStartTimeDropdownOpen()) {
                   <div class="cal-time-dropdown-menu" (click)="$event.stopPropagation()">
@@ -477,21 +574,30 @@
                   }
                 </div>
 
-                <span class="cal-time-sep">–</span>
+                <span class="cal-time-sep">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="cal-arrow-icon">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                  </svg>
+                </span>
 
-                <!-- End Time Chip (Selectable Dropdown with Duration Calculation) -->
+                <!-- End Time Input & Chip -->
                 <div class="cal-time-chip-select-wrap cal-time-chip--end">
-                  <button type="button" class="btn-cal-time-chip"
-                    [class.btn-cal-time-chip--active]="isEndTimeDropdownOpen()"
-                    (click)="$event.stopPropagation(); isEndTimeDropdownOpen.set(!isEndTimeDropdownOpen()); isStartTimeDropdownOpen.set(false)">
-                    <span>{{ resEndTime() || '11:00 AM' }}</span>
-                    <svg class="chip-chevron" [class.chip-chevron--open]="isEndTimeDropdownOpen()" viewBox="0 0 20 20"
-                      fill="currentColor">
-                      <path fill-rule="evenodd"
-                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                        clip-rule="evenodd" />
-                    </svg>
-                  </button>
+                  <div class="cal-time-input-group" [class.cal-time-input-group--active]="isEndTimeDropdownOpen()">
+                    <input type="text" class="cal-manual-time-input"
+                      [value]="resEndTime() || '11:00 AM'"
+                      (change)="onManualEndTimeInput($any($event.target).value)"
+                      (keydown.enter)="onManualEndTimeInput($any($event.target).value)"
+                      (blur)="onManualEndTimeInput($any($event.target).value)"
+                      placeholder="11:00 AM" />
+                    <button type="button" class="btn-cal-time-picker-toggle"
+                      (click)="$event.stopPropagation(); isEndTimeDropdownOpen.set(!isEndTimeDropdownOpen()); isStartTimeDropdownOpen.set(false)"
+                      title="Select end time">
+                      <svg class="chip-chevron" [class.chip-chevron--open]="isEndTimeDropdownOpen()" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
 
                   @if (isEndTimeDropdownOpen()) {
                   <div class="cal-time-dropdown-menu" (click)="$event.stopPropagation()">
@@ -513,12 +619,18 @@
             <div class="cal-secondary-row">
               <label class="cal-all-day-checkbox">
                 <input type="checkbox" [checked]="isAllDay()" (change)="toggleAllDay()" />
-                <span class="cal-checkbox-label">{{ isArabic() ? 'طوال اليوم (All day)' : 'All day' }}</span>
+                <span class="cal-checkbox-label">{{ isArabic() ? 'طوال اليوم' : 'All day' }}</span>
               </label>
 
               <div class="recurrence-dropdown-wrap">
                 <button type="button" class="btn-recurrence-select"
                   (click)="$event.stopPropagation(); isRecurrenceDropdownOpen.set(!isRecurrenceDropdownOpen())">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="recurrence-btn-icon">
+                    <polyline points="17 1 21 5 17 9"></polyline>
+                    <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                    <polyline points="7 23 3 19 7 15"></polyline>
+                    <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                  </svg>
                   <span>{{ recurrenceLabel() }}</span>
                   <svg class="dropdown-chevron-icon" [class.dropdown-chevron-icon--open]="isRecurrenceDropdownOpen()"
                     viewBox="0 0 20 20" fill="currentColor">
@@ -533,33 +645,32 @@
                   <button type="button" class="recurrence-opt-item"
                     [class.recurrence-opt-item--active]="repeatOption() === 'none'"
                     (click)="selectRepeatOption('none')">
-                    {{ isArabic() ? 'لا يتكرر (Does not repeat)' : 'Does not repeat' }}
+                    {{ isArabic() ? 'لا يتكرر' : 'Does not repeat' }}
                   </button>
                   <button type="button" class="recurrence-opt-item"
                     [class.recurrence-opt-item--active]="repeatOption() === 'daily'"
                     (click)="selectRepeatOption('daily')">
-                    {{ isArabic() ? 'يوميًا (Daily)' : 'Daily' }}
+                    {{ isArabic() ? 'يوميًا' : 'Daily' }}
                   </button>
                   <button type="button" class="recurrence-opt-item"
                     [class.recurrence-opt-item--active]="repeatOption() === 'weekly'"
                     (click)="selectRepeatOption('weekly')">
-                    {{ isArabic() ? 'أسبوعيًا كل يوم ' + dayOfWeekName() + ' (Weekly)' : 'Weekly on ' + dayOfWeekName()
-                    }}
+                    {{ isArabic() ? 'أسبوعيًا (كل يوم ' + dayOfWeekName() + ')' : 'Weekly on ' + dayOfWeekName() }}
                   </button>
                   <button type="button" class="recurrence-opt-item"
                     [class.recurrence-opt-item--active]="repeatOption() === 'monthly'"
                     (click)="selectRepeatOption('monthly')">
-                    {{ isArabic() ? 'شهريًا في نفس اليوم (Monthly)' : 'Monthly' }}
+                    {{ isArabic() ? 'شهريًا (في نفس اليوم)' : 'Monthly' }}
                   </button>
                   <button type="button" class="recurrence-opt-item"
                     [class.recurrence-opt-item--active]="repeatOption() === 'weekdays'"
                     (click)="selectRepeatOption('weekdays')">
-                    {{ isArabic() ? 'كل أيام العمل (أحد - خميس)' : 'Every weekday (Mon - Fri)' }}
+                    {{ isArabic() ? 'أيام العمل (الأحد - الخميس)' : 'Every weekday (Sun - Thu)' }}
                   </button>
                   <button type="button" class="recurrence-opt-item"
                     [class.recurrence-opt-item--active]="repeatOption() === 'custom'"
                     (click)="selectRepeatOption('custom')">
-                    {{ isArabic() ? 'مخصص...' : 'Custom...' }}
+                    {{ isArabic() ? 'تكرار مخصص...' : 'Custom...' }}
                   </button>
                 </div>
                 }
@@ -589,8 +700,7 @@
             } @else if (repeatOption() !== 'none') {
             <div class="recurrence-config-bar">
               <span class="recurrence-config-desc">
-                {{ isArabic() ? 'سيتم حجز ' : 'Will book ' }}<strong>{{ repeatOccurrences() }}</strong>{{ isArabic() ? '
-                مواعيد متتالية بنفس التوقيت' : ' recurring bookings' }}
+                {{ isArabic() ? 'سيتم حجز ' : 'Will book ' }}<strong>{{ repeatOccurrences() }}</strong>{{ isArabic() ? ' مواعيد متتالية بنفس التوقيت' : ' recurring bookings' }}
               </span>
               <div class="stepper-mini-group">
                 <button type="button" class="btn-stepper-mini" (click)="adjustRepeatOccurrences(-1)">-</button>
@@ -604,28 +714,41 @@
 
         <!-- 5. Hourly Rate & Cost Preview -->
         <div class="field-wrap">
-          <label class="field-label">{{ t().hourlyRate }}</label>
-          <div class="input-container">
+          <div class="field-label-row">
+            <label class="field-label">{{ isArabic() ? 'سعر الساعة' : t().hourlyRate }}</label>
+            <span class="field-label-hint">{{ isArabic() ? 'محدد تلقائياً من تسعيرة القاعة' : 'From room default' }}</span>
+          </div>
+          <div class="input-container input-container--currency">
             <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="1" x2="12" y2="23"></line>
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+              <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+              <circle cx="12" cy="12" r="2"></circle>
+              <path d="M6 12h.01M18 12h.01"></path>
             </svg>
-            <input type="number" min="0" class="custom-input" [ngModel]="resHourlyRate()"
+            <input type="number" min="0" class="custom-input custom-input--with-tag" [ngModel]="resHourlyRate()"
               (ngModelChange)="resHourlyRate.set(+$event)" />
+            <span class="input-trailing-tag">{{ isArabic() ? 'ج.م / ساعة' : 'EGP / hr' }}</span>
           </div>
         </div>
 
         <!-- Cost & Duration Summary Banner -->
         @if (resDurationHours() > 0) {
-        <div class="booking-summary-banner">
-          <div class="summary-item">
-            <span class="summary-label">{{ t().duration }}:</span>
-            <strong class="summary-val">{{ resDurationHours() }} {{ t().hrs }}</strong>
+        <div class="booking-summary-card">
+          <div class="summary-card-details">
+            <div class="summary-card-item">
+              <span class="summary-card-label">{{ isArabic() ? 'المدة المحسوبة' : t().duration }}</span>
+              <strong class="summary-card-val">{{ resDurationHours() }} {{ isArabic() ? 'ساعة' : t().hrs }}</strong>
+            </div>
+            <div class="summary-card-item">
+              <span class="summary-card-label">{{ isArabic() ? 'سعر الساعة' : t().hourlyRate }}</span>
+              <strong class="summary-card-val">{{ resHourlyRate() }} {{ isArabic() ? 'ج.م' : 'EGP' }}</strong>
+            </div>
           </div>
-          <div class="summary-sep">•</div>
-          <div class="summary-item">
-            <span class="summary-label">{{ t().total }}:</span>
-            <strong class="summary-val summary-val--gold">{{ resTotalCost() }} {{ t().currency }}</strong>
+          <div class="summary-card-total-box">
+            <span class="summary-card-total-title">{{ isArabic() ? 'الإجمالي المتوقع' : t().total }}</span>
+            <div class="summary-card-total-price">
+              <span class="total-number">{{ resTotalCost() }}</span>
+              <span class="total-unit">{{ isArabic() ? 'ج.م' : t().currency }}</span>
+            </div>
           </div>
         </div>
         }
@@ -1225,6 +1348,162 @@
             <span>{{ isArabic() ? 'جاري الحذف...' : 'Deleting...' }}</span>
           } @else {
             <span>{{ isArabic() ? (delRes.isClassroomSession ? 'تأكيد حذف الجلسة' : 'تأكيد إلغاء الحجز') : 'Confirm Delete' }}</span>
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- 7. ADD NEW INSTRUCTOR INLINE MODAL (Req 7) -->
+  @if (isAddInstructorModalOpen()) {
+  <div class="modal-backdrop modal-backdrop--nested" style="z-index: 1060;" (click)="closeAddInstructorModal()">
+    <div class="modal-dialog modal-dialog--instructor" (click)="$event.stopPropagation()">
+      <!-- Top Accent Line -->
+      <div class="modal-accent-line"></div>
+
+      <!-- Header -->
+      <div class="modal-header modal-header--instructor">
+        <div class="modal-header__content">
+          <div class="instructor-icon-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <line x1="19" y1="8" x2="19" y2="14"></line>
+              <line x1="22" y1="11" x2="16" y2="11"></line>
+            </svg>
+          </div>
+          <div class="modal-header__text">
+            <h3 class="modal-title">{{ isArabic() ? 'إضافة محاضر جديد' : 'Add New Instructor' }}</h3>
+            <p class="modal-subtitle">{{ isArabic() ? 'إضافة محاضر جديد وحفظه مباشرة في الحجز' : 'Create a new instructor and link to this reservation' }}</p>
+          </div>
+        </div>
+        <button type="button" class="btn-close-circle" (click)="closeAddInstructorModal()" [title]="isArabic() ? 'إغلاق' : 'Close'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="modal-body modal-body--instructor">
+        <div class="field-wrap">
+          <label class="field-label">
+            <span>{{ isArabic() ? 'اسم المحاضر' : 'Instructor Name' }}</span>
+            <span class="required-star">*</span>
+          </label>
+          <div class="input-container">
+            <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <input type="text" class="custom-input" [placeholder]="isArabic() ? 'مثال: د. محمد علي' : 'e.g. Dr. John Doe'"
+              [ngModel]="newInstructorName()" (ngModelChange)="newInstructorName.set($event)" autofocus />
+          </div>
+        </div>
+
+        <div class="field-wrap">
+          <label class="field-label">
+            <span>{{ isArabic() ? 'رقم الهاتف' : 'Phone Number' }}</span>
+            <span class="optional-hint">({{ isArabic() ? 'اختياري' : 'Optional' }})</span>
+          </label>
+          <div class="input-container">
+            <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+            </svg>
+            <input type="tel" class="custom-input" dir="ltr" [placeholder]="isArabic() ? 'مثال: 01012345678' : 'e.g. 01012345678'"
+              [ngModel]="newInstructorPhone()" (ngModelChange)="newInstructorPhone.set($event)" />
+          </div>
+        </div>
+
+        <!-- Email Address Field -->
+        <div class="field-wrap">
+          <label class="field-label">
+            <span>{{ isArabic() ? 'البريد الإلكتروني' : 'Email Address' }}</span>
+            <span class="optional-hint">({{ isArabic() ? 'اختياري' : 'Optional' }})</span>
+          </label>
+          <div class="input-container">
+            <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+            <input type="email" class="custom-input" dir="ltr" [placeholder]="isArabic() ? 'مثال: dr.mohamed@example.com' : 'e.g. instructor@example.com'"
+              [ngModel]="newInstructorEmail()" (ngModelChange)="newInstructorEmail.set($event)" />
+          </div>
+        </div>
+
+        <div class="field-wrap">
+          <label class="field-label">
+            <span>{{ isArabic() ? 'المجال / التخصص' : 'Specialty / Field' }}</span>
+            <span class="optional-hint">({{ isArabic() ? 'اختياري' : 'Optional' }})</span>
+          </label>
+          <div class="input-container">
+            <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+            </svg>
+            <input type="text" class="custom-input" [placeholder]="isArabic() ? 'مثال: لغات، تصميم، برمجة...' : 'e.g. Languages, Design...'"
+              [ngModel]="newInstructorSpecialty()" (ngModelChange)="newInstructorSpecialty.set($event)" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="modal-footer modal-footer--instructor">
+        <button type="button" class="btn-instructor-cancel" (click)="closeAddInstructorModal()" [disabled]="isSavingNewInstructor()">
+          {{ isArabic() ? 'إلغاء' : 'Cancel' }}
+        </button>
+        <button type="button" class="btn-instructor-save" (click)="saveNewInstructor()" [disabled]="isSavingNewInstructor() || !newInstructorName().trim()">
+          @if (isSavingNewInstructor()) {
+            <span class="btn-spinner"></span>
+            <span>{{ isArabic() ? 'جاري الحفظ...' : 'Saving...' }}</span>
+          } @else {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 16px; height: 16px;">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>{{ isArabic() ? 'حفظ واختيار' : 'Save & Select' }}</span>
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- 6. DELETE CONFIRMATION MODAL (Req 11) -->
+  @if (isDeleteModalOpen() && reservationToDelete(); as targetRes) {
+  <div class="modal-backdrop" (click)="closeDeleteModal()">
+    <div class="modal-dialog modal-dialog--delete" (click)="$event.stopPropagation()" style="max-width: 440px;">
+      <div class="modal-header">
+        <div class="modal-header__text">
+          <h2 class="modal-title" style="color: #ef4444;">{{ isArabic() ? 'تأكيد حذف الحجز' : 'Confirm Delete Reservation' }}</h2>
+          <p class="modal-subtitle">{{ targetRes.classroom }} &bull; {{ targetRes.activity }}</p>
+        </div>
+        <button type="button" class="btn-close-circle" (click)="closeDeleteModal()" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body" style="padding: 20px 24px;">
+        <p style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary, #cbd5e1); margin: 0;">
+          {{ isArabic() 
+            ? 'هل أنت متأكد من حذف هذا الحجز الخاص بـ "' + (targetRes.instructor || targetRes.activity) + '"؟ لا يمكن التراجع عن هذا الإجراء.' 
+            : 'Are you sure you want to delete this reservation for "' + (targetRes.instructor || targetRes.activity) + '"? This action cannot be undone.' }}
+        </p>
+      </div>
+
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; padding: 16px 24px;">
+        <button type="button" class="btn-ghost-modal" (click)="closeDeleteModal()" [disabled]="isDeleting()">
+          {{ t().cancel }}
+        </button>
+        <button type="button" class="btn-danger-modal" (click)="confirmDelete()" [disabled]="isDeleting()"
+          style="background: #ef4444; color: #ffffff; border: none; border-radius: 8px; padding: 10px 20px; font-weight: 700; cursor: pointer;">
+          @if (isDeleting()) {
+            <span>{{ isArabic() ? 'جاري الحذف...' : 'Deleting...' }}</span>
+          } @else {
+            <span>{{ isArabic() ? 'حذف الحجز نهائياً' : 'Delete Reservation' }}</span>
           }
         </button>
       </div>

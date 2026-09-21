@@ -561,3 +561,35 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Shift Audit Kernel Panic Attribution Badge */
+.shift-audit-team-badge {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.team-footnote-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.footnote-logo-wrap {
+  height: 16px;
+  display: flex;
+  align-items: center;
+}
+
+.footnote-logo-wrap img {
+  height: 15px;
+  width: auto;
+  object-fit: contain;
+}
+

@@ -11,6 +11,8 @@ import { PaginationComponent } from '../../../shared/components/pagination/pagin
 import { DateFilterDropdownComponent, DateFilterOption } from '../../../shared/components/date-filter-dropdown/date-filter-dropdown.component';
 import { getTodayDateISO } from '../../../core/utils/date-time.util';
 
+import { AuthService } from '../../../core/services/auth.service';
+
 @Component({
   selector: 'app-shift-history',
   standalone: true,
@@ -27,11 +29,19 @@ import { getTodayDateISO } from '../../../core/utils/date-time.util';
 export class ShiftHistoryComponent implements OnInit {
   private shiftService = inject(ShiftService);
   private langService = inject(LanguageService);
+  private authService = inject(AuthService);
 
   t = this.langService.t;
   isArabic = this.langService.isArabic;
   currencyText = computed(() => this.t().currency);
   isLoadingHistory = this.shiftService.isLoadingHistory;
+  isAdmin = computed(() => this.authService.isAdmin());
+
+  // Edit Shift Time (Admin only)
+  isEditingShiftTime = signal<boolean>(false);
+  editShiftStart = signal<string>('');
+  editShiftEnd = signal<string>('');
+  isSavingTime = signal<boolean>(false);
 
   ngOnInit(): void {
     this.shiftService.fetchShiftHistoryFromApi();
@@ -195,6 +205,41 @@ export class ShiftHistoryComponent implements OnInit {
   closeShiftDetails(): void {
     this.selectedShiftForDetails.set(null);
     this.selectedShiftRecord.set(null);
+    this.isEditingShiftTime.set(false);
+  }
+
+  startEditingTime(shift: ShiftHistoryItem): void {
+    if (!this.isAdmin()) return;
+    this.editShiftStart.set(shift.startTime);
+    this.editShiftEnd.set(shift.endTime);
+    this.isEditingShiftTime.set(true);
+  }
+
+  cancelEditingTime(): void {
+    this.isEditingShiftTime.set(false);
+  }
+
+  saveShiftTime(): void {
+    const shift = this.selectedShiftForDetails();
+    if (!shift || !this.isAdmin()) return;
+
+    const start = this.editShiftStart().trim();
+    const end = this.editShiftEnd().trim();
+    if (!start || !end) return;
+
+    this.isSavingTime.set(true);
+    this.shiftService.updateShiftTime(shift.id, start, end).subscribe({
+      next: () => {
+        this.isSavingTime.set(false);
+        this.isEditingShiftTime.set(false);
+        shift.startTime = start;
+        shift.endTime = end;
+        this.selectedShiftForDetails.set({ ...shift });
+      },
+      error: () => {
+        this.isSavingTime.set(false);
+      }
+    });
   }
 
   getStaffAvatar(item: ShiftHistoryItem | null): string {

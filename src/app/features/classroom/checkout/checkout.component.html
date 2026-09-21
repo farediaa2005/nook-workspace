@@ -276,4 +276,12 @@
       </div>
     </div>
   </div>
+
+  @if (completedInvoice()) {
+    <app-checkout-success-modal
+      [invoiceData]="completedInvoice()!"
+      (close)="onCheckoutSuccessClose()"
+    />
+  }
 </div>
+

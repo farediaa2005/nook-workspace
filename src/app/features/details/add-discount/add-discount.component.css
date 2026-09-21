@@ -250,46 +250,109 @@ app-primary-button.discounts-add-btn,
 .badge-status-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  border-radius: 20px;
-  font-size: 0.80rem;
-  font-weight: 600;
-  border: 1px solid transparent;
+  justify-content: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: 1.5px solid transparent;
   background: transparent;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  user-select: none;
+  line-height: 1;
+}
+
+.badge-status-btn:focus,
+.badge-status-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
 }
 
 .status-dot {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+  transition: all 0.2s ease;
 }
 
+/* Active State: Emerald Green Glow */
 .badge-status--active {
-  background: rgba(34, 197, 94, 0.14);
-  color: #22c55e;
-  border-color: rgba(34, 197, 94, 0.2);
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+  border-color: rgba(34, 197, 94, 0.35);
 }
-.badge-status--active .status-dot { background: #22c55e; }
 
+:host-context([data-theme="dark"]) .badge-status--active,
+[data-theme="dark"] .badge-status--active {
+  background: rgba(34, 197, 94, 0.18);
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.4);
+}
+
+.badge-status--active .status-dot {
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.7);
+  animation: pulseDot 2s infinite ease-in-out;
+}
+
+/* Expired State: Rose / Crimson */
 .badge-status--expired {
-  background: rgba(239, 68, 68, 0.14);
+  background: rgba(239, 68, 68, 0.12);
   color: #ef4444;
-  border-color: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.3);
 }
-.badge-status--expired .status-dot { background: #ef4444; }
+.badge-status--expired .status-dot {
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+}
 
+/* Disabled State: Subtle Muted Slate */
 .badge-status--disabled {
-  background: rgba(148, 163, 184, 0.15);
+  background: rgba(148, 163, 184, 0.12);
   color: #64748b;
-  border-color: rgba(148, 163, 184, 0.2);
+  border-color: rgba(148, 163, 184, 0.3);
 }
-.badge-status--disabled .status-dot { background: #64748b; }
+
+:host-context([data-theme="dark"]) .badge-status--disabled,
+[data-theme="dark"] .badge-status--disabled {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+.badge-status--disabled .status-dot {
+  background: #94a3b8;
+  box-shadow: none;
+}
+
+.badge-status--disabled:focus,
+.badge-status--disabled:focus-visible {
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.25);
+}
 
 .badge-status-btn:hover {
-  transform: scale(1.03);
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+.badge-status-btn:active {
+  transform: translateY(0);
+}
+
+@keyframes pulseDot {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 0.8;
+  }
 }
 
 /* Direct Action Buttons (Edit & Delete) */
@@ -575,6 +638,244 @@ app-primary-button.discounts-add-btn,
 
 .btn-confirm-delete:hover {
   opacity: 0.9;
+}
+
+/* =======================================================
+   Modern Segmented Tabs (Outer View Switcher)
+   ======================================================= */
+.tabs-segmented-wrapper {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 5px;
+  display: inline-flex;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  margin-bottom: 12px;
+}
+
+.tab-segmented-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.90rem;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.tab-segmented-item:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.tab-segmented-item.active {
+  background: #6366f1;
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgba(99, 102, 241, 0.35);
+  font-weight: 700;
+}
+
+.tab-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.tab-counter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.08);
+  color: inherit;
+  transition: all 0.2s ease;
+}
+
+.tab-segmented-item.active .tab-counter {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* =======================================================
+   In-Modal Discount Category Selector (Add Mode)
+   ======================================================= */
+.discount-category-picker {
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.category-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.category-card-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: var(--surface-2);
+  cursor: pointer;
+  text-align: start;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  font-family: inherit;
+}
+
+:host-context([dir="rtl"]) .category-card-btn,
+[dir="rtl"] .category-card-btn {
+  text-align: right;
+}
+
+.category-card-btn:hover {
+  border-color: rgba(99, 102, 241, 0.45);
+  background: rgba(99, 102, 241, 0.04);
+}
+
+.category-card-btn.active {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.09);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.card-radio-indicator {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: all 0.2s ease;
+}
+
+.category-card-btn.active .card-radio-indicator {
+  border-color: #6366f1;
+  background: #6366f1;
+}
+
+.radio-inner-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffffff;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: all 0.15s ease;
+}
+
+.category-card-btn.active .radio-inner-dot {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.card-body-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.card-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-icon {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.card-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.card-desc {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Metric Pill Toggle Inside Auto Rule Form */
+.metric-pill-toggle {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.metric-toggle-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.metric-toggle-btn:hover {
+  border-color: #6366f1;
+  color: var(--text);
+}
+
+.metric-toggle-btn.active {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.12);
+  color: #6366f1;
+  font-weight: 700;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+:host-context([data-theme="dark"]) .category-card-btn.active,
+[data-theme="dark"] .category-card-btn.active {
+  background: rgba(99, 102, 241, 0.18);
+  border-color: #818cf8;
+}
+
+:host-context([data-theme="dark"]) .category-card-btn.active .card-radio-indicator,
+[data-theme="dark"] .category-card-btn.active .card-radio-indicator {
+  border-color: #818cf8;
+  background: #818cf8;
+}
+
+:host-context([data-theme="dark"]) .metric-toggle-btn.active,
+[data-theme="dark"] .metric-toggle-btn.active {
+  background: rgba(99, 102, 241, 0.22);
+  border-color: #818cf8;
+  color: #a5b4fc;
 }
 
 /* Responsive Media Queries */

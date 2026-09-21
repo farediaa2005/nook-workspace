@@ -101,5 +101,34 @@ export class DiscountApiService extends BaseApiService {
       catchError(() => of(true))
     );
   }
+
+  /** Get milestone discount rules — GET /api/Discounts/rules */
+  getDiscountRules(activeOnly: boolean = false): Observable<any[]> {
+    return this.get<ApiResponse<any[]>>(API_ENDPOINTS.DISCOUNT_RULES.LIST, { activeOnly }).pipe(
+      map(extractData)
+    );
+  }
+
+  /** Create discount rule — POST /api/Discounts/rules */
+  createDiscountRule(rule: any): Observable<any> {
+    return this.post<ApiResponse<any>>(API_ENDPOINTS.DISCOUNT_RULES.LIST, rule).pipe(
+      map(extractData)
+    );
+  }
+
+  /** Delete discount rule — DELETE /api/Discounts/rules/{id} */
+  deleteDiscountRule(id: string): Observable<boolean> {
+    return this.delete<ApiResponse<boolean>>(API_ENDPOINTS.DISCOUNT_RULES.BY_ID(id)).pipe(
+      map(extractData)
+    );
+  }
+
+  /** Redeem discount rule for a student — POST /api/Discounts/redeem */
+  redeemDiscountRule(payload: { discountRuleId: string; studentId: string; sessionId?: string; sessionType?: string; discountAmount: number }): Observable<boolean> {
+    return this.post<ApiResponse<boolean>>(API_ENDPOINTS.DISCOUNT_RULES.REDEEM, payload).pipe(
+      map(extractData)
+    );
+  }
 }
+
 

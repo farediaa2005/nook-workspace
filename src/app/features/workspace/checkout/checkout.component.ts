@@ -3,11 +3,12 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LanguageService } from '../../../core/services/language.service';
-import { WorkspaceService, calculateSessionDuration } from '../../../core/services/workspace.service';
+import { WorkspaceService, calculateSessionDuration, parseDurationMinutes } from '../../../core/services/workspace.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { PackageService } from '../../../core/services/package.service';
 import { CouponApiService } from '../../../core/services/api/coupon-api.service';
 import { WalletApiService } from '../../../core/services/api/wallet-api.service';
+import { AuditService } from '../../../core/services/audit.service';
 import { ActiveStudentSession } from '../../../core/models/student.model';
 import { CateringLineItem } from '../../../core/models/workspace-session.model';
 import { convertMinutesTo12h } from '../../../core/utils/date-time.util';
@@ -26,6 +27,7 @@ export class WorkspaceCheckoutComponent implements OnInit {
   private packageService = inject(PackageService);
   private couponApi = inject(CouponApiService);
   private walletApi = inject(WalletApiService);
+  private auditService = inject(AuditService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private destroyRef = inject(DestroyRef);
@@ -183,13 +185,10 @@ export class WorkspaceCheckoutComponent implements OnInit {
     }
     this.durationDisplay.set(durStr || '1h 00m');
 
-    // Parse duration into hours
-    let durH = 0;
-    const hMatch = durStr.match(/(\d+)\s*(?:h|س|hours?)/i);
-    const mMatch = durStr.match(/(\d+)\s*(?:m|د|mins?)/i);
-    if (hMatch) durH += parseInt(hMatch[1], 10);
-    if (mMatch) durH += parseInt(mMatch[1], 10) / 60;
-    this.durationHours.set(durH > 0 ? +durH.toFixed(2) : 1);
+    // Parse duration into hours (supporting days, hours, and minutes)
+    const totalMinutes = parseDurationMinutes(durStr);
+    const durH = totalMinutes > 0 ? totalMinutes / 60 : 1;
+    this.durationHours.set(+durH.toFixed(2));
 
     // Fetch student wallet balance
     const targetStudentId = student.phone || student.id;
@@ -303,12 +302,9 @@ export class WorkspaceCheckoutComponent implements OnInit {
         const durStr = calculateSessionDuration(updatedData.checkInTime, nowStr);
         this.durationDisplay.set(durStr || '1h 00m');
 
-        let durH = 0;
-        const hMatch = durStr.match(/(\d+)\s*(?:h|س|hours?)/i);
-        const mMatch = durStr.match(/(\d+)\s*(?:m|د|mins?)/i);
-        if (hMatch) durH += parseInt(hMatch[1], 10);
-        if (mMatch) durH += parseInt(mMatch[1], 10) / 60;
-        this.durationHours.set(durH > 0 ? +durH.toFixed(2) : 1);
+        const totalMinutes = parseDurationMinutes(durStr);
+        const durH = totalMinutes > 0 ? totalMinutes / 60 : 1;
+        this.durationHours.set(+durH.toFixed(2));
 
         this.showEditModal.set(false);
         this.workspaceService.showToast(
@@ -482,6 +478,22 @@ export class WorkspaceCheckoutComponent implements OnInit {
       cateringAmount: this.cateringTotal(),
       printingAmount: +(this.printingTotal() + this.wifiCost()).toFixed(2)
     });
+
+    this.auditService.log(
+      'CheckedOut',
+      'Workspace',
+      this.studentId(),
+      `إنهاء جلسة عمل للطالب ${this.studentName()} بمبلغ ${finalAmt.toFixed(2)} ج.م (${this.selectedPaymentMethod()})`,
+      {
+        newValues: {
+          finalTotal: finalAmt,
+          amountReceived: amtReceived,
+          outstandingBalance: remaining,
+          paymentMethod: this.selectedPaymentMethod(),
+          duration: this.durationDisplay()
+        }
+      }
+    );
 
     if (remaining > 0) {
       this.workspaceService.showToast(

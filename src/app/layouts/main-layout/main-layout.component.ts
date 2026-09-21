@@ -9,6 +9,7 @@ import { NavbarComponent } from '../../shared/components/navbar/navbar.component
 import { ShiftService } from '../../core/services/shift.service';
 import { AuthService } from '../../core/services/auth.service';
 import { LanguageService } from '../../core/services/language.service';
+import { ApiHealthService } from '../../core/services/api-health.service';
 import { getSafeAvatar } from '../../core/utils/avatar.util';
 
 @Component({
@@ -21,15 +22,24 @@ export class MainLayoutComponent implements OnInit {
   private shiftService = inject(ShiftService);
   private authService = inject(AuthService);
   private langService = inject(LanguageService);
+  private apiHealthService = inject(ApiHealthService);
   private router = inject(Router);
   private destroyRef = inject(DestroyRef);
 
   isSidebarOpen = signal<boolean>(false);
   currentUrl = signal<string>(this.router.url);
 
+  readonly isApiOnline = this.apiHealthService.isApiOnline;
+  readonly isCheckingApi = this.apiHealthService.isChecking;
+
+  checkApiHealth(): void {
+    this.apiHealthService.checkHealth();
+  }
+
   t = this.langService.t;
   isArabic = this.langService.isArabic;
   currencyText = computed(() => this.isArabic() ? 'ج.م' : 'EGP');
+  readonly currentYear = new Date().getFullYear();
 
   // Check if an active shift exists
   hasActiveShift = this.shiftService.hasActiveShift;

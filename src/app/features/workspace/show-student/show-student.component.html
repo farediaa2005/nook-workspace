@@ -42,23 +42,42 @@
   <!-- 4 Stat Metric Cards Grid -->
   <div class="metrics-grid">
     @if (activeTab() === 'active') {
-      <!-- Card 1: Inside Right Now -->
-      <app-metric-card [title]="t().insideRightNow" [value]="insideCount()" color="yellow">
+      <!-- Card 1: Active Students (Total Inside) -->
+      <app-metric-card [title]="isArabic() ? 'إجمالي المتواجدين (Active)' : 'Active Students'" [value]="insideCount()" color="yellow">
+        <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      </app-metric-card>
+
+      <!-- Card 2: Shared Space Occupancy -->
+      <app-metric-card [title]="isArabic() ? '🟦 شيرد سبيس (Shared)' : '🟦 Shared Space'" [value]="workspaceService.shareOccupancyCount()" color="blue">
+        <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+          <line x1="12" y1="3" x2="12" y2="21" stroke="currentColor" stroke-width="2"/>
+        </svg>
+      </app-metric-card>
+
+      <!-- Card 3: Silent Zone Occupancy -->
+      <app-metric-card [title]="isArabic() ? '🟪 سايلنت زون (Silent)' : '🟪 Silent Zone'" [value]="workspaceService.silentOccupancyCount()" color="purple">
+        <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+          <line x1="12" y1="19" x2="12" y2="23" />
+        </svg>
+      </app-metric-card>
+
+      <!-- Card 4: Avg. Session -->
+      <app-metric-card [title]="t().avgSessionTitle" [value]="avgSession()" color="yellow">
         <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="10" />
           <polyline points="12 6 12 12 16 14" />
         </svg>
       </app-metric-card>
 
-      <!-- Card 2: Avg. Session -->
-      <app-metric-card [title]="t().avgSessionTitle" [value]="avgSession()" color="blue">
-        <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10" />
-          <polyline points="12 6 12 12 16 14" />
-        </svg>
-      </app-metric-card>
-
-      <!-- Card 3: Today's Check-ins -->
+      <!-- Card 5: Today's Check-ins -->
       <app-metric-card [title]="t().todayCheckinsTitle" [value]="todayCheckins()" color="green">
         <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
@@ -67,7 +86,7 @@
         </svg>
       </app-metric-card>
 
-      <!-- Card 4: Checkouts Today -->
+      <!-- Card 6: Checkouts Today -->
       <app-metric-card [title]="t().checkoutsTodayTitle" [value]="checkoutsToday()" color="purple">
         <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -115,17 +134,17 @@
       <div class="table-tabs">
         <button type="button" class="tab-btn" [class.tab-btn--active]="activeTab() === 'active'"
           (click)="setTab('active')">
-          <span>{{ t().activeStudentsTitle }}</span>
+          <span>{{ isArabic() ? 'المتواجدين الآن (Active)' : 'Active Now' }}</span>
           <span class="tab-badge tab-badge--yellow">{{ insideCount() }}</span>
         </button>
         <button type="button" class="tab-btn" [class.tab-btn--active]="activeTab() === 'history'"
           (click)="setTab('history')">
-          <span>{{ t().workspaceHistory }}</span>
+          <span>{{ isArabic() ? 'سجل الجلسات (History)' : 'Session History' }}</span>
           <span class="tab-badge tab-badge--gray">{{ workspaceService.historyStudents().length }}</span>
         </button>
         <button type="button" class="tab-btn" [class.tab-btn--active]="activeTab() === 'all'"
           (click)="setTab('all')">
-          <span>{{ isArabic() ? 'دليل الطلاب المسجلين' : 'Registered Directory' }}</span>
+          <span>{{ isArabic() ? 'كل العملاء والسجل (All Directory)' : 'All Students Directory' }}</span>
           <span class="tab-badge tab-badge--blue" style="background: rgba(59, 130, 246, 0.16); color: #3b82f6;">{{ totalRegisteredStudentsCount() }}</span>
         </button>
       </div>
@@ -185,7 +204,20 @@
                   }
                 </div>
                 <div class="student-meta">
-                  <strong class="student-name">{{ formatName(student.name) }}</strong>
+                  <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <strong class="student-name">{{ formatName(student.name) }}</strong>
+                  </div>
+                  @if (shouldShowStudentNote(student)) {
+                  <span class="student-note-tag" [title]="student.notes">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                      <line x1="16" y1="13" x2="8" y2="13"/>
+                      <line x1="16" y1="17" x2="8" y2="17"/>
+                    </svg>
+                    {{ student.notes }}
+                  </span>
+                  }
                 </div>
               </div>
             </td>
@@ -278,10 +310,28 @@
             <!-- Current Status -->
             <td class="cell-status">
               @if (student.currentStatus === 'active') {
-              <span class="badge-status badge-status--active">
-                <span class="status-dot"></span>
-                <span>{{ t().statusActive }}</span>
-              </span>
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  @if (student.activeSession) {
+                    @let timeStatus = getStudentTimeStatus(student.activeSession);
+                    <span class="badge-status {{ timeStatus.badgeClass }}">
+                      <span class="status-dot"></span>
+                      <span>{{ timeStatus.badgeLabel }}</span>
+                    </span>
+                    @if (timeStatus.subText) {
+                      <span class="overdue-sub-label">{{ timeStatus.subText }}</span>
+                    }
+                  } @else {
+                    <span class="badge-status badge-status--active">
+                      <span class="status-dot"></span>
+                      <span>{{ t().statusActive }}</span>
+                    </span>
+                  }
+                  @if (getStudentSeatingType(student); as seating) {
+                    <span class="badge-seating" [class.badge-seating--silent]="seating === 'Silent'" [class.badge-seating--share]="seating !== 'Silent'">
+                      {{ seating === 'Silent' ? (isArabic() ? 'سيلنت' : 'Silent') : (isArabic() ? 'شير' : 'Shared') }}
+                    </span>
+                  }
+                </div>
               } @else if (student.currentStatus === 'blocked') {
               <span class="badge-status badge-status--blocked">
                 <span class="status-dot"></span>
@@ -407,44 +457,85 @@
                   }
                 </div>
                 <div class="student-meta">
-                  <strong class="student-name">{{ formatName(student.name) }}</strong>
-                  <div class="student-submeta">
-                    @if (student.phone) {
-                    <span class="student-sub-phone">{{ student.phone }}</span>
-                    }
-                    @if (student.faculty || student.college) {
-                    <span class="student-sub-faculty">{{ student.faculty || student.college }}</span>
+                  <!-- Row 1: Student Name + Sleek Zone Dot-Pill -->
+                  <div class="student-primary-row">
+                    <strong class="student-name">{{ formatName(student.name) }}</strong>
+                    
+                    @if (getStudentSeatingType(student); as seating) {
+                      <span class="zone-badge" [class.zone-badge--silent]="seating === 'Silent'" [class.zone-badge--shared]="seating !== 'Silent'">
+                        <span class="zone-dot"></span>
+                        <span>{{ seating === 'Silent' ? (isArabic() ? 'سايلنت' : 'Silent') : (isArabic() ? 'شيرد' : 'Shared') }}</span>
+                      </span>
                     }
                   </div>
+
+                  <!-- Row 2: Unified, Single-line Compact Metadata -->
+                  <div class="student-submeta">
+                    @if (student.phone) {
+                      <span class="submeta-phone">{{ student.phone }}</span>
+                    }
+
+                    @if (student.faculty || student.college) {
+                      @if (student.phone) {
+                        <span class="submeta-sep">•</span>
+                      }
+                      <span class="submeta-faculty">{{ student.faculty || student.college }}</span>
+                    }
+
+                    @let stats = getStudentVisitStats(student);
+                    @if (stats.visits > 0 || stats.hours > 0) {
+                      @if (student.phone || student.faculty || student.college) {
+                        <span class="submeta-sep">•</span>
+                      }
+                      <span class="submeta-stats" [title]="isArabic() ? 'إجمالي الزيارات والساعات' : 'Total Visits & Hours'">
+                        {{ isArabic() ? stats.visits + ' زيارة' : (stats.visits === 1 ? '1 visit' : stats.visits + ' visits') }} ({{ stats.hours }}h)
+                      </span>
+                    }
+                  </div>
+
+                  <!-- Row 3: Note on its own line -->
+                  @if (shouldShowStudentNote(student)) {
+                    <div class="student-note-row">
+                      <span class="student-note-pill" [title]="student.notes">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="note-pill-icon">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                          <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        <span class="note-pill-text">{{ student.notes }}</span>
+                      </span>
+                    </div>
+                  }
                 </div>
               </div>
             </td>
 
             <!-- Check-In Time -->
-            <td class="cell-time">{{ formatTime(student.checkInTime) }}</td>
+            <td class="cell-time">
+              <div style="display: inline-flex; align-items: center; gap: 6px;">
+                <span>{{ formatTime(student.checkInTime) }}</span>
+                <button type="button" class="btn-icon-subtle" (click)="openEditSessionTimeModal(student)" [title]="isArabic() ? 'تعديل وقت الجلسة والدقائق الإضافية' : 'Edit Session Time & Extra Minutes'" style="border: none; background: transparent; cursor: pointer; color: var(--text-dim); padding: 2px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                </button>
+              </div>
+            </td>
 
             <!-- Duration (Live Incrementing Timer) -->
             <td class="cell-duration">
               <strong>{{ getLiveStudentDuration(student) }}</strong>
             </td>
 
-            <!-- State / Status Column: Active vs Left vs Blocked -->
+            <!-- State / Status Column: Active vs Left vs Blocked vs Overdue -->
             <td class="cell-status">
-              @if (student.status === 'active') {
-              <span class="badge-status badge-status--active">
+              @let timeStatus = getStudentTimeStatus(student);
+              <span class="badge-status {{ timeStatus.badgeClass }}">
                 <span class="status-dot"></span>
-                <span>{{ t().statusActive }}</span>
+                <span>{{ timeStatus.badgeLabel }}</span>
               </span>
-              } @else if (student.status === 'blocked') {
-              <span class="badge-status badge-status--blocked">
-                <span class="status-dot"></span>
-                <span>{{ t().statusBlocked }}</span>
-              </span>
-              } @else {
-              <span class="badge-status badge-status--left">
-                <span class="status-dot"></span>
-                <span>{{ t().statusLeft }}</span>
-              </span>
+              @if (timeStatus.subText) {
+                <span class="overdue-sub-label">{{ timeStatus.subText }}</span>
               }
             </td>
 
@@ -547,6 +638,16 @@
                       <span>{{ t().editText }}</span>
                     </button>
 
+                    @if (student.status === 'active') {
+                    <button type="button" class="action-menu-btn" (click)="closeActionMenu(); openEditSessionTimeModal(student)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                      </svg>
+                      <span>{{ isArabic() ? 'تعديل توقيت الجلسة' : 'Edit Session Time' }}</span>
+                    </button>
+                    }
+
                     @if (student.status === 'blocked') {
                     <button type="button" class="action-menu-btn action-menu-btn--success"
                       (click)="onUnblockStudent(student.id)">
@@ -583,8 +684,16 @@
           </tr>
           } @empty {
           <tr>
-            <td colspan="7" class="cell-empty">
-              {{ t().noStudentsFound }}
+            <td colspan="7" class="cell-empty" style="text-align: center; padding: 32px 16px;">
+              <p style="font-size: 1rem; color: var(--text-dim); margin-bottom: 8px;">{{ t().noStudentsFound }}</p>
+              @if (searchQuery().trim() && activeTab() === 'active') {
+                <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 12px;">
+                  {{ isArabic() ? 'هل تبحث عن عميل غير متواجد حالياً؟ يمكنك البحث في دليل كل العملاء والسجل.' : 'Looking for a client not currently in session? Try searching All Students Directory.' }}
+                </p>
+                <button type="button" class="btn btn-secondary btn-sm" (click)="setTab('all')" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 0.85rem;">
+                  <span>{{ isArabic() ? '🔍 الانتقال للبحث في دليل كل العملاء' : '🔍 Search All Students Directory' }}</span>
+                </button>
+              }
             </td>
           </tr>
           }
@@ -865,15 +974,21 @@
                   </div>
 
                   <div class="modal-field-group">
-                    <label class="modal-label">{{ t().college }}</label>
-                    <input type="text" class="modal-input" [placeholder]="t().college" [value]="ciCollege()"
-                      (input)="ciCollege.set($any($event.target).value)" />
+                    <label class="modal-label">{{ isArabic() ? 'الجامعة' : 'University' }}</label>
+                    <input type="text" class="modal-input" [placeholder]="isArabic() ? 'الجامعة (مثل: جامعة أسيوط)' : 'University (e.g. Assiut)'" [value]="ciUniversity()"
+                      (input)="ciUniversity.set($any($event.target).value)" />
                   </div>
 
                   <div class="modal-field-group">
-                    <label class="modal-label">{{ t().faculty }}</label>
-                    <input type="text" class="modal-input" [placeholder]="t().faculty" [value]="ciFaculty()"
-                      (input)="ciFaculty.set($any($event.target).value)" />
+                    <label class="modal-label">{{ isArabic() ? 'الكلية' : 'College' }}</label>
+                    <input type="text" class="modal-input" [placeholder]="isArabic() ? 'الكلية (مثل: حاسبات ومعلومات / هندسة)' : 'College (e.g. Engineering)'" [value]="ciCollege()"
+                      (input)="ciCollege.set($any($event.target).value)" />
+                  </div>
+
+                  <div class="modal-field-group" style="grid-column: 1 / -1;">
+                    <label class="modal-label">{{ isArabic() ? 'ملاحظات الطالب' : 'Student Notes' }}</label>
+                    <textarea class="modal-input" rows="2" [placeholder]="isArabic() ? 'أدخل أي ملاحظات خاصة بالطالب...' : 'Enter student notes...'" [value]="ciNotes()"
+                      (input)="ciNotes.set($any($event.target).value)"></textarea>
                   </div>
                 </div>
               </div>
@@ -1184,7 +1299,7 @@
                       @if (ciBilling() === 'package') {
                       0.00 <span class="summary-currency">{{ t().currency }}</span>
                       } @else {
-                      {{ (ciTotalCost() + (ciPrinting() * 1.5)).toFixed(2) }} <span
+                      {{ ciTotalCost().toFixed(2) }} <span
                         class="summary-currency">{{ t().currency }}</span>
                       }
                     </strong>
@@ -1274,40 +1389,14 @@
 
       <div class="modal-single-body">
         <p class="modal-desc">{{ t().confirmDeleteDesc }}</p>
-
-        <!-- Shift Opener Password Input (Strict Requirement 4) -->
-        <div class="shift-password-box"
-          style="margin-top: 14px; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;">
-          <label class="field-label"
-            style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: var(--text);">
-            🔒 {{ isArabic() ? 'كلمة مرور مسؤول الوردية (' + shiftOpenerName() + ') *' : 'Shift Opener Password (' +
-            shiftOpenerName() + ') *' }}
-          </label>
-          <input type="password" class="custom-input delete-password-input"
-            style="width: 100%; padding: 8px 12px; font-size: 0.9rem; border-radius: 6px; background: var(--bg); border: 1px solid var(--border); color: var(--text);"
-            [placeholder]="isArabic() ? 'أدخل كلمة مرور الوردية للتأكيد' : 'Enter shift password to confirm'"
-            [value]="deleteShiftPassword()" (input)="deleteShiftPassword.set($any($event.target).value)"
-            (keydown.enter)="confirmDelete()" autocomplete="new-password" />
-          @if (deletePasswordError(); as pErr) {
-          <span class="field-error-msg"
-            style="display: block; margin-top: 6px; color: var(--danger); font-size: 0.82rem; font-weight: 600;">
-            ⚠️ {{ pErr }}
-          </span>
-          }
-        </div>
       </div>
 
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" (click)="closeDeleteModal()">
           {{ t().cancel }}
         </button>
-        <button type="button" class="btn btn-danger"
-          [disabled]="!deleteShiftPassword().trim() || isVerifyingDeletePassword()" (click)="confirmDelete()">
-          @if (isVerifyingDeletePassword()) {
-          {{ isArabic() ? 'جاري التحقق...' : 'Verifying...' }}
-          } @else {
+        <button type="button" class="btn btn-danger" (click)="confirmDelete()">
           {{ t().deleteText }}
-          }
         </button>
       </div>
     </div>
@@ -1401,10 +1490,23 @@
                 </div>
               </div>
 
-              <!-- College & Faculty -->
+              <!-- University & College (Item 4: Assiut University / Faculty of Computers) -->
               <div class="row-grid-2">
                 <div class="field-wrap">
-                  <label class="field-label">{{ t().college }}</label>
+                  <label class="field-label">{{ isArabic() ? 'الجامعة' : 'University' }}</label>
+                  <div class="input-container">
+                    <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      stroke-width="2">
+                      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                    </svg>
+                    <input type="text" class="custom-input" [value]="editUniversity()"
+                      (input)="editUniversity.set($any($event.target).value)" [placeholder]="isArabic() ? 'الجامعة (مثل: جامعة أسيوط)' : 'University (e.g. Assiut)'" />
+                  </div>
+                </div>
+
+                <div class="field-wrap">
+                  <label class="field-label">{{ isArabic() ? 'الكلية' : 'College' }}</label>
                   <div class="input-container">
                     <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                       stroke-width="2">
@@ -1412,21 +1514,17 @@
                       <path d="M6 12v5c3 3 9 3 12 0v-5" />
                     </svg>
                     <input type="text" class="custom-input" [value]="editCollege()"
-                      (input)="editCollege.set($any($event.target).value)" />
+                      (input)="editCollege.set($any($event.target).value)" [placeholder]="isArabic() ? 'الكلية (مثل: حاسبات ومعلومات / هندسة)' : 'College'" />
                   </div>
                 </div>
+              </div>
 
-                <div class="field-wrap">
-                  <label class="field-label">{{ t().faculty }}</label>
-                  <div class="input-container">
-                    <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                      stroke-width="2">
-                      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                    </svg>
-                    <input type="text" class="custom-input" [value]="editFaculty()"
-                      (input)="editFaculty.set($any($event.target).value)" />
-                  </div>
+              <!-- Notes -->
+              <div class="field-wrap" style="margin-top: 12px;">
+                <label class="field-label">{{ isArabic() ? 'ملاحظات الطالب' : 'Student Notes' }}</label>
+                <div class="input-container">
+                  <textarea class="custom-input" rows="2" [value]="editNotes()"
+                    (input)="editNotes.set($any($event.target).value)" [placeholder]="isArabic() ? 'أدخل أي ملاحظات خاصة بالطالب...' : 'Notes...'"></textarea>
                 </div>
               </div>
             </div>
@@ -1523,15 +1621,21 @@
           </div>
 
           <div class="modal-field-group">
-            <label class="modal-label">{{ t().collegeAndFaculty || 'الجامعة' }}</label>
+            <label class="modal-label">{{ isArabic() ? 'الكلية' : 'College' }}</label>
             <input type="text" class="modal-input" [ngModel]="regCollege()" (ngModelChange)="regCollege.set($event)"
-              placeholder="مثال: جامعة القاهرة" />
+              [placeholder]="isArabic() ? 'الكلية (مثل: هندسة)' : 'College'" />
           </div>
 
           <div class="modal-field-group">
-            <label class="modal-label">{{ t().faculty }}</label>
+            <label class="modal-label">{{ isArabic() ? 'الجامعة' : 'University' }}</label>
             <input type="text" class="modal-input" [ngModel]="regFaculty()" (ngModelChange)="regFaculty.set($event)"
-              placeholder="مثال: كلية الهندسة" />
+              [placeholder]="isArabic() ? 'الجامعة (مثل: جامعة القاهرة)' : 'University'" />
+          </div>
+
+          <div class="modal-field-group" style="grid-column: 1 / -1;">
+            <label class="modal-label">{{ isArabic() ? 'ملاحظات الطالب' : 'Student Notes' }}</label>
+            <textarea class="modal-input" rows="2" [ngModel]="regNotes()" (ngModelChange)="regNotes.set($event)"
+              [placeholder]="isArabic() ? 'أدخل أي ملاحظات خاصة بالطالب...' : 'Enter student notes...'"></textarea>
           </div>
         </div>
       </div>
@@ -1556,5 +1660,154 @@
     (close)="isStudentCateringModalOpen.set(false); activeStudentForCatering.set(null)"
     (addToRoomSession)="onAddCateringToStudent($event)"
     (saleCompleted)="isStudentCateringModalOpen.set(false); activeStudentForCatering.set(null)"></app-catering-pos-modal>
+  }
+
+  <!-- EDIT SESSION TIME MODAL FOR SHARE / SILENT (Item 12 Upgrade) -->
+  @if (isEditSessionTimeModalOpen()) {
+  <div class="modal-backdrop" (click)="closeEditSessionTimeModal()">
+    <div class="modal-dialog modal-dialog--sm edit-time-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-header__text">
+          <h2 class="modal-title">{{ isArabic() ? 'تعديل وقت الجلسة وحساب السعر' : 'Edit Session Time & Live Price' }}</h2>
+          <div class="edit-session-student-chip">
+            <span class="chip-name">{{ sessionTimeToEdit()?.name }}</span>
+            <span class="chip-zone" [class.chip-zone--silent]="sessionTimeToEdit()?.roomName?.toLowerCase()?.includes('silent')">
+              {{ sessionTimeToEdit()?.roomName || (isArabic() ? 'شيرد سبيس' : 'Shared Space') }}
+            </span>
+          </div>
+        </div>
+        <button type="button" class="btn-close-circle" (click)="closeEditSessionTimeModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body-pad">
+        <!-- 2-Column Time Inputs -->
+        <div class="form-grid-2col">
+          <div class="modal-field-group">
+            <label class="modal-label">{{ isArabic() ? 'وقت الدخول (Check-in)' : 'Check-in Time' }} *</label>
+            <div class="time-field-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="time-field-icon">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <input type="text" class="modal-input time-styled-input" [ngModel]="editCheckInTimeInput()" (ngModelChange)="editCheckInTimeInput.set($event)" placeholder="10:00 AM / 14:30" />
+            </div>
+          </div>
+
+          <div class="modal-field-group">
+            <label class="modal-label">{{ isArabic() ? 'الوقت المتوقع للخروج' : 'Expected Checkout' }}</label>
+            <div class="time-field-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="time-field-icon">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <input type="text" class="modal-input time-styled-input" [ngModel]="editExpectedCheckoutInput()" (ngModelChange)="editExpectedCheckoutInput.set($event)" placeholder="12:30 PM / 16:00" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Extra Minutes Section: Dedicated 4-Pill Row + Custom Input -->
+        <div class="extra-minutes-section">
+          <div class="section-label-row">
+            <label class="modal-label">{{ isArabic() ? 'إضافة دقائق إضافية للجلسة' : 'Add Extra Minutes' }}</label>
+            <span class="current-extra-badge" [class.has-extra]="editExtraMinutesInput() > 0">
+              {{ isArabic() ? 'الإجمالي المضاف:' : 'Total Added:' }} +{{ editExtraMinutesInput() }} {{ isArabic() ? 'دقيقة' : 'min' }}
+            </span>
+          </div>
+
+          <!-- 4 Fixed Buttons (Never Wraps awkwardly) -->
+          <div class="quick-minutes-bar">
+            <button type="button" class="btn-extra-pill" (click)="addExtraMinutes(15)">
+              +15 {{ isArabic() ? 'د' : 'm' }}
+            </button>
+            <button type="button" class="btn-extra-pill" (click)="addExtraMinutes(30)">
+              +30 {{ isArabic() ? 'د' : 'm' }}
+            </button>
+            <button type="button" class="btn-extra-pill" (click)="addExtraMinutes(45)">
+              +45 {{ isArabic() ? 'د' : 'm' }}
+            </button>
+            <button type="button" class="btn-extra-pill" (click)="addExtraMinutes(60)">
+              +60 {{ isArabic() ? 'د' : 'm' }}
+            </button>
+          </div>
+
+          <!-- Custom Number Input + Reset Button -->
+          <div class="custom-minutes-row">
+            <span class="custom-minutes-label">{{ isArabic() ? 'أو كتابة دقائق مخصصة:' : 'Or custom minutes:' }}</span>
+            <div class="stepper-input-group">
+              <input type="number" class="modal-input extra-num-input" [ngModel]="editExtraMinutesInput()" (ngModelChange)="editExtraMinutesInput.set($event)" min="0" step="5" />
+              @if (editExtraMinutesInput() > 0) {
+                <button type="button" class="btn-reset-extra" (click)="editExtraMinutesInput.set(0)">
+                  <span>{{ isArabic() ? 'إعادة ضبط (0)' : 'Reset (0)' }}</span>
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Recalculated Cost Card -->
+        <div class="recalculated-cost-card">
+          <div class="cost-card-info">
+            <span class="cost-card-title">{{ isArabic() ? 'السعر المحسوب لحظياً' : 'Live Recalculated Cost' }}</span>
+            <span class="cost-card-subtitle">{{ isArabic() ? 'يتم احتساب التكلفة تلقائياً بدقة بناءً على الوقت والدقائق المضافة' : 'Auto-computed from actual elapsed time + extra minutes' }}</span>
+          </div>
+          <div class="cost-price-badge">
+            <span class="cost-amount">{{ editRecalculatedPrice() }}</span>
+            <span class="cost-currency">{{ t().egp }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-modal-cancel" (click)="closeEditSessionTimeModal()">
+          {{ t().cancel }}
+        </button>
+        <button type="button" class="btn-modal-save" (click)="saveSessionTime()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon-svg">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+          </svg>
+          <span>{{ isArabic() ? 'حفظ وتحديث السعر' : 'Save & Update Cost' }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- CONFIRM DELETE MODAL (Item 15: Without Password requirement) -->
+  @if (studentToDelete()) {
+  <div class="modal-backdrop" (click)="closeDeleteModal()">
+    <div class="modal-dialog modal-dialog--sm" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-header__text">
+          <h2 class="modal-title">{{ isArabic() ? 'تأكيد حذف جلسة الطالب' : 'Confirm Delete Session' }}</h2>
+          <p class="modal-subtitle">{{ isArabic() ? 'حذف مباشر بدون طلب كلمة مرور' : 'Direct deletion without password' }}</p>
+        </div>
+        <button type="button" class="btn-close-circle" (click)="closeDeleteModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body-pad">
+        <p style="font-size: 0.95rem; color: var(--text-main); margin-bottom: 0;">
+          {{ isArabic() ? 'هل أنت متأكد من حذف جلسة الطالب ' : 'Are you sure you want to delete session for ' }}
+          <strong>{{ studentToDelete()?.name }}</strong>؟
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="closeDeleteModal()">{{ t().cancel }}</button>
+        <button type="button" class="btn btn-danger" (click)="confirmDelete()" style="background: #ef4444; color: #fff;">
+          <span>{{ isArabic() ? 'تأكيد الحذف' : 'Confirm Delete' }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
   }
 </div>

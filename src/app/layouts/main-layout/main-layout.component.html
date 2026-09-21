@@ -36,6 +36,80 @@
       </div>
     }
     <router-outlet></router-outlet>
+    
+    <!-- Global Application Footer with Kernel Panic IT Team Attribution -->
+    <footer class="app-global-footer">
+      <div class="footer-dock" [class.footer-dock--rtl]="isArabic()">
+        <!-- Brand & Copyright -->
+        <div class="footer-branding">
+          <div class="footer-brand-lockup">
+            <div class="footer-brand-emblem" aria-hidden="true">
+              <span class="emblem-glyph">N</span>
+            </div>
+            <div class="footer-brand-text">
+              <div class="footer-brand-row">
+                <span class="footer-brand-name">NOOK</span>
+                <span class="footer-brand-dot">•</span>
+                <span class="footer-brand-sub">{{ isArabic() ? 'نظام إدارة مساحات العمل والمراكز التعليمية' : 'Workspace & Coworking Hub' }}</span>
+              </div>
+              <p class="footer-copy-text">© {{ currentYear }} NOOK Coworking Hub. {{ t().allRightsReserved }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- System Status & Environment (Center Pill) -->
+        <div class="footer-status-wrap">
+          <button
+            type="button"
+            class="footer-status-pill"
+            [class.footer-status-pill--online]="isApiOnline()"
+            [class.footer-status-pill--offline]="!isApiOnline()"
+            [class.footer-status-pill--checking]="isCheckingApi()"
+            (click)="checkApiHealth()"
+            [title]="isApiOnline() ? (isArabic() ? 'الـ API متصل ويعمل بكفاءة - انقر لإعادة الفحص' : 'API Operational & Connected - Click to recheck') : (isArabic() ? 'الـ API غير متصل أو به مشكلة - انقر لإعادة المحاولة' : 'API Disconnected / Unreachable - Click to retry')"
+          >
+            <span class="status-ping" aria-hidden="true">
+              <span class="status-ping-ring"></span>
+              <span class="status-ping-dot"></span>
+            </span>
+            <span class="status-label">
+              {{ isApiOnline()
+                ? (isArabic() ? 'النظام متصل • API نشط' : 'System Operational')
+                : (isArabic() ? 'تعذر الاتصال • API غير متصل' : 'System Offline • API Disconnected')
+              }}
+            </span>
+          </button>
+        </div>
+
+        <!-- Kernel Panic IT Team Signature Link Badge -->
+        <a
+          href="https://itkernelpanic.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="kp-signature-badge"
+          [title]="'Kernel Panic IT Team - https://itkernelpanic.com'"
+        >
+          <div class="kp-icon-container">
+            <img src="/images/kp-mark-dark.png" alt="Kernel Panic" class="kp-mark-img logo-dark" />
+            <img src="/images/kp-mark-light.png" alt="Kernel Panic" class="kp-mark-img logo-light" />
+          </div>
+
+          <div class="kp-text-stack">
+            <span class="kp-label">{{ t().engineeredBy }}</span>
+            <div class="kp-brand-row">
+              <strong class="kp-name">KERNEL PANIC</strong>
+            </div>
+          </div>
+
+          <div class="kp-arrow-wrap" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" class="kp-arrow-icon">
+              <line x1="7" y1="17" x2="17" y2="7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+              <polyline points="7 7 17 7 17 17" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </a>
+      </div>
+    </footer>
   </main>
 </div>
 

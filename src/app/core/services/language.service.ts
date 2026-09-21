@@ -814,6 +814,15 @@ export interface Translations {
   addPricingTierBtn: string;
   addRoomSpaceBtn: string;
   addPackagePresetBtn: string;
+  developedBy: string;
+  kernelPanicTeam: string;
+  engineeredBy: string;
+  teamBadgeTitle: string;
+  teamBadgeSubtitle: string;
+  aboutTeamTitle: string;
+  aboutTeamSubtitle: string;
+  allRightsReserved: string;
+  poweredByTeam: string;
   studentHourlyPricingTab: string;
   classroomsZonesTab: string;
   quickPackagePresetsTab: string;
@@ -1253,6 +1262,62 @@ export interface Translations {
   wifiVoucherPlaceholder: string;
   freshOrangeJuicePlaceholder: string;
   hrsBadge: string;
+
+  // Global Notifications & Operational Alerts
+  notificationsTitle: string;
+  noNotifications: string;
+  markAllAsRead: string;
+  clearAll: string;
+  unread: string;
+  critical: string;
+  warningAlert: string;
+  infoAlert: string;
+  successAlert: string;
+  cateringLowStockAlert: string;
+  longStayAlert: string;
+  sessionEndingAlert: string;
+  reservationStartingAlert: string;
+  sessionExpiredAlert: string;
+
+  // Checkout Success & Invoicing
+  checkoutSuccessTitle: string;
+  printInvoiceQuestion: string;
+  printInvoiceBtn: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  cashier: string;
+  studentOrInstructor: string;
+  roomRentalCost: string;
+  cateringTotalLabel: string;
+  printingTotalLabel: string;
+  appliedDiscount: string;
+  finalAmountDue: string;
+  changeDueLabel: string;
+
+  // Student Analytics & Discount Rules
+  studentAnalyticsTitle: string;
+  totalVisits: string;
+  lastMonthVisits: string;
+  currentMonthVisits: string;
+  totalHours: string;
+  lastMonthHours: string;
+  currentMonthHours: string;
+  spaceUsage: string;
+  bookingHistory: string;
+  packageHistory: string;
+  discountHistory: string;
+  discountMilestones: string;
+  hoursToNextDiscount: string;
+  discountEligibleNow: string;
+  discountAlreadyUsedForMilestone: string;
+  viewAnalytics: string;
+
+  // Audit Logs
+  auditTrailTitle: string;
+  auditAction: string;
+  auditActor: string;
+  auditTimestamp: string;
+  auditDetails: string;
 }
 
 const TRANSLATIONS: Record<Lang, Translations> = {
@@ -1301,7 +1366,8 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     studentName: 'STUDENT NAME',
     whatsapp: 'WHATSAPP',
     sameAsPhone: 'Same as phone',
-    faculty: 'FACULTY',
+    faculty: 'University',
+    college: 'College',
     printing: 'PRINTING (PAGES)',
     wifi: 'WIFI',
     wifiVoucher: 'WiFi Voucher',
@@ -1334,7 +1400,7 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     allStudentsDirectory: 'All Students Directory',
     registerNewStudentBtn: 'Register New Student',
     contactInfo: 'Contact Info',
-    collegeAndFaculty: 'Faculty & College',
+    collegeAndFaculty: 'College & University',
     packageAndPlan: 'Package / Plan',
     visitsAndActivity: 'Visits & Activity',
     statusOffline: 'Offline',
@@ -1405,7 +1471,6 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     ratePerHour: '/hr',
     checkout: 'Checkout',
     checkoutDesc: 'Calculate hours, bill session, and checkout student',
-    college: 'College',
     planType: 'Plan',
     balance: ' Balance (EGP)',
     saveStudent: 'Save Student',
@@ -2066,6 +2131,15 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     addPricingTierBtn: '+ Add Pricing Tier',
     addRoomSpaceBtn: '+ Add Room / Space',
     addPackagePresetBtn: '+ Add Package Preset',
+    developedBy: 'Developed by',
+    kernelPanicTeam: 'Kernel Panic IT Team',
+    engineeredBy: 'Engineered & Designed by',
+    teamBadgeTitle: 'Kernel Panic IT Team',
+    teamBadgeSubtitle: 'Software Architecture & Development',
+    aboutTeamTitle: 'About Development Team',
+    aboutTeamSubtitle: 'Meet the engineering team behind NOOK Workspace Platform',
+    allRightsReserved: 'All rights reserved',
+    poweredByTeam: 'Powered by Kernel Panic IT Team',
     studentHourlyPricingTab: 'Student Hourly Pricing',
     classroomsZonesTab: 'Classrooms & Zones',
     quickPackagePresetsTab: 'Quick Package Presets',
@@ -2504,7 +2578,63 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     egpPerPage: 'EGP/page',
     wifiVoucherPlaceholder: 'e.g. NOOK-WIFI-99',
     freshOrangeJuicePlaceholder: 'e.g. Fresh Orange Juice',
-    hrsBadge: 'hrs'
+    hrsBadge: 'hrs',
+
+    // Global Notifications & Operational Alerts
+    notificationsTitle: 'Notifications',
+    noNotifications: 'No notifications right now',
+    markAllAsRead: 'Mark all as read',
+    clearAll: 'Clear all',
+    unread: 'Unread',
+    critical: 'Critical',
+    warningAlert: 'Warning',
+    infoAlert: 'Info',
+    successAlert: 'Success',
+    cateringLowStockAlert: 'Low Stock Alert',
+    longStayAlert: 'Long Stay Alert',
+    sessionEndingAlert: 'Session Ending Soon',
+    reservationStartingAlert: 'Reservation Starting Soon',
+    sessionExpiredAlert: 'Session Expired',
+
+    // Checkout Success & Invoicing
+    checkoutSuccessTitle: 'Checkout Completed Successfully',
+    printInvoiceQuestion: 'Would you like to print or save the invoice as PDF?',
+    printInvoiceBtn: 'Print / Save PDF',
+    invoiceNumber: 'Invoice No.',
+    invoiceDate: 'Date',
+    cashier: 'Cashier',
+    studentOrInstructor: 'Customer / Instructor',
+    roomRentalCost: 'Room Rental',
+    cateringTotalLabel: 'Catering Total',
+    printingTotalLabel: 'Printing Total',
+    appliedDiscount: 'Applied Discount',
+    finalAmountDue: 'Final Total',
+    changeDueLabel: 'Change Due',
+
+    // Student Analytics & Discount Rules
+    studentAnalyticsTitle: 'Student Analytics & Profile',
+    totalVisits: 'Total Visits',
+    lastMonthVisits: 'Last Month Visits',
+    currentMonthVisits: 'Current Month Visits',
+    totalHours: 'Total Hours',
+    lastMonthHours: 'Last Month Hours',
+    currentMonthHours: 'Current Month Hours',
+    spaceUsage: 'Space Usage Breakdown',
+    bookingHistory: 'Booking History',
+    packageHistory: 'Package History',
+    discountHistory: 'Discount History',
+    discountMilestones: 'Milestone Discounts',
+    hoursToNextDiscount: 'Hours until next discount',
+    discountEligibleNow: 'Eligible for Discount Now!',
+    discountAlreadyUsedForMilestone: 'Milestone discount already redeemed',
+    viewAnalytics: 'Analytics',
+
+    // Audit Logs
+    auditTrailTitle: 'Audit Trail',
+    auditAction: 'Action',
+    auditActor: 'User / Actor',
+    auditTimestamp: 'Timestamp',
+    auditDetails: 'Details'
   },
   ar: {
     search: 'سيرش على أي حاجة...',
@@ -2550,7 +2680,8 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     studentName: 'اسم الطالب',
     whatsapp: 'رقم الواتساب',
     sameAsPhone: 'مطابق لرقم الهاتف',
-    faculty: 'الكلية أو التخصص',
+    faculty: 'الجامعة',
+    college: 'الكلية',
     printing: 'طباعة مستندات (عدد الأوراق)',
     wifi: 'الواي فاي',
     wifiVoucher: 'قسيمة الواي فاي',
@@ -2654,7 +2785,6 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     ratePerHour: 'ج.م / ساعة',
     checkout: 'التشيك أوت والفاتورة',
     checkoutDesc: 'احسب الساعات واطبع الفاتورة واعمله تشيك أوت',
-    college: 'الجامعة',
     planType: 'نوع الباكيدج',
     balance: 'الرصيد في الواليت (ج.م)',
     saveStudent: 'سيف بيانات الستيودنت',
@@ -2686,17 +2816,17 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     classroomLiveBoard: 'لايف بورد الرومات',
     classroomLiveBoardDesc: 'الحالة اللحظية للرومات والكلاسات كلها دلوقتي.',
     newClassroomBooking: 'حجز روم جديدة',
-    newClassroomBookingDesc: 'ظبط ديتيلز السيشن والمطلوب فيها.',
-    configureBookingDetails: 'ظبط ديتيلز الحجز والمعدات المطلوبة.',
-    searchClassrooms: 'دور على رومات، إنستراكتورز...',
-    statusAll: 'الحالة: كله',
+    newClassroomBookingDesc: 'تحديد تفاصيل الجلسة والمواعيد المطلوبة.',
+    configureBookingDetails: 'تحديد تفاصيل الحجز، القاعة والمواعيد المطلوبة.',
+    searchClassrooms: 'البحث عن قاعات، محاضرين...',
+    statusAll: 'الحالة: الكل',
     statusInSession: 'مشغولة حالياً',
     statusScheduled: 'محجوزة',
-    statusAvailable: 'فاضية وجاهزة',
-    statusCompleted: 'خلصت خلاص',
-    dateToday: 'التاريخ: النهارده',
-    dateThisWeek: 'التاريخ: الأسبوع ده',
-    instructor: 'الإنستراكتور',
+    statusAvailable: 'متاحة وجاهزة',
+    statusCompleted: 'مكتملة',
+    dateToday: 'التاريخ: اليوم',
+    dateThisWeek: 'التاريخ: هذا الأسبوع',
+    instructor: 'المحاضر / المدرب',
     startedAt: 'بدأت',
     elapsed: 'عدى منها',
     rental: 'إيجار الروم',
@@ -2996,8 +3126,8 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     equipmentAddon: 'إضافات المعدات (تأجير كاميرات)',
     earlyBirdDiscount: 'ديسكاونت الحجز المبكر',
     studentsCount: 'ستيودنتس',
-    cancelReservation: 'كنسل الحجز',
-    classroomLabel: 'الروم',
+    cancelReservation: 'إلغاء الحجز',
+    classroomLabel: 'اختيار القاعة',
     idLabel: 'المعرف',
     costLabel: 'التكلفة',
     reservations: 'الحجوزات',
@@ -3315,6 +3445,15 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     addPricingTierBtn: '+ ضيف شريحة تسعير',
     addRoomSpaceBtn: '+ ضيف روم / مساحة',
     addPackagePresetBtn: '+ ضيف قالب باكيدج',
+    developedBy: 'تطوير وبرمجة',
+    kernelPanicTeam: 'فريق Kernel Panic IT Team',
+    engineeredBy: 'تصميم وهندسة برمجية بواسطة',
+    teamBadgeTitle: 'Kernel Panic IT Team',
+    teamBadgeSubtitle: 'هندسة وبرمجة النظم المتطورة',
+    aboutTeamTitle: 'عن فريق التطوير والبرمجة',
+    aboutTeamSubtitle: 'تعرف على الفريق الهندسي المطور لمنصة NOOK Workspace',
+    allRightsReserved: 'جميع الحقوق محفوظة',
+    poweredByTeam: 'مشغّل ومدعوم تقنياً بواسطة Kernel Panic IT Team',
     studentHourlyPricingTab: 'تسعير ساعات الستيودنتس',
     classroomsZonesTab: 'إدارة الرومات والمساحات',
     quickPackagePresetsTab: 'قوالب الباكيدجات السريعة',
@@ -3754,7 +3893,63 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     egpPerPage: 'ج.م/ورقة',
     wifiVoucherPlaceholder: 'مثلاً: NOOK-WIFI-99',
     freshOrangeJuicePlaceholder: 'مثلاً: عصير برتقال فريش',
-    hrsBadge: 'س'
+    hrsBadge: 'س',
+
+    // Global Notifications & Operational Alerts
+    notificationsTitle: 'مركز الإشعارات',
+    noNotifications: 'لا توجد إشعارات جديدة حالياً',
+    markAllAsRead: 'تحديد الكل كمقروء',
+    clearAll: 'مسح الكل',
+    unread: 'غير مقروء',
+    critical: 'حرج',
+    warningAlert: 'تحذير',
+    infoAlert: 'تنبيه',
+    successAlert: 'نجاح',
+    cateringLowStockAlert: 'تنبيه انخفاض المخزون',
+    longStayAlert: 'تنبيه إقامة طويلة (+18 ساعة)',
+    sessionEndingAlert: 'اقتراب انتهاء الجلسة',
+    reservationStartingAlert: 'اقتراب موعد الحجز',
+    sessionExpiredAlert: 'انتهت مدة الجلسة',
+
+    // Checkout Success & Invoicing
+    checkoutSuccessTitle: 'تم تسجيل المغادرة والحساب بنجاح',
+    printInvoiceQuestion: 'هل تريد طباعة الفاتورة أو حفظها كـ PDF؟',
+    printInvoiceBtn: 'طباعة الفاتورة / PDF',
+    invoiceNumber: 'رقم الفاتورة',
+    invoiceDate: 'تاريخ الفاتورة',
+    cashier: 'الكاشير',
+    studentOrInstructor: 'العميل / المحاضر',
+    roomRentalCost: 'إيجار القاعة',
+    cateringTotalLabel: 'إجمالي الكاترينج',
+    printingTotalLabel: 'إجمالي الطباعة',
+    appliedDiscount: 'الخصم المطبق',
+    finalAmountDue: 'الإجمالي النهائي',
+    changeDueLabel: 'المتبقي للعميل',
+
+    // Student Analytics & Discount Rules
+    studentAnalyticsTitle: 'تحليلات وملف الطالب المتكامل',
+    totalVisits: 'إجمالي الزيارات',
+    lastMonthVisits: 'زيارات الشهر الماضي',
+    currentMonthVisits: 'زيارات الشهر الحالي',
+    totalHours: 'إجمالي الساعات',
+    lastMonthHours: 'ساعات الشهر الماضي',
+    currentMonthHours: 'ساعات الشهر الحالي',
+    spaceUsage: 'توزيع استخدام المساحات',
+    bookingHistory: 'سجل الحجوزات',
+    packageHistory: 'سجل الباقات',
+    discountHistory: 'سجل الخصومات',
+    discountMilestones: 'خصومات الإنجاز والساعات',
+    hoursToNextDiscount: 'ساعات متبقية للخصم القادم',
+    discountEligibleNow: 'مؤهل لخصم الآن!',
+    discountAlreadyUsedForMilestone: 'تم استهلاك خصم هذا الإنجاز',
+    viewAnalytics: 'التحليلات',
+
+    // Audit Logs
+    auditTrailTitle: 'سجل العمليات والتدقيق',
+    auditAction: 'العملية',
+    auditActor: 'المستخدم / المنفذ',
+    auditTimestamp: 'الوقت والتاريخ',
+    auditDetails: 'التفاصيل'
   }
 };
 
@@ -3862,22 +4057,65 @@ export class LanguageService {
   formatDurationLocale(durStr?: string): string {
     if (!durStr) return this.isArabic() ? '0 س 00 د' : '0h 00m';
     const str = String(durStr).trim();
-    if (this.isArabic()) {
-      return str
-        .replace(/elapsed/gi, '')
-        .replace(/session/gi, '')
-        .replace(/(\d+)\s*h\s*(\d+)\s*m/gi, '$1 س $2 د')
-        .replace(/(\d+)\s*h\b/gi, '$1 س')
-        .replace(/(\d+)\s*m\b/gi, '$1 د')
-        .replace(/hrs?/gi, 'ساعات')
-        .replace(/mins?/gi, 'دقيقة')
-        .trim();
+    if (!str || str === '-' || str === 'null' || str === 'undefined') {
+      return this.isArabic() ? '0 س 00 د' : '0h 00m';
+    }
+
+    // Match days, hours, minutes from various patterns
+    // e.g. "4d 18h 42m", "4 يوم 18 س 42 د", "114h 42m", "114 س 42 د", "0 س 01 د", "1:30"
+    const dMatch = str.match(/(\d+)\s*(?:d|days?|day|يوم|أيام|ي)(?!\w)/i);
+    const hMatch = str.match(/(\d+)\s*(?:h|hours?|hour|hrs?|ساعات|ساعة|س)(?!\w)/i);
+    const mMatch = str.match(/(\d+)\s*(?:m|mins?|min|دقائق|دقيقة|د)(?!\w)/i);
+
+    let colonMatch: RegExpMatchArray | null = null;
+    if (!dMatch && !hMatch && !mMatch) {
+      colonMatch = str.match(/^(\d{1,3}):(\d{1,2})$/);
+    }
+
+    if (!dMatch && !hMatch && !mMatch && !colonMatch) {
+      return str;
+    }
+
+    let parsedDays = dMatch ? parseInt(dMatch[1], 10) : 0;
+    let parsedHours = hMatch ? parseInt(hMatch[1], 10) : 0;
+    let parsedMins = mMatch ? parseInt(mMatch[1], 10) : 0;
+
+    if (colonMatch) {
+      parsedHours = parseInt(colonMatch[1], 10);
+      parsedMins = parseInt(colonMatch[2], 10);
+    }
+
+    const totalMinutes = parsedDays * 1440 + parsedHours * 60 + parsedMins;
+    const finalDays = Math.floor(totalMinutes / 1440);
+    const remMinutes = totalMinutes % 1440;
+    const finalHours = Math.floor(remMinutes / 60);
+    const finalMins = remMinutes % 60;
+    const paddedMins = String(finalMins).padStart(2, '0');
+
+    const isAr = this.isArabic();
+
+    if (finalDays > 0) {
+      if (isAr) {
+        return `${finalDays} يوم ${finalHours} س ${paddedMins} د`;
+      } else {
+        return `${finalDays}d ${finalHours}h ${paddedMins}m`;
+      }
+    }
+
+    // If finalDays === 0
+    // Check if originally only minutes were provided
+    if (!dMatch && !hMatch && !colonMatch && mMatch) {
+      return isAr ? `${finalMins} د` : `${finalMins}m`;
+    }
+    // Check if originally only hours were provided
+    if (!dMatch && !mMatch && !colonMatch && hMatch && finalMins === 0) {
+      return isAr ? `${finalHours} س` : `${finalHours}h`;
+    }
+
+    if (isAr) {
+      return `${finalHours} س ${paddedMins} د`;
     } else {
-      return str
-        .replace(/(\d+)\s*س\s*(\d+)\s*د/g, '$1h $2m')
-        .replace(/(\d+)\s*س\b/g, '$1h')
-        .replace(/(\d+)\s*د\b/g, '$1m')
-        .trim();
+      return `${finalHours}h ${paddedMins}m`;
     }
   }
 

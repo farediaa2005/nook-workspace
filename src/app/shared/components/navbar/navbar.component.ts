@@ -37,10 +37,13 @@ export interface QuickSearchGroup {
   items: QuickSearchItem[];
 }
 
+import { NotificationCenterComponent } from '../notification-center/notification-center.component';
+import { NotificationService } from '../../../core/services/notification.service';
+
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, NotificationCenterComponent],
   templateUrl: './navbar.component.html',
   styleUrl: './navbar.component.css'
 })
@@ -51,12 +54,24 @@ export class NavbarComponent {
   private workspaceService = inject(WorkspaceService);
   private classroomService = inject(ClassroomService);
   private cateringService = inject(CateringService);
+  private notificationService = inject(NotificationService);
   private router = inject(Router);
 
   toggleSidebar = output<void>();
 
   currentUser = this.authService.user;
   isDarkTheme = this.themeService.isDark;
+
+  // Notification state
+  isNotificationOpen = signal<boolean>(false);
+  unreadNotificationCount = this.notificationService.unreadCount;
+
+  toggleNotifications(event?: MouseEvent): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    this.isNotificationOpen.update(v => !v);
+  }
 
   t = this.langService.t;
   isArabic = this.langService.isArabic;
@@ -87,6 +102,7 @@ export class NavbarComponent {
 
   @ViewChild('searchInput') searchInputRef?: ElementRef<HTMLInputElement>;
   @ViewChild('searchContainer') searchContainerRef?: ElementRef<HTMLElement>;
+  @ViewChild('notifContainer') notifContainerRef?: ElementRef<HTMLElement>;
 
   private getSystemPages(): {
     titleAr: string;
@@ -132,7 +148,7 @@ export class NavbarComponent {
         titleEn: 'Active Cashier Shift',
         subtitleAr: 'الورديات • المعاملات النقدية والخزينة',
         subtitleEn: 'Shifts • Cash register & Ledger',
-        route: '/shift/active-shift',
+        route: '/shift/active',
         icon: 'shift',
         keywords: ['وردية', 'شيفت', 'خزينة', 'كاشير', 'فلوس', 'shift', 'active', 'cash']
       },
@@ -141,7 +157,7 @@ export class NavbarComponent {
         titleEn: 'Shift History & Archive',
         subtitleAr: 'الورديات • تقارير الورديات السابقة',
         subtitleEn: 'Shifts • Past records & Audit',
-        route: '/shift/shift-history',
+        route: '/shift/history',
         icon: 'shift',
         keywords: ['سجل', 'ارشيف', 'ورديات', 'تقرير', 'history', 'archive']
       },
@@ -475,6 +491,10 @@ export class NavbarComponent {
 
   @HostListener('window:keydown', ['$event'])
   onWindowKeyDown(e: KeyboardEvent): void {
+    if (e.key === 'Escape') {
+      this.isDropdownOpen.set(false);
+      this.isNotificationOpen.set(false);
+    }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
       e.preventDefault();
       this.openSearch();
@@ -483,8 +503,12 @@ export class NavbarComponent {
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(e: MouseEvent): void {
-    if (this.searchContainerRef && !this.searchContainerRef.nativeElement.contains(e.target as Node)) {
+    const target = e.target as Node;
+    if (this.searchContainerRef && !this.searchContainerRef.nativeElement.contains(target)) {
       this.isDropdownOpen.set(false);
+    }
+    if (this.isNotificationOpen() && this.notifContainerRef && !this.notifContainerRef.nativeElement.contains(target)) {
+      this.isNotificationOpen.set(false);
     }
   }
 

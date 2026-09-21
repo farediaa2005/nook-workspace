@@ -365,64 +365,10 @@ html, body {
   to { transform: rotate(360deg); }
 }
 
-/* Divider */
-.divi {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: #6e675a;
-  font-size: 0.82rem;
-  margin: 24px 0 18px;
-}
-
-.divi::before,
-.divi::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: #2b261e;
-}
-
-/* Social Buttons */
-.sso {
-  display: flex;
-  gap: 12px;
-}
-
-.sso .ssobtn {
-  flex: 1;
-  height: 46px;
-  text-decoration: none;
-  background: #181714;
-  border: 1px solid #2d281f;
-  border-radius: 11px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-family: inherit;
-  font-weight: 600;
-  color: #ffffff;
-  font-size: 0.88rem;
-  transition: border-color 0.2s ease, background 0.2s ease;
-}
-
-.sso .ssobtn:hover {
-  background: #22201b;
-  border-color: #4a4130;
-}
-
-.sso svg {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-}
-
 /* Footer Tagline */
 .foot {
   text-align: center;
-  margin-top: 26px;
+  margin-top: 24px;
 }
 
 .foot .tag {
@@ -581,33 +527,6 @@ html, body {
   color: #d49200;
 }
 
-:host-context([data-theme="light"]) .divi,
-[data-theme="light"] .divi {
-  color: #8c8678;
-}
-
-:host-context([data-theme="light"]) .divi::before,
-[data-theme="light"] .divi::before,
-:host-context([data-theme="light"]) .divi::after,
-[data-theme="light"] .divi::after {
-  background: #ded8cb;
-}
-
-/* Social Buttons in Light Mode */
-:host-context([data-theme="light"]) .sso .ssobtn,
-[data-theme="light"] .sso .ssobtn {
-  background: #ffffff;
-  border: 1px solid #ded8cb;
-  color: #1a1917;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-}
-
-:host-context([data-theme="light"]) .sso .ssobtn:hover,
-[data-theme="light"] .sso .ssobtn:hover {
-  background: #f7f5f0;
-  border-color: #c8c0b0;
-}
-
 :host-context([data-theme="light"]) .foot .tag,
 [data-theme="light"] .foot .tag {
   color: #4a463e;
@@ -617,3 +536,135 @@ html, body {
 [data-theme="light"] .foot .tag em {
   color: #d49200;
 }
+
+/* ============================================================
+   KERNEL PANIC IT TEAM ATTRIBUTION BADGE (LOGIN)
+   ============================================================ */
+.login-attribution-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 6px 14px 6px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  user-select: none;
+  text-decoration: none !important;
+}
+
+.login-attribution-badge:hover {
+  background: rgba(0, 168, 255, 0.08);
+  border-color: rgba(56, 189, 248, 0.35);
+  box-shadow: 0 4px 14px rgba(0, 112, 243, 0.15);
+  transform: translateY(-1px);
+}
+
+.attribution-label {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: #8c8678;
+  letter-spacing: 0.02em;
+}
+
+.attribution-brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  direction: ltr !important;
+}
+
+.attribution-logo-pill {
+  height: 20px;
+  width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.attribution-logo {
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  transition: transform 0.2s ease;
+}
+
+.login-attribution-badge:hover .attribution-logo {
+  transform: scale(1.1);
+}
+
+.attribution-name {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #f4f4f5;
+  letter-spacing: 0.02em;
+}
+
+.attribution-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.attribution-arrow {
+  width: 12px;
+  height: 12px;
+  color: #71717a;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.login-attribution-badge:hover .attribution-arrow {
+  color: #38bdf8;
+  transform: translate(2px, -2px);
+}
+
+:host-context([data-theme="light"]) .login-attribution-badge,
+[data-theme="light"] .login-attribution-badge {
+  background: #f7f5f0;
+  border-color: #ded8cb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+:host-context([data-theme="light"]) .login-attribution-badge:hover,
+[data-theme="light"] .login-attribution-badge:hover {
+  background: #f0f9ff;
+  border-color: #0284c7;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.12);
+}
+
+:host-context([data-theme="light"]) .attribution-label,
+[data-theme="light"] .attribution-label {
+  color: #64748b;
+}
+
+:host-context([data-theme="light"]) .attribution-name,
+[data-theme="light"] .attribution-name {
+  color: #0f172a;
+}
+
+:host-context([data-theme="light"]) .attribution-tag,
+[data-theme="light"] .attribution-tag {
+  background: rgba(2, 132, 199, 0.1);
+  color: #0284c7;
+}
+
+:host-context([data-theme="light"]) .attribution-arrow,
+[data-theme="light"] .attribution-arrow {
+  color: #94a3b8;
+}
+
+:host-context([data-theme="light"]) .login-attribution-badge:hover .attribution-arrow,
+[data-theme="light"] .login-attribution-badge:hover .attribution-arrow {
+  color: #0284c7;
+}
+
+

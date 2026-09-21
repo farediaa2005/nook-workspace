@@ -90,10 +90,27 @@
         <div class="room-card__header">
           <h3 class="room-name">{{ formatRoom(card.name) }}</h3>
           @if (card.status === 'active') {
-          <span class="status-pill status-pill--active">
-            <span class="dot"></span>
-            {{ t().statusInSession }}
-          </span>
+            @if (card.timeAlertStatus === 'overtime_charged') {
+            <span class="status-pill status-pill--overdue" [title]="card.timeAlertMessage">
+              <span class="dot"></span>
+              {{ isArabic() ? 'تجاوز الوقت' : 'Overtime' }}
+            </span>
+            } @else if (card.timeAlertStatus === 'ended_grace') {
+            <span class="status-pill status-pill--scheduled" [title]="card.timeAlertMessage">
+              <span class="dot"></span>
+              {{ isArabic() ? 'فترة سماح' : 'Grace Period' }}
+            </span>
+            } @else if (card.timeAlertStatus === 'ending_soon') {
+            <span class="status-pill status-pill--ending" [title]="card.timeAlertMessage">
+              <span class="dot"></span>
+              {{ isArabic() ? 'قرب الانتهاء' : 'Ending Soon' }}
+            </span>
+            } @else {
+            <span class="status-pill status-pill--active">
+              <span class="dot"></span>
+              {{ t().statusInSession }}
+            </span>
+            }
           } @else if (card.status === 'scheduled') {
           <span class="status-pill status-pill--scheduled">
             <span class="dot"></span>
@@ -158,7 +175,7 @@
             </div>
             } @else {
             <strong class="metric-val">{{ (card.rental && card.rental > 0 ? card.rental : ((card.durationHours || 1) *
-              (card.hourlyRate || 40))).toFixed(2) }} {{ t().currency }}</strong>
+              (card.hourlyRate || 0))).toFixed(2) }} {{ t().currency }}</strong>
             }
           </div>
           <div class="metric-card">
@@ -738,14 +755,24 @@
     </div>
 
     <!-- Modal Footer -->
-    <div class="modal-footer">
-      <button type="button" class="btn btn--ghost" (click)="closeBookingModal()">
-        {{ t().cancel }}
-      </button>
-      <button type="button" class="btn btn--primary btn-modal-confirm" [disabled]="!isBookingFormValid()"
-        [class.btn--disabled]="!isBookingFormValid()" (click)="confirmNewBooking()">
-        {{ editingCardId() ? t().saveChanges : t().confirmBooking }}
-      </button>
+    <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+      @if (editingCardId()) {
+        <button type="button" class="btn btn--danger" (click)="deleteCurrentEditingBooking()"
+          style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer;">
+          {{ isArabic() ? 'حذف الحجز نهائياً' : 'Delete Booking' }}
+        </button>
+      } @else {
+        <div></div>
+      }
+      <div style="display: flex; gap: 12px;">
+        <button type="button" class="btn btn--ghost" (click)="closeBookingModal()">
+          {{ t().cancel }}
+        </button>
+        <button type="button" class="btn btn--primary btn-modal-confirm"
+          [class.btn--pending]="!isBookingFormValid()" (click)="confirmNewBooking()">
+          {{ editingCardId() ? t().saveChanges : t().confirmBooking }}
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -1356,4 +1383,9 @@
 @if (isCateringPosModalOpen()) {
 <app-catering-pos-modal [targetRoom]="cateringTargetRoom()" (close)="isCateringPosModalOpen.set(false)"
   (addToRoomSession)="onAddToRoomSession($event)"></app-catering-pos-modal>
+}
+
+<!-- CHECKOUT SUCCESS & INVOICE MODAL -->
+@if (completedInvoice(); as inv) {
+  <app-checkout-success-modal [invoiceData]="inv" (close)="completedInvoice.set(null)" />
 }

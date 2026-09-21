@@ -42,8 +42,21 @@ export class DetailsService {
   private couponApi = inject(CouponApiService);
   private workspaceService = inject(WorkspaceService);
 
-  private readonly INSTRUCTOR_CACHE_PREFIX = 'nook_instructor_details_';
-  private readonly COUPON_META_PREFIX = 'nook_coupon_meta_';
+  private instructorMemMap = new Map<string, Partial<Instructor>>();
+  private couponMemMap = new Map<string, any>();
+
+  constructor() {
+    // Purge legacy mock cache from localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('nook_instructor_details_') || key.startsWith('nook_inst_cache_') || key.startsWith('nook_coupon_meta_')) {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch {}
+    }
+  }
 
   // Reactive State Signals (Layer 4)
   readonly colleges = signal<College[]>([]);
@@ -64,7 +77,6 @@ export class DetailsService {
       map(faculties => {
         const rawList = faculties || [];
         const mapped: College[] = rawList.map((f: any) => {
-          // Calculate student count dynamically from active & history workspace sessions if available
           let studentCount = f.studentCount || 0;
           if (studentCount === 0) {
             const facultyName = (f.name || '').toLowerCase().trim();
@@ -168,37 +180,17 @@ export class DetailsService {
   // ==========================================
 
   private getCachedInstructorDetails(id: string, phone?: string): Partial<Instructor> {
-    try {
-      const raw = localStorage.getItem(this.INSTRUCTOR_CACHE_PREFIX + id) ||
-        (phone ? localStorage.getItem(this.INSTRUCTOR_CACHE_PREFIX + phone) : null);
-      if (raw) {
-        return JSON.parse(raw);
-      }
-    } catch (e) {
-      console.warn('[DetailsService] Failed to read instructor cache:', e);
-    }
-    return {};
+    return this.instructorMemMap.get(id) || (phone ? this.instructorMemMap.get(phone) : null) || {};
   }
 
   private setCachedInstructorDetails(id: string, phone: string | undefined, details: Partial<Instructor>): void {
-    try {
-      const serialized = JSON.stringify(details);
-      if (id) {
-        localStorage.setItem(this.INSTRUCTOR_CACHE_PREFIX + id, serialized);
-      }
-      if (phone) {
-        localStorage.setItem(this.INSTRUCTOR_CACHE_PREFIX + phone, serialized);
-      }
-    } catch (e) {
-      console.warn('[DetailsService] Failed to write instructor cache:', e);
-    }
+    if (id) this.instructorMemMap.set(id, details);
+    if (phone) this.instructorMemMap.set(phone, details);
   }
 
   private removeCachedInstructorDetails(id: string, phone?: string): void {
-    try {
-      localStorage.removeItem(this.INSTRUCTOR_CACHE_PREFIX + id);
-      if (phone) localStorage.removeItem(this.INSTRUCTOR_CACHE_PREFIX + phone);
-    } catch (e) {}
+    this.instructorMemMap.delete(id);
+    if (phone) this.instructorMemMap.delete(phone);
   }
 
   getInstructors(): Observable<Instructor[]> {
@@ -435,27 +427,17 @@ export class DetailsService {
   // ==========================================
 
   private getCachedCouponMeta(id: string, code?: string): { title?: string; titleEn?: string; scope?: string } {
-    try {
-      const raw = localStorage.getItem(this.COUPON_META_PREFIX + id) ||
-        (code ? localStorage.getItem(this.COUPON_META_PREFIX + code.toUpperCase()) : null);
-      if (raw) return JSON.parse(raw);
-    } catch (e) {}
-    return {};
+    return this.couponMemMap.get(id) || (code ? this.couponMemMap.get(code.toUpperCase()) : null) || {};
   }
 
   private setCachedCouponMeta(id: string, code: string | undefined, meta: { title: string; titleEn?: string; scope?: string }): void {
-    try {
-      const serialized = JSON.stringify(meta);
-      if (id) localStorage.setItem(this.COUPON_META_PREFIX + id, serialized);
-      if (code) localStorage.setItem(this.COUPON_META_PREFIX + code.toUpperCase(), serialized);
-    } catch (e) {}
+    if (id) this.couponMemMap.set(id, meta);
+    if (code) this.couponMemMap.set(code.toUpperCase(), meta);
   }
 
   private removeCachedCouponMeta(id: string, code?: string): void {
-    try {
-      localStorage.removeItem(this.COUPON_META_PREFIX + id);
-      if (code) localStorage.removeItem(this.COUPON_META_PREFIX + code.toUpperCase());
-    } catch (e) {}
+    this.couponMemMap.delete(id);
+    if (code) this.couponMemMap.delete(code.toUpperCase());
   }
 
   getDiscounts(): Observable<DiscountCode[]> {

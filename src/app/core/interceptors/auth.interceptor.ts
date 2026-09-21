@@ -1,9 +1,10 @@
-import { HttpInterceptorFn, HttpRequest, HttpHandlerFn, HttpErrorResponse, HttpClient } from '@angular/common/http';
+import { HttpInterceptorFn, HttpRequest, HttpHandlerFn, HttpErrorResponse, HttpClient, HttpResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { BehaviorSubject, catchError, filter, switchMap, take, throwError } from 'rxjs';
+import { BehaviorSubject, catchError, filter, switchMap, take, throwError, tap } from 'rxjs';
 import { API_BASE_URL, API_ENDPOINTS } from '../constants/api-endpoints';
 import { AuthService } from '../services/auth.service';
+import { ApiHealthService } from '../services/api-health.service';
 
 /** Endpoints that should NOT have Authorization header attached */
 const PUBLIC_ENDPOINTS = [
@@ -35,16 +36,35 @@ export const authInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>, ne
   const router = inject(Router);
   const http = inject(HttpClient);
   const authService = inject(AuthService);
+  const apiHealth = inject(ApiHealthService);
+
+  const reportHttpOutcome = tap<any>({
+    next: (event) => {
+      if (event instanceof HttpResponse) {
+        apiHealth.reportSuccess();
+      }
+    },
+    error: (error: any) => {
+      if (error instanceof HttpErrorResponse) {
+        if (error.status === 0 || error.status >= 500) {
+          apiHealth.reportFailure();
+        } else {
+          apiHealth.reportSuccess();
+        }
+      }
+    }
+  });
 
   // Don't attach token to public auth endpoints
   if (isPublicEndpoint(req.url)) {
-    return next(req);
+    return next(req).pipe(reportHttpOutcome);
   }
 
   const token = authService.getToken();
   const authenticatedReq = token ? attachToken(req, token) : req;
 
   return next(authenticatedReq).pipe(
+    reportHttpOutcome,
     catchError((error: HttpErrorResponse) => {
       if (error.status === 401) {
         // If the request was already to a public endpoint or user is on login page, do not refresh

@@ -14,11 +14,12 @@ import { CustomSelectComponent, SelectOption } from '../../../shared/components/
 
 import { DetailsService } from '../../../core/services/details.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { DiscountRuleEngineService } from '../../../core/services/discount-rule-engine.service';
+import { DiscountRule } from '../../../core/models/discount-rule.model';
 import { DiscountCode } from '../../../core/models/details.model';
 import { getTodayDateISO, addDaysToDateISO } from '../../../core/utils/date-time.util';
-// [MOCK DATA DISABLED FOR LIVE API - See src/testing/mocks/details.mock.ts for offline presentation/testing]
 
-export type { DiscountCode };
+export type { DiscountCode, DiscountRule };
 
 @Component({
   selector: 'app-add-discount',
@@ -41,12 +42,15 @@ export class AddDiscountComponent implements OnInit {
   private langService = inject(LanguageService);
   private detailsService = inject(DetailsService);
   private notificationService = inject(NotificationService);
+  discountEngine = inject(DiscountRuleEngineService);
   private cdr = inject(ChangeDetectorRef);
   private route = inject(ActivatedRoute);
   private destroyRef = inject(DestroyRef);
 
   t = this.langService.t;
   isArabic = this.langService.isArabic;
+  activeDiscountTab = signal<'promos' | 'auto_rules'>('promos');
+  selectedDiscountCategory = signal<'promo' | 'auto_rule'>('promo');
 
   // Strict Date Constraint
   readonly todayDate = getTodayDateISO();
@@ -109,6 +113,11 @@ export class AddDiscountComponent implements OnInit {
   });
 
   isFormInvalid = computed<boolean>(() => {
+    if (this.selectedDiscountCategory() === 'auto_rule' && this.modalMode() === 'add') {
+      const thresh = Number(this.autoRuleThreshold());
+      const pct = Number(this.autoRulePercentage());
+      return isNaN(thresh) || thresh < 1 || isNaN(pct) || pct < 1 || pct > 100;
+    }
     const code = this.formCode().trim();
     const title = this.formTitle().trim();
     const expiry = this.formExpiryDate();
@@ -241,9 +250,10 @@ export class AddDiscountComponent implements OnInit {
   }
 
   // Modal Handlers
-  openAddModal(): void {
+  openAddModal(category?: 'promo' | 'auto_rule'): void {
     this.modalMode.set('add');
     this.editingId.set(null);
+    this.selectedDiscountCategory.set(category || (this.activeDiscountTab() === 'auto_rules' ? 'auto_rule' : 'promo'));
     this.formCode.set('');
     this.formTitle.set('');
     this.formType.set('percentage');
@@ -257,12 +267,22 @@ export class AddDiscountComponent implements OnInit {
     
     this.formStatus.set('active');
     this.formError.set(null);
+
+    // Reset auto rule fields
+    this.autoRuleType.set('VisitCountBased');
+    this.autoRuleThreshold.set(20);
+    this.autoRulePercentage.set(15);
+    this.autoRuleNameAr.set('');
+    this.autoRuleNameEn.set('');
+    this.autoRuleMaxAmount.set(100);
+
     this.isSaving.set(false);
     this.isModalOpen.set(true);
   }
 
   openEditModal(discount: DiscountCode): void {
     this.modalMode.set('edit');
+    this.selectedDiscountCategory.set('promo');
     this.editingId.set(discount.id);
     this.formCode.set(discount.code);
     this.formTitle.set(discount.title);
@@ -281,6 +301,14 @@ export class AddDiscountComponent implements OnInit {
   closeModal(): void {
     this.isModalOpen.set(false);
     this.isSaving.set(false);
+  }
+
+  onUnifiedFormSubmit(): void {
+    if (this.selectedDiscountCategory() === 'auto_rule' && this.modalMode() === 'add') {
+      this.saveAutoRule();
+    } else {
+      this.saveDiscount();
+    }
   }
 
   saveDiscount(): void {
@@ -341,6 +369,7 @@ export class AddDiscountComponent implements OnInit {
             this.isArabic() ? 'تم حفظ كود الخصم بنجاح' : 'Promo code saved successfully'
           );
           this.loadDiscounts();
+          this.activeDiscountTab.set('promos');
           this.closeModal();
         },
         error: (err) => {
@@ -449,9 +478,65 @@ export class AddDiscountComponent implements OnInit {
   }
 
   getModalTitle(): string {
-    if (this.modalMode() === 'add') {
-      return this.isArabic() ? 'إنشاء كود خصم ترويجي جديد' : 'Create New Promo Code';
+    if (this.modalMode() === 'edit') {
+      return this.isArabic() ? 'تعديل تفاصيل كود الخصم' : 'Edit Promo Code Details';
     }
-    return this.isArabic() ? 'تعديل تفاصيل كود الخصم' : 'Edit Promo Code Details';
+    return this.selectedDiscountCategory() === 'promo'
+      ? (this.isArabic() ? 'إنشاء كود خصم ترويجي جديد' : 'Create New Promo Code')
+      : (this.isArabic() ? 'إنشاء وتخصيص قاعدة خصم تلقائي' : 'Create Automatic Discount Rule');
+  }
+
+  // ----------------------------------------------------
+  // Dynamic Milestone Rule Builder (Item 16)
+  // ----------------------------------------------------
+  autoRules = this.discountEngine.rules;
+  isAutoRuleModalOpen = signal(false);
+  autoRuleType = signal<'VisitCountBased' | 'HoursBased'>('VisitCountBased');
+  autoRuleThreshold = signal(20);
+  autoRulePercentage = signal(15);
+  autoRuleNameAr = signal('');
+  autoRuleNameEn = signal('');
+  autoRuleMaxAmount = signal(100);
+
+  openAddAutoRuleModal(): void {
+    this.openAddModal('auto_rule');
+  }
+
+  closeAddAutoRuleModal(): void {
+    this.closeModal();
+  }
+
+  saveAutoRule(): void {
+    const type = this.autoRuleType();
+    const thresh = Math.max(1, Number(this.autoRuleThreshold()) || 1);
+    const pct = Math.min(100, Math.max(1, Number(this.autoRulePercentage()) || 5));
+    const nameAr = this.autoRuleNameAr().trim() || (type === 'VisitCountBased' ? `خصم بعد ${thresh} زيارة (${pct}%)` : `خصم بعد ${thresh} ساعة دراسة (${pct}%)`);
+    const nameEn = this.autoRuleNameEn().trim() || (type === 'VisitCountBased' ? `Milestone: ${thresh} Visits (${pct}%)` : `Milestone: ${thresh} Study Hours (${pct}%)`);
+
+    this.discountEngine.addRule({
+      nameAr,
+      nameEn,
+      ruleType: type,
+      thresholdValue: thresh,
+      discountPercentage: pct,
+      maxDiscountAmount: this.autoRuleMaxAmount() || 100,
+      isRecurringMilestone: true,
+      applicableTo: 'All',
+      isActive: true
+    });
+
+    this.notificationService.success(this.isArabic() ? 'تم إضافة وتفعيل قاعدة الخصم التلقائي بنجاح' : 'Automatic discount rule created successfully');
+    this.activeDiscountTab.set('auto_rules');
+    this.closeModal();
+  }
+
+  toggleAutoRule(id: string): void {
+    this.discountEngine.toggleRule(id);
+    this.notificationService.success(this.isArabic() ? 'تم تحديث حالة القاعدة' : 'Rule status updated');
+  }
+
+  deleteAutoRule(id: string): void {
+    this.discountEngine.deleteRule(id);
+    this.notificationService.success(this.isArabic() ? 'تم حذف قاعدة الخصم التلقائي' : 'Rule deleted');
   }
 }

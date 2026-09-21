@@ -42,8 +42,8 @@ export class SettingsComponent implements OnInit {
   isArabic = this.langService.isArabic;
   currentUser = this.authService.user;
 
-  // Active Tab State ('pricing' | 'rooms' | 'packages' | 'roles')
-  activeTab = signal<'pricing' | 'rooms' | 'packages' | 'roles'>('pricing');
+  // Active Tab State ('pricing' | 'rooms' | 'packages' | 'roles' | 'team')
+  activeTab = signal<'pricing' | 'rooms' | 'packages' | 'roles' | 'team'>('pricing');
 
   // Signals from SettingsService
   pricingTiers = this.settingsService.pricingTiers;
@@ -247,7 +247,7 @@ export class SettingsComponent implements OnInit {
     this.settingsService.syncPackagePricingPlansFromBackend();
   }
 
-  setTab(tab: 'pricing' | 'rooms' | 'packages' | 'roles'): void {
+  setTab(tab: 'pricing' | 'rooms' | 'packages' | 'roles' | 'team'): void {
     this.activeTab.set(tab);
     if (tab === 'pricing') {
       this.settingsService.syncRoomsFromBackend();
@@ -443,12 +443,14 @@ export class SettingsComponent implements OnInit {
     this.isSavingRoom.set(true);
     this.roomFormError.set(null);
 
+    const finalCap = cap > 0 ? cap : (type === 'Classroom' ? 20 : 30);
+
     if (this.roomModalMode() === 'add') {
       this.settingsService.addRoom({
         name,
         nameEn: name,
         type,
-        capacity: cap,
+        capacity: finalCap,
         hourlyPrice: price,
         imageUrl,
         isActive
@@ -479,7 +481,7 @@ export class SettingsComponent implements OnInit {
           name,
           nameEn: name,
           type,
-          capacity: cap || 30,
+          capacity: finalCap,
           hourlyPrice: price,
           imageUrl,
           isActive

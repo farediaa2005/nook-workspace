@@ -10,7 +10,10 @@ export interface StudentDto {
   whatsapp?: string | null;
   canBook?: boolean;
   facultyName?: string | null;
+  college?: string | null;
+  university?: string | null;
   parentName?: string | null;
+  notes?: string | null;
 }
 
 export interface CreateStudentDto {
@@ -24,6 +27,7 @@ export interface CreateStudentDto {
   email?: string;
   faculty?: string;
   college?: string;
+  university?: string;
   sessionPrice?: number;
   notes?: string;
 }
@@ -41,6 +45,7 @@ export interface UpdateStudentDto {
   email?: string;
   faculty?: string;
   college?: string;
+  university?: string;
   sessionPrice?: number;
   status?: 'active' | 'in-session' | 'inactive' | 'blocked' | 'completed';
   notes?: string;
@@ -56,6 +61,9 @@ export interface Student {
   whatsapp?: string;
   faculty?: string;
   college?: string;
+  university?: string;
+  seatingType?: 'Share' | 'Silent';
+  zone?: number;
   date?: string;
   checkInTime?: string;
   expectedCheckout?: string;

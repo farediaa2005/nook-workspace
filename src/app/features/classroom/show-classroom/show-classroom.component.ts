@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal, HostListener, OnInit, OnDestroy, DestroyRef } from '@angular/core';
+import { Component, computed, inject, signal, effect, HostListener, OnInit, OnDestroy, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -22,6 +22,10 @@ import { DateFilterDropdownComponent, DateFilterOption } from '../../../shared/c
 import { CustomSelectComponent, SelectOption } from '../../../shared/components/custom-select/custom-select.component';
 import { CheckoutData } from '../../../shared/components/checkout-modal/checkout.models';
 import { CateringPosModalComponent, PosTargetRoom } from '../../catering/components/catering-pos-modal/catering-pos-modal.component';
+import { CheckoutSuccessModalComponent } from '../../../shared/components/checkout-success-modal/checkout-success-modal.component';
+import { InvoiceService } from '../../../core/services/invoice.service';
+import { AuthService } from '../../../core/services/auth.service';
+import { InvoiceData } from '../../../core/models/invoice.model';
 
 @Component({
   selector: 'app-show-classroom',
@@ -31,7 +35,8 @@ import { CateringPosModalComponent, PosTargetRoom } from '../../catering/compone
     PrimaryButtonComponent,
     DateFilterDropdownComponent,
     CustomSelectComponent,
-    CateringPosModalComponent
+    CateringPosModalComponent,
+    CheckoutSuccessModalComponent
   ],
   templateUrl: './show-classroom.component.html',
   styleUrl: './show-classroom.component.css'
@@ -46,6 +51,10 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private destroyRef = inject(DestroyRef);
+  private invoiceService = inject(InvoiceService);
+  private authService = inject(AuthService);
+
+  completedInvoice = signal<InvoiceData | null>(null);
 
   Math = Math;
   t = this.langService.t;
@@ -65,6 +74,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   onImageError(event: Event): void {
     const img = event.target as HTMLImageElement;
     if (img) {
+      img.onerror = null;
       img.src = this.defaultRoomImage;
     }
   }
@@ -174,7 +184,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   bookingActivity = signal('');
   bookingPhone = signal('');
   bookingEmail = signal('');
-  bookingHourlyRate = signal<number>(40);
+  bookingHourlyRate = signal<number>(0);
   bookingPrintingCharges = signal<number>(0);
   bookingDate = signal('');
 
@@ -209,7 +219,20 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   });
 
   selectableRooms = this.classroomService.rooms;
-  selectedRoomId = signal('nook-1');
+  selectedRoomId = signal('');
+
+  constructor() {
+    effect(() => {
+      const rooms = this.selectableRooms();
+      if (rooms.length > 0) {
+        const current = this.selectedRoomId();
+        if (!current || !rooms.some(r => r.id === current)) {
+          this.selectedRoomId.set(rooms[0].id);
+          this.bookingHourlyRate.set(rooms[0].hourlyRate);
+        }
+      }
+    });
+  }
 
   isDiscountApplied = signal(false);
   discountRate = signal(0.10);
@@ -276,7 +299,11 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
 
     return this.allCards().some(card => {
       // Skip if current card is the one we are editing
-      if (editingId && card.id === editingId) return false;
+      if (editingId) {
+        const cleanEdit = editingId.trim().toLowerCase();
+        if (card.id && card.id.trim().toLowerCase() === cleanEdit) return false;
+        if (card.reservationId && card.reservationId.trim().toLowerCase() === cleanEdit) return false;
+      }
 
       // Skip if card is available or cancelled
       if (card.status === 'available' || card.status === 'cancelled') return false;
@@ -469,7 +496,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   customPrintingInput = signal<number | null>(null);
 
   isRateModalOpen = signal(false);
-  customRateInput = signal<number>(40);
+  customRateInput = signal<number>(0);
   customDurationInput = signal<number>(2);
 
   // ============================================================
@@ -546,11 +573,21 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       if (match) {
         this.selectedRoomId.set(match.id);
         this.bookingHourlyRate.set(match.hourlyRate);
+      } else if (this.selectableRooms().length > 0) {
+        const firstRoom = this.selectableRooms()[0];
+        this.selectedRoomId.set(firstRoom.id);
+        this.bookingHourlyRate.set(firstRoom.hourlyRate);
       }
     } else if (this.selectableRooms().length > 0) {
-      const firstRoom = this.selectableRooms()[0];
-      this.selectedRoomId.set(firstRoom.id);
-      this.bookingHourlyRate.set(firstRoom.hourlyRate);
+      const current = this.selectedRoomId();
+      const match = this.selectableRooms().find(r => r.id === current);
+      if (!match) {
+        const firstRoom = this.selectableRooms()[0];
+        this.selectedRoomId.set(firstRoom.id);
+        this.bookingHourlyRate.set(firstRoom.hourlyRate);
+      } else {
+        this.bookingHourlyRate.set(match.hourlyRate);
+      }
     }
 
     this.bookingInstructor.set('');
@@ -577,29 +614,75 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       return;
     }
     this.editingCardId.set(card.id);
-    const match = this.selectableRooms().find(r => r.name.toLowerCase() === card.name.toLowerCase());
-    if (match) {
-      this.selectedRoomId.set(match.id);
+
+    // 1. Room match & rate
+    const match = this.selectableRooms().find(r =>
+      (card.roomId && r.id === card.roomId) ||
+      (card.name && r.name.toLowerCase() === card.name.toLowerCase())
+    );
+    const selectedRoom = match || (this.selectableRooms().length > 0 ? this.selectableRooms()[0] : null);
+    if (selectedRoom) {
+      this.selectedRoomId.set(selectedRoom.id);
     }
-    this.bookingInstructor.set(card.instructor || '');
+    const resolvedRate = card.hourlyRate || selectedRoom?.hourlyRate || 0;
+    this.bookingHourlyRate.set(resolvedRate);
+    this.isEditingBookingRate.set(false);
+
+    // 2. Instructor & contact data from card and local meta cache
+    const cachedMeta = card.id ? this.classroomService.getClassroomMetaCache(card.id) : null;
+    const instructorName = (card.instructor && card.instructor !== '-') ? card.instructor : (cachedMeta?.instructor || '');
+    this.bookingInstructor.set(instructorName);
     this.selectedInstructorId.set(card.instructorId || '');
-    this.bookingActivity.set(card.activity || '');
-    this.bookingPhone.set(card.phone || '');
-    this.bookingEmail.set(card.email || '');
-    this.bookingHourlyRate.set(card.hourlyRate || 40);
+
+    let resolvedActivity = (card.activity && card.activity !== '-') ? card.activity : (cachedMeta?.activity || '');
+    let resolvedPhone = card.phone || cachedMeta?.phone || '';
+    let resolvedEmail = card.email || cachedMeta?.email || '';
+
+    // 3. If phone or email is missing, lookup in allSearchableMembers (students, instructors, packages)
+    if ((!resolvedPhone || !resolvedEmail) && instructorName) {
+      const cleanName = instructorName.trim().toLowerCase();
+      const memberMatch = this.allSearchableMembers().find(m => {
+        const ar = (m.nameAr || '').trim().toLowerCase();
+        const en = (m.nameEn || '').trim().toLowerCase();
+        return (ar && ar === cleanName) || (en && en === cleanName) || (card.instructorId && m.id === card.instructorId);
+      });
+
+      if (memberMatch) {
+        if (!resolvedPhone && memberMatch.phone) {
+          resolvedPhone = memberMatch.phone;
+        }
+        if (!resolvedEmail && memberMatch.email) {
+          resolvedEmail = memberMatch.email;
+        }
+        if (!this.selectedInstructorId() && memberMatch.id) {
+          this.selectedInstructorId.set(memberMatch.id);
+        }
+        if ((!resolvedActivity || resolvedActivity === '-') && memberMatch.subAr) {
+          resolvedActivity = this.isArabic() ? memberMatch.subAr : (memberMatch.subEn || memberMatch.subAr);
+        }
+      }
+    }
+
+    this.bookingActivity.set(resolvedActivity);
+    this.bookingPhone.set(resolvedPhone);
+    this.bookingEmail.set(resolvedEmail);
     this.bookingPrintingCharges.set(card.printingCharges || 0);
     this.bookingDate.set(card.bookingDate || this.todayDate());
 
-    if (card.startTime) {
-      const matchStart = card.startTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+    // 4. Safe 12-hour time parsing using parseIsoToLocal12h
+    const start12 = card.startTime ? this.classroomService.parseIsoToLocal12h(card.startTime) : '';
+    if (start12) {
+      const matchStart = start12.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
       if (matchStart) {
         this.startHour.set(matchStart[1].padStart(2, '0'));
         this.startMinute.set(matchStart[2].padStart(2, '0'));
         this.startPeriod.set((matchStart[3]?.toUpperCase() as 'AM' | 'PM') || 'PM');
       }
     }
-    if (card.endTime) {
-      const matchEnd = card.endTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+
+    const end12 = card.endTime ? this.classroomService.parseIsoToLocal12h(card.endTime) : '';
+    if (end12) {
+      const matchEnd = end12.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
       if (matchEnd) {
         this.endHour.set(matchEnd[1].padStart(2, '0'));
         this.endMinute.set(matchEnd[2].padStart(2, '0'));
@@ -612,6 +695,31 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
 
     this.isBookingModalOpen.set(true);
     document.body.style.overflow = 'hidden';
+
+    // 5. Asynchronously query backend GET /api/Classrooms/{id} for enriched details if available
+    if (card.id && /^[0-9a-fA-F-]{36}$/.test(card.id)) {
+      this.classroomService.getClassroomDetails(card.id).subscribe(detail => {
+        if (detail && this.isBookingModalOpen() && this.editingCardId() === card.id) {
+          const apiPhone = detail.instructorPhoneNumber || (detail as any).instructorPhone || (detail as any).phone;
+          const apiEmail = (detail as any).instructorEmail || (detail as any).email;
+          const apiIns = detail.instructorName || (detail as any).instructor;
+          const apiAct = detail.activity || (detail as any).title;
+
+          if (apiPhone && !this.bookingPhone()) {
+            this.bookingPhone.set(apiPhone);
+          }
+          if (apiEmail && !this.bookingEmail()) {
+            this.bookingEmail.set(apiEmail);
+          }
+          if (apiIns && !this.bookingInstructor()) {
+            this.bookingInstructor.set(apiIns);
+          }
+          if (apiAct && (!this.bookingActivity() || this.bookingActivity() === '-')) {
+            this.bookingActivity.set(apiAct);
+          }
+        }
+      });
+    }
   }
 
   closeBookingModal(): void {
@@ -658,9 +766,39 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
 
   onInstructorInput(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const cleaned = input.value.replace(/[^a-zA-Z\s\u0600-\u06FF.]/g, '').substring(0, 50);
+    const cleaned = input.value.replace(/[^a-zA-Z0-9\s\u0600-\u06FF().,-]/g, '').substring(0, 50);
     input.value = cleaned;
     this.bookingInstructor.set(cleaned);
+
+    const currentSelId = this.selectedInstructorId();
+    if (currentSelId) {
+      const matchingMember = this.allSearchableMembers().find(m => m.id === currentSelId);
+      const selName = matchingMember ? (this.isArabic() ? matchingMember.nameAr : matchingMember.nameEn) : '';
+      if (selName.trim().toLowerCase() !== cleaned.trim().toLowerCase()) {
+        this.selectedInstructorId.set('');
+      }
+    }
+
+    // If cleaned matches an existing student/instructor name, auto-fill phone, email, and activity
+    if (cleaned.trim().length >= 2) {
+      const exactMatch = this.allSearchableMembers().find(m =>
+        (m.nameAr || '').trim().toLowerCase() === cleaned.trim().toLowerCase() ||
+        (m.nameEn || '').trim().toLowerCase() === cleaned.trim().toLowerCase()
+      );
+      if (exactMatch) {
+        this.selectedInstructorId.set(exactMatch.id);
+        if (!this.bookingPhone() && exactMatch.phone) {
+          this.bookingPhone.set(exactMatch.phone);
+        }
+        if (!this.bookingEmail() && exactMatch.email) {
+          this.bookingEmail.set(exactMatch.email);
+        }
+        if ((!this.bookingActivity() || this.bookingActivity() === '-') && exactMatch.subAr) {
+          this.bookingActivity.set(this.isArabic() ? exactMatch.subAr : (exactMatch.subEn || exactMatch.subAr));
+        }
+      }
+    }
+
     if (!this.matchedInstructorPackage()) {
       this.bookingPaymentMode.set('cash');
     }
@@ -1432,7 +1570,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     const hasInstructor = !!this.bookingInstructor().trim() && this.isInstructorValid();
     const hasActivity = !!this.bookingActivity().trim() && this.isActivityValid();
     const hasDate = !!this.bookingDate().trim();
-    const hasHourlyRate = Number(this.bookingHourlyRate()) > 0;
+    const hasHourlyRate = !isNaN(Number(this.bookingHourlyRate())) && Number(this.bookingHourlyRate()) >= 0;
     const hasTimes = !!this.bookingStartTime() && !!this.bookingEndTime();
     const validRange = this.isTimeRangeValid() && this.bookingDurationHours() > 0;
     const notBlacklisted = !this.isCurrentInstructorBlacklisted();
@@ -1452,9 +1590,40 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       );
       return;
     }
-    if (!this.isBookingFormValid()) return;
+    if (!this.isBookingFormValid()) {
+      if (!this.bookingInstructor().trim() || !this.isInstructorValid()) {
+        this.workspaceService.showToast(
+          this.isArabic() ? 'يرجى كتابة اسم الإنستراكتور / العميل (حرفين على الأقل)' : 'Please enter a valid instructor / client name',
+          'info'
+        );
+        return;
+      }
+      if (!this.bookingActivity().trim() || !this.isActivityValid()) {
+        this.workspaceService.showToast(
+          this.isArabic() ? 'يرجى كتابة النشاط أو موضوع الورشة' : 'Please enter an activity / workshop subject',
+          'info'
+        );
+        return;
+      }
+      if (!this.bookingDate().trim()) {
+        this.workspaceService.showToast(
+          this.isArabic() ? 'يرجى اختيار تاريخ الحجز' : 'Please select a booking date',
+          'info'
+        );
+        return;
+      }
+      if (!this.bookingStartTime() || !this.bookingEndTime() || !this.isTimeRangeValid() || this.bookingDurationHours() <= 0) {
+        this.workspaceService.showToast(
+          this.isArabic() ? 'يرجى تحديد وقت بداية ونهاية صحيحين ومختلفين' : 'Please specify valid start and end times',
+          'info'
+        );
+        return;
+      }
+      return;
+    }
 
-    const selectedRoom = this.selectableRooms().find(r => r.id === this.selectedRoomId());
+    const rooms = this.selectableRooms();
+    const selectedRoom = rooms.find(r => r.id === this.selectedRoomId()) || (rooms.length > 0 ? rooms[0] : null);
     const duration = this.bookingDurationHours();
     const isOngoing = this.classroomService.isSessionActive(this.bookingStartTime(), this.bookingEndTime(), this.bookingDate());
     const cardStatus = isOngoing ? 'active' : 'scheduled';
@@ -1531,7 +1700,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
         id: '',
         roomId: selectedRoom?.id,
         instructorId: this.selectedInstructorId() || undefined,
-        name: selectedRoom ? selectedRoom.name : 'New Room',
+        name: selectedRoom ? selectedRoom.name : 'Classroom',
         activity: this.bookingActivity() || 'Workshop',
         instructor: instructorName || 'Instructor',
         phone: this.bookingPhone(),
@@ -1600,6 +1769,33 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     }
 
     this.closeBookingModal();
+  }
+
+  deleteCurrentEditingBooking(): void {
+    const id = this.editingCardId();
+    if (!id) return;
+    const isAr = this.isArabic();
+    if (confirm(isAr ? 'هل أنت متأكد من حذف هذا الحجز نهائياً؟' : 'Are you sure you want to delete this booking permanently?')) {
+      this.classroomService.deleteBooking(id).subscribe({
+        next: () => {
+          this.closeBookingModal();
+          this.workspaceService.showToast(isAr ? 'تم حذف الحجز بنجاح' : 'Booking deleted successfully', 'success');
+          this.classroomService.syncWithBackend();
+        },
+        error: () => {
+          this.classroomService.deleteReservation(id).subscribe({
+            next: () => {
+              this.closeBookingModal();
+              this.workspaceService.showToast(isAr ? 'تم حذف الحجز بنجاح' : 'Booking deleted successfully', 'success');
+              this.classroomService.syncWithBackend();
+            },
+            error: () => {
+              this.workspaceService.showToast(isAr ? 'تعذر حذف الحجز' : 'Failed to delete booking', 'error');
+            }
+          });
+        }
+      });
+    }
   }
 
   // Checkout Billing Mode ('package' | 'cash')
@@ -1827,7 +2023,9 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     this.checkoutOvertimeAlertMessage.set(overtimeInfo.alertMessage);
 
     const totalBilledHours = agreedHours + overtimeInfo.extraHours;
-    const hourlyRate = card.hourlyRate || (card.rental && agreedHours ? Math.round(card.rental / agreedHours) : 40);
+    const matchedRoom = this.selectableRooms().find(r => r.id === card.roomId || r.name.toLowerCase() === card.name.toLowerCase());
+    const fallbackRate = matchedRoom?.hourlyRate || 0;
+    const hourlyRate = card.hourlyRate || (card.rental && agreedHours ? Math.round(card.rental / agreedHours) : fallbackRate);
     const catering = card.catering || 0;
     const printing = card.printingCharges !== undefined ? card.printingCharges : 0;
 
@@ -1945,20 +2143,32 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
         });
       }
 
-      // 2. Checkout room (records shift transaction and updates backend)
+      // Capture all checkout parameters before closing modal
       const received = this.checkoutAmountReceived() ?? finalAmt;
+      const rate = this.checkoutRoomRate();
+      const dur = this.checkoutDurationHours();
+      const cateringAmt = this.checkoutCateringAmount();
+      const printingAmt = this.checkoutPrintingAmount();
+      const manualAdj = this.checkoutManualAdjustment();
+      const loyaltyDisc = this.checkoutLoyaltyDiscount();
+      const totalDisc = manualAdj + loyaltyDisc;
+      const roomRental = this.checkoutRoomRentalTotal();
+      const paymentMethod = isPkg && finalAmt === 0 ? 'package' : this.checkoutPaymentMethod();
+      const change = this.checkoutChangeDue();
+
+      // 2. Checkout room (records shift transaction and updates backend)
       this.classroomService.checkoutRoom(currentCard.id, {
         cardId: currentCard.id,
-        roomRate: this.checkoutRoomRate(),
-        durationHours: this.checkoutDurationHours(),
-        cateringAmount: this.checkoutCateringAmount(),
-        printingAmount: this.checkoutPrintingAmount(),
-        manualAdjustment: this.checkoutManualAdjustment(),
-        loyaltyDiscount: this.checkoutLoyaltyDiscount(),
-        paymentMethod: isPkg && finalAmt === 0 ? 'package' : this.checkoutPaymentMethod(),
+        roomRate: rate,
+        durationHours: dur,
+        cateringAmount: cateringAmt,
+        printingAmount: printingAmt,
+        manualAdjustment: manualAdj,
+        loyaltyDiscount: loyaltyDisc,
+        paymentMethod: paymentMethod,
         amountReceived: received,
         finalAmount: finalAmt,
-        changeDue: this.checkoutChangeDue()
+        changeDue: change
       }).subscribe({
         next: () => {
           this.workspaceService.showToast(this.isArabic() ? 'تم إنهاء وتسوية حجز القاعة بنجاح!' : 'Classroom checked out successfully!', 'success');
@@ -1971,6 +2181,91 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
               error: (err) => console.warn('[ShowClassroom] Coupon redeem notice:', err?.message || err)
             });
           }
+
+          // Calculate session actual duration & comparison
+          const checkIn = currentCard.startTime || '10:00 AM';
+          const now12h = this.classroomService.convertMinutesTo12h(new Date().getHours() * 60 + new Date().getMinutes());
+          const checkOut = currentCard.endTime || now12h;
+          const durationDetails = this.classroomService.calculateSessionDurationDetails(
+            checkIn,
+            checkOut,
+            dur,
+            this.isArabic()
+          );
+
+          // Get itemized catering breakdown
+          const itemizedCatering = this.classroomService.getItemizedCateringList(
+            currentCard,
+            this.cateringProducts(),
+            cateringAmt,
+            this.isArabic()
+          );
+
+          const cateringLineItems = itemizedCatering.map(it => ({
+            description: it.name,
+            quantity: it.quantity,
+            unitPrice: it.unitPrice,
+            totalPrice: it.totalPrice,
+            type: 'catering' as const
+          }));
+
+          // Build invoice data for popup & printing
+          const invoice: InvoiceData = {
+            invoiceNumber: this.invoiceService.generateInvoiceNumber('INV-CLS'),
+            issueDate: new Date().toLocaleDateString(this.isArabic() ? 'ar-EG' : 'en-US', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            clientType: 'Instructor',
+            clientName: currentCard.instructor || (currentCard as any).instructorName || (this.isArabic() ? 'محاضر' : 'Instructor'),
+            clientIdentifier: (currentCard as any).instructorPhoneNumber || currentCard.phone || '',
+            roomOrDesk: currentCard.name,
+            activity: currentCard.activity,
+            checkInTime: checkIn,
+            checkOutTime: checkOut,
+            durationFormatted: durationDetails.billedDurationFormatted,
+            actualDurationFormatted: durationDetails.actualDurationFormatted,
+            actualMinutesSpent: durationDetails.actualMinutes,
+            billedDurationFormatted: durationDetails.billedDurationFormatted,
+            durationDifferenceText: durationDetails.differenceText,
+            cateringItemsBreakdown: itemizedCatering,
+            lineItems: [
+              {
+                description: `${this.isArabic() ? 'إيجار القاعة' : 'Room Rental'} - ${currentCard.name}`,
+                quantity: dur,
+                unitPrice: rate,
+                totalPrice: roomRental,
+                type: 'room'
+              },
+              ...cateringLineItems,
+              ...(printingAmt > 0
+                ? [
+                    {
+                      description: this.isArabic() ? 'خدمات الطباعة' : 'Printing Services',
+                      quantity: 1,
+                      unitPrice: printingAmt,
+                      totalPrice: printingAmt,
+                      type: 'printing' as const
+                    }
+                  ]
+                : [])
+            ],
+            subtotal: roomRental + cateringAmt + printingAmt,
+            discountAmount: totalDisc,
+            cateringAmount: cateringAmt,
+            printingAmount: printingAmt,
+            taxAmount: 0,
+            finalTotal: finalAmt,
+            amountReceived: received,
+            changeDue: change,
+            paymentMethod: paymentMethod,
+            cashierName: this.shiftService.currentShift()?.staffName || this.authService.getUser()?.name || (this.isArabic() ? 'كاشير الوردية' : 'Shift Cashier')
+          };
+
+          this.completedInvoice.set(invoice);
         },
         error: (err) => {
           console.error('Failed to checkout room:', err);
