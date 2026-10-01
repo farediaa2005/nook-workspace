@@ -32,6 +32,7 @@ import { ReservationDetailPanelComponent } from '../../../shared/components/rese
 import { PrimaryButtonComponent } from '../../../shared/components/primary-button/primary-button.component';
 import { CustomSelectComponent, SelectOption } from '../../../shared/components/custom-select/custom-select.component';
 import { WorkspaceService } from '../../../core/services/workspace.service';
+import { ClockTimePickerComponent, ClockTimeSelection } from '../../../shared/components/clock-time-picker/clock-time-picker.component';
 
 @Component({
   selector: 'app-classroom-reservations',
@@ -40,7 +41,8 @@ import { WorkspaceService } from '../../../core/services/workspace.service';
     CommonModule,
     FormsModule,
     ReservationDetailPanelComponent,
-    PrimaryButtonComponent
+    PrimaryButtonComponent,
+    ClockTimePickerComponent
   ],
   templateUrl: './classroom-reservations.component.html',
   styleUrl: './classroom-reservations.component.css'
@@ -108,9 +110,32 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     { timeStr: '23:00', hour: 23 }
   ];
 
-  // Grid dimensions
-  readonly rowHeight = 48; // 48px per hour
+  // Grid dimensions for inverted timeline (Horizontal Hours along Top, Vertical Rooms along Side)
+  readonly hourColWidth = 110; // 110px per hour column
+  readonly roomRowHeight = 64; // 64px per room row (comfortable spacing)
+  readonly roomLabelWidth = 210; // 210px sticky room label column (full room names & month nav)
+  readonly rowHeight = 48; // fallback
   readonly gridStartHour = 0; // Starts at 00:00 (12:00 AM)
+
+  // Drag-to-scroll & Horizontal Scroll State
+  isDragging = signal<boolean>(false);
+  private dragStartX = 0;
+  private dragStartScrollLeft = 0;
+
+  // Real-time time indicator
+  currentTimeMinutes = signal<number>(new Date().getHours() * 60 + new Date().getMinutes());
+
+  isTodaySelected = computed<boolean>(() => {
+    const d = this.selectedDate();
+    const today = new Date();
+    return d.getFullYear() === today.getFullYear() &&
+      d.getMonth() === today.getMonth() &&
+      d.getDate() === today.getDate();
+  });
+
+  currentTimeLeftPx = computed<number>(() => {
+    return (this.currentTimeMinutes() / 60) * this.hourColWidth;
+  });
 
   // Computed reservations mapped from classroomService backend reservations & cards
   reservations = computed<AdminReservation[]>(() => {
@@ -132,14 +157,33 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     const nowMins = now.getHours() * 60 + now.getMinutes();
 
     return combined.map(res => {
-      if (res.status === 'cancelled' || res.status === 'completed') return res;
+      // 1. Explicit cancellation check
+      const isExplicitlyCancelled = res.status === 'cancelled' ||
+        (res as any).status === 'cancelled' ||
+        (res as any).isCancelled === true;
+      if (isExplicitlyCancelled) {
+        return { ...res, status: 'cancelled' as const };
+      }
 
+      // 2. Explicit completed / checked out check (Staff actually performed checkout with payment/settlement)
+      const isExplicitlyCompleted = (res as any).isCheckedOut === true ||
+        !!(res as any).checkedOutAt ||
+        !!(res as any).checkoutTime ||
+        res.status === 'completed' ||
+        (res as any).status === 'completed' ||
+        (res as any).status === 'checked_out';
+      if (isExplicitlyCompleted) {
+        return { ...res, status: 'completed' as const };
+      }
+
+      // 3. Time comparison
       const rawResDate = res.date === 'Today' ? todayISO : (res.date || todayISO);
       const resDate = (rawResDate || '').split('T')[0];
-      let calculatedStatus: 'active' | 'upcoming' | 'completed' | 'cancelled' = res.status || 'upcoming';
+      let calculatedStatus: 'active' | 'upcoming' | 'completed' | 'cancelled' | 'no_show' = 'upcoming';
 
       if (resDate < todayISO) {
-        calculatedStatus = 'completed';
+        // Date is in the past, but nobody checked in or checked out -> No-show!
+        calculatedStatus = 'no_show';
       } else if (resDate > todayISO) {
         calculatedStatus = 'upcoming';
       } else {
@@ -150,10 +194,11 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
         const eMins = (isNaN(eH) ? 0 : eH) * 60 + (isNaN(eM) ? 0 : eM);
 
         if (nowMins >= eMins && eMins > sMins) {
-          calculatedStatus = 'completed';
+          // Time ended today, but nobody checked out or attended -> No-show!
+          calculatedStatus = 'no_show';
         } else if (nowMins >= sMins && nowMins < eMins) {
           calculatedStatus = 'active';
-        } else if (nowMins < sMins) {
+        } else {
           calculatedStatus = 'upcoming';
         }
       }
@@ -296,7 +341,94 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     return formattedDate;
   });
 
-  // Rendered blocks calculated cleanly for the 24-hour CSS grid (with Midnight Crossover splitting)
+  // Month and Year display matching Image 3: e.g. "October - 2026"
+  monthYearDisplay = computed(() => {
+    const d = this.selectedDate();
+    const month = d.toLocaleDateString(this.isArabic() ? 'ar-u-nu-latn' : 'en-US', { month: 'long' });
+    const year = d.getFullYear();
+    return `${month} - ${year}`;
+  });
+
+  // Day of week short: "Sat", "Sun", etc.
+  dayOfWeekDisplay = computed(() => {
+    const d = this.selectedDate();
+    return d.toLocaleDateString(this.isArabic() ? 'ar-u-nu-latn' : 'en-US', { weekday: 'short' });
+  });
+
+  // Day number: "3", "4", etc.
+  dayNumberDisplay = computed(() => {
+    return String(this.selectedDate().getDate());
+  });
+
+  // Professional neutral room badge styling (Clean, elegant, non-distracting)
+  getRoomBadgeStyle(index: number): { bg: string; color: string; border: string } {
+    return {
+      bg: 'var(--surface-2, rgba(0, 0, 0, 0.03))',
+      color: 'var(--text, #0f172a)',
+      border: 'var(--border, rgba(0, 0, 0, 0.1))'
+    };
+  }
+
+  getTimeSlotLabel(slot: GridSlot): string {
+    const h = slot.hour;
+    const p = h >= 12 ? (this.isArabic() ? 'م' : 'PM') : (this.isArabic() ? 'ص' : 'AM');
+    const h12 = h % 12 || 12;
+    return `${h12} ${p}`;
+  }
+
+  // Quick book on empty slot click
+  onEmptySlotClick(room: AdminConsoleRoom, slot: GridSlot): void {
+    const startH = String(slot.hour % 12 || 12).padStart(2, '0');
+    const startP: 'AM' | 'PM' = slot.hour >= 12 ? 'PM' : 'AM';
+    const endHour24 = (slot.hour + 2) % 24;
+    const endH = String(endHour24 % 12 || 12).padStart(2, '0');
+    const endP: 'AM' | 'PM' = endHour24 >= 12 ? 'PM' : 'AM';
+
+    this.openNewReservationModal();
+    this.resRoomName.set(room.name);
+    this.resStartHour.set(startH);
+    this.resStartMinute.set('00');
+    this.resStartPeriod.set(startP);
+    this.resEndHour.set(endH);
+    this.resEndMinute.set('00');
+    this.resEndPeriod.set(endP);
+    this.resHourlyRate.set(room.hourlyRate || 0);
+  }
+
+  // Clock Dial Time Picker State & Handlers
+  isClockPickerOpen = signal<boolean>(false);
+  clockPickerInitialTarget = signal<'start' | 'end'>('start');
+
+  openClockPicker(target: 'start' | 'end' = 'start'): void {
+    this.clockPickerInitialTarget.set(target);
+    this.isClockPickerOpen.set(true);
+  }
+
+  closeClockPicker(): void {
+    this.isClockPickerOpen.set(false);
+  }
+
+  onClockPickerConfirmed(sel: ClockTimeSelection): void {
+    this.onManualStartTimeInput(sel.startTime);
+    this.onManualEndTimeInput(sel.endTime);
+    this.isClockPickerOpen.set(false);
+  }
+
+  // Snapshot of original reservation before editing to detect if room or timing changed
+  originalResSnapshot = signal<{
+    id?: string;
+    reservationId?: string;
+    roomId: string;
+    roomName: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    activity: string;
+    instructor: string;
+    recurrence: string;
+  } | null>(null);
+
+  // Rendered blocks calculated cleanly for the inverted timeline (Horizontal Hours, Vertical Rooms)
   gridBlocks = computed<RenderedBlock[]>(() => {
     const resList = this.reservations();
     const roomsList = this.rooms();
@@ -329,21 +461,16 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
         roomIndex = res.classroom ? Math.abs(res.classroom.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)) % totalRooms : 0;
       }
 
-      const [sH, sM] = (res.startTime || '00:00').split(':').map(Number);
-      const [eH, eM] = (res.endTime || '00:00').split(':').map(Number);
-
-      const startMins = (isNaN(sH) ? 0 : sH) * 60 + (isNaN(sM) ? 0 : sM);
-      const endMins = (isNaN(eH) ? 0 : eH) * 60 + (isNaN(eM) ? 0 : eM);
+      const startMins = this.classroomService.parseTimeToMinutes(res.startTime);
+      const endMins = this.classroomService.parseTimeToMinutes(res.endTime);
       const crossesMidnight = endMins < startMins;
 
       // Handle raw date conversion
       const rawDateISO = res.date === 'Today' ? todayISO : (res.date || todayISO);
       const resDateISO = (rawDateISO || '').split('T')[0];
 
-      const posStyle = `calc(75px + ${roomIndex} * ((100% - 75px) / ${totalRooms}) + 3px)`;
-      const leftStyle = isRtl ? 'auto' : posStyle;
-      const rightStyle = isRtl ? posStyle : 'auto';
-      const widthStyle = `calc(((100% - 75px) / ${totalRooms}) - 6px)`;
+      const topPx = roomIndex * this.roomRowHeight + 5;
+      const heightPx = this.roomRowHeight - 10;
 
       if (crossesMidnight) {
         // SEGMENT 1: Starts on the booking date, ends at midnight (12:00 AM)
@@ -351,8 +478,11 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
           const startMinutesFromGridStart = startMins;
           const durMinutes = 24 * 60 - startMins; // ends at midnight
 
-          const topPx = (startMinutesFromGridStart / 60) * this.rowHeight;
-          const heightPx = (durMinutes / 60) * this.rowHeight;
+          const leftPos = (startMinutesFromGridStart / 60) * this.hourColWidth + 2;
+          const widthPx = Math.max(36, (durMinutes / 60) * this.hourColWidth - 4);
+          const leftStyle = isRtl ? 'auto' : `${leftPos}px`;
+          const rightStyle = isRtl ? `${leftPos}px` : 'auto';
+          const widthStyle = `${widthPx}px`;
 
           blocks.push({
             reservation: {
@@ -374,8 +504,11 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
           const startMinutesFromGridStart = 0; // starts at midnight
           const durMinutes = endMins; // ends at endMins
 
-          const topPx = 0;
-          const heightPx = (durMinutes / 60) * this.rowHeight;
+          const leftPos = 2;
+          const widthPx = Math.max(36, (durMinutes / 60) * this.hourColWidth - 4);
+          const leftStyle = isRtl ? 'auto' : `${leftPos}px`;
+          const rightStyle = isRtl ? `${leftPos}px` : 'auto';
+          const widthStyle = `${widthPx}px`;
 
           blocks.push({
             reservation: {
@@ -399,8 +532,11 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
         const startMinutesFromGridStart = startMins;
         const durMinutes = endMins - startMins;
 
-        const topPx = (startMinutesFromGridStart / 60) * this.rowHeight;
-        const heightPx = (durMinutes / 60) * this.rowHeight;
+        const leftPos = (startMinutesFromGridStart / 60) * this.hourColWidth + 2;
+        const widthPx = Math.max(36, (durMinutes / 60) * this.hourColWidth - 4);
+        const leftStyle = isRtl ? 'auto' : `${leftPos}px`;
+        const rightStyle = isRtl ? `${leftPos}px` : 'auto';
+        const widthStyle = `${widthPx}px`;
 
         blocks.push({
           reservation: res,
@@ -431,12 +567,83 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
   }
 
   ngAfterViewInit(): void {
-    // Initial comfortable scroll position to 08:00 AM
+    // Initial comfortable scroll position horizontally to 07:00 AM
     setTimeout(() => {
       if (this.scheduleScrollRef?.nativeElement) {
-        this.scheduleScrollRef.nativeElement.scrollTop = 8 * this.rowHeight; // 384px to 08:00 AM
+        const isRtl = this.isArabic();
+        const scrollTarget = 7 * this.hourColWidth;
+        if (isRtl) {
+          this.scheduleScrollRef.nativeElement.scrollLeft = -scrollTarget;
+        } else {
+          this.scheduleScrollRef.nativeElement.scrollLeft = scrollTarget;
+        }
       }
-    }, 100);
+    }, 120);
+  }
+
+  // --- Horizontal Timeline Smooth Scroll & Navigation Handlers ---
+
+  onScheduleWheel(e: WheelEvent): void {
+    if (!this.scheduleScrollRef?.nativeElement) return;
+    // Intercept vertical wheel to scroll timeline horizontally
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      e.preventDefault();
+      const scrollSpeed = 1.2;
+      this.scheduleScrollRef.nativeElement.scrollLeft += e.deltaY * scrollSpeed;
+    }
+  }
+
+  onScheduleMouseDown(e: MouseEvent): void {
+    if (e.button !== 0) return; // Primary left click only
+    const target = e.target as HTMLElement;
+    // Don't drag if clicking buttons, menu, or reservation cards
+    if (target.closest('.timeline-res-block') || target.closest('button') || target.closest('.action-menu-dropdown')) {
+      return;
+    }
+    if (this.scheduleScrollRef?.nativeElement) {
+      this.isDragging.set(true);
+      this.dragStartX = e.pageX;
+      this.dragStartScrollLeft = this.scheduleScrollRef.nativeElement.scrollLeft;
+    }
+  }
+
+  onScheduleMouseMove(e: MouseEvent): void {
+    if (!this.isDragging() || !this.scheduleScrollRef?.nativeElement) return;
+    e.preventDefault();
+    const x = e.pageX;
+    const walk = (x - this.dragStartX) * 1.5;
+    this.scheduleScrollRef.nativeElement.scrollLeft = this.dragStartScrollLeft - walk;
+  }
+
+  onScheduleMouseUp(): void {
+    this.isDragging.set(false);
+  }
+
+  scrollToHour(hour: number): void {
+    if (!this.scheduleScrollRef?.nativeElement) return;
+    const isRtl = this.isArabic();
+    const target = Math.max(0, hour * this.hourColWidth - 20);
+    this.scheduleScrollRef.nativeElement.scrollTo({
+      left: isRtl ? -target : target,
+      behavior: 'smooth'
+    });
+  }
+
+  scrollToCurrentTime(): void {
+    const now = new Date();
+    this.scrollToHour(now.getHours());
+  }
+
+  scrollStep(direction: 'prev' | 'next'): void {
+    if (!this.scheduleScrollRef?.nativeElement) return;
+    const isRtl = this.isArabic();
+    const step = 3 * this.hourColWidth;
+    const current = this.scheduleScrollRef.nativeElement.scrollLeft;
+    const delta = direction === 'next' ? step : -step;
+    this.scheduleScrollRef.nativeElement.scrollTo({
+      left: isRtl ? current - delta : current + delta,
+      behavior: 'smooth'
+    });
   }
 
   ngOnDestroy(): void {
@@ -455,11 +662,17 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
 
   private convert12hTo24h(timeStr?: string): string {
     if (!timeStr) return '00:00';
-    const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+    const clean = timeStr.trim();
+    if (/^\d{1,2}:\d{2}$/.test(clean)) {
+      return clean.padStart(5, '0');
+    }
+    const match = clean.match(/^(\d{1,2}):(\d{2})\s*(AM|PM|ص|م)?/i);
     if (!match) return '00:00';
     let hours = parseInt(match[1], 10);
     const minutes = match[2];
-    const period = match[3]?.toUpperCase();
+    let period = (match[3] || '').toUpperCase();
+    if (period === 'م') period = 'PM';
+    if (period === 'ص') period = 'AM';
     if (period) {
       if (period === 'PM' && hours < 12) hours += 12;
       if (period === 'AM' && hours === 12) hours = 0;
@@ -497,12 +710,15 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
 
     return {
       id: card.id,
+      reservationId: card.reservationId || (card as any).reservationId || undefined,
       isClassroomSession: true,
       displayId: card.id.startsWith('res-') ? card.id.toUpperCase() : `RES-${card.id.substring(0, 4).toUpperCase()}`,
       instructor: card.instructor,
       phoneNumber: card.phone || (card as any).instructorPhone || null,
       instructorPhone: card.phone || (card as any).instructorPhone || null,
       phone: card.phone || (card as any).instructorPhone || null,
+      note: card.note || card.notes || null,
+      notes: card.notes || card.note || null,
       activity: card.activity,
       classroom: card.name,
       date: bookingDateStr === this.classroomService.getTodayDateISO() ? 'Today' : bookingDateStr,
@@ -535,6 +751,26 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     const current = new Date(this.selectedDate());
     current.setDate(current.getDate() + 1);
     this.selectedDate.set(current);
+  }
+
+  goToToday(): void {
+    this.selectedDate.set(new Date());
+  }
+
+  selectedDateISO = computed<string>(() => {
+    const d = this.selectedDate();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
+
+  onHeaderDatePicked(isoDate: string): void {
+    if (!isoDate) return;
+    const [y, m, d] = isoDate.split('-').map(Number);
+    if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+      this.selectedDate.set(new Date(y, m - 1, d));
+    }
   }
 
   // Side Drawer controls
@@ -654,6 +890,45 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
   onDeleteFromDetailPanel(res: AdminReservation): void {
     this.closeDetailPanel();
     this.deleteReservation(res);
+  }
+
+  onCancelFromDetailPanel(res: AdminReservation): void {
+    this.closeDetailPanel();
+    if (res.isRecurring) {
+      this.selectedRecurringRes.set(res);
+      this.recurringCancelScope.set('single');
+      this.isRecurringCancelModalOpen.set(true);
+    } else {
+      this.deleteReservation(res);
+    }
+  }
+
+  canStartReservationSession(res: AdminReservation): boolean {
+    if (!res || res.isClassroomSession || res.status === 'completed' || res.status === 'active' || res.status === 'cancelled' || res.status === 'no_show') {
+      return false;
+    }
+    return !this.isReservationTimePassed(res);
+  }
+
+  isReservationTimePassed(res: AdminReservation): boolean {
+    if (!res) return false;
+    if (res.status === 'no_show') return true;
+
+    const now = new Date();
+    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const rawDate = res.occurrenceDate || res.fullDate || res.date;
+    const resDate = (rawDate === 'Today' ? todayISO : (rawDate || todayISO)).split('T')[0];
+
+    if (resDate < todayISO) return true;
+    if (resDate > todayISO) return false;
+
+    const [eH, eM] = (res.endTime || '00:00').split(':').map(Number);
+    if (!isNaN(eH)) {
+      const endMinutes = eH * 60 + (isNaN(eM) ? 0 : eM);
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      return currentMinutes >= endMinutes;
+    }
+    return false;
   }
 
   onManualStartTimeInput(val: string): void {
@@ -1168,6 +1443,7 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
   }
 
   openDatePicker(picker: HTMLInputElement): void {
+    if (!picker) return;
     try {
       if (typeof picker.showPicker === 'function') {
         picker.showPicker();
@@ -1177,6 +1453,12 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
       // Fallback
     }
     picker.focus();
+    picker.click();
+  }
+
+  onModalDateChange(newDate: string): void {
+    if (!newDate) return;
+    this.resDate.set(newDate);
   }
 
   onStartTimeDirectChange(val: string): void {
@@ -1294,11 +1576,55 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
   }
 
   onRoomChange(roomName: string): void {
-    this.resRoomName.set(roomName);
     const room = this.rooms().find(r => r.name.toLowerCase() === roomName.toLowerCase() || r.id === roomName);
-    if (room && room.hourlyRate) {
+    if (!room) return;
+
+    if (this.isRoomCurrentlyOccupied(room) && !(this.modalMode() === 'edit' && this.resRoomName() === room.name)) {
+      const occupant = this.getRoomOccupantName(room);
+      this.workspaceService.showToast(
+        this.isArabic()
+          ? `القاعة "${room.name}" مشغولة حالياً (${occupant})`
+          : `Room "${room.name}" is currently occupied (${occupant})`,
+        'error'
+      );
+      if (this.modalMode() === 'new') {
+        return;
+      }
+    }
+
+    this.resRoomName.set(room.name);
+    if (room.hourlyRate) {
       this.resHourlyRate.set(room.hourlyRate);
     }
+  }
+
+  /** Check if a room currently has an active classroom session right now */
+  isRoomCurrentlyOccupied(room: { id: string; name: string }): boolean {
+    const cards = this.classroomService.cards();
+    const cleanName = (room.name || '').trim().toLowerCase();
+    const cleanId = (room.id || '').trim().toLowerCase();
+    return cards.some(c => {
+      if (c.status !== 'active') return false;
+      const cName = (c.name || '').trim().toLowerCase();
+      const cRoomId = (c.roomId || '').trim().toLowerCase();
+      return (cleanId && cRoomId && cRoomId === cleanId) ||
+             (cleanName && cName && (cName === cleanName || cName.includes(cleanName) || cleanName.includes(cName)));
+    });
+  }
+
+  /** Get the instructor name currently using a room */
+  getRoomOccupantName(room: { id: string; name: string }): string {
+    const cards = this.classroomService.cards();
+    const cleanName = (room.name || '').trim().toLowerCase();
+    const cleanId = (room.id || '').trim().toLowerCase();
+    const activeCard = cards.find(c => {
+      if (c.status !== 'active') return false;
+      const cName = (c.name || '').trim().toLowerCase();
+      const cRoomId = (c.roomId || '').trim().toLowerCase();
+      return (cleanId && cRoomId && cRoomId === cleanId) ||
+             (cleanName && cName && (cName === cleanName || cName.includes(cleanName) || cleanName.includes(cName)));
+    });
+    return activeCard?.instructor || activeCard?.activity || '';
   }
 
   setResTimeToNow(): void {
@@ -1345,8 +1671,9 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     }
     this.modalMode.set('new');
     this.resId.set('');
-    const firstRoom = this.rooms()[0];
-    this.resRoomName.set(firstRoom?.name || 'Nook Hall');
+    const availableRooms = this.rooms().filter(r => !this.isRoomCurrentlyOccupied(r));
+    const targetRoom = availableRooms.length > 0 ? availableRooms[0] : (this.rooms()[0] || null);
+    this.resRoomName.set(targetRoom?.name || 'Nook Hall');
     this.resInstructor.set('');
     this.resPhone.set('');
     this.resEmail.set('');
@@ -1362,7 +1689,7 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     this.resDate.set(`${y}-${m}-${day}`);
 
     this.setResTimeToNow();
-    this.resHourlyRate.set(firstRoom?.hourlyRate || 0);
+    this.resHourlyRate.set(targetRoom?.hourlyRate || 0);
 
     // Reset recurrence state
     this.isAllDay.set(false);
@@ -1375,13 +1702,7 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
   }
 
   requestEditReservation(res: AdminReservation): void {
-    if (res.isRecurring) {
-      this.selectedRecurringEditRes.set(res);
-      this.recurringEditScope.set('single');
-      this.isRecurringEditScopeModalOpen.set(true);
-    } else {
-      this.openEditReservationModal(res);
-    }
+    this.openEditReservationModal(res);
   }
 
   proceedWithRecurringEdit(): void {
@@ -1401,7 +1722,8 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
       return;
     }
     this.modalMode.set('edit');
-    this.resId.set(res.id);
+    this.selectedRecurringEditRes.set(res);
+    this.resId.set(res.reservationId || res.id);
     this.resRoomName.set(res.classroom);
     this.resInstructor.set(res.instructor);
     this.resPhone.set(res.phoneNumber || res.instructorPhone || res.phone || '');
@@ -1453,48 +1775,44 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     }
 
     if (res.startTime) {
-      const matchStart = res.startTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
-      if (matchStart) {
-        let h = parseInt(matchStart[1], 10);
-        const min = matchStart[2];
-        let p: 'AM' | 'PM' = (matchStart[3]?.toUpperCase() as 'AM' | 'PM') || 'AM';
-        if (!matchStart[3]) {
-          if (h >= 12) {
-            p = 'PM';
-            if (h > 12) h -= 12;
-          } else if (h === 0) {
-            h = 12;
-          }
-        }
-        this.resStartHour.set(String(h).padStart(2, '0'));
-        this.resStartMinute.set(min);
-        this.resStartPeriod.set(p);
-      }
+      const sMins = this.classroomService.parseTimeToMinutes(res.startTime);
+      const sH = Math.floor(sMins / 60);
+      const sM = sMins % 60;
+      const sP: 'AM' | 'PM' = sH >= 12 ? 'PM' : 'AM';
+      const sH12 = sH % 12 || 12;
+      this.resStartHour.set(String(sH12).padStart(2, '0'));
+      this.resStartMinute.set(String(sM).padStart(2, '0'));
+      this.resStartPeriod.set(sP);
     }
 
     if (res.endTime) {
-      const matchEnd = res.endTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
-      if (matchEnd) {
-        let h = parseInt(matchEnd[1], 10);
-        const min = matchEnd[2];
-        let p: 'AM' | 'PM' = (matchEnd[3]?.toUpperCase() as 'AM' | 'PM') || 'AM';
-        if (!matchEnd[3]) {
-          if (h >= 12) {
-            p = 'PM';
-            if (h > 12) h -= 12;
-          } else if (h === 0) {
-            h = 12;
-          }
-        }
-        this.resEndHour.set(String(h).padStart(2, '0'));
-        this.resEndMinute.set(min);
-        this.resEndPeriod.set(p);
-      }
+      const eMins = this.classroomService.parseTimeToMinutes(res.endTime);
+      const eH = Math.floor(eMins / 60);
+      const eM = eMins % 60;
+      const eP: 'AM' | 'PM' = eH >= 12 ? 'PM' : 'AM';
+      const eH12 = eH % 12 || 12;
+      this.resEndHour.set(String(eH12).padStart(2, '0'));
+      this.resEndMinute.set(String(eM).padStart(2, '0'));
+      this.resEndPeriod.set(eP);
     }
 
     const roomMatch = this.rooms().find(r => r.name.toLowerCase() === (res.classroom || '').toLowerCase() || r.id === res.classroom);
     const calculatedRate = (res.durationHours && res.durationHours > 0 && res.cost) ? Math.round(res.cost / res.durationHours) : (roomMatch?.hourlyRate || 0);
     this.resHourlyRate.set(calculatedRate || 0);
+
+    // Save snapshot of original booking parameters to avoid false-positive conflict errors when editing non-time fields
+    this.originalResSnapshot.set({
+      id: res.id,
+      reservationId: res.reservationId,
+      roomId: roomMatch?.id || res.roomId || '',
+      roomName: res.classroom || '',
+      date: targetDate,
+      startTime: res.startTime,
+      endTime: res.endTime,
+      activity: res.activity || '',
+      instructor: res.instructor || '',
+      recurrence: this.repeatOption()
+    });
 
     this.isReservationModalOpen.set(true);
     document.body.style.overflow = 'hidden';
@@ -1505,6 +1823,7 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     this.modalMode.set('duplicate');
     this.resId.set('');
     this.selectedRecurringEditRes.set(null);
+    this.originalResSnapshot.set(null);
     this.resActivity.set(res.activity + ' ' + this.t().copySuffix);
     this.resDate.set(this.classroomService.getTodayDateISO());
   }
@@ -1514,6 +1833,7 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     this.isInstructorDropdownOpen.set(false);
     this.isRecurrenceDropdownOpen.set(false);
     this.selectedRecurringEditRes.set(null);
+    this.originalResSnapshot.set(null);
     this.conflictDetails.set(null);
     document.body.style.overflow = '';
   }
@@ -1618,15 +1938,22 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     };
 
     const executeSave = () => {
-      if (this.modalMode() === 'edit' && this.resId()) {
+      if (this.modalMode() === 'edit') {
         const targetRes = this.selectedRecurringEditRes();
+        const rawId = targetRes?.reservationId || this.resId() || targetRes?.id || '';
+        const effectiveId = rawId.split('_')[0].trim();
+        if (!effectiveId) {
+          handleSaveError(null, this.isArabic() ? 'معرف الحجز غير موجود للتعديل' : 'Reservation ID not found for editing');
+          return;
+        }
+
         if (this.recurringEditScope() === 'single' && targetRes && targetRes.isRecurring) {
           // Edit SINGLE occurrence from a recurring series:
           // 1. Cancel this day from the recurring series
           // 2. Create a standalone reservation for this specific date
           const occDate = targetRes.occurrenceDate || targetRes.fullDate;
           const occIso = new Date(occDate).toISOString();
-          const seriesId = targetRes.reservationId || targetRes.id;
+          const seriesId = targetRes.reservationId || targetRes.id || effectiveId;
 
           this.classroomService.cancelReservationDay(seriesId, {
             date: occIso,
@@ -1642,6 +1969,8 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
                 phoneNumber: this.resPhone().trim() || null,
                 email: this.resEmail().trim() || null,
                 instructorEmail: this.resEmail().trim() || null,
+                note: this.resNotes().trim() || null,
+                notes: this.resNotes().trim() || null,
                 activity,
                 dateFrom: dateStr,
                 dateTo: dateStr,
@@ -1665,37 +1994,82 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
           });
         } else {
           // Edit entire series or standalone reservation
-          const effectiveId = targetRes?.reservationId || this.resId();
-          this.classroomService.updateReservation(effectiveId, {
-            roomName: this.resRoomName(),
-            instructorId: this.selectedInstructorId() || undefined,
-            instructorName: instructor,
-            instructorPhone: this.resPhone().trim() || undefined,
-            phoneNumber: this.resPhone().trim() || null,
-            email: this.resEmail().trim() || null,
-            instructorEmail: this.resEmail().trim() || null,
-            note: this.resNotes().trim() || null,
-            notes: this.resNotes().trim() || null,
-            activity,
-            dateFrom: dateStr,
-            dateTo: endDateStr,
-            timeFrom: startTimeStr,
-            timeTo: endTimeStr,
-            reservationCost: totalCost,
-            recurrenceFrequency: freq,
-            recurrenceInterval: interval,
-            daysOfWeek: daysOfWeek,
-            totalSessions: totalSessions,
-            isOngoing: isOngoing
-          }).subscribe({
-            next: () => {
-              this.isSaving.set(false);
-              this.closeReservationModal();
-              this.workspaceService.showToast(this.isArabic() ? 'تم تعديل السلسلة بنجاح' : 'Reservation series updated successfully', 'success');
-              this.classroomService.syncWithBackend();
-            },
-            error: (e) => handleSaveError(e, this.isArabic() ? 'فشل تعديل الحجز' : 'Failed to update reservation')
-          });
+          const rawId = targetRes?.reservationId || this.resId() || '';
+          const effectiveId = rawId.split('_')[0].trim();
+
+          // Check if this is a live classroom session (spawned from a reservation)
+          const isClassroomSession = targetRes?.isClassroomSession ||
+            this.classroomService.cards().some(c => c.id === effectiveId || c.id === this.resId());
+
+          if (isClassroomSession) {
+            // Update via Classroom API (PUT /api/Classrooms/{id})
+            const cardId = this.classroomService.cards().find(c =>
+              c.id === effectiveId || c.id === this.resId() ||
+              c.reservationId === effectiveId
+            )?.id || effectiveId;
+
+            this.classroomService.updateCard({
+              id: cardId,
+              roomId: realRoomId,
+              name: this.resRoomName(),
+              instructorId: this.selectedInstructorId() || undefined,
+              instructor,
+              phone: this.resPhone().trim() || undefined,
+              email: this.resEmail().trim() || undefined,
+              note: this.resNotes().trim() || null,
+              notes: this.resNotes().trim() || null,
+              activity,
+              startTime: startTimeStr,
+              endTime: endTimeStr,
+              bookingDate: dateStr,
+              durationHours: this.resDurationHours(),
+              hourlyRate: this.resHourlyRate(),
+              rental: totalCost,
+              status: 'active',
+              image: ''
+            } as any).subscribe({
+              next: () => {
+                this.isSaving.set(false);
+                this.closeReservationModal();
+                this.workspaceService.showToast(this.isArabic() ? 'تم تعديل الجلسة بنجاح' : 'Session updated successfully', 'success');
+                this.classroomService.syncWithBackend();
+              },
+              error: (e) => handleSaveError(e, this.isArabic() ? 'فشل تعديل الجلسة' : 'Failed to update session')
+            });
+          } else {
+            // Update via Reservation API (PUT /api/Reservations/{id})
+            this.classroomService.updateReservation(effectiveId, {
+              roomId: realRoomId,
+              roomName: this.resRoomName(),
+              instructorId: this.selectedInstructorId() || undefined,
+              instructorName: instructor,
+              instructorPhone: this.resPhone().trim() || undefined,
+              phoneNumber: this.resPhone().trim() || null,
+              email: this.resEmail().trim() || null,
+              instructorEmail: this.resEmail().trim() || null,
+              note: this.resNotes().trim() || null,
+              notes: this.resNotes().trim() || null,
+              activity,
+              dateFrom: dateStr,
+              dateTo: endDateStr,
+              timeFrom: startTimeStr,
+              timeTo: endTimeStr,
+              reservationCost: totalCost,
+              recurrenceFrequency: freq,
+              recurrenceInterval: interval,
+              daysOfWeek: daysOfWeek,
+              totalSessions: totalSessions,
+              isOngoing: isOngoing
+            }).subscribe({
+              next: () => {
+                this.isSaving.set(false);
+                this.closeReservationModal();
+                this.workspaceService.showToast(this.isArabic() ? 'تم تعديل الحجز بنجاح' : 'Reservation updated successfully', 'success');
+                this.classroomService.syncWithBackend();
+              },
+              error: (e) => handleSaveError(e, this.isArabic() ? 'فشل تعديل الحجز' : 'Failed to update reservation')
+            });
+          }
         }
       } else {
           this.classroomService.createReservation({
@@ -1763,7 +2137,30 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     }
 
     const targetRes = this.selectedRecurringEditRes();
-    const excludeId = this.modalMode() === 'edit' ? (targetRes?.reservationId || this.resId() || null) : null;
+    const rawId = targetRes?.reservationId || this.resId() || targetRes?.id || '';
+    const cleanExcludeId = rawId.split('_')[0].trim();
+    const validExcludeId = cleanExcludeId && /^[0-9a-fA-F-]{36}$/.test(cleanExcludeId) ? cleanExcludeId : undefined;
+    const excludeId = this.modalMode() === 'edit' ? validExcludeId : undefined;
+
+    // Check if the user modified room, date, times or recurrence in edit mode
+    const orig = this.originalResSnapshot();
+    const origStartMins = orig?.startTime ? this.classroomService.parseTimeToMinutes(orig.startTime) : -1;
+    const origEndMins = orig?.endTime ? this.classroomService.parseTimeToMinutes(orig.endTime) : -1;
+    const currentStartMins = this.classroomService.parseTimeToMinutes(startTimeStr);
+    const currentEndMins = this.classroomService.parseTimeToMinutes(endTimeStr);
+
+    const isTimingOrRoomChanged = !orig || this.modalMode() !== 'edit' ||
+      (orig.roomName || '').toLowerCase() !== this.resRoomName().toLowerCase() ||
+      orig.date !== dateStr ||
+      origStartMins !== currentStartMins ||
+      origEndMins !== currentEndMins;
+
+    // If in edit mode and room, date, and times were NOT changed (e.g. only activity, instructor, phone, notes changed):
+    // Skip conflict checks completely to prevent false collision with the current reservation itself!
+    if (this.modalMode() === 'edit' && !isTimingOrRoomChanged) {
+      executeSave();
+      return;
+    }
 
     // Step 1: Pre-save In-Memory & Active Sessions Overlap Check (Strict Double Booking Prevention)
     const localConflict = this.findLocalReservationConflict(
@@ -1772,7 +2169,7 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
       targetDates,
       startTimeStr,
       endTimeStr,
-      excludeId
+      cleanExcludeId || excludeId
     );
 
     if (localConflict.hasConflict) {
@@ -1800,12 +2197,22 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
       }).subscribe({
         next: (conflictResult) => {
           if (conflictResult && conflictResult.hasConflict) {
-            // Self-conflict guard: if in edit mode and the only conflicting reservation matches current id, ignore it
+            // Self-conflict guard: if in edit mode and the only conflicting reservation matches current id or original title
             if (this.modalMode() === 'edit' && excludeId) {
               const conflicts = conflictResult.conflicts || [];
+              const origTitle = orig?.activity?.trim().toLowerCase();
               const isOnlySelf = conflicts.length > 0 && conflicts.every((c: any) =>
-                c.reservationId === excludeId || c.id === excludeId ||
-                (c.conflictingReservationTitle && c.conflictingReservationTitle === this.resActivity())
+                (c.reservationId && c.reservationId === excludeId) ||
+                (c.id && c.id === excludeId) ||
+                (c.conflictingEntityId && c.conflictingEntityId === excludeId) ||
+                (c.conflictingEntityName && (
+                  c.conflictingEntityName === this.resActivity() ||
+                  (origTitle && c.conflictingEntityName.trim().toLowerCase() === origTitle)
+                )) ||
+                (c.conflictingReservationTitle && (
+                  c.conflictingReservationTitle === this.resActivity() ||
+                  (origTitle && c.conflictingReservationTitle.trim().toLowerCase() === origTitle)
+                ))
               );
               if (isOnlySelf) {
                 executeSave();
@@ -1853,24 +2260,65 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
              (cleanRoomName && name && (name === cleanRoomName || name.includes(cleanRoomName) || cleanRoomName.includes(name)));
     };
 
-    const isExcluded = (id?: string, resId?: string) => {
+    const isExcluded = (id?: string, resId?: string, itemActivity?: string, itemInstructor?: string, itemRoomId?: string, itemRoomName?: string, itemStartTime?: string, itemEndTime?: string, itemDate?: string) => {
+      if (this.modalMode() !== 'edit') return false;
       if (!excludeResId && !this.resId()) return false;
-      const cleanEx = (excludeResId || this.resId() || '').trim().toLowerCase();
+
+      // The exclude ID (base UUID of the reservation being edited)
+      const cleanEx = (excludeResId || this.resId() || '').trim().toLowerCase().split('_')[0];
+      const editingRes = this.selectedRecurringEditRes();
+      const editResId = (editingRes?.reservationId || editingRes?.id || '').trim().toLowerCase().split('_')[0];
+
+      // The current item's direct ID and its linked reservationId
       const cId = (id || '').trim().toLowerCase();
       const cResId = (resId || '').trim().toLowerCase();
-      return (!!cId && (cId === cleanEx || cleanEx.includes(cId) || cId.includes(cleanEx))) ||
-             (!!cResId && (cResId === cleanEx || cleanEx.includes(cResId) || cResId.includes(cleanEx)));
+      // Strip occurrence suffix from IDs (e.g. "uuid_2026-09-30" -> "uuid")
+      const cIdBase = cId.split('_')[0];
+      const cResIdBase = cResId.split('_')[0];
+
+      // Direct match: item IS the reservation being edited
+      if (cleanEx && (cIdBase === cleanEx || cId === cleanEx || cResIdBase === cleanEx || cResId === cleanEx)) return true;
+      if (editResId && (cIdBase === editResId || cId === editResId || cResIdBase === editResId || cResId === editResId)) return true;
+
+      // Check against original snapshot
+      const orig = this.originalResSnapshot();
+      if (orig) {
+        const origId = orig.id ? orig.id.trim().toLowerCase().split('_')[0] : '';
+        const origResId = orig.reservationId ? orig.reservationId.trim().toLowerCase().split('_')[0] : '';
+        if (origId && (cIdBase === origId || cResIdBase === origId)) return true;
+        if (origResId && (cIdBase === origResId || cResIdBase === origResId)) return true;
+
+        // Twin matching: if this item is sitting on the EXACT original date and original time slot in the same room
+        if (itemDate && itemStartTime && itemEndTime && orig.date && orig.startTime && orig.endTime) {
+          const itemDateClean = itemDate.split('T')[0];
+          const origDateClean = orig.date.split('T')[0];
+          if (itemDateClean === origDateClean) {
+            const oStart = this.classroomService.parseTimeToMinutes(orig.startTime);
+            const oEnd = this.classroomService.parseTimeToMinutes(orig.endTime);
+            const iStart = this.classroomService.parseTimeToMinutes(itemStartTime);
+            const iEnd = this.classroomService.parseTimeToMinutes(itemEndTime);
+            if (oStart === iStart && oEnd === iEnd) {
+              const origRoom = (orig.roomName || '').trim().toLowerCase();
+              const iRoom = (itemRoomName || '').trim().toLowerCase();
+              if (!origRoom || !iRoom || origRoom === iRoom || origRoom.includes(iRoom) || iRoom.includes(origRoom)) {
+                return true;
+              }
+            }
+          }
+        }
+      }
+
+      return false;
     };
 
     // 1. Check existing reservations in calendar
     const existingList = this.reservations();
     for (const d of checkDates) {
       for (const res of existingList) {
-        if (isExcluded(res.id, res.reservationId)) continue;
+        const resDate = res.occurrenceDate || res.fullDate || res.date;
+        if (isExcluded(res.id, res.reservationId, res.activity, res.instructor, res.roomId, res.roomName || res.classroom, res.startTime, res.endTime, resDate)) continue;
         if (res.status === 'cancelled') continue;
         if (!matchesRoom(res.roomId, res.roomName || res.classroom)) continue;
-
-        const resDate = res.occurrenceDate || res.fullDate || res.date;
         if (!resDate || !resDate.startsWith(d)) continue;
 
         const exStart = this.classroomService.parseTimeToMinutes(res.startTime);
@@ -1894,7 +2342,7 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
       // 2. Check active classroom cards in space
       const activeCards = this.classroomService.cards();
       for (const card of activeCards) {
-        if (isExcluded(card.id, card.reservationId)) continue;
+        if (isExcluded(card.id, card.reservationId, card.activity, card.instructor, card.roomId, card.name, card.startTime, card.endTime, card.bookingDate)) continue;
         if (card.status === 'available' || card.status === 'completed' || card.status === 'cancelled') continue;
         if (!matchesRoom(card.roomId, card.name)) continue;
 

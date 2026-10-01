@@ -108,6 +108,8 @@
                 {{ t().statusCompleted }}
               } @else if (res.status === 'cancelled') {
                 {{ t().cancelled }}
+              } @else if (res.status === 'no_show') {
+                {{ isArabic() ? 'لم يحضر' : 'No-Show' }}
               }
             </span>
           </div>

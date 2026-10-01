@@ -5,8 +5,8 @@
       <header class="panel-header">
         <div class="panel-title-area">
           <h2 class="panel-title">{{ t().reservationDetails }}</h2>
-          <span class="status-badge status-badge--confirmed">
-            {{ t().confirmed }}
+          <span class="status-badge" [ngClass]="statusInfo.class">
+            {{ isArabic() ? statusInfo.labelAr : statusInfo.labelEn }}
           </span>
         </div>
         <button type="button" class="close-btn" (click)="onClose()" aria-label="Close panel">
@@ -64,9 +64,9 @@
                 </svg>
               </div>
               <div class="logistics-text">
-                <div class="logistics-primary">{{ res.classroom }}</div>
+                <div class="logistics-primary">{{ res.classroom || res.roomName }}</div>
                 <div class="logistics-secondary">
-                  {{ t().capacity }}: {{ res.capacity || 24 }} {{ t().studentsCount }}
+                  {{ isArabic() ? 'السعة الاستيعابية:' : 'Capacity:' }} {{ res.capacity ? (res.capacity + ' ' + (isArabic() ? 'طالب / مقعد' : 'Students')) : (isArabic() ? 'محددة حسب القاعة' : 'Per Room') }}
                 </div>
               </div>
             </div>
@@ -79,9 +79,9 @@
                 </svg>
               </div>
               <div class="logistics-text">
-                <div class="logistics-primary">{{ res.fullDate }}</div>
+                <div class="logistics-primary">{{ res.fullDate || res.date }}</div>
                 <div class="logistics-secondary">
-                  {{ res.startTime }} - {{ res.endTime }} ({{ res.durationHours || 2 }} {{ t().hrs }})
+                  {{ res.startTime }} - {{ res.endTime }} ({{ res.durationHours || 2 }} {{ isArabic() ? 'ساعات' : 'hrs' }})
                 </div>
               </div>
             </div>
@@ -90,105 +90,135 @@
           <!-- Card 3: Activity Card -->
           <div class="detail-card">
             <span class="card-section-label">{{ t().activity }}</span>
-            <div class="activity-title">{{ res.activity }}</div>
+            <div class="activity-title">{{ res.activity || (isArabic() ? 'نشاط تدريبي / تعليمي' : 'Educational Session') }}</div>
             <div class="activity-location">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
                 <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
               </svg>
-              <span>{{ res.classroom }}</span>
+              <span>{{ res.classroom || res.roomName }}</span>
             </div>
           </div>
 
-          <!-- Card 4: Cost Breakdown -->
-          <div class="detail-card cost-card">
-            <h4 class="cost-heading">{{ t().costBreakdown }}</h4>
-
-            <div class="cost-rows">
-              <div class="cost-row">
-                <span class="cost-label">{{ res.costBreakdown.baseRateLabel || t().baseRateLabel }}</span>
-                @if (res.cost === 0 || (res.costBreakdown.total === 0 && res.costBreakdown.baseRate === 0)) {
-                  <span class="cost-val" style="color: var(--success); font-weight: 700;">
-                    {{ t().deductedFromPackage }}
-                  </span>
-                } @else {
-                  <span class="cost-val">EGP {{ baseRateAmount() | number:'1.2-2' }}</span>
-                }
+          <!-- Card 4: Recurrence Information (If recurring) -->
+          @if (res.isRecurring) {
+            <div class="detail-card">
+              <span class="card-section-label">{{ isArabic() ? 'تفاصيل التكرار والجدولة' : 'Recurrence Schedule' }}</span>
+              <div class="logistics-item">
+                <div class="logistics-icon" style="color: #6366f1;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                  </svg>
+                </div>
+                <div class="logistics-text">
+                  <div class="logistics-primary">{{ getRecurrenceLabel() }}</div>
+                  <div class="logistics-secondary">
+                    {{ res.totalSessions ? ((isArabic() ? 'إجمالي الجلسات: ' : 'Total Sessions: ') + res.totalSessions) : (isArabic() ? 'حجز مستمر دون موعد نهاية' : 'Ongoing Series') }}
+                  </div>
+                </div>
               </div>
-
-              @if (res.costBreakdown.equipmentAddon > 0) {
-                <div class="cost-row">
-                  <span class="cost-label">{{ t().equipmentAddon }}</span>
-                  <span class="cost-val">EGP {{ res.costBreakdown.equipmentAddon | number:'1.2-2' }}</span>
-                </div>
-              }
-
-              @if (discountAmount() > 0) {
-                <div class="cost-row cost-row--discount" style="color: #10b981;">
-                  <span class="cost-label">
-                    {{ isArabic() ? 'الخصم المطبق' : 'Discount Applied' }}
-                    @if (discountPercentLabel()) {
-                      ({{ discountPercentLabel() }})
-                    }
-                  </span>
-                  <span class="cost-val" style="color: #10b981; font-weight: 700;">
-                    -EGP {{ discountAmount() | number:'1.2-2' }}
-                  </span>
-                </div>
-              }
             </div>
+          }
 
-            <div class="cost-total-divider"></div>
-
-            <div class="cost-row cost-row--total">
-              <span class="total-label">{{ t().total }}</span>
-              @if (res.cost === 0 || res.costBreakdown.total === 0) {
-                <span class="total-val" style="color: var(--success);">
-                  EGP 0.00 ({{ t().packageActiveBadge }})
-                </span>
-              } @else {
-                <span class="total-val">EGP {{ (res.costBreakdown.total || res.cost) | number:'1.2-2' }}</span>
-              }
+          <!-- Card 5: Notes / ملاحظات -->
+          @if (res.notes || res.note) {
+            <div class="detail-card notes-detail-card">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: #6366f1;">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                <span class="card-section-label" style="margin-bottom: 0;">{{ isArabic() ? 'ملاحظات الحجز' : 'Reservation Notes' }}</span>
+              </div>
+              <p style="margin: 0; font-size: 0.88rem; line-height: 1.6; color: var(--text-primary, #e2e8f0); background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 10px 12px; white-space: pre-wrap; word-break: break-word;">
+                {{ res.notes || res.note }}
+              </p>
             </div>
-          </div>
+          }
         }
       </div>
 
       <!-- Panel Footer Actions -->
       <footer class="panel-footer">
-        <button type="button" class="panel-btn panel-btn--edit" (click)="onEdit()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-          </svg>
-          <span>{{ t().edit }}</span>
-        </button>
+        <!-- Top Status Banner / Main Action -->
+        <div class="panel-footer__main">
+          @if (isCompleted()) {
+            <div class="panel-badge-completed">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              <span>{{ isArabic() ? 'تم تسجيل المغادرة (مكتمل)' : 'Checked-Out (Completed)' }}</span>
+            </div>
+          } @else if (reservation()?.status === 'cancelled') {
+            <div class="panel-badge-cancelled">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+              </svg>
+              <span>{{ isArabic() ? 'حجز ملغي' : 'Cancelled' }}</span>
+            </div>
+          } @else if (reservation()?.status === 'no_show' || isTimePassed(reservation())) {
+            <div class="panel-badge-noshow">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              <span>{{ isArabic() ? 'انتهى موعد الحجز (لم يحضر أحد)' : 'Missed / No-Show' }}</span>
+            </div>
+          } @else if (reservation()?.status === 'active') {
+            <button type="button" class="panel-btn panel-btn--checkout" (click)="onCheckout()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+              <span>{{ isArabic() ? 'إنهاء وتسجيل المغادرة' : 'Check Out' }}</span>
+            </button>
+          } @else if (canStartSession()) {
+            <button type="button" class="panel-btn panel-btn--start" (click)="onStartSession()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+              <span>{{ isArabic() ? 'بدء الحجز / تحويل لكلاس روم' : 'Start Session (Launch Classroom)' }}</span>
+            </button>
+          }
+        </div>
 
-        <button type="button" class="panel-btn panel-btn--delete" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.06);" (click)="onDelete()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="3 6 5 6 21 6"></polyline>
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-          </svg>
-          <span>{{ t().delete }}</span>
-        </button>
-
-        @if (isCompleted()) {
-          <div class="panel-badge-completed">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <polyline points="20 6 9 17 4 12"></polyline>
+        <!-- Management Actions Grid -->
+        <div class="panel-footer__actions">
+          <button type="button" class="panel-btn panel-btn--edit" (click)="onEdit()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
             </svg>
-            <span>{{ isArabic() ? 'تم تسجيل المغادرة' : 'Checked-Out' }}</span>
-          </div>
-        } @else {
-          <button type="button" class="panel-btn panel-btn--checkout" (click)="onCheckout()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-              <polyline points="16 17 21 12 16 7"></polyline>
-              <line x1="21" y1="12" x2="9" y2="12"></line>
-            </svg>
-            <span>{{ t().checkOutBtn }}</span>
+            <span>{{ isArabic() ? 'تعديل الحجز' : 'Edit' }}</span>
           </button>
-        }
+
+          @if (reservation()?.status !== 'cancelled' && !isCompleted()) {
+            <button type="button" class="panel-btn panel-btn--cancel" (click)="onCancel()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+              </svg>
+              <span>{{ isArabic() ? 'إلغاء الحجز' : 'Cancel' }}</span>
+            </button>
+          }
+
+          <button type="button" class="panel-btn panel-btn--delete" (click)="onDelete()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            <span>{{ isArabic() ? 'حذف الحجز' : 'Delete' }}</span>
+          </button>
+        </div>
       </footer>
     </aside>
   </div>

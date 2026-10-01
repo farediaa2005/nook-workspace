@@ -70,7 +70,11 @@ export class ApiHealthService {
     // Ping an endpoint that responds quickly. Even if 401 Unauthorized is returned,
     // it proves the backend server is alive, reachable, and responding!
     this.http.get(`${API_BASE_URL}/api/Accounts/unlinked-students`, {
-      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'X-Health-Check': 'true'
+      }
     }).pipe(
       timeout(4000),
       catchError((error: HttpErrorResponse | any) => {

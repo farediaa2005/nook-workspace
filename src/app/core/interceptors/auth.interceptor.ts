@@ -67,6 +67,11 @@ export const authInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>, ne
     reportHttpOutcome,
     catchError((error: HttpErrorResponse) => {
       if (error.status === 401) {
+        // Do not trigger logout for health checks
+        if (req.headers.has('X-Health-Check') || req.url.includes('unlinked-students')) {
+          return throwError(() => error);
+        }
+
         // If the request was already to a public endpoint or user is on login page, do not refresh
         const isLoginUrl = router.url.includes('/login') ||
           (typeof window !== 'undefined' && window.location.pathname.includes('/login'));
@@ -77,14 +82,14 @@ export const authInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>, ne
         const currentRefreshToken = authService.getRefreshToken();
         const currentAccessToken = authService.getToken();
 
-        if (currentRefreshToken && currentAccessToken) {
+        if (currentRefreshToken) {
           if (!isRefreshing) {
             isRefreshing = true;
             refreshTokenSubject.next(null);
 
             // Backend API expects { accessToken, refreshToken }
             const refreshPayload = {
-              accessToken: currentAccessToken,
+              accessToken: currentAccessToken || '',
               refreshToken: currentRefreshToken
             };
 

@@ -89,11 +89,13 @@ export class ClassroomService {
   private instructorsState = signal<any[]>([]);
   private canteenProductsState = signal<CateringProductItem[]>([]);
   private activeCheckoutCardState = signal<ClassroomCard | null>(null);
+  private completedSessionsState = signal<ClassroomCard[]>([]);
   private loadingState = signal<boolean>(false);
   private errorState = signal<string | null>(null);
 
   /** Public Readonly Signals */
   readonly cards = this.cardsState.asReadonly();
+  readonly completedClassroomSessions = this.completedSessionsState.asReadonly();
   readonly reservations = this.reservationsState.asReadonly();
   readonly rooms = this.roomsState.asReadonly();
   readonly instructors = this.instructorsState.asReadonly();
@@ -351,7 +353,8 @@ export class ClassroomService {
     this.loadingState.set(true);
     this.errorState.set(null);
 
-    return this.classroomApi.getClassrooms(params).pipe(
+    const effectiveParams = params !== undefined ? params : { DateFrom: getTodayDateISO() };
+    return this.classroomApi.getClassrooms(effectiveParams).pipe(
       map(classrooms => {
         const themes = ['brown', 'blue', 'purple', 'emerald', 'orange', 'rose'] as const;
         const currentRooms = this.roomsState();
@@ -363,7 +366,8 @@ export class ClassroomService {
           // Item 13: Strict Manual Checkout — Ending scheduled time != Check-out.
           // Room stays active ('In Session') with live overtime calculation until staff explicitly checks it out.
           const isExplicitlyCompleted = this.completedCardIds.has(c.id) ||
-            ((statusNum === 2 || statusVal === '2' || statusVal === 'completed' || statusVal === 'left' || (c as any).isCompleted === true) && (!!(c as any).checkedOutAt || !!(c as any).checkoutTime));
+            statusNum === 2 || statusVal === '2' || statusVal === 'completed' || statusVal === 'left' ||
+            (c as any).isCompleted === true || !!c.checkedOutByStaffId || !!(c as any).checkedOutAt;
           const isCancelled = statusNum === 4 || statusVal === '4' || statusVal === 'cancelled';
           const isScheduled = (statusNum === 3 || statusVal === '3' || statusVal === 'scheduled') && !isExplicitlyCompleted;
           const isActive = !isExplicitlyCompleted && !isCancelled;
@@ -505,6 +509,7 @@ export class ClassroomService {
 
           return {
             id: c.id,
+            reservationId: c.reservationId || (c as any).sourceReservationId || undefined,
             roomId: c.roomId || roomMatch?.id,
             instructorId: insId || undefined,
             name: c.roomName || roomMatch?.name || 'Classroom',
@@ -538,7 +543,9 @@ export class ClassroomService {
               if (cached?.items && cached.items.length > 0) return cached.items;
               return (c as any).cateringItems || undefined;
             })(),
-            printingCharges: c.printing || c.printingCharges || 0
+            printingCharges: c.printing || c.printingCharges || 0,
+            note: c.note || (c as any).notes || undefined,
+            notes: c.note || (c as any).notes || undefined
           };
         });
 
@@ -551,6 +558,21 @@ export class ClassroomService {
         }
 
         this.cardsState.set(mergedCards);
+
+        // Retain completed sessions for today's completed ledger
+        const completedFromApi = mappedCards.filter(c => c.status === 'completed');
+        if (completedFromApi.length > 0) {
+          this.completedSessionsState.update(current => {
+            const combined = [...current];
+            for (const c of completedFromApi) {
+              if (!combined.some(existing => existing.id === c.id)) {
+                combined.push(c);
+              }
+            }
+            return combined;
+          });
+        }
+
         this.loadingState.set(false);
 
         // Sync catering items from backend API for active classroom sessions
@@ -621,7 +643,7 @@ export class ClassroomService {
                 reservationId: r.id,
                 occurrenceDate: dStr,
                 displayId: `RES-${r.id.substring(0, 4).toUpperCase()}`,
-                instructor: r.instructorName || r.note || 'Instructor',
+                instructor: r.instructorName || (r.instructorId ? this.instructorMap.get(r.instructorId)?.name : '') || 'Instructor',
                 instructorId: r.instructorId || null,
                 instructorPhone: r.instructorPhoneNumber || r.instructorPhone || (r as any).phone || (r as any).phoneNumber || null,
                 phoneNumber: r.instructorPhoneNumber || r.instructorPhone || (r as any).phone || (r as any).phoneNumber || null,
@@ -629,6 +651,7 @@ export class ClassroomService {
                 email: (r as any).email || (r as any).instructorEmail || null,
                 instructorEmail: (r as any).email || (r as any).instructorEmail || null,
                 notes: r.note || r.notes || null,
+                note: r.note || r.notes || null,
                 activity: r.activity || 'Classroom Reservation',
                 classroom: r.roomName || roomMatch?.name || 'Hall',
                 capacity: roomMatch?.maxCapacity || 20,
@@ -666,7 +689,7 @@ export class ClassroomService {
               reservationId: r.id,
               occurrenceDate: baseDateStr,
               displayId: `RES-${r.id.substring(0, 4).toUpperCase()}`,
-              instructor: r.instructorName || r.note || 'Instructor',
+              instructor: r.instructorName || (r.instructorId ? this.instructorMap.get(r.instructorId)?.name : '') || 'Instructor',
               instructorId: r.instructorId || null,
               instructorPhone: r.instructorPhoneNumber || r.instructorPhone || (r as any).phone || (r as any).phoneNumber || null,
               phoneNumber: r.instructorPhoneNumber || r.instructorPhone || (r as any).phone || (r as any).phoneNumber || null,
@@ -674,6 +697,7 @@ export class ClassroomService {
               email: (r as any).email || (r as any).instructorEmail || null,
               instructorEmail: (r as any).email || (r as any).instructorEmail || null,
               notes: r.note || r.notes || null,
+              note: r.note || r.notes || null,
               activity: r.activity || 'Classroom Reservation',
               classroom: r.roomName || roomMatch?.name || 'Hall',
               capacity: roomMatch?.maxCapacity || 20,
@@ -889,7 +913,7 @@ export class ClassroomService {
       discount: 0,
       payWay: 1,
       type: ClassroomTypeEnum.New,
-      note: newCard.instructor
+      note: newCard.note || newCard.notes || null
     };
 
     return this.classroomApi.createClassroom(payload).pipe(
@@ -897,6 +921,8 @@ export class ClassroomService {
         const card: ClassroomCard = {
           ...newCard,
           id: created.id,
+          note: newCard.note || newCard.notes || undefined,
+          notes: newCard.notes || newCard.note || undefined,
           roomId: created.roomId || realRoomId || undefined,
           instructorId: matchedInsId || undefined,
           instructor: newCard.instructor || '-',
@@ -947,7 +973,7 @@ export class ClassroomService {
     const payload: UpdateClassroomDto = {
       roomId: realRoomId,
       activity: card.activity,
-      note: card.instructor,
+      note: card.note || card.notes || (card as any).notes || null,
       instructorId: matchedInsId,
       instructorName: card.instructor,
       instructorPhone: card.phone,
@@ -962,7 +988,7 @@ export class ClassroomService {
 
     return this.classroomApi.updateClassroom(card.id, payload).pipe(
       tap(() => {
-        this.cardsState.update(cards => cards.map(c => c.id === card.id ? { ...c, ...card, instructorId: matchedInsId || undefined } : c));
+        this.cardsState.update(cards => cards.map(c => c.id === card.id ? { ...c, ...card, note: card.note || card.notes, notes: card.notes || card.note, instructorId: matchedInsId || undefined } : c));
         this.triggerLiveAlertsEvaluation();
       }),
       catchError(err => {
@@ -1058,6 +1084,30 @@ export class ClassroomService {
             description: `[طباعة] مطبوعات وورق قاعة - ${card?.name || 'قاعة'} (${card?.instructor || 'حجز'})`,
             category: 'printing'
           }).subscribe();
+        }
+
+        // Record completed classroom session snapshot into today's completed sessions ledger
+        const currentUser = this.authService.getUser();
+        if (card) {
+          const completedCardSnapshot: ClassroomCard = {
+            ...card,
+            id: cardId,
+            status: 'completed' as const,
+            rental: roomOnlyAmt > 0 ? roomOnlyAmt : totalPaid,
+            catering: effectiveCatering,
+            printingCharges: effectivePrinting,
+            actualAttendees: checkoutData?.attendeesCount ?? (card as any)?.actualAttendees ?? null,
+            depositAmount: totalPaid,
+            paymentMode: payMethodStr === 'package' ? 'package' : 'cash',
+            elapsed: card.elapsed || `${card.durationHours || 2}h session`,
+            timeAlertStatus: 'normal' as const
+          } as any;
+          (completedCardSnapshot as any).checkedOutAt = new Date().toLocaleTimeString(this.langService.isArabic() ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+          (completedCardSnapshot as any).checkedOutByStaffName = currentUser?.name || (currentUser as any)?.fullName || (this.langService.isArabic() ? 'الموظف المناوب' : 'Staff');
+          (completedCardSnapshot as any).paidAmount = totalPaid;
+          (completedCardSnapshot as any).paymentMethod = validPayMethod;
+
+          this.completedSessionsState.update(list => [completedCardSnapshot, ...list.filter(s => s.id !== cardId)]);
         }
 
         // Reset card in memory state
@@ -1201,6 +1251,8 @@ export class ClassroomService {
       instructorId: matchedInsId,
       instructorName: dto.instructorName,
       activity: dto.activity,
+      note: dto.note || dto.notes || null,
+      notes: dto.notes || dto.note || null,
       dateFrom: targetDate ? new Date(targetDate).toISOString() : new Date().toISOString(),
       dateTo: finalDateTo ? new Date(finalDateTo).toISOString() : new Date().toISOString(),
       timeFrom: isoStart,
@@ -1239,7 +1291,8 @@ export class ClassroomService {
           instructorPhone: created.instructorPhone || dto.instructorPhone || dto.phoneNumber || null,
           email: (created as any).email || dto.email || dto.instructorEmail || null,
           instructorEmail: (created as any).email || dto.instructorEmail || dto.email || null,
-          notes: dto.notes || dto.note || null,
+          notes: created.note || (created as any).notes || dto.notes || dto.note || null,
+          note: created.note || (created as any).notes || dto.note || dto.notes || null,
           activity: created.activity || dto.activity || 'Classroom Reservation',
           classroom: created.roomName || dto.roomName || roomMatch?.name || 'Hall',
           capacity: roomMatch?.maxCapacity || 20,
@@ -1294,6 +1347,8 @@ export class ClassroomService {
       dateTo: dto.dateTo ? new Date(dto.dateTo).toISOString() : undefined,
       timeFrom: isoStart,
       timeTo: isoEnd,
+      note: dto.note || dto.notes || null,
+      notes: dto.notes || dto.note || null,
       recurrenceFrequency: dto.recurrenceFrequency,
       recurrenceInterval: dto.recurrenceInterval,
       daysOfWeek: dto.daysOfWeek,
@@ -1732,7 +1787,13 @@ export class ClassroomService {
    * POST /api/Reservations/check-conflict
    */
   checkReservationConflict(payload: CheckReservationConflictDto): Observable<ReservationConflictCheckResultDto> {
-    return this.reservationApi.checkConflict(payload);
+    const rawExclude = payload.excludeReservationId ? payload.excludeReservationId.split('_')[0].trim() : undefined;
+    const validExcludeId = rawExclude && /^[0-9a-fA-F-]{36}$/.test(rawExclude) ? rawExclude : undefined;
+
+    return this.reservationApi.checkConflict({
+      ...payload,
+      excludeReservationId: validExcludeId
+    });
   }
 
   /**

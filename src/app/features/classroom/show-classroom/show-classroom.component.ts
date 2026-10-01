@@ -83,7 +83,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
 
   // Search & Filter Signals
   searchQuery = signal('');
-  selectedStatus = signal<'all' | 'active' | 'available'>('all');
+  selectedStatus = signal<'all' | 'active' | 'available' | 'completed'>('all');
   selectedDate = signal<'today' | 'week'>('today');
   selectedDateOption = signal<DateFilterOption>('today');
   customDateValue = signal('');
@@ -91,14 +91,27 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   statusOptions = computed<SelectOption[]>(() => [
     { label: this.t().statusAll, value: 'all' },
     { label: this.t().statusActiveDropdown, value: 'active' },
-    { label: this.t().statusAvailableDropdown, value: 'available' }
+    { label: this.t().statusAvailableDropdown, value: 'available' },
+    { label: this.isArabic() ? 'المكتملة اليوم' : 'Completed Today', value: 'completed' }
   ]);
 
   allCards = this.classroomService.cards;
+  completedSessions = this.classroomService.completedClassroomSessions;
 
   filteredCards = computed(() => {
     const q = this.searchQuery().toLowerCase().trim();
     const status = this.selectedStatus();
+
+    // If viewing completed sessions
+    if (status === 'completed') {
+      const comp = this.completedSessions();
+      if (!q) return comp;
+      return comp.filter(card =>
+        (card.name || '').toLowerCase().includes(q) ||
+        (card.instructor || '').toLowerCase().includes(q) ||
+        (card.activity || '').toLowerCase().includes(q)
+      );
+    }
 
     const cards = this.allCards();
     const rooms = this.selectableRooms();
@@ -111,8 +124,6 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     // COMPLETED sessions are excluded from the live classroom board so finished rooms become available
     const activeOrScheduledCards = cards.filter(card => {
       if (card.status !== 'active' && card.status !== 'scheduled') return false;
-      // Active sessions currently ongoing MUST ALWAYS be displayed on the live board!
-      if (card.status === 'active') return true;
 
       if (dateOpt === 'today') {
         const isToday = !card.bookingDate ||
@@ -184,6 +195,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   bookingActivity = signal('');
   bookingPhone = signal('');
   bookingEmail = signal('');
+  bookingNotes = signal('');
   bookingHourlyRate = signal<number>(0);
   bookingPrintingCharges = signal<number>(0);
   bookingDate = signal('');
@@ -568,21 +580,24 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     this.appliedCoupon.set(null);
     this.couponError.set('');
 
+    const availableRooms = this.selectableRooms().filter(r => !this.isRoomCurrentlyOccupied(r));
+    const targetRooms = availableRooms.length > 0 ? availableRooms : this.selectableRooms();
+
     if (roomName) {
       const match = this.selectableRooms().find(r => r.name.toLowerCase() === roomName.toLowerCase());
-      if (match) {
+      if (match && !this.isRoomCurrentlyOccupied(match)) {
         this.selectedRoomId.set(match.id);
         this.bookingHourlyRate.set(match.hourlyRate);
-      } else if (this.selectableRooms().length > 0) {
-        const firstRoom = this.selectableRooms()[0];
+      } else if (targetRooms.length > 0) {
+        const firstRoom = targetRooms[0];
         this.selectedRoomId.set(firstRoom.id);
         this.bookingHourlyRate.set(firstRoom.hourlyRate);
       }
-    } else if (this.selectableRooms().length > 0) {
+    } else if (targetRooms.length > 0) {
       const current = this.selectedRoomId();
-      const match = this.selectableRooms().find(r => r.id === current);
+      const match = targetRooms.find(r => r.id === current);
       if (!match) {
-        const firstRoom = this.selectableRooms()[0];
+        const firstRoom = targetRooms[0];
         this.selectedRoomId.set(firstRoom.id);
         this.bookingHourlyRate.set(firstRoom.hourlyRate);
       } else {
@@ -594,6 +609,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     this.bookingActivity.set('');
     this.bookingPhone.set('');
     this.bookingEmail.set('');
+    this.bookingNotes.set('');
     this.bookingPrintingCharges.set(0);
     this.bookingDate.set(this.todayDate());
     this.setStartTimeToNow();
@@ -607,6 +623,84 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
 
     this.isBookingModalOpen.set(true);
     document.body.style.overflow = 'hidden';
+  }
+
+  /**
+   * Add 1 extra hour to an active classroom session (Quick Extend)
+   */
+  addHourToCard(card: ClassroomCard): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تمديد وقت الجلسة' : 'Extend Session')) {
+      return;
+    }
+    if (!card || !card.id || card.status !== 'active') return;
+
+    const currentDuration = card.durationHours || 2;
+    const newDuration = currentDuration + 1;
+
+    let newEndTime = card.endTime;
+    if (card.startTime && card.startTime !== '-') {
+      const startMins = this.classroomService.parseTimeToMinutes(card.startTime);
+      const newEndMins = (startMins + Math.round(newDuration * 60)) % (24 * 60);
+      newEndTime = this.classroomService.convertMinutesTo12h(newEndMins);
+    } else if (card.endTime && card.endTime !== '-') {
+      const endMins = this.classroomService.parseTimeToMinutes(card.endTime);
+      const newEndMins = (endMins + 60) % (24 * 60);
+      newEndTime = this.classroomService.convertMinutesTo12h(newEndMins);
+    }
+
+    const rate = card.hourlyRate || 0;
+    const newRental = +(newDuration * rate).toFixed(2);
+
+    const updatedCard: ClassroomCard = {
+      ...card,
+      durationHours: newDuration,
+      endTime: newEndTime,
+      rental: newRental > 0 ? newRental : card.rental
+    };
+
+    this.classroomService.updateCard(updatedCard).subscribe({
+      next: () => {
+        this.workspaceService.showToast(
+          this.isArabic()
+            ? `تم تمديد وقت قاعة (${card.name}) ساعة إضافية (حتى ${newEndTime})`
+            : `Added +1 hour to ${card.name} session (until ${newEndTime})`,
+          'success'
+        );
+        this.classroomService.loadClassrooms().subscribe();
+      },
+      error: (err: any) => {
+        console.error('Failed to extend session hour:', err);
+        this.workspaceService.showToast(
+          this.isArabic() ? 'فشل تمديد وقت الجلسة' : 'Failed to extend session',
+          'error'
+        );
+      }
+    });
+  }
+
+  /**
+   * Extend modal scheduled end time by +1 hour
+   */
+  extendBookingModalByOneHour(): void {
+    let h = parseInt(this.endHour(), 10);
+    if (isNaN(h) || h < 1 || h > 12) h = 12;
+    let period = this.endPeriod();
+
+    if (h === 11) {
+      h = 12;
+      period = period === 'AM' ? 'PM' : 'AM';
+    } else if (h === 12) {
+      h = 1;
+    } else {
+      h = h + 1;
+    }
+
+    this.endHour.set(String(h).padStart(2, '0'));
+    this.endPeriod.set(period);
+    this.workspaceService.showToast(
+      this.isArabic() ? 'تمت إضافة ساعة إضافية للمدة (+1 ساعة)' : 'Added +1 hour to scheduled duration',
+      'info'
+    );
   }
 
   openEditBookingModal(card: ClassroomCard): void {
@@ -666,6 +760,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     this.bookingActivity.set(resolvedActivity);
     this.bookingPhone.set(resolvedPhone);
     this.bookingEmail.set(resolvedEmail);
+    this.bookingNotes.set(card.notes || card.note || (cachedMeta as any)?.notes || (cachedMeta as any)?.note || '');
     this.bookingPrintingCharges.set(card.printingCharges || 0);
     this.bookingDate.set(card.bookingDate || this.todayDate());
 
@@ -728,12 +823,55 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     document.body.style.overflow = '';
   }
 
+  /** Check if a room currently has an active classroom session right now */
+  isRoomCurrentlyOccupied(room: { id: string; name: string }): boolean {
+    const cards = this.classroomService.cards();
+    const cleanName = (room.name || '').trim().toLowerCase();
+    const cleanId = (room.id || '').trim().toLowerCase();
+    const editingId = this.editingCardId();
+
+    return cards.some(c => {
+      if (c.status !== 'active') return false;
+      if (editingId && c.id === editingId) return false;
+      const cName = (c.name || '').trim().toLowerCase();
+      const cRoomId = (c.roomId || '').trim().toLowerCase();
+      return (cleanId && cRoomId && cRoomId === cleanId) ||
+             (cleanName && cName && (cName === cleanName || cName.includes(cleanName) || cleanName.includes(cName)));
+    });
+  }
+
+  /** Get occupant name for occupied room */
+  getRoomOccupantName(room: { id: string; name: string }): string {
+    const cards = this.classroomService.cards();
+    const cleanName = (room.name || '').trim().toLowerCase();
+    const cleanId = (room.id || '').trim().toLowerCase();
+    const activeCard = cards.find(c => {
+      if (c.status !== 'active') return false;
+      const cName = (c.name || '').trim().toLowerCase();
+      const cRoomId = (c.roomId || '').trim().toLowerCase();
+      return (cleanId && cRoomId && cRoomId === cleanId) ||
+             (cleanName && cName && (cName === cleanName || cName.includes(cleanName) || cleanName.includes(cName)));
+    });
+    return activeCard?.instructor || activeCard?.activity || (this.isArabic() ? 'مشغولة حالياً' : 'Occupied');
+  }
+
   selectRoom(roomId: string): void {
-    this.selectedRoomId.set(roomId);
     const room = this.selectableRooms().find(r => r.id === roomId);
-    if (room) {
-      this.bookingHourlyRate.set(room.hourlyRate);
+    if (!room) return;
+
+    if (this.isRoomCurrentlyOccupied(room)) {
+      const occupant = this.getRoomOccupantName(room);
+      this.workspaceService.showToast(
+        this.isArabic()
+          ? `القاعة "${room.name}" مشغولة حالياً (${occupant}) ولا يمكن حجزها الآن`
+          : `Room "${room.name}" is currently occupied (${occupant}) and cannot be booked right now`,
+        'error'
+      );
+      return;
     }
+
+    this.selectedRoomId.set(roomId);
+    this.bookingHourlyRate.set(room.hourlyRate);
   }
 
   toggleDiscount(): void {
@@ -1674,6 +1812,8 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
           instructor: instructorName || existing.instructor,
           phone: this.bookingPhone() || existing.phone,
           email: this.bookingEmail() || existing.email,
+          note: this.bookingNotes().trim() || undefined,
+          notes: this.bookingNotes().trim() || undefined,
           paymentMode: paymentModeToSave,
           packageName: isPkg && pkg ? (this.isArabic() ? pkg.packageNameAr : pkg.packageNameEn) : undefined,
           packageCoveredHours: coveredHours,
@@ -1705,6 +1845,8 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
         instructor: instructorName || 'Instructor',
         phone: this.bookingPhone(),
         email: this.bookingEmail(),
+        note: this.bookingNotes().trim() || undefined,
+        notes: this.bookingNotes().trim() || undefined,
         paymentMode: paymentModeToSave,
         packageName: isPkg && pkg ? (this.isArabic() ? pkg.packageNameAr : pkg.packageNameEn) : undefined,
         packageCoveredHours: coveredHours,

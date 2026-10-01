@@ -64,7 +64,8 @@ export class AuthService {
       const refreshToken = localStorage.getItem(AuthService.REFRESH_KEY);
       const userJson = localStorage.getItem(AuthService.USER_KEY);
 
-      if (token && !this.isJwtExpired(token)) {
+      // Keep user logged in if token, refreshToken, or user profile exists
+      if (token || refreshToken || userJson) {
         this.accessToken = token;
         this.refreshToken = refreshToken;
         if (userJson) {
@@ -75,18 +76,18 @@ export class AuthService {
             // malformed user json
           }
         }
-      } else {
-        this.clearAuthState();
       }
     } catch {
-      this.clearAuthState();
+      // Do not clear tokens on read error
     }
   }
 
   /** Check if user is currently authenticated */
   isAuthenticated(): boolean {
     const token = this.getToken();
-    return !!(this.currentUser() && token);
+    const refresh = this.getRefreshToken();
+    const user = this.currentUser();
+    return !!(user && (token || refresh));
   }
 
   /** Get the current user object */

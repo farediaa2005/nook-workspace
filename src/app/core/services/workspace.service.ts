@@ -1620,7 +1620,11 @@ export class WorkspaceService {
     const formattedTime = parseIsoOrTimeToDisplay(timeStr, dto.date);
 
     let calculatedDuration = '0h 00m';
-    if (dto.timeFrom && dto.timeTo) {
+    if (isAct && (formattedTime || timeStr)) {
+      // Active sessions: duration is the actual elapsed time from check-in until now
+      calculatedDuration = calculateSessionDuration(formattedTime || timeStr, undefined, dto.date);
+    } else if (dto.timeFrom && dto.timeTo) {
+      // Completed sessions: duration between check-in and check-out
       calculatedDuration = calculateSessionDuration(dto.timeFrom, dto.timeTo, dto.date, dto.date);
     } else if (dto.spentHours || dto.hours) {
       const hrs = Number(dto.spentHours || dto.hours);
@@ -1631,8 +1635,8 @@ export class WorkspaceService {
     } else if (dto.totalCost && dto.totalCost > 0) {
       const estimatedMins = Math.round((dto.totalCost / 30) * 60);
       calculatedDuration = formatMinutesToDuration(Math.max(15, estimatedMins));
-    } else if (timeStr && isAct) {
-      calculatedDuration = calculateSessionDuration(timeStr, undefined, dto.date);
+    } else if (formattedTime || timeStr) {
+      calculatedDuration = calculateSessionDuration(formattedTime || timeStr, undefined, dto.date);
     } else {
       calculatedDuration = '1h 00m';
     }
@@ -1661,7 +1665,8 @@ export class WorkspaceService {
       notes: profile?.notes || dto.notes || (dto.note && dto.note !== '-' ? dto.note : '') || (student as any)?.notes || '',
       date: sessionDate,
       checkInTime: formattedTime,
-      checkOutTime: checkoutTimeStr,
+      checkOutTime: !isAct ? checkoutTimeStr : undefined,
+      expectedCheckout: isAct ? checkoutTimeStr : undefined,
       duration: calculatedDuration,
       cost: dto.totalCost ?? dto.sessionPrice ?? 0,
       billingType: (dto.billingType === 'Package' || dto.type === 2 ? 'package' : dto.billingType === 'Coupon' || dto.type === 3 ? 'coupon' : 'new-session'),

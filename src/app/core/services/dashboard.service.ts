@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { forkJoin, catchError, of, finalize } from 'rxjs';
 import { LanguageService } from './language.service';
-import { WorkspaceService } from './workspace.service';
+import { WorkspaceService, calculateSessionDuration } from './workspace.service';
 import { CateringService } from './catering.service';
 import { ClassroomService } from './classroom.service';
 import { SettingsService } from './settings.service';
@@ -547,13 +547,18 @@ export class DashboardService {
   readonly activeStudentsPreview = computed<ActiveStudentPreviewItem[]>(() => {
     const real = this.workspaceService.activeStudents();
     if (real.length > 0) {
-      return real.map(st => ({
-        id: st.id,
-        name: this.langService.formatNameLocale(st.name),
-        spaceOrFaculty: st.faculty || st.college || this.t().sharedSpace,
-        checkInTime: this.langService.formatTimeLocale(st.checkInTime || '-'),
-        duration: this.langService.formatDurationLocale(st.duration || '-')
-      }));
+      return real.map(st => {
+        const liveDur = (st.status === 'active' || !st.checkOutTime) && st.checkInTime
+          ? calculateSessionDuration(st.checkInTime, undefined, st.date)
+          : (st.duration || '-');
+        return {
+          id: st.id,
+          name: this.langService.formatNameLocale(st.name),
+          spaceOrFaculty: st.faculty || st.college || this.t().sharedSpace,
+          checkInTime: this.langService.formatTimeLocale(st.checkInTime || '-'),
+          duration: this.langService.formatDurationLocale(liveDur)
+        };
+      });
     }
     return [];
   });

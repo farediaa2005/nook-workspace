@@ -14,7 +14,15 @@ export class App {
   constructor() {
     if (typeof window !== 'undefined') {
       try {
-        const allowedKeys = new Set(['nook_token', 'nook_refresh_token', 'nook_user', 'nook_theme', 'nook_lang']);
+        const allowedKeys = new Set([
+          'nook_access_token',
+          'nook_token',
+          'nook_refresh_token',
+          'nook_user_data',
+          'nook_user',
+          'nook_theme',
+          'nook_lang'
+        ]);
         Object.keys(localStorage).forEach(key => {
           if (key.startsWith('nook_') && !allowedKeys.has(key)) {
             localStorage.removeItem(key);

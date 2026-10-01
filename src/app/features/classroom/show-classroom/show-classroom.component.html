@@ -127,6 +127,18 @@
         <!-- Activity / Subject -->
         <p class="room-activity">{{ formatActivity(card.activity) }}</p>
 
+        @if (card.note || card.notes) {
+          <div class="card-notes-preview" [title]="card.note || card.notes">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-note-icon">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+            <span class="card-notes-text">{{ card.note || card.notes }}</span>
+          </div>
+        }
+
         <!-- Metadata Details -->
         <div class="room-meta-group">
           <!-- Instructor -->
@@ -188,6 +200,13 @@
 
         <!-- Action Buttons -->
         <div class="card-actions">
+          <button type="button" class="action-btn action-btn--extend" (click)="addHourToCard(card)" [title]="isArabic() ? 'تمديد الجلسة ساعة إضافية' : 'Add 1 hour'">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span>+1 {{ isArabic() ? 'ساعة' : 'hr' }}</span>
+          </button>
           <button type="button" class="action-btn action-btn--ghost" (click)="openEditBookingModal(card)">
             {{ t().edit }}
           </button>
@@ -224,6 +243,100 @@
     </div>
     }
   </div>
+
+  <!-- ============================================================
+       TODAY'S COMPLETED CLASSROOM SESSIONS LEDGER
+       (الحاجات اللي خلصت النهارده علشان نعرف مين حضر طوال اليوم)
+       ============================================================ -->
+  @if (completedSessions().length > 0) {
+  <section class="completed-sessions-section" style="margin-top: 36px;">
+    <div class="completed-section-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(16, 185, 129, 0.12); color: #10b981; display: flex; align-items: center; justify-content: center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+        <div>
+          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text);">
+            {{ isArabic() ? 'الجلسات المنتهية اليوم' : 'Today\'s Completed Sessions' }}
+            <span style="font-size: 0.85rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: rgba(16, 185, 129, 0.15); color: #10b981; margin-inline-start: 8px;">
+              {{ completedSessions().length }}
+            </span>
+          </h3>
+          <p style="margin: 2px 0 0; font-size: 0.85rem; color: var(--text-secondary, #64748b);">
+            {{ isArabic() ? 'سجل القاعات والجلسات التي تم إنهاء وقتها وتسجيل مغادرتها خلال اليوم' : 'Log of sessions checked out today across all rooms' }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="completed-table-card" style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);">
+      <div style="overflow-x: auto;">
+        <table class="completed-sessions-table" style="width: 100%; border-collapse: collapse; text-align: start; font-size: 0.9rem;">
+          <thead>
+            <tr style="background: var(--surface-2, rgba(0,0,0,0.03)); border-bottom: 1px solid var(--border); color: var(--text-secondary, #64748b); font-weight: 600; font-size: 0.82rem; text-transform: uppercase;">
+              <th style="padding: 12px 18px; text-align: start;">{{ isArabic() ? 'القاعة' : 'Room' }}</th>
+              <th style="padding: 12px 18px; text-align: start;">{{ isArabic() ? 'المحاضر / النشاط' : 'Instructor / Activity' }}</th>
+              <th style="padding: 12px 18px; text-align: start;">{{ isArabic() ? 'الوقت' : 'Time' }}</th>
+              <th style="padding: 12px 18px; text-align: start;">{{ isArabic() ? 'الحضور' : 'Attendees' }}</th>
+              <th style="padding: 12px 18px; text-align: start;">{{ isArabic() ? 'المسؤول والمغادرة' : 'Staff & Checkout' }}</th>
+              <th style="padding: 12px 18px; text-align: start;">{{ isArabic() ? 'المبلغ المدفوع' : 'Paid Amount' }}</th>
+              <th style="padding: 12px 18px; text-align: center;">{{ isArabic() ? 'الحالة' : 'Status' }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (session of completedSessions(); track session.id) {
+            <tr style="border-bottom: 1px solid var(--border); transition: background 0.15s ease;">
+              <td style="padding: 14px 18px; font-weight: 700; color: var(--text);">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
+                  <span>{{ session.name }}</span>
+                </div>
+              </td>
+              <td style="padding: 14px 18px;">
+                <div style="font-weight: 600; color: var(--text);">{{ session.instructor || '-' }}</div>
+                <div style="font-size: 0.8rem; color: var(--text-secondary, #64748b);">{{ session.activity || '-' }}</div>
+              </td>
+              <td style="padding: 14px 18px; color: var(--text); font-variant-numeric: tabular-nums;">
+                <div>{{ session.startTime }} - {{ session.endTime }}</div>
+                <div style="font-size: 0.78rem; color: var(--text-secondary, #64748b);">{{ session.durationHours || 2 }} {{ isArabic() ? 'ساعات' : 'hrs' }}</div>
+              </td>
+              <td style="padding: 14px 18px; color: var(--text);">
+                {{ session.actualAttendees || '-' }} {{ isArabic() ? 'حاضر' : 'attended' }}
+              </td>
+              <td style="padding: 14px 18px;">
+                <div style="font-size: 0.85rem; color: var(--text); font-weight: 600;">
+                  {{ session.checkedOutByStaffName || session.createdByStaffName || '-' }}
+                </div>
+                @if (session.checkedOutAt) {
+                  <div style="font-size: 0.78rem; color: var(--text-secondary, #64748b);">
+                    {{ isArabic() ? 'مغادرة: ' : 'Out: ' }}{{ session.checkedOutAt }}
+                  </div>
+                }
+              </td>
+              <td style="padding: 14px 18px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums;">
+                {{ session.paidAmount || session.rental || 0 }} {{ t().currency }}
+                <div style="font-size: 0.78rem; font-weight: 500; color: var(--text-secondary, #64748b);">
+                  {{ session.paymentMethod || session.paymentMode || 'cash' }}
+                </div>
+              </td>
+              <td style="padding: 14px 18px; text-align: center;">
+                <span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.25);">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  {{ isArabic() ? 'مكتمل' : 'Completed' }}
+                </span>
+              </td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+  }
 </div>
 
 <!-- ============================================================
@@ -373,6 +486,21 @@
               }
             </div>
           </div>
+
+          <!-- Notes / ملاحظات -->
+          <div class="field-wrap" style="margin-top: 12px;">
+            <label class="field-label">{{ isArabic() ? 'ملاحظات وتفاصيل إضافية' : 'Notes / Additional Details' }}</label>
+            <div class="input-container">
+              <textarea
+                class="custom-input custom-textarea"
+                rows="2"
+                [placeholder]="isArabic() ? 'أدخل أي ملاحظات خاصة بالحجز (تجهيزات، طلبات...)' : 'Enter any special notes...'"
+                [ngModel]="bookingNotes()"
+                (ngModelChange)="bookingNotes.set($event)"
+                style="resize: vertical; min-height: 52px; padding-top: 8px; font-family: inherit;"
+              ></textarea>
+            </div>
+          </div>
         </div>
 
         <!-- Section 2: Timing & Schedule -->
@@ -435,7 +563,16 @@
 
             <!-- End Time -->
             <div class="field-wrap">
-              <label class="field-label">{{ t().endTime }}</label>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                <label class="field-label" style="margin-bottom: 0;">{{ t().endTime }}</label>
+                <button type="button" class="btn-extend-hour" (click)="extendBookingModalByOneHour()">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  <span>+1 {{ isArabic() ? 'ساعة إضافية' : 'Extra Hour' }}</span>
+                </button>
+              </div>
               <div class="time-picker-box"
                 [class.time-picker-box--invalid]="!isTimeRangeValid() && bookingStartTime() && bookingEndTime()">
                 <svg class="time-box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -583,14 +720,39 @@
 
           <div class="room-select-grid">
             @for (r of selectableRooms(); track r.id) {
-            <div class="room-thumb-card" [class.room-thumb-card--active]="selectedRoomId() === r.id"
+            <div class="room-thumb-card" 
+              [class.room-thumb-card--active]="selectedRoomId() === r.id"
+              [class.room-thumb-card--occupied]="isRoomCurrentlyOccupied(r)"
+              [class.room-thumb-card--disabled]="isRoomCurrentlyOccupied(r)"
+              [title]="isRoomCurrentlyOccupied(r) ? ((isArabic() ? 'مشغولة حالياً: ' : 'Occupied: ') + getRoomOccupantName(r)) : (isArabic() ? (r.nameAr || r.name) : (r.nameEn || r.name))"
               (click)="selectRoom(r.id)">
               <div class="room-thumb-media">
                 <img [src]="getRoomImage(r.image)" (error)="onImageError($event)" [alt]="r.name" class="room-thumb-img" loading="lazy" />
+                @if (isRoomCurrentlyOccupied(r)) {
+                  <span class="room-thumb-occupied-tag">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 10px; height: 10px;">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="8" x2="12" y2="12"></line>
+                      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    {{ isArabic() ? 'مشغولة حالياً' : 'Occupied' }}
+                  </span>
+                }
+                @if (selectedRoomId() === r.id) {
+                  <div class="room-thumb-check-badge">
+                    <svg viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                  </div>
+                }
               </div>
               <div class="room-thumb-info">
                 <strong class="room-thumb-name">{{ isArabic() ? (r.nameAr || r.name) : (r.nameEn || r.name) }}</strong>
-                <span class="room-thumb-capacity">MAX {{ r.maxCapacity }}</span>
+                @if (isRoomCurrentlyOccupied(r)) {
+                  <span class="room-thumb-occupant" [title]="getRoomOccupantName(r)">{{ getRoomOccupantName(r) }}</span>
+                } @else {
+                  <span class="room-thumb-capacity">MAX {{ r.maxCapacity }}</span>
+                }
               </div>
             </div>
             }

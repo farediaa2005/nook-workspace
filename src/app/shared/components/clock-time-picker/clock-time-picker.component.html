@@ -1,0 +1,165 @@
+<div class="clock-picker-overlay" [class.dark-theme]="isDark()" (click)="cancel()">
+  <div class="clock-picker-dialog" [class.dark-theme]="isDark()" (click)="$event.stopPropagation()" [class.rtl]="isArabic()" [dir]="isArabic() ? 'rtl' : 'ltr'">
+    
+    <!-- Dialog Header -->
+    <div class="clock-picker-header">
+      <div class="header-title-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="header-icon">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        <h3 class="header-title">{{ isArabic() ? 'تحديد وقت الحجز' : 'Select Reservation Time' }}</h3>
+      </div>
+      <button type="button" class="btn-dialog-close" (click)="cancel()" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Range Target Tabs (Start Time vs End Time) -->
+    @if (isRange()) {
+      <div class="range-tabs-bar">
+        <button type="button" class="range-tab-btn" [class.range-tab-btn--active]="activeTarget() === 'start'" (click)="setTarget('start')">
+          <span class="range-tab-dot range-tab-dot--start"></span>
+          <div class="range-tab-info">
+            <span class="range-tab-label">{{ isArabic() ? 'وقت البدء' : 'Start Time' }}</span>
+            <span class="range-tab-value">{{ formattedStart() }}</span>
+          </div>
+        </button>
+
+        <div class="range-tab-divider">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="range-arrow-icon">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </div>
+
+        <button type="button" class="range-tab-btn" [class.range-tab-btn--active]="activeTarget() === 'end'" (click)="setTarget('end')">
+          <span class="range-tab-dot range-tab-dot--end"></span>
+          <div class="range-tab-info">
+            <span class="range-tab-label">{{ isArabic() ? 'وقت الانتهاء' : 'End Time' }}</span>
+            <span class="range-tab-value">{{ formattedEnd() }}</span>
+          </div>
+        </button>
+      </div>
+
+      <!-- Duration & Rate Pill -->
+      <div class="duration-pill-bar">
+        <span class="duration-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="badge-icon">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <strong>{{ durationDisplayText() }}</strong>
+        </span>
+
+        @if (hourlyRate() > 0) {
+          <span class="cost-estimate-badge">
+            {{ isArabic() ? 'التكلفة التقديرية:' : 'Est. Cost:' }}
+            <strong>{{ durationHours() * hourlyRate() }} {{ isArabic() ? 'ج.م' : 'EGP' }}</strong>
+          </span>
+        }
+      </div>
+
+      <!-- Quick Duration Preset Chips -->
+      <div class="duration-presets-bar">
+        <div class="presets-header">
+          <span class="presets-label">{{ isArabic() ? 'خيارات مدة سريعة:' : 'Quick Duration Presets:' }}</span>
+        </div>
+        <div class="preset-chips-scroll">
+          @for (preset of durationPresets; track preset.mins) {
+            <button type="button" class="preset-chip-btn" (click)="applyPreset(preset.mins)">
+              +{{ isArabic() ? preset.labelAr : preset.labelEn }}
+            </button>
+          }
+          <button type="button" class="preset-chip-btn preset-chip-btn--now" (click)="setToNow()">
+            {{ isArabic() ? 'الآن' : 'Now' }}
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- Digital Readout & Mode Switcher -->
+    <div class="digital-display-card">
+      <div class="digital-time-box">
+        <button type="button" class="time-digit-btn" [class.time-digit-btn--active]="pickerMode() === 'hours'" (click)="setPickerMode('hours')">
+          {{ currentHour() < 10 ? '0' + currentHour() : currentHour() }}
+        </button>
+        <span class="time-digit-colon">:</span>
+        <button type="button" class="time-digit-btn" [class.time-digit-btn--active]="pickerMode() === 'minutes'" (click)="setPickerMode('minutes')">
+          {{ currentMinute() < 10 ? '0' + currentMinute() : currentMinute() }}
+        </button>
+      </div>
+
+      <!-- AM / PM Pill -->
+      <div class="period-pill-group">
+        <button type="button" class="period-btn" [class.period-btn--active]="currentPeriod() === 'AM'" (click)="togglePeriod('AM')">
+          {{ isArabic() ? 'ص (AM)' : 'AM' }}
+        </button>
+        <button type="button" class="period-btn" [class.period-btn--active]="currentPeriod() === 'PM'" (click)="togglePeriod('PM')">
+          {{ isArabic() ? 'م (PM)' : 'PM' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Analog Wall Clock Face -->
+    <div class="clock-face-container">
+      <div class="clock-face-rim">
+        <div #clockFace class="clock-face" (click)="onFaceClick($event)" (mousedown)="onStartDrag($event)" (touchstart)="onStartDrag($event)">
+          
+          <!-- Center Pivot Pin -->
+          <div class="clock-center-pin"></div>
+
+          <!-- Clock Hand -->
+          <div class="clock-hand" [class.clock-hand--dragging]="isDragging()" [style.transform]="'rotate(' + handRotationDeg() + 'deg)'">
+            <div class="clock-hand-line"></div>
+            <div class="clock-hand-selector"></div>
+          </div>
+
+          <!-- Numbers Layer -->
+          @if (pickerMode() === 'hours') {
+            @for (h of hourNumbers; track h) {
+              <div class="clock-number" [class.clock-number--selected]="currentHour() === h" [ngStyle]="getNumberTransform(h, 12)" (click)="$event.stopPropagation(); selectHour(h)">
+                <span>{{ h }}</span>
+              </div>
+            }
+          } @else {
+            @for (m of minuteNumbers; track m.val) {
+              <div class="clock-number clock-number--minute" [class.clock-number--selected]="currentMinute() === m.val" [ngStyle]="getNumberTransform(m.val / 5, 12)" (click)="$event.stopPropagation(); selectMinute(m.val)">
+                <span>{{ m.label }}</span>
+              </div>
+            }
+          }
+        </div>
+      </div>
+
+      <!-- Quick Minute Shortcuts -->
+      <div class="quick-minutes-bar">
+        <button type="button" class="quick-min-btn" [class.quick-min-btn--active]="pickerMode() === 'minutes' && currentMinute() === 0" (click)="selectMinute(0)">:00</button>
+        <button type="button" class="quick-min-btn" [class.quick-min-btn--active]="pickerMode() === 'minutes' && currentMinute() === 15" (click)="selectMinute(15)">:15</button>
+        <button type="button" class="quick-min-btn" [class.quick-min-btn--active]="pickerMode() === 'minutes' && currentMinute() === 30" (click)="selectMinute(30)">:30</button>
+        <button type="button" class="quick-min-btn" [class.quick-min-btn--active]="pickerMode() === 'minutes' && currentMinute() === 45" (click)="selectMinute(45)">:45</button>
+      </div>
+
+      <div class="clock-hint-text">
+        {{ pickerMode() === 'hours' ? (isArabic() ? 'اضغط على الساعة أو اسحب العقرب' : 'Tap hour or drag clock hand') : (isArabic() ? 'اضغط على الدقائق أو اسحب العقرب' : 'Tap minute or drag clock hand') }}
+      </div>
+    </div>
+
+    <!-- Dialog Actions -->
+    <div class="clock-picker-actions">
+      <button type="button" class="btn-picker-cancel" (click)="cancel()">
+        {{ isArabic() ? 'إلغاء' : 'Cancel' }}
+      </button>
+      <button type="button" class="btn-picker-confirm" (click)="confirm()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="confirm-icon">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        <span>{{ isArabic() ? 'تأكيد الموعد' : 'Apply Time' }}</span>
+      </button>
+    </div>
+
+  </div>
+</div>

@@ -85,6 +85,12 @@ export interface ClassroomDto {
   bookingDate?: string;
   startTime?: string;
   endTime?: string;
+  expectedAttendees?: number | null;
+  actualAttendees?: number | null;
+  createdByStaffId?: string | null;
+  createdByStaffName?: string | null;
+  checkedOutByStaffId?: string | null;
+  checkedOutByStaffName?: string | null;
   createdAt?: string;
 }
 
@@ -432,6 +438,14 @@ export interface ClassroomCard {
   depositAmount?: number;
   hasWifi?: boolean;
   wifiCost?: number;
+  actualAttendees?: number | null;
+  paidAmount?: number;
+  paymentMethod?: ClassroomPaymentMethod | string;
+  checkedOutAt?: string;
+  checkedOutByStaffName?: string;
+  createdByStaffName?: string;
+  note?: string;
+  notes?: string;
 }
 
 /** Selectable Room definition for Booking forms */
@@ -531,6 +545,7 @@ export interface AdminReservation {
   email?: string | null;
   instructorEmail?: string | null;
   notes?: string | null;
+  note?: string | null;
   activity: string;
   classroom: string;
   capacity?: number;
@@ -543,7 +558,9 @@ export interface AdminReservation {
   cost: number;
   discount?: number;
   discountPercent?: number;
-  status: 'active' | 'upcoming' | 'completed' | 'cancelled';
+  status: 'active' | 'upcoming' | 'completed' | 'cancelled' | 'no_show';
+  isCheckedOut?: boolean;
+  checkedOutAt?: string;
   colorTheme: 'yellow' | 'blue' | 'purple' | 'emerald' | 'orange' | 'rose';
   isRecurring?: boolean;
   recurrenceFrequency?: RecurrenceFrequency | number | null;

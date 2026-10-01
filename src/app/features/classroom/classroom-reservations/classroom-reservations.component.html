@@ -5,19 +5,37 @@
 
     <div style="display: flex; align-items: center; gap: 12px; margin-inline-start: auto; flex-wrap: wrap;">
       <div class="date-navigator">
-        <button type="button" class="nav-arrow" (click)="prevDay()" aria-label="Previous day">
+        <button type="button" class="nav-arrow" (click)="prevDay()" [title]="isArabic() ? 'اليوم السابق' : 'Previous day'" aria-label="Previous day">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <polyline points="15 18 9 12 15 6"></polyline>
           </svg>
         </button>
 
-        <span class="nav-date-text">{{ dateDisplayText() }}</span>
+        <div class="nav-date-picker-wrap" (click)="openDatePicker(headerDatePicker)" [title]="isArabic() ? 'اضغط لاختيار أي تاريخ من التقويم' : 'Click to jump to any date'" role="button" tabindex="0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="header-cal-icon">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          <span class="nav-date-text">{{ dateDisplayText() }}</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="header-cal-chevron">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+          <input #headerDatePicker type="date" class="cal-hidden-date-input" [ngModel]="selectedDateISO()" (ngModelChange)="onHeaderDatePicked($event)" />
+        </div>
 
-        <button type="button" class="nav-arrow" (click)="nextDay()" aria-label="Next day">
+        <button type="button" class="nav-arrow" (click)="nextDay()" [title]="isArabic() ? 'اليوم التالي' : 'Next day'" aria-label="Next day">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
         </button>
+
+        @if (!isTodaySelected()) {
+          <button type="button" class="btn-nav-today" (click)="goToToday()" [title]="isArabic() ? 'العودة لتاريخ اليوم' : 'Jump to Today'">
+            {{ isArabic() ? 'اليوم' : 'Today' }}
+          </button>
+        }
       </div>
 
       <app-primary-button (clicked)="openNewReservationModal()">
@@ -30,55 +48,179 @@
     </div>
   </header>
 
-  <!-- 1. Schedule Calendar Grid Section (Full 24 Hours) -->
+  <!-- 1. Schedule Calendar Grid Section (Inverted: Time on Top, Rooms on Side as in Image 3) -->
   <section class="schedule-card" aria-label="Classroom Schedule Grid">
-    <div class="schedule-scroll-wrap" #scheduleScroll>
+
+    <!-- Quick Time Nav & Scroll Toolbar -->
+    <div class="timeline-quick-bar">
+      <div class="quick-jump-group">
+        <span class="quick-jump-label">{{ isArabic() ? 'انتقال سريع:' : 'Jump to:' }}</span>
+        <button type="button" class="quick-jump-pill" (click)="scrollToHour(8)" [title]="isArabic() ? 'الانتقال للصباح (8:00 ص)' : 'Jump to Morning (8:00 AM)'">
+          <span>{{ isArabic() ? 'الصباح (8 ص)' : 'Morning (8 AM)' }}</span>
+        </button>
+        <button type="button" class="quick-jump-pill" (click)="scrollToHour(12)" [title]="isArabic() ? 'الانتقال للظهيرة (12:00 م)' : 'Jump to Noon (12:00 PM)'">
+          <span>{{ isArabic() ? 'الظهيرة (12 م)' : 'Noon (12 PM)' }}</span>
+        </button>
+        <button type="button" class="quick-jump-pill" (click)="scrollToHour(17)" [title]="isArabic() ? 'الانتقال للمساء (5:00 م)' : 'Jump to Evening (5:00 PM)'">
+          <span>{{ isArabic() ? 'المساء (5 م)' : 'Evening (5 PM)' }}</span>
+        </button>
+        <button type="button" class="quick-jump-pill pill-now" (click)="scrollToCurrentTime()" [title]="isArabic() ? 'الانتقال للوقت الحالي' : 'Jump to Current Time'">
+          <span class="pulse-dot"></span>
+          <span>{{ isArabic() ? 'الوقت الحالي' : 'Current Time' }}</span>
+        </button>
+      </div>
+
+      <div class="quick-scroll-group">
+        <button type="button" class="timeline-step-btn" (click)="scrollStep('prev')" [title]="isArabic() ? 'تمرير للخلف (3 ساعات)' : 'Scroll 3 hours backward'">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+          <span>{{ isArabic() ? 'السابق' : 'Earlier' }}</span>
+        </button>
+        <button type="button" class="timeline-step-btn" (click)="scrollStep('next')" [title]="isArabic() ? 'تمرير للأمام (3 ساعات)' : 'Scroll 3 hours forward'">
+          <span>{{ isArabic() ? 'التالي' : 'Later' }}</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="schedule-scroll-wrap" #scheduleScroll
+         (wheel)="onScheduleWheel($event)"
+         (mousedown)="onScheduleMouseDown($event)"
+         (mousemove)="onScheduleMouseMove($event)"
+         (mouseup)="onScheduleMouseUp()"
+         (mouseleave)="onScheduleMouseUp()"
+         [class.is-dragging]="isDragging()">
       @if (rooms().length === 0) {
       <div style="padding: 48px 24px; text-align: center; color: var(--text-muted, #94a3b8);">
-        <p style="font-size: 1.05rem; font-weight: 600; margin-bottom: 6px;">{{ isArabic() ? 'لا توجد قاعات مضافة حتى
-          الآن' : 'No classrooms added yet' }}</p>
-        <p style="font-size: 0.875rem;">{{ isArabic() ? 'يمكنك إضافة قاعات جديدة من صفحة الإعدادات أو الضغط على "حجز
-          جديد"' : 'Add classrooms from Settings or click "New Reservation"' }}</p>
+        <p style="font-size: 1.05rem; font-weight: 600; margin-bottom: 6px;">{{ isArabic() ? 'لا توجد قاعات مضافة حتى الآن' : 'No classrooms added yet' }}</p>
+        <p style="font-size: 0.875rem;">{{ isArabic() ? 'يمكنك إضافة قاعات جديدة من صفحة الإعدادات أو الضغط على "حجز جديد"' : 'Add classrooms from Settings or click "New Reservation"' }}</p>
       </div>
       } @else {
-      <div class="schedule-grid-container" [style.--room-count]="rooms().length || 1">
-        <!-- Room Columns Header (Sticky Top) -->
-        <div class="grid-header-row">
-          <div class="grid-cell time-header-cell">{{ t().time }}</div>
-          @for (room of rooms(); track room.id) {
-          <div class="grid-cell room-header-cell">
-            <span class="room-name">{{ room.name }}</span>
+      <div class="timeline-matrix-container">
+        
+        <!-- Timeline Header Row: Corner Month Nav + 24 Hours -->
+        <div class="timeline-header-row">
+          <!-- Top-Left Corner: Navigation with Month & Year (Matching Image 3) -->
+          <div class="timeline-corner-cell">
+            <div class="corner-month-nav">
+              <button type="button" class="corner-nav-btn" (click)="prevDay()" [title]="isArabic() ? 'اليوم السابق' : 'Previous day'">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+              </button>
+              <span class="corner-month-label">{{ monthYearDisplay() }}</span>
+              <button type="button" class="corner-nav-btn" (click)="nextDay()" [title]="isArabic() ? 'اليوم التالي' : 'Next day'">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </button>
+            </div>
           </div>
-          }
+
+          <!-- Hours Header across the top (Sticky Top) -->
+          <div class="timeline-hours-track">
+            @for (slot of timeSlots; track slot.hour) {
+            <div class="timeline-hour-header-cell" [class.hour-is-business]="slot.hour >= 8 && slot.hour <= 22">
+              <span class="hour-header-text">{{ getTimeSlotLabel(slot) }}</span>
+            </div>
+            }
+          </div>
         </div>
 
-        <!-- Grid Body with Horizontal Time Lines & Columns -->
-        <div class="grid-body">
-          <!-- Background Grid Lines for all 24 Hours (00:00 to 23:00) -->
-          @for (slot of timeSlots; track slot.hour) {
-          <div class="grid-time-row">
-            <div class="grid-cell time-label-cell">
-              <span>{{ slot.timeStr }}</span>
+        <!-- Timeline Grid Body -->
+        <div class="timeline-matrix-body">
+          <!-- Left Axis: Day Column + Room Badge Rows -->
+          <div class="timeline-left-column">
+            <!-- Day of Week & Date Box (Matching Image 3: e.g. Sat 3) -->
+            <div class="timeline-day-box">
+              <div class="day-box-weekday">{{ dayOfWeekDisplay() }}</div>
+              <div class="day-box-number">{{ dayNumberDisplay() }}</div>
             </div>
-            @for (room of rooms(); track room.id) {
-            <div class="grid-cell room-slot-cell"></div>
-            }
-          </div>
-          }
 
-          <!-- Absolute/Positioned Reservation Blocks inside Columns -->
-          <div class="grid-blocks-layer">
-            @for (block of gridBlocks(); track block.reservation.id + '-' + block.reservation.activity) {
-            <div class="reservation-block reservation-block--{{ block.reservation.colorTheme }}"
-              [style.top.px]="block.topPx" [style.height.px]="block.heightPx" [style.left]="block.leftStyle"
-              [style.right]="block.rightStyle" [style.width]="block.widthStyle" (click)="openDetail(block.reservation)"
-              role="button" tabindex="0"
-              [attr.aria-label]="block.reservation.activity + ' by ' + block.reservation.instructor">
-              <div class="block-title">{{ block.reservation.activity }}</div>
-              <div class="block-instructor">{{ block.reservation.instructor }}</div>
+            <!-- Rooms List Stacked Vertically with Badges -->
+            <div class="timeline-rooms-list">
+              @for (room of rooms(); track room.id; let idx = $index) {
+              <div class="timeline-room-badge-cell">
+                <div class="room-color-badge"
+                     [style.background]="getRoomBadgeStyle(idx).bg"
+                     [style.color]="getRoomBadgeStyle(idx).color"
+                     [style.borderColor]="getRoomBadgeStyle(idx).border">
+                  <div class="room-badge-content">
+                    <span class="room-badge-name" [title]="room.name">{{ room.name }}</span>
+                    @if (room.capacity) {
+                      <span class="room-badge-capacity">{{ room.capacity }} {{ isArabic() ? 'مقعد' : 'seats' }}</span>
+                    }
+                  </div>
+                </div>
+              </div>
+              }
+            </div>
+          </div>
+
+          <!-- Main Grid Matrix Area: Rooms Rows x 24 Hours -->
+          <div class="timeline-grid-area">
+            <!-- Current Time Indicator Line (If today is selected) -->
+            @if (isTodaySelected()) {
+            <div class="current-time-marker"
+                 [style.left.px]="isArabic() ? null : currentTimeLeftPx()"
+                 [style.right.px]="isArabic() ? currentTimeLeftPx() : null">
+              <span class="marker-dot"></span>
+              <span class="marker-pill">{{ isArabic() ? 'الآن' : 'Now' }}</span>
             </div>
             }
+
+            <!-- Grid Rows (One per Room) -->
+            @for (room of rooms(); track room.id) {
+            <div class="timeline-grid-room-row">
+              @for (slot of timeSlots; track slot.hour) {
+              <div class="timeline-grid-cell"
+                   [class.cell-off-peak]="slot.hour < 7 || slot.hour > 23"
+                   (click)="onEmptySlotClick(room, slot)"
+                   [title]="room.name + ' - ' + getTimeSlotLabel(slot)">
+              </div>
+              }
+            </div>
+            }
+
+            <!-- Absolute Layer for Positioned Horizontal Reservation Blocks -->
+            <div class="timeline-blocks-layer">
+              @for (block of gridBlocks(); track block.reservation.id + '-' + block.reservation.activity) {
+              <div class="timeline-res-block res-theme--{{ block.reservation.colorTheme }}"
+                [style.top.px]="block.topPx"
+                [style.height.px]="block.heightPx"
+                [style.left]="block.leftStyle"
+                [style.right]="block.rightStyle"
+                [style.width]="block.widthStyle"
+                (click)="openDetail(block.reservation)"
+                role="button"
+                tabindex="0"
+                [attr.aria-label]="block.reservation.activity + ' by ' + block.reservation.instructor">
+                
+                <div class="res-block-info">
+                  <span class="res-block-activity">{{ block.reservation.activity }}</span>
+                  @if (block.durationMinutes >= 60) {
+                    <span class="res-block-instructor">{{ block.reservation.instructor }}</span>
+                  }
+                </div>
+
+                <!-- 3-Dots Action Button matching Image 3 -->
+                <button type="button" class="res-block-dots-btn"
+                        (click)="$event.stopPropagation(); toggleActionMenu(block.reservation.id, $event)"
+                        title="Options">
+                  <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13">
+                    <circle cx="5" cy="12" r="2.2"></circle>
+                    <circle cx="12" cy="12" r="2.2"></circle>
+                    <circle cx="19" cy="12" r="2.2"></circle>
+                  </svg>
+                </button>
+              </div>
+              }
+            </div>
           </div>
+
         </div>
       </div>
       }
@@ -136,6 +278,11 @@
                 <span class="status-dot"></span>
                 <span>{{ isArabic() ? 'ملغي' : 'Cancelled' }}</span>
               </span>
+              } @else if (res.status === 'no_show') {
+              <span class="status-pill status-pill--noshow">
+                <span class="status-dot"></span>
+                <span>{{ isArabic() ? 'لم يحضر' : 'No-Show' }}</span>
+              </span>
               } @else {
               <span class="status-pill status-pill--upcoming">
                 <span class="status-dot"></span>
@@ -163,7 +310,7 @@
                   [style.left]="actionMenuPosition().left !== undefined ? (actionMenuPosition().left + 'px') : 'auto'"
                   [style.right]="actionMenuPosition().right !== undefined ? (actionMenuPosition().right + 'px') : 'auto'"
                   [style.transform-origin]="actionMenuPosition().transformOrigin || 'top right'">
-                  @if (res.status !== 'cancelled' && res.status !== 'completed') {
+                  @if (res.status === 'active' || (res.isClassroomSession && res.status !== 'completed' && res.status !== 'cancelled')) {
                   <button type="button" class="action-menu-btn action-menu-btn--checkout"
                     (click)="onCheckoutReservation(res); closeActionMenu()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -184,7 +331,7 @@
                     <span>{{ t().view }}</span>
                   </button>
 
-                  @if (!res.isClassroomSession && res.status !== 'completed' && res.status !== 'active' && res.status !== 'cancelled') {
+                  @if (canStartReservationSession(res)) {
                   <button type="button" class="action-menu-btn action-menu-btn--success" style="color: #22c55e;"
                     (click)="startSessionFromReservation(res)"
                     [title]="isArabic() ? 'بدء جلسة القاعة الآن' : 'Start Classroom Session Now'">
@@ -205,6 +352,20 @@
                     </svg>
                     <span>{{ t().edit }}</span>
                   </button>
+
+                  @if (res.status !== 'cancelled' && res.status !== 'completed') {
+                  <button type="button" class="action-menu-btn action-menu-btn--warning"
+                    (click)="onCancelFromDetailPanel(res); closeActionMenu()"
+                    [title]="isArabic() ? 'إلغاء الحجز' : 'Cancel Reservation'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                      stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="15" y1="9" x2="9" y2="15"></line>
+                      <line x1="9" y1="9" x2="15" y2="15"></line>
+                    </svg>
+                    <span>{{ isArabic() ? 'إلغاء الحجز' : 'Cancel' }}</span>
+                  </button>
+                  }
 
                   <button type="button" class="action-menu-btn action-menu-btn--info"
                     (click)="duplicateReservation(res); closeActionMenu()" [title]="t().duplicateReservationTitle">
@@ -263,7 +424,9 @@
 
   <app-reservation-detail-panel [isOpen]="isDetailPanelOpen()" [reservation]="selectedReservation()"
     (closePanel)="closeDetailPanel()" (editReservation)="onEditReservation($event)"
+    (cancelReservation)="onCancelFromDetailPanel($event)"
     (checkoutReservation)="onCheckoutReservation($event)"
+    (startSession)="startSessionFromReservation($event)"
     (deleteReservation)="onDeleteFromDetailPanel($event)"></app-reservation-detail-panel>
 
   <!-- 4. ADD / EDIT / DUPLICATE RESERVATION MODAL (CLEAN NOOK UI/UX) -->
@@ -341,6 +504,8 @@
           <div class="room-select-grid">
             @for (r of rooms(); track r.id) {
             <div class="room-thumb-card" [class.room-thumb-card--active]="resRoomName() === r.name"
+              [class.room-thumb-card--occupied]="isRoomCurrentlyOccupied(r) && !(modalMode() === 'edit' && resRoomName() === r.name)"
+              [class.room-thumb-card--disabled]="isRoomCurrentlyOccupied(r) && modalMode() === 'new'"
               (click)="onRoomChange(r.name)">
               <div class="room-thumb-media">
                 <img [src]="r.image || '/images/rooms/room-workshop.jpg'" [alt]="r.name" class="room-thumb-img" />
@@ -351,6 +516,16 @@
                       <circle cx="9" cy="7" r="4"></circle>
                     </svg>
                     {{ r.capacity }} {{ isArabic() ? 'مقعد' : 'seats' }}
+                  </span>
+                }
+                @if (isRoomCurrentlyOccupied(r) && !(modalMode() === 'edit' && resRoomName() === r.name)) {
+                  <span class="room-thumb-occupied-tag">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 11px; height: 11px;">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="8" x2="12" y2="12"></line>
+                      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    {{ isArabic() ? 'مشغولة حالياً' : 'In Use' }}
                   </span>
                 }
                 @if (resRoomName() === r.name) {
@@ -365,7 +540,11 @@
               </div>
               <div class="room-thumb-info">
                 <span class="room-thumb-name">{{ r.name }}</span>
-                <span class="room-thumb-rate">{{ r.hourlyRate || 0 }} {{ isArabic() ? 'ج.م / س' : 'EGP / hr' }}</span>
+                @if (isRoomCurrentlyOccupied(r) && !(modalMode() === 'edit' && resRoomName() === r.name)) {
+                  <span class="room-thumb-occupant">{{ getRoomOccupantName(r) }}</span>
+                } @else {
+                  <span class="room-thumb-rate">{{ r.hourlyRate || 0 }} {{ isArabic() ? 'ج.م / س' : 'EGP / hr' }}</span>
+                }
               </div>
             </div>
             }
@@ -527,8 +706,8 @@
           <div class="calendar-time-recurrence-card">
             <!-- Top Bar: Date chip + Time range chips -->
             <div class="cal-date-time-bar">
-              <!-- Date Chip -->
-              <div class="cal-date-chip" (click)="openDatePicker(resDatePicker)">
+              <!-- Date Chip (Click to Pick Date) -->
+              <div class="cal-date-chip" (click)="openDatePicker(resDatePicker)" [title]="isArabic() ? 'اضغط لتغيير تاريخ الحجز' : 'Click to change reservation date'" role="button" tabindex="0">
                 <span class="cal-chip-text">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="cal-chip-icon">
                     <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
@@ -537,41 +716,25 @@
                     <line x1="3" y1="10" x2="21" y2="10"></line>
                   </svg>
                   <span class="cal-chip-date-text">{{ formattedDateDisplay() }}</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="cal-chip-chevron">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
                 </span>
                 <input #resDatePicker type="date" class="cal-hidden-date-input" [ngModel]="resDate()"
-                  (ngModelChange)="resDate.set($event)" (click)="$event.stopPropagation()" />
+                  (ngModelChange)="onModalDateChange($event)" />
               </div>
 
               @if (!isAllDay()) {
               <div class="cal-time-range-group">
-                <!-- Start Time Input & Chip -->
+                <!-- Start Time Clock Trigger Button -->
                 <div class="cal-time-chip-select-wrap cal-time-chip--start">
-                  <div class="cal-time-input-group" [class.cal-time-input-group--active]="isStartTimeDropdownOpen()">
-                    <input type="text" class="cal-manual-time-input"
-                      [value]="resStartTime() || '09:00 AM'"
-                      (change)="onManualStartTimeInput($any($event.target).value)"
-                      (keydown.enter)="onManualStartTimeInput($any($event.target).value)"
-                      (blur)="onManualStartTimeInput($any($event.target).value)"
-                      placeholder="09:00 AM" />
-                    <button type="button" class="btn-cal-time-picker-toggle"
-                      (click)="$event.stopPropagation(); isStartTimeDropdownOpen.set(!isStartTimeDropdownOpen()); isEndTimeDropdownOpen.set(false)"
-                      title="Select start time">
-                      <svg class="chip-chevron" [class.chip-chevron--open]="isStartTimeDropdownOpen()" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  @if (isStartTimeDropdownOpen()) {
-                  <div class="cal-time-dropdown-menu" (click)="$event.stopPropagation()">
-                    @for (slot of timeSlotOptions(); track slot) {
-                    <button type="button" class="cal-time-opt" [class.cal-time-opt--selected]="resStartTime() === slot"
-                      (click)="selectStartTime(slot)">
-                      {{ slot }}
-                    </button>
-                    }
-                  </div>
-                  }
+                  <button type="button" class="btn-cal-clock-trigger" (click)="openClockPicker('start')" title="{{ isArabic() ? 'اختيار الوقت بساعة الحائط' : 'Pick time via clock dial' }}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="clock-trigger-icon">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <span class="cal-clock-val">{{ resStartTime() || '09:00 AM' }}</span>
+                  </button>
                 </div>
 
                 <span class="cal-time-sep">
@@ -581,35 +744,15 @@
                   </svg>
                 </span>
 
-                <!-- End Time Input & Chip -->
+                <!-- End Time Clock Trigger Button -->
                 <div class="cal-time-chip-select-wrap cal-time-chip--end">
-                  <div class="cal-time-input-group" [class.cal-time-input-group--active]="isEndTimeDropdownOpen()">
-                    <input type="text" class="cal-manual-time-input"
-                      [value]="resEndTime() || '11:00 AM'"
-                      (change)="onManualEndTimeInput($any($event.target).value)"
-                      (keydown.enter)="onManualEndTimeInput($any($event.target).value)"
-                      (blur)="onManualEndTimeInput($any($event.target).value)"
-                      placeholder="11:00 AM" />
-                    <button type="button" class="btn-cal-time-picker-toggle"
-                      (click)="$event.stopPropagation(); isEndTimeDropdownOpen.set(!isEndTimeDropdownOpen()); isStartTimeDropdownOpen.set(false)"
-                      title="Select end time">
-                      <svg class="chip-chevron" [class.chip-chevron--open]="isEndTimeDropdownOpen()" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  @if (isEndTimeDropdownOpen()) {
-                  <div class="cal-time-dropdown-menu" (click)="$event.stopPropagation()">
-                    @for (opt of endTimeSlotOptions(); track opt.time) {
-                    <button type="button" class="cal-time-opt"
-                      [class.cal-time-opt--selected]="resEndTime() === opt.time" (click)="selectEndTime(opt.time)">
-                      <span class="cal-time-val">{{ opt.time }}</span>
-                      <span class="cal-time-dur">{{ opt.durationLabel }}</span>
-                    </button>
-                    }
-                  </div>
-                  }
+                  <button type="button" class="btn-cal-clock-trigger" (click)="openClockPicker('end')" title="{{ isArabic() ? 'اختيار الوقت بساعة الحائط' : 'Pick time via clock dial' }}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="clock-trigger-icon">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <span class="cal-clock-val">{{ resEndTime() || '11:00 AM' }}</span>
+                  </button>
                 </div>
               </div>
               }
@@ -1116,6 +1259,19 @@
   </div>
   }
 
+  <!-- 5. ANALOG CLOCK TIME PICKER MODAL -->
+  @if (isClockPickerOpen()) {
+    <app-clock-time-picker
+      [startTime]="resStartTime()"
+      [endTime]="resEndTime()"
+      [isRange]="true"
+      [hourlyRate]="resHourlyRate()"
+      [isArabic]="isArabic()"
+      (timeConfirmed)="onClockPickerConfirmed($event)"
+      (close)="closeClockPicker()">
+    </app-clock-time-picker>
+  }
+
   <!-- 6. RECURRING EDIT SCOPE SELECTION MODAL -->
   @if (isRecurringEditScopeModalOpen()) {
   <div class="modal-backdrop" (click)="closeRecurringEditScopeModal()">
@@ -1146,19 +1302,19 @@
 
         <div style="display: flex; flex-direction: column; gap: 12px;">
           <label
-            style="display: flex; gap: 12px; padding: 14px 16px; border: 1.5px solid var(--border-color, #334155); border-radius: 12px; cursor: pointer; transition: all 0.2s;"
-            [style.borderColor]="recurringEditScope() === 'single' ? '#f5b921' : 'var(--border-color, #334155)'"
-            [style.background]="recurringEditScope() === 'single' ? 'rgba(245, 185, 33, 0.08)' : 'transparent'">
+            style="display: flex; gap: 12px; padding: 14px 16px; border: 1.5px solid var(--border); border-radius: 12px; cursor: pointer; transition: all 0.2s;"
+            [style.borderColor]="recurringEditScope() === 'single' ? '#f5b921' : 'var(--border)'"
+            [style.background]="recurringEditScope() === 'single' ? 'rgba(245, 185, 33, 0.08)' : 'var(--surface)'">
             <input type="radio" name="editScope" [checked]="recurringEditScope() === 'single'"
               (change)="recurringEditScope.set('single')" style="accent-color: #f5b921; margin-top: 3px;" />
             <div>
-              <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary, #f8fafc);">
+              <div style="font-weight: 700; font-size: 0.95rem; color: var(--text, #0f172a);">
                 {{ isArabic() ? 'تعديل هذا الموعد فقط' : 'This event only' }}
-                <span style="font-size: 0.85rem; color: #f5b921; margin-right: 4px;">({{
+                <span style="font-size: 0.85rem; color: #d97706; margin-right: 4px; font-weight: 800;">({{
                   selectedRecurringEditRes()?.occurrenceDate || selectedRecurringEditRes()?.fullDate }})</span>
               </div>
               <div
-                style="font-size: 0.82rem; color: var(--text-secondary, #94a3b8); margin-top: 4px; line-height: 1.4;">
+                style="font-size: 0.82rem; color: var(--text-dim, #64748b); margin-top: 4px; line-height: 1.4;">
                 {{ isArabic()
                 ? 'سيتم تطبيق التعديلات على هذا اليوم فقط كاستثناء مستقل، مع بقاء باقي مواعيد السلسلة دون أي تغيير.'
                 : 'Changes will only apply to this selected date. The rest of the recurring series remains untouched.'
@@ -1168,17 +1324,17 @@
           </label>
 
           <label
-            style="display: flex; gap: 12px; padding: 14px 16px; border: 1.5px solid var(--border-color, #334155); border-radius: 12px; cursor: pointer; transition: all 0.2s;"
-            [style.borderColor]="recurringEditScope() === 'all' ? '#f5b921' : 'var(--border-color, #334155)'"
-            [style.background]="recurringEditScope() === 'all' ? 'rgba(245, 185, 33, 0.08)' : 'transparent'">
+            style="display: flex; gap: 12px; padding: 14px 16px; border: 1.5px solid var(--border); border-radius: 12px; cursor: pointer; transition: all 0.2s;"
+            [style.borderColor]="recurringEditScope() === 'all' ? '#f5b921' : 'var(--border)'"
+            [style.background]="recurringEditScope() === 'all' ? 'rgba(245, 185, 33, 0.08)' : 'var(--surface)'">
             <input type="radio" name="editScope" [checked]="recurringEditScope() === 'all'"
               (change)="recurringEditScope.set('all')" style="accent-color: #f5b921; margin-top: 3px;" />
             <div>
-              <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary, #f8fafc);">
+              <div style="font-weight: 700; font-size: 0.95rem; color: var(--text, #0f172a);">
                 {{ isArabic() ? 'تعديل السلسلة بأكملها وجميع المواعيد' : 'All events in series' }}
               </div>
               <div
-                style="font-size: 0.82rem; color: var(--text-secondary, #94a3b8); margin-top: 4px; line-height: 1.4;">
+                style="font-size: 0.82rem; color: var(--text-dim, #64748b); margin-top: 4px; line-height: 1.4;">
                 {{ isArabic()
                 ? 'سيتم تطبيق التعديلات (الوقت، القاعة، المحاضر، التكرار) على جميع مواعيد السلسلة الحالية والمستقبلية.'
                 : 'Changes will apply to all occurrences across the entire recurring series.' }}
@@ -1189,7 +1345,7 @@
       </div>
 
       <div class="modal-footer"
-        style="padding: 16px 24px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border-color, #334155);">
+        style="padding: 16px 24px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border, #e2e8f0);">
         <button type="button" class="btn-ghost-modal" (click)="closeRecurringEditScopeModal()">
           {{ isArabic() ? 'إلغاء' : 'Cancel' }}
         </button>
