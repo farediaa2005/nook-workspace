@@ -65,6 +65,7 @@ export class DiscountApiService extends BaseApiService {
       discountType: typeof dto.discountType === 'number' ? dto.discountType : (dto.type === 'Fixed' || dto.type === 'fixed' ? 2 : 1),
       value: dto.value ?? 0,
       facultyId: dto.facultyId || null,
+      applicableTo: dto.applicableTo !== undefined ? dto.applicableTo : 0,
       isActive: dto.isActive !== false
     };
 
@@ -83,6 +84,7 @@ export class DiscountApiService extends BaseApiService {
       discountType: typeof dto.discountType === 'number' ? dto.discountType : (dto.type === 'Fixed' || dto.type === 'fixed' ? 2 : (dto.type === 'percentage' || dto.type === 'Percentage' ? 1 : 1)),
       value: dto.value ?? 0,
       facultyId: dto.facultyId || null,
+      applicableTo: dto.applicableTo !== undefined ? dto.applicableTo : 0,
       isActive: dto.isActive !== undefined ? dto.isActive : (dto.status ? dto.status === 'active' : true)
     };
 

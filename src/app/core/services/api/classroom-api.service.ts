@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, map, catchError, of } from 'rxjs';
 import { BaseApiService } from './base-api.service';
 import { API_ENDPOINTS } from '../../constants/api-endpoints';
 import { ApiResponse, extractData } from '../../models/api-response.model';
@@ -187,10 +187,16 @@ export class ClassroomApiService extends BaseApiService {
     );
   }
 
-  /** Remove catering item from classroom session — DELETE /api/classrooms/{classroomId}/catering/{id} */
+  /** Remove catering item from classroom session (Admin only) — DELETE /api/catering/classroom/{id} */
   removeCateringItem(classroomId: string, itemId: string): Observable<boolean> {
-    return this.delete<ApiResponse<boolean>>(API_ENDPOINTS.CLASSROOMS.CATERING_ITEM(classroomId, itemId)).pipe(
-      map(extractData)
+    const targetId = itemId || classroomId;
+    return this.delete<ApiResponse<boolean>>(`/api/catering/classroom/${targetId}`).pipe(
+      map(extractData),
+      catchError(() => {
+        return this.delete<ApiResponse<boolean>>(API_ENDPOINTS.CLASSROOMS.CATERING_ITEM(classroomId, itemId)).pipe(
+          map(extractData)
+        );
+      })
     );
   }
 

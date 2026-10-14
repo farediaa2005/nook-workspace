@@ -11,7 +11,7 @@ import { ClassroomPackageApiService } from './api/classroom-package-api.service'
 import { LanguageService } from './language.service';
 import { NotificationService } from './notification.service';
 import { AuditService } from './audit.service';
-import { ShiftDto, CreateShiftItemDto, ShiftItemCategory } from '../models/shift-api.model';
+import { ShiftDto, CreateShiftItemDto, ShiftItemCategory, AdminUpdateShiftDto } from '../models/shift-api.model';
 import { getSafeAvatar } from '../utils/avatar.util';
 import { parseIsoToLocal12h, parseIsoToLocalDate, getTodayDateISO } from '../utils/date-time.util';
 import {
@@ -1470,6 +1470,7 @@ export class ShiftService implements OnDestroy {
 
     if (active.id && !active.id.startsWith('SHIFT-')) {
       this.shiftApi.closeShift(active.id, {
+        actualCash: actualCash,
         closingBalance: actualCash,
         notes: notes || '',
         timeTo: new Date().toISOString(),
@@ -1527,6 +1528,38 @@ export class ShiftService implements OnDestroy {
       this.shiftHistory.update(list => [closedRecord, ...list]);
       if (onComplete) onComplete(true);
     }
+  }
+
+  /**
+   * Admin Update Shift — PUT /api/shifts/{id}
+   * Allows Admin to adjust shift values even after closing. Logged to AuditLog.
+   */
+  adminUpdateShift(shiftId: string, dto: AdminUpdateShiftDto): Observable<boolean> {
+    this.isLoading.set(true);
+    return this.shiftApi.adminUpdateShift(shiftId, dto).pipe(
+      map(() => {
+        this.syncShiftsFromBackend();
+        this.auditService.log(
+          'Modified',
+          'Shift',
+          shiftId,
+          `Admin updated shift: previousTotal=${dto.previousTotal}, actualCash=${dto.actualCash}`,
+          {
+            newValues: {
+              previousTotal: dto.previousTotal,
+              actualCash: dto.actualCash,
+              notes: dto.notes
+            }
+          }
+        );
+        return true;
+      }),
+      catchError(err => {
+        console.error('[ShiftService] adminUpdateShift error:', err);
+        return of(false);
+      }),
+      finalize(() => this.isLoading.set(false))
+    );
   }
 
   clearActiveShift(): void {

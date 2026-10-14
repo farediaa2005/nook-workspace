@@ -324,6 +324,57 @@
           </div>
         </div>
 
+        <!-- Admin Shift Financials Edit Section (PUT /api/shifts/{id}) -->
+        @if (isAdmin()) {
+          <div style="background: rgba(245, 185, 33, 0.08); border: 1px solid rgba(245, 185, 33, 0.25); border-radius: 10px; padding: 12px; margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 0.82rem; font-weight: 700; color: #f5b921;">
+                🛡️ {{ isArabic() ? 'تعديل بيانات الوردية والعهدة (خاص بالأدمن)' : 'Admin Shift Reconciliation (Admin Only)' }}
+              </span>
+              @if (!isAdminEditingFinancials()) {
+                <button type="button" (click)="startAdminEditFinancials(shift)" style="background: #f5b921; color: #16130a; border: none; border-radius: 6px; padding: 4px 10px; font-size: 0.76rem; font-weight: 700; cursor: pointer;">
+                  {{ isArabic() ? 'تعديل الأرقام' : 'Edit Balances' }}
+                </button>
+              }
+            </div>
+
+            @if (isAdminEditingFinancials()) {
+              <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                  <div>
+                    <label style="display: block; font-size: 0.74rem; color: var(--text-dim); margin-bottom: 2px;">
+                      {{ isArabic() ? 'عهدة البداية (previousTotal)' : 'Starting Cash' }}
+                    </label>
+                    <input type="number" [ngModel]="editPreviousTotal()" (ngModelChange)="editPreviousTotal.set($event)" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.85rem; background: var(--surface); color: var(--text);" />
+                  </div>
+                  <div>
+                    <label style="display: block; font-size: 0.74rem; color: var(--text-dim); margin-bottom: 2px;">
+                      {{ isArabic() ? 'الكاش الفعلي (actualCash)' : 'Actual Closing Cash' }}
+                    </label>
+                    <input type="number" [ngModel]="editActualCash()" (ngModelChange)="editActualCash.set($event)" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.85rem; background: var(--surface); color: var(--text);" />
+                  </div>
+                </div>
+
+                <div>
+                  <label style="display: block; font-size: 0.74rem; color: var(--text-dim); margin-bottom: 2px;">
+                    {{ isArabic() ? 'ملاحظات التعديل (notes)' : 'Edit Reason / Notes' }}
+                  </label>
+                  <input type="text" [ngModel]="editAdminNotes()" (ngModelChange)="editAdminNotes.set($event)" placeholder="{{ isArabic() ? 'سبب التعديل...' : 'Reason for adjustment...' }}" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.85rem; background: var(--surface); color: var(--text);" />
+                </div>
+
+                <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px;">
+                  <button type="button" (click)="saveAdminShiftFinancials()" [disabled]="isSavingAdminShift()" style="padding: 6px 14px; border-radius: 6px; background: #f5b921; color: #16130a; font-size: 0.8rem; font-weight: 700; border: none; cursor: pointer;">
+                    {{ isArabic() ? 'حفظ التعديلات' : 'Save Changes' }}
+                  </button>
+                  <button type="button" (click)="cancelAdminEditFinancials()" style="padding: 6px 12px; border-radius: 6px; background: var(--surface); color: var(--text-dim); font-size: 0.8rem; border: 1px solid var(--border); cursor: pointer;">
+                    {{ isArabic() ? 'إلغاء' : 'Cancel' }}
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
         <!-- Per-Channel Balance Breakdown (O-5) -->
         @if (shift.channelBreakdown && shift.channelBreakdown.length > 0) {
           <div style="margin-bottom: 20px;">

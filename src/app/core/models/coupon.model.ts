@@ -13,6 +13,11 @@ export { DiscountType };
 
 export type CouponZone = 'Workspace' | 'Classroom' | 'Both';
 
+export enum CouponApplicableTo {
+  Workspace = 0,
+  Classroom = 1
+}
+
 /** Coupon response DTO from GET /api/Coupons */
 export interface CouponDto {
   id: string;
@@ -24,6 +29,7 @@ export interface CouponDto {
   usageCount: number;
   isActive: boolean;
   isValid: boolean;
+  applicableTo?: CouponApplicableTo | number;
   // UI and backward compatibility fields
   name?: string;
   discountPercent?: number;
@@ -57,6 +63,7 @@ export interface CreateCouponDto {
   value: number;
   expiryDate: string;
   usageLimit?: number | null;
+  applicableTo?: CouponApplicableTo | number;
   // UI and backward compatibility fields
   name?: string;
   discountPercent?: number;
@@ -73,6 +80,7 @@ export interface UpdateCouponDto {
   value?: number;
   expiryDate?: string;
   usageLimit?: number | null;
+  applicableTo?: CouponApplicableTo | number;
   isActive?: boolean;
   // UI and backward compatibility fields
   name?: string;

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, map, catchError, of } from 'rxjs';
 import { BaseApiService } from './base-api.service';
 import { API_ENDPOINTS } from '../../constants/api-endpoints';
 import { ApiResponse, extractData } from '../../models/api-response.model';
@@ -91,6 +91,14 @@ export class AccountApiService extends BaseApiService {
   linkParentProfile(id: string, dto: { name: string }): Observable<any> {
     return this.post<ApiResponse<any>>(API_ENDPOINTS.ACCOUNTS.LINK_PARENT(id), dto).pipe(
       map(extractData)
+    );
+  }
+
+  /** Unlink account (Admin only) — DELETE /api/Accounts/{id}/unlink */
+  unlinkAccount(id: string): Observable<boolean> {
+    return this.delete<ApiResponse<boolean>>(`/api/Accounts/${id}/unlink`).pipe(
+      map(extractData),
+      catchError(() => this.unlinkRole(id, 'all'))
     );
   }
 

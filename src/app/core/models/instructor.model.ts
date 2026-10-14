@@ -13,6 +13,7 @@ export interface InstructorDto {
   phone?: string;
   email?: string;
   specialty?: string;
+  organization?: string;
   bio?: string;
   imageUrl?: string;
   isActive?: boolean;
@@ -30,6 +31,7 @@ export interface CreateInstructorDto {
   phone?: string;
   email?: string;
   specialty?: string;
+  organization?: string;
   bio?: string;
   imageUrl?: string;
   isActive?: boolean;
@@ -44,6 +46,7 @@ export interface UpdateInstructorDto {
   phone?: string;
   email?: string;
   specialty?: string;
+  organization?: string;
   bio?: string;
   imageUrl?: string;
   isActive?: boolean;

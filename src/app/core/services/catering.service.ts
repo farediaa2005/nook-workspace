@@ -430,7 +430,40 @@ export class CateringService {
   constructor() {
     if (this.authService.isAuthenticated()) {
       this.getProducts().subscribe();
+      this.loadCategories();
     }
+  }
+
+  /**
+   * Fetch unique categories from backend — GET /api/Products/categories
+   */
+  loadCategories(): void {
+    this.productApi.getProductCategories().subscribe(cats => {
+      if (cats && cats.length > 0) {
+        const currentVals = new Set(this.categories().map(c => c.value.toLowerCase()));
+        const toAdd = cats
+          .filter(c => c && !currentVals.has(c.toLowerCase()))
+          .map(c => ({ value: c, labelEn: c, labelAr: c }));
+        if (toAdd.length > 0) {
+          this.categories.update(list => [...list, ...toAdd]);
+        }
+      }
+    });
+  }
+
+  /**
+   * Delete product image only (Admin) — DELETE /api/Products/{id}/image
+   */
+  deleteProductImage(id: string): Observable<boolean> {
+    return this.productApi.deleteProductImage(id).pipe(
+      tap(success => {
+        if (success) {
+          this.productsState.update(list =>
+            list.map(p => p.id === id ? { ...p, image: '' } : p)
+          );
+        }
+      })
+    );
   }
 
   /**
@@ -664,6 +697,10 @@ export class CateringService {
       formData.append('ImageUrl', input.image);
       formData.append('imageUrl', input.image);
     }
+    if (input.category) {
+      formData.append('Category', input.category);
+      formData.append('category', input.category);
+    }
 
     const api$ = this.productApi.createProduct(formData);
 
@@ -745,6 +782,13 @@ export class CateringService {
     } else if (updated.image && typeof updated.image === 'string' && !updated.image.startsWith('data:')) {
       formData.append('ImageUrl', updated.image);
       formData.append('imageUrl', updated.image);
+    } else if (updated.image === '' || updated.image === null) {
+      formData.append('removeImage', 'true');
+      formData.append('RemoveImage', 'true');
+    }
+    if (updated.category) {
+      formData.append('Category', updated.category);
+      formData.append('category', updated.category);
     }
 
     const api$ = this.productApi.updateProduct(updated.id, formData);

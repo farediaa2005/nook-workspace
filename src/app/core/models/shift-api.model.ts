@@ -89,6 +89,7 @@ export interface ShiftDto {
   endTime?: string | null;
   startCash?: number;
   endCash?: number;
+  actualCash?: number;
   systemCash?: number;
   difference?: number;
   note?: string | null;
@@ -114,11 +115,13 @@ export interface CreateShiftDto {
 
 /** Close shift request — matches PUT /api/shifts/{id}/close API specification */
 export interface CloseShiftDto {
-  closingBalance: number;       // Actual closing cash balance in drawer (e.g. 750.0)
+  closingBalance?: number;       // Actual closing cash balance in drawer (e.g. 750.0)
+  actualCash?: number;          // Backend update: actual cash received
   notes?: string;               // Optional closing remarks
   // Compatibility aliases
   totalCost?: number;
   endCash?: number;
+  cashDifference?: number;
   note?: string;
   timeTo?: string;
   administrative?: number;
@@ -131,6 +134,13 @@ export interface CloseShiftDto {
 
 /** Alias for close shift request */
 export type UpdateShiftDto = CloseShiftDto;
+
+/** Admin update shift request — matches PUT /api/shifts/{id} API specification */
+export interface AdminUpdateShiftDto {
+  previousTotal?: number;
+  actualCash?: number;
+  notes?: string;
+}
 
 /** Shift transaction item response DTO */
 export interface ShiftItemDto {

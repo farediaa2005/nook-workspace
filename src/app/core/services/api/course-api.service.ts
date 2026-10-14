@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, map, catchError, of } from 'rxjs';
 import { BaseApiService } from './base-api.service';
 import { API_ENDPOINTS } from '../../constants/api-endpoints';
 import { ApiResponse, extractData } from '../../models/api-response.model';
@@ -77,11 +77,19 @@ export class CourseApiService extends BaseApiService {
     ).pipe(map(extractData));
   }
 
-  /** Unenroll student — DELETE /api/Courses/{courseId}/enroll/{studentId} */
+  /** Unenroll student — DELETE /api/Courses/{courseId}/enrollments/{studentId} (Admin) */
   unenrollStudent(courseId: string, studentId: string): Observable<boolean> {
     return this.delete<ApiResponse<boolean>>(
       API_ENDPOINTS.COURSES.UNENROLL(courseId, studentId)
-    ).pipe(map(extractData));
+    ).pipe(
+      map(extractData),
+      catchError(() => {
+        return this.delete<ApiResponse<boolean>>(`/api/Courses/${courseId}/enroll/${studentId}`).pipe(
+          map(extractData),
+          catchError(() => of(false))
+        );
+      })
+    );
   }
 
   /** Get enrolled students — GET /api/Courses/{courseId}/students */

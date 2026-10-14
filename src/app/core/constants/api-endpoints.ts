@@ -138,7 +138,7 @@ export const API_ENDPOINTS = {
     LIST: '/api/Courses',
     BY_ID: (id: string) => `/api/Courses/${id}`,
     ENROLL: (courseId: string) => `/api/Courses/${courseId}/enroll`,
-    UNENROLL: (courseId: string, studentId: string) => `/api/Courses/${courseId}/enroll/${studentId}`,
+    UNENROLL: (courseId: string, studentId: string) => `/api/Courses/${courseId}/enrollments/${studentId}`,
     STUDENTS: (courseId: string) => `/api/Courses/${courseId}/students`,
     SESSIONS: (courseId: string) => `/api/Courses/${courseId}/sessions`,
     ATTENDANCE: (sessionId: string) => `/api/Courses/sessions/${sessionId}/attendance`,
@@ -169,6 +169,7 @@ export const API_ENDPOINTS = {
     CLOSE: (id: string) => `/api/shifts/${id}/close`,
     ITEMS: (id: string) => `/api/shifts/${id}/items`,
     ITEM_BY_ID: (shiftId: string, itemId: string) => `/api/shifts/${shiftId}/items/${itemId}`,
+    DELETE_ITEM: (shiftItemId: string) => `/api/shifts/items/${shiftItemId}`,
     VERIFY_PASSWORD: (shiftId?: string) => (shiftId ? `/api/shifts/${shiftId}/verify-password` : '/api/shifts/verify-password'),
   },
 
@@ -183,6 +184,7 @@ export const API_ENDPOINTS = {
     LIST: '/api/Products',
     BY_ID: (id: string) => `/api/Products/${id}`,
     IMAGE: (id: string) => `/api/Products/${id}/image`,
+    CATEGORIES: '/api/Products/categories',
   },
 
   RESERVATIONS: {

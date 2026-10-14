@@ -78,11 +78,18 @@ export class AddDiscountComponent implements OnInit {
   formType = signal<'percentage' | 'fixed'>('percentage');
   formValue = signal<number>(10);
   formScope = signal<'all' | 'students' | 'instructors' | 'packages'>('all');
+  formApplicableTo = signal<number>(0);
+  formApplicableToString = computed<string>(() => String(this.formApplicableTo()));
   formUsageLimit = signal<number>(100);
   formStartDate = signal<string>(getTodayDateISO());
   formExpiryDate = signal<string>('');
   formStatus = signal<'active' | 'disabled'>('active');
   formError = signal<string | null>(null);
+
+  applicableToOptions = computed<SelectOption[]>(() => [
+    { label: this.isArabic() ? 'مساحة العمل (Workspace)' : 'Workspace (Seats & Students)', value: '0' },
+    { label: this.isArabic() ? 'القاعات التدريبية (Classroom)' : 'Classrooms (Hall Bookings)', value: '1' }
+  ]);
 
   // Validation Signals
   valueError = computed<string | null>(() => {
@@ -259,6 +266,7 @@ export class AddDiscountComponent implements OnInit {
     this.formType.set('percentage');
     this.formValue.set(15);
     this.formScope.set('all');
+    this.formApplicableTo.set(0);
     this.formUsageLimit.set(100);
     this.formStartDate.set(getTodayDateISO());
     
@@ -289,6 +297,7 @@ export class AddDiscountComponent implements OnInit {
     this.formType.set(discount.type);
     this.formValue.set(discount.value);
     this.formScope.set(discount.scope);
+    this.formApplicableTo.set(discount.applicableTo !== undefined ? Number(discount.applicableTo) : 0);
     this.formUsageLimit.set(discount.usageLimit || 100);
     this.formStartDate.set(discount.startDate);
     this.formExpiryDate.set(discount.expiryDate);
@@ -358,6 +367,7 @@ export class AddDiscountComponent implements OnInit {
         type,
         value,
         scope,
+        applicableTo: Number(this.formApplicableTo()) || 0,
         usageLimit,
         startDate: startDate || getTodayDateISO(),
         expiryDate,
@@ -388,6 +398,7 @@ export class AddDiscountComponent implements OnInit {
         titleEn: title,
         type,
         value,
+        applicableTo: Number(this.formApplicableTo()) || 0,
         status: status as 'active' | 'disabled'
       }).subscribe({
         next: () => {

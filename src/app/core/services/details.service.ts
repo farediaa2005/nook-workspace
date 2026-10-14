@@ -272,7 +272,10 @@ export class DetailsService {
       phoneNumber: dto.phone,
       email: dto.email,
       specialty: dto.specialty,
-      affiliation: dto.affiliation,
+      organization: dto.organization || dto.affiliation,
+      affiliation: dto.affiliation || dto.organization,
+      bio: dto.bio,
+      isActive: dto.status === 'active' || dto.status === undefined,
       colour: '#f5b921'
     }).pipe(
       map(inst => {
@@ -284,11 +287,13 @@ export class DetailsService {
           email: dto.email || (inst as any).email || '-',
           specialty: dto.specialty || (inst as any).specialty || (inst as any).specialization || '-',
           specialtyEn: dto.specialtyEn || (inst as any).specialtyEn || dto.specialty || '-',
+          organization: dto.organization || (inst as any).organization || dto.affiliation || '-',
+          organizationEn: dto.organizationEn || (inst as any).organizationEn || dto.organization || dto.affiliation || '-',
           affiliation: dto.affiliation || (inst as any).affiliation || (inst as any).workplace || '-',
           affiliationEn: dto.affiliationEn || (inst as any).affiliationEn || dto.affiliation || '-',
           totalSessions: 0,
           status: dto.status || 'active',
-          bio: dto.bio || '',
+          bio: dto.bio || (inst as any).bio || '',
           createdAt: inst.createdAt || new Date().toISOString()
         };
 
@@ -316,7 +321,10 @@ export class DetailsService {
       phoneNumber: dto.phone,
       email: dto.email,
       specialty: dto.specialty,
-      affiliation: dto.affiliation,
+      organization: dto.organization || dto.affiliation,
+      affiliation: dto.affiliation || dto.organization,
+      bio: dto.bio,
+      isActive: dto.status === 'active' || dto.status === undefined,
       colour: '#f5b921'
     }).pipe(
       tap(() => {
@@ -568,6 +576,7 @@ export class DetailsService {
       value: dto.value,
       expiryDate: dto.expiryDate,
       usageLimit: dto.usageLimit,
+      applicableTo: dto.applicableTo,
       name: dto.title,
       isActive: dto.status !== 'disabled'
     }).pipe(
@@ -587,6 +596,7 @@ export class DetailsService {
           type: created.discountType === 2 ? 'fixed' : 'percentage',
           value: created.value,
           scope: dto.scope,
+          applicableTo: dto.applicableTo ?? (created.applicableTo as any),
           usageCount: 0,
           usageLimit: created.usageLimit || dto.usageLimit,
           startDate: dto.startDate,
@@ -608,6 +618,7 @@ export class DetailsService {
       discountType: dto.type === 'fixed' ? 2 : (dto.type === 'percentage' ? 1 : undefined),
       value: dto.value,
       name: dto.title,
+      applicableTo: dto.applicableTo,
       isActive: dto.status === 'active'
     }).pipe(
       tap(() => {

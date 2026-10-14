@@ -11,7 +11,8 @@ import {
   CreateShiftItemDto,
   ShiftItemDto,
   ShiftFilterParams,
-  VerifyShiftPasswordDto
+  VerifyShiftPasswordDto,
+  AdminUpdateShiftDto
 } from '../../models/shift-api.model';
 
 @Injectable({
@@ -132,8 +133,9 @@ export class ShiftApiService extends BaseApiService {
    */
   closeShift(id: string, dto: CloseShiftDto): Observable<ShiftDto> {
     const now = new Date().toISOString();
-    const balance = dto.closingBalance ?? dto.totalCost ?? dto.endCash ?? 0;
+    const balance = dto.closingBalance ?? dto.actualCash ?? dto.totalCost ?? dto.endCash ?? 0;
     const payload: any = {
+      actualCash: dto.actualCash ?? balance,
       closingBalance: balance,
       notes: dto.notes ?? dto.note ?? '',
       // Backward compatibility aliases for server binders
@@ -148,6 +150,21 @@ export class ShiftApiService extends BaseApiService {
       status: dto.status ?? 2
     };
     return this.put<ApiResponse<ShiftDto>>(API_ENDPOINTS.SHIFTS.CLOSE(id), payload).pipe(
+      map(extractData)
+    );
+  }
+
+  /**
+   * PUT /api/shifts/{id} — Admin Update Shift
+   * Allows Admin to adjust shift values even after closing. Logged to AuditLog.
+   */
+  adminUpdateShift(id: string, dto: AdminUpdateShiftDto): Observable<ShiftDto> {
+    const payload = {
+      previousTotal: dto.previousTotal,
+      actualCash: dto.actualCash,
+      notes: dto.notes || ''
+    };
+    return this.put<ApiResponse<ShiftDto>>(API_ENDPOINTS.SHIFTS.BY_ID(id), payload).pipe(
       map(extractData)
     );
   }
@@ -185,12 +202,19 @@ export class ShiftApiService extends BaseApiService {
   }
 
   /**
-   * DELETE /api/shifts/{id}/items/{itemId} — Remove Shift Item
+   * DELETE /api/shifts/items/{itemId} (Admin) or fallback to /api/shifts/{id}/items/{itemId}
    * Response: ApiResponse<bool>
    */
   deleteShiftItem(shiftId: string, itemId: string): Observable<boolean> {
-    return this.delete<ApiResponse<boolean>>(API_ENDPOINTS.SHIFTS.ITEM_BY_ID(shiftId, itemId)).pipe(
-      map(extractData)
+    const targetItemId = itemId || shiftId;
+    return this.delete<ApiResponse<boolean>>(API_ENDPOINTS.SHIFTS.DELETE_ITEM(targetItemId)).pipe(
+      map(extractData),
+      catchError(() => {
+        return this.delete<ApiResponse<boolean>>(API_ENDPOINTS.SHIFTS.ITEM_BY_ID(shiftId, itemId)).pipe(
+          map(extractData),
+          catchError(() => of(false))
+        );
+      })
     );
   }
 

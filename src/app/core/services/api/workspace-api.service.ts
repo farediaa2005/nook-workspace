@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, map, catchError, of } from 'rxjs';
 import { BaseApiService } from './base-api.service';
 import { API_ENDPOINTS } from '../../constants/api-endpoints';
 import { ApiResponse, extractData } from '../../models/api-response.model';
@@ -177,10 +177,16 @@ export class WorkspaceApiService extends BaseApiService {
     );
   }
 
-  /** Remove catering item from a workspace session — DELETE /api/workspaces/{workspaceId}/catering/{id} */
+  /** Remove catering item from a workspace session (Admin only) — DELETE /api/catering/workspace/{id} */
   removeCateringItem(workspaceId: string, itemId: string): Observable<boolean> {
-    return this.delete<ApiResponse<boolean>>(API_ENDPOINTS.WORKSPACES.CATERING_ITEM(workspaceId, itemId)).pipe(
-      map(extractData)
+    const targetId = itemId || workspaceId;
+    return this.delete<ApiResponse<boolean>>(`/api/catering/workspace/${targetId}`).pipe(
+      map(extractData),
+      catchError(() => {
+        return this.delete<ApiResponse<boolean>>(API_ENDPOINTS.WORKSPACES.CATERING_ITEM(workspaceId, itemId)).pipe(
+          map(extractData)
+        );
+      })
     );
   }
 

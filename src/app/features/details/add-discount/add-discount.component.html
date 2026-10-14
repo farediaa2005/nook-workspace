@@ -152,11 +152,18 @@
                 </span>
               </td>
 
-              <!-- Applicable Scope -->
+              <!-- Applicable Scope & Service Type -->
               <td>
-                <span class="scope-badge">
-                  {{ getScopeLabel(d.scope) }}
-                </span>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <span class="scope-badge">
+                    {{ getScopeLabel(d.scope) }}
+                  </span>
+                  @if (d.applicableTo !== undefined && d.applicableTo !== null) {
+                    <span style="font-size: 0.72rem; font-weight: 700;" [style.color]="d.applicableTo === 1 ? '#3b82f6' : '#10b981'">
+                      {{ d.applicableTo === 1 ? (isArabic() ? '🏛️ قاعات فقط' : '🏛️ Classrooms only') : (isArabic() ? '💺 مساحة فقط' : '💺 Workspace only') }}
+                    </span>
+                  }
+                </div>
               </td>
 
               <!-- Validity Period -->
@@ -505,6 +512,19 @@
               [selectedValue]="formScope()"
               [fullWidth]="true"
               (valueChange)="formScope.set($any($event))"
+            ></app-custom-select>
+          </div>
+
+          <!-- Applicable Target (Workspace vs Classroom) - Backend Separation -->
+          <div class="field-group">
+            <label class="field-label">
+              {{ isArabic() ? 'الخدمة المسموح بها (مساحة / قاعات)' : 'Target Service Type' }} *
+            </label>
+            <app-custom-select
+              [options]="applicableToOptions()"
+              [selectedValue]="formApplicableToString()"
+              [fullWidth]="true"
+              (valueChange)="formApplicableTo.set(+($event))"
             ></app-custom-select>
           </div>
 

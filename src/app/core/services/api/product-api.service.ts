@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, map, catchError, of } from 'rxjs';
 import { BaseApiService } from './base-api.service';
 import { API_ENDPOINTS } from '../../constants/api-endpoints';
 import { ApiResponse, extractData } from '../../models/api-response.model';
@@ -73,6 +73,13 @@ export class ProductApiService extends BaseApiService {
         formData.append('ExpireDate', String(exp));
         formData.append('expireDate', String(exp));
       }
+
+      const cat = (payload as any).category || (payload as any).Category;
+      if (cat) {
+        formData.append('Category', String(cat));
+        formData.append('category', String(cat));
+      }
+
       body = formData;
     }
     return this.post<ApiResponse<ProductDto>>(API_ENDPOINTS.PRODUCTS.LIST, body).pipe(
@@ -112,6 +119,18 @@ export class ProductApiService extends BaseApiService {
         formData.append('ExpireDate', String(exp));
         formData.append('expireDate', String(exp));
       }
+
+      const cat = (payload as any).category || (payload as any).Category;
+      if (cat) {
+        formData.append('Category', String(cat));
+        formData.append('category', String(cat));
+      }
+
+      if ((payload as any).removeImage) {
+        formData.append('removeImage', 'true');
+        formData.append('RemoveImage', 'true');
+      }
+
       body = formData;
     }
     return this.put<ApiResponse<ProductDto>>(API_ENDPOINTS.PRODUCTS.BY_ID(id), body).pipe(
@@ -140,6 +159,32 @@ export class ProductApiService extends BaseApiService {
         if (res.data) return res.data;
         return res;
       })
+    );
+  }
+
+  /** Delete product image (Admin) — DELETE /api/Products/{id}/image */
+  deleteProductImage(id: string): Observable<boolean> {
+    return this.delete<ApiResponse<boolean>>(API_ENDPOINTS.PRODUCTS.IMAGE(id)).pipe(
+      map(res => {
+        if (!res) return true;
+        return res.data !== undefined ? !!res.data : (res.success ?? res.isSuccess ?? true);
+      }),
+      catchError((err: any) => {
+        console.warn('[ProductApiService] deleteProductImage error:', err);
+        return of(false);
+      })
+    );
+  }
+
+  /** Get unique product categories list — GET /api/Products/categories */
+  getProductCategories(): Observable<string[]> {
+    return this.get<ApiResponse<string[]> | string[]>(API_ENDPOINTS.PRODUCTS.CATEGORIES).pipe(
+      map(res => {
+        if (Array.isArray(res)) return res;
+        if (res && Array.isArray((res as any).data)) return (res as any).data;
+        return [];
+      }),
+      catchError(() => of([]))
     );
   }
 }

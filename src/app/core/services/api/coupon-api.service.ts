@@ -88,6 +88,7 @@ export class CouponApiService extends BaseApiService {
       UsageLimit: lim,
       maxUsage: lim,
       MaxUsage: lim,
+      applicableTo: dto.applicableTo !== undefined ? dto.applicableTo : (dto.zone === 'Classroom' ? 1 : 0),
       name: dto.name || dto.code,
       isActive: dto.isActive !== false
     };
@@ -108,6 +109,7 @@ export class CouponApiService extends BaseApiService {
       UsageLimit: lim,
       maxUsage: lim,
       MaxUsage: lim,
+      applicableTo: dto.applicableTo !== undefined ? dto.applicableTo : (dto.zone === 'Classroom' ? 1 : 0),
       isActive: dto.isActive !== undefined ? dto.isActive : (dto.status ? dto.status === 'active' : true),
       name: dto.name || dto.title || undefined
     };
@@ -135,6 +137,16 @@ export class CouponApiService extends BaseApiService {
         }
         if (isCouponExhausted(coupon)) {
           return throwError(() => new Error('تم استنفاد الحد الأقصى لاستخدام هذا الكود'));
+        }
+
+        // Strict separation check: 0 = Workspace, 1 = Classroom
+        const applicableTo = coupon.applicableTo !== undefined ? coupon.applicableTo : (coupon.zone === 'Classroom' ? 1 : 0);
+        const isClassroomRequest = !!dto?.classroomId || dto?.sessionType === 'Classroom';
+        if (applicableTo === 0 && isClassroomRequest) {
+          return throwError(() => new Error('كوبون مخصص لمساحة العمل (Workspace) فقط ولا يمكن استخدامه لحجوزات القاعات'));
+        }
+        if (applicableTo === 1 && !isClassroomRequest) {
+          return throwError(() => new Error('كوبون مخصص لحجوزات القاعات (Classroom) فقط ولا يمكن استخدامه لمساحة العمل'));
         }
 
         const rawStudentId = dto?.studentId;

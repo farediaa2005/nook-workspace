@@ -66,6 +66,8 @@ export interface Instructor {
   email: string;
   specialty: string;
   specialtyEn?: string;
+  organization?: string;
+  organizationEn?: string;
   affiliation: string;
   affiliationEn?: string;
   totalSessions: number;
@@ -112,6 +114,7 @@ export interface DiscountCode {
   type: 'percentage' | 'fixed';
   value: number;
   scope: 'all' | 'students' | 'instructors' | 'packages';
+  applicableTo?: number; // 0 = Workspace, 1 = Classroom
   usageCount: number;
   usageLimit: number;
   startDate: string;

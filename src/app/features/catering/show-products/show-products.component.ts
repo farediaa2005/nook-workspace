@@ -12,6 +12,7 @@ import { ProductSuccessModalComponent } from '../components/product-success-moda
 import { CateringPosModalComponent } from '../components/catering-pos-modal/catering-pos-modal.component';
 import { ShiftService } from '../../../core/services/shift.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { CateringProduct } from '../../../core/models/catering.model';
 import { exportToCsv } from '../../../core/utils/csv.util';
 import { getTodayDateISO, parseIsoToLocalDate } from '../../../core/utils/date-time.util';
@@ -40,6 +41,7 @@ export class ShowProductsComponent implements OnInit {
   private cateringService = inject(CateringService);
   private shiftService = inject(ShiftService);
   private workspaceService = inject(WorkspaceService);
+  private authService = inject(AuthService);
   private route = inject(ActivatedRoute);
 
   t = this.langService.t;
@@ -250,6 +252,10 @@ export class ShowProductsComponent implements OnInit {
   }
 
   removeEditImage(): void {
+    const current = this.productToEdit();
+    if (current && current.id && this.authService.isAdmin() && current.image) {
+      this.cateringService.deleteProductImage(current.id).subscribe();
+    }
     this.editSelectedImageFile.set(null);
     this.editImagePreview.set(null);
   }
@@ -351,6 +357,13 @@ export class ShowProductsComponent implements OnInit {
   isDeleteModalOpen = signal<boolean>(false);
 
   openDeleteModal(product: CateringProduct): void {
+    if (!this.authService.isAdmin()) {
+      this.workspaceService.showToast(
+        this.isArabic() ? 'عملية حذف المنتجات متاحة للمدير (Admin) فقط' : 'Product deletion is restricted to Administrators only',
+        'error'
+      );
+      return;
+    }
     if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حذف منتج' : 'Delete Product')) {
       return;
     }

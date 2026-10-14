@@ -41,7 +41,10 @@ export class InstructorApiService extends BaseApiService {
       phoneNumber: dto.phoneNumber || dto.phone || null,
       email: dto.email || null,
       specialty: dto.specialty || dto.specialization || null,
-      affiliation: dto.affiliation || dto.workplace || null,
+      organization: dto.organization || dto.affiliation || dto.workplace || null,
+      affiliation: dto.affiliation || dto.organization || dto.workplace || null,
+      bio: dto.bio || null,
+      isActive: dto.isActive !== undefined ? dto.isActive : true,
       colour: dto.colour || '#f5b921'
     };
     return this.post<ApiResponse<InstructorDto>>(API_ENDPOINTS.INSTRUCTORS.LIST, payload).pipe(
@@ -56,7 +59,10 @@ export class InstructorApiService extends BaseApiService {
       phoneNumber: dto.phoneNumber || dto.phone || null,
       email: dto.email || null,
       specialty: dto.specialty || dto.specialization || null,
-      affiliation: dto.affiliation || dto.workplace || null,
+      organization: dto.organization || dto.affiliation || dto.workplace || null,
+      affiliation: dto.affiliation || dto.organization || dto.workplace || null,
+      bio: dto.bio || null,
+      isActive: dto.isActive !== undefined ? dto.isActive : true,
       colour: dto.colour || '#f5b921'
     };
     return this.put<ApiResponse<InstructorDto>>(API_ENDPOINTS.INSTRUCTORS.BY_ID(id), payload).pipe(

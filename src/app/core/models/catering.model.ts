@@ -10,6 +10,7 @@
 export interface ProductDto {
   id: string;
   name: string;
+  category?: string | null;
   imageUrl?: string | null;
   serialNo?: string | null;
   piecePrice: number;
@@ -22,6 +23,8 @@ export interface ProductDto {
 export interface CreateProductDto {
   Name: string;
   name?: string;
+  Category?: string;
+  category?: string;
   ImageUrl?: string;
   imageUrl?: string;
   SerialNo?: string;
@@ -41,6 +44,9 @@ export interface CreateProductDto {
 export interface UpdateProductDto {
   Name?: string;
   name?: string;
+  Category?: string;
+  category?: string;
+  removeImage?: boolean;
   ImageUrl?: string;
   imageUrl?: string;
   SerialNo?: string;

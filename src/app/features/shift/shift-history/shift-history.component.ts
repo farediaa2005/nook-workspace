@@ -47,6 +47,13 @@ export class ShiftHistoryComponent implements OnInit {
   editShiftEnd = signal<string>('');
   isSavingTime = signal<boolean>(false);
 
+  // Admin Update Shift Financials (Admin only - PUT /api/shifts/{id})
+  isAdminEditingFinancials = signal<boolean>(false);
+  editPreviousTotal = signal<number>(0);
+  editActualCash = signal<number>(0);
+  editAdminNotes = signal<string>('');
+  isSavingAdminShift = signal<boolean>(false);
+
   ngOnInit(): void {
     this.shiftService.fetchShiftHistoryFromApi();
   }
@@ -242,6 +249,41 @@ export class ShiftHistoryComponent implements OnInit {
       },
       error: () => {
         this.isSavingTime.set(false);
+      }
+    });
+  }
+
+  startAdminEditFinancials(shift: ShiftHistoryItem): void {
+    if (!this.isAdmin()) return;
+    this.editPreviousTotal.set((shift as any).startCash ?? (shift as any).openingBalance ?? shift.cashIn ?? 0);
+    this.editActualCash.set(shift.finalTotal ?? 0);
+    this.editAdminNotes.set(shift.notes || '');
+    this.isAdminEditingFinancials.set(true);
+  }
+
+  cancelAdminEditFinancials(): void {
+    this.isAdminEditingFinancials.set(false);
+  }
+
+  saveAdminShiftFinancials(): void {
+    const shift = this.selectedShiftForDetails();
+    if (!shift || !this.isAdmin()) return;
+
+    this.isSavingAdminShift.set(true);
+    this.shiftService.adminUpdateShift(shift.id, {
+      previousTotal: Number(this.editPreviousTotal()) || 0,
+      actualCash: Number(this.editActualCash()) || 0,
+      notes: this.editAdminNotes().trim()
+    }).subscribe({
+      next: (updated) => {
+        this.isSavingAdminShift.set(false);
+        this.isAdminEditingFinancials.set(false);
+        shift.finalTotal = Number(this.editActualCash()) || 0;
+        shift.notes = this.editAdminNotes().trim();
+        this.selectedShiftForDetails.set({ ...shift });
+      },
+      error: () => {
+        this.isSavingAdminShift.set(false);
       }
     });
   }

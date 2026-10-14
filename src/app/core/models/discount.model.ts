@@ -12,6 +12,11 @@ export { DiscountType };
 
 export type DiscountScope = 'All' | 'Faculty' | 'Student' | 'Instructor';
 
+export enum DiscountApplicableTo {
+  Workspace = 0,
+  Classroom = 1
+}
+
 /** Discount DTO from GET /api/Discounts */
 export interface DiscountDto {
   id: string;
@@ -21,6 +26,7 @@ export interface DiscountDto {
   value: number;
   facultyId?: string | null;
   facultyName?: string | null;
+  applicableTo?: DiscountApplicableTo | number;
   // UI and backward compatibility fields
   name?: string;
   nameEn?: string;
@@ -40,6 +46,7 @@ export interface CreateDiscountDto {
   discountType: DiscountType | number;
   value: number;
   facultyId?: string | null;
+  applicableTo?: DiscountApplicableTo | number;
   // UI and backward compatibility fields
   name?: string;
   nameEn?: string;
@@ -58,6 +65,7 @@ export interface UpdateDiscountDto {
   discountType?: DiscountType | number;
   value?: number;
   facultyId?: string | null;
+  applicableTo?: DiscountApplicableTo | number;
   // UI and backward compatibility fields
   name?: string;
   nameEn?: string;
