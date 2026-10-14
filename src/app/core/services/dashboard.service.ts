@@ -206,9 +206,22 @@ export class DashboardService {
     let sharedCount = 0;
     let meetingCount = 0;
 
+    const isStudentPrivate = (s: any): boolean => {
+      if (!s) return false;
+      return (
+        s.zone === 1 ||
+        s.seatingType === 'Silent' ||
+        (typeof s.roomName === 'string' && s.roomName.toLowerCase().includes('silent')) ||
+        (s.activeSession && (
+          s.activeSession.zone === 1 ||
+          s.activeSession.seatingType === 'Silent' ||
+          (typeof s.activeSession.roomName === 'string' && s.activeSession.roomName.toLowerCase().includes('silent'))
+        ))
+      );
+    };
+
     for (const s of students) {
-      const name = (s.faculty || s.college || '').toLowerCase();
-      if (name.includes('خاص') || name.includes('private') || name.includes('silent') || name.includes('lab')) {
+      if (isStudentPrivate(s)) {
         privateCount++;
       } else {
         sharedCount++;
@@ -228,8 +241,7 @@ export class DashboardService {
       const historyStudents = this.workspaceService.historyStudents() || [];
       const allCards = this.classroomService.cards() || [];
       for (const s of historyStudents) {
-        const name = (s.faculty || s.college || '').toLowerCase();
-        if (name.includes('خاص') || name.includes('private') || name.includes('silent') || name.includes('lab')) {
+        if (isStudentPrivate(s)) {
           basePrivate++;
         } else {
           baseShared++;
@@ -271,7 +283,10 @@ export class DashboardService {
       meetingDash: `${meetingDash} ${+(circum - meetingDash).toFixed(1)}`,
       privateOffset,
       sharedOffset,
-      meetingOffset
+      meetingOffset,
+      privateCount: basePrivate,
+      sharedCount: baseShared,
+      meetingCount: baseMeeting
     };
   });
 

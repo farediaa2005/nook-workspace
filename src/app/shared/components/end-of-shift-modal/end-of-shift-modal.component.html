@@ -54,7 +54,7 @@
           <!-- Petty Cash Expenses -->
           <div class="breakdown-item">
             <span class="item-label">{{ t().pettyCashOutLabel }}</span>
-            <span class="item-value font-num text-negative">-{{ adminExpenses().toFixed(2) }} {{ currencyText() }}</span>
+            <span class="item-value font-num text-negative">{{ adminExpenses() > 0 ? ('-' + adminExpenses().toFixed(2)) : '0.00' }} {{ currencyText() }}</span>
           </div>
 
           <!-- Vodafone Cash Balance -->

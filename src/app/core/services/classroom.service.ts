@@ -38,6 +38,7 @@ import { AuthService } from './auth.service';
 import { LanguageService } from './language.service';
 import { CateringService } from './catering.service';
 import { NotificationService } from './notification.service';
+import { RoomPricingService } from './room-pricing.service';
 import {
   parseIsoToLocal12h,
   parseIsoToLocal24h,
@@ -48,6 +49,7 @@ import {
   convertMinutesTo24h,
   parseTimeToMinutes
 } from '../utils/date-time.util';
+import { calculateSessionDurationAndOvertime } from '../utils/session-lifecycle.util';
 
 /**
  * Clean Architecture Layer 4: Feature Service
@@ -69,6 +71,7 @@ export class ClassroomService {
   private authService = inject(AuthService);
   private langService = inject(LanguageService);
   private cateringService = inject(CateringService);
+  private roomPricing = inject(RoomPricingService);
   private injector = inject(Injector);
 
   public triggerLiveAlertsEvaluation(): void {
@@ -200,11 +203,16 @@ export class ClassroomService {
   public loadInstructors(): Observable<any[]> {
     return this.instructorApi.getInstructors().pipe(
       tap(instructors => {
-        this.instructorMap.clear();
-        (instructors || []).forEach(ins => this.instructorMap.set(ins.id, ins));
-        this.instructorsState.set(instructors || []);
+        if (instructors && instructors.length > 0) {
+          this.instructorMap.clear();
+          instructors.forEach(ins => this.instructorMap.set(ins.id, ins));
+          this.instructorsState.set(instructors);
+        }
       }),
-      catchError(() => of([]))
+      catchError(err => {
+        console.warn('[ClassroomService] loadInstructors error:', err);
+        return of(this.instructorsState());
+      })
     );
   }
 
@@ -307,6 +315,7 @@ export class ClassroomService {
       plans: this.pricingPlanApi.getPricingPlans().pipe(catchError(() => of([])))
     }).pipe(
       map(({ rooms, plans }) => {
+        this.roomPricing.syncPrices(rooms, plans);
         const activeRooms = (rooms || []).filter(r => r.isActive !== false && r.supportsClassroom !== false);
         const themes = ['brown', 'blue', 'purple', 'emerald', 'orange', 'rose'] as const;
         const roomImages = [
@@ -317,15 +326,24 @@ export class ClassroomService {
         const mapped: SelectableRoom[] = activeRooms.map((r, idx) => {
           const resolved = resolveImageUrl(r.imageUrl);
           const roomImg = resolved || roomImages[idx % roomImages.length];
+<<<<<<< HEAD
+<<<<<<< Updated upstream
           const matchedPlan = (plans || []).find(p => p.roomId === r.id);
           const planCost = matchedPlan ? (matchedPlan.baseCost || matchedPlan.overageHourlyRate || 0) : 0;
           const rate = r.hourlyPrice || (r as any).hourlyRate || planCost || 0;
+=======
+          const rate = this.roomPricing.getRoomHourlyRate(r);
+>>>>>>> fix/audit-remediation
           const cap = r.capacity || 20;
+=======
+          const rate = this.roomPricing.getRoomHourlyRate(r);
+          const cap = 20;
+>>>>>>> Stashed changes
           return {
             id: r.id,
             name: r.name,
             nameAr: r.name,
-            nameEn: r.nameEn || r.name,
+            nameEn: r.name,
             type: 'Classroom',
             capacity: cap,
             maxCapacity: cap,
@@ -336,12 +354,15 @@ export class ClassroomService {
             accentColor: '#f5b921'
           };
         });
-        this.roomsState.set(mapped);
-        return mapped;
+        if (mapped.length > 0) {
+          this.roomsState.set(mapped);
+          return mapped;
+        }
+        return this.roomsState();
       }),
       catchError(err => {
         console.warn('[ClassroomService] Failed to load rooms from API:', err);
-        return of([]);
+        return of(this.roomsState());
       })
     );
   }
@@ -393,10 +414,20 @@ export class ClassroomService {
             computedStatus = 'completed';
           } else if (isCancelled) {
             computedStatus = 'cancelled';
-          } else if (isActive) {
+          } else if (statusNum === 1 || statusVal === '1' || statusVal === 'active') {
             computedStatus = 'active';
           } else if (isScheduled) {
-            computedStatus = 'scheduled';
+            const todayISO = this.getTodayDateISO();
+            const isToday = bookingDateStr === todayISO;
+            const nowMinutes = (new Date()).getHours() * 60 + (new Date()).getMinutes();
+            const startMins = this.parseTimeToMinutes(timeFromStr);
+            if (isToday && nowMinutes >= startMins) {
+              computedStatus = 'active';
+            } else {
+              computedStatus = 'scheduled';
+            }
+          } else if (isActive) {
+            computedStatus = 'active';
           } else {
             computedStatus = 'available';
           }
@@ -1250,6 +1281,9 @@ export class ClassroomService {
       roomId: realRoomId,
       instructorId: matchedInsId,
       instructorName: dto.instructorName,
+      instructorPhone: dto.instructorPhone || dto.phoneNumber || dto.phone || undefined,
+      phoneNumber: dto.phoneNumber || dto.instructorPhone || dto.phone || null,
+      phone: dto.phone || dto.instructorPhone || dto.phoneNumber || null,
       activity: dto.activity,
       note: dto.note || dto.notes || null,
       notes: dto.notes || dto.note || null,
@@ -1343,6 +1377,9 @@ export class ClassroomService {
     const payload: UpdateReservationDto = {
       ...dto,
       instructorId: matchedInsId || dto.instructorId,
+      instructorPhone: dto.instructorPhone || dto.phoneNumber || dto.phone || undefined,
+      phoneNumber: dto.phoneNumber || dto.instructorPhone || dto.phone || null,
+      phone: dto.phone || dto.instructorPhone || dto.phoneNumber || null,
       dateFrom: dto.dateFrom ? new Date(dto.dateFrom).toISOString() : undefined,
       dateTo: dto.dateTo ? new Date(dto.dateTo).toISOString() : undefined,
       timeFrom: isoStart,
@@ -1358,11 +1395,33 @@ export class ClassroomService {
 
     return this.reservationApi.updateReservation(id, payload).pipe(
       tap(() => {
+        if (payload.roomId && payload.roomName) {
+          this.replaceReservationRoom(id, payload.roomId, payload.roomName);
+        }
         this.loadReservations().subscribe();
       }),
       catchError(err => {
         console.error('[ClassroomService] Error updating reservation:', err);
         throw err;
+      })
+    );
+  }
+
+  /** Update reservation room in-memory to prevent duplication across rooms (NOOK-DEV-03) */
+  public replaceReservationRoom(reservationId: string, newRoomId: string, newRoomName: string): void {
+    const cleanId = reservationId.split('_')[0].trim().toLowerCase();
+    this.reservationsState.update(list =>
+      list.map(r => {
+        const rBase = (r.reservationId || r.id || '').split('_')[0].trim().toLowerCase();
+        if (rBase === cleanId) {
+          return {
+            ...r,
+            roomId: newRoomId,
+            classroom: newRoomName,
+            roomName: newRoomName
+          };
+        }
+        return r;
       })
     );
   }
@@ -1547,7 +1606,14 @@ export class ClassroomService {
     }
   }
 
-  /** Calculate overtime, 10-minute grace period, and status alerts */
+  /** Explicit Check-In for scheduled room sessions */
+  public checkInCard(cardId: string): void {
+    this.cardsState.update(cards =>
+      cards.map(c => c.id === cardId ? { ...c, status: 'active' as ClassroomStatus } : c)
+    );
+  }
+
+  /** Calculate overtime, duration, and status alerts using pure lifecycle utility (NOOK-DEV-01) */
   calculateOvertimeAndAlerts(
     card: ClassroomCard,
     isArabic: boolean
@@ -1562,99 +1628,31 @@ export class ClassroomService {
       };
     }
 
-    const now = new Date();
-    const dateStr = card.bookingDate || this.getTodayDateISO();
-    const parts = dateStr.split('-');
-    const startMins = this.parseTimeToMinutes(card.startTime);
-    let endMins = this.parseTimeToMinutes(card.endTime);
-    if (endMins <= startMins) {
-      const duration = card.durationHours && card.durationHours > 0 ? card.durationHours : 2;
-      endMins = startMins + Math.round(duration * 60);
-    }
+    const res = calculateSessionDurationAndOvertime({
+      startTime: card.startTime,
+      endTime: card.endTime,
+      bookingDate: card.bookingDate,
+      status: card.status as any,
+      hourlyRate: card.hourlyRate || 0
+    });
 
-    let endDateTime: Date | null = null;
-    let startDateTime: Date | null = null;
+    let overtimeStatus: 'normal' | 'grace_period' | 'extra_hour' = 'normal';
+    let alertStatus: 'normal' | 'ending_soon' | 'ended_grace' | 'overtime_charged' = 'normal';
 
-    if (parts.length === 3) {
-      const year = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10) - 1;
-      const day = parseInt(parts[2], 10);
-      startDateTime = new Date(year, month, day, Math.floor(startMins / 60), startMins % 60, 0);
-      endDateTime = new Date(year, month, day, Math.floor(endMins / 60), endMins % 60, 0);
-      if (endDateTime.getTime() <= startDateTime.getTime()) {
-        endDateTime.setDate(endDateTime.getDate() + 1);
-      }
-    }
-
-    if (startDateTime && endDateTime) {
-      if (now.getTime() < startDateTime.getTime()) {
-        return {
-          overdueMinutes: 0,
-          extraHours: 0,
-          overtimeStatus: 'normal',
-          alertStatus: 'normal',
-          alertMessage: ''
-        };
-      }
-
-      if (now.getTime() <= endDateTime.getTime()) {
-        const remainingMinutes = Math.floor((endDateTime.getTime() - now.getTime()) / 60000);
-        if (remainingMinutes <= 15) {
-          const msg = isArabic
-            ? `فاضل ${remainingMinutes} دقيقة والحجز هيخلص`
-            : `${remainingMinutes}m remaining until reservation ends`;
-          return {
-            overdueMinutes: 0,
-            extraHours: 0,
-            overtimeStatus: 'normal',
-            alertStatus: 'ending_soon',
-            alertMessage: msg
-          };
-        }
-        return {
-          overdueMinutes: 0,
-          extraHours: 0,
-          overtimeStatus: 'normal',
-          alertStatus: 'normal',
-          alertMessage: ''
-        };
-      }
-
-      // Past scheduled end time -> Overtime!
-      const overdueMinutes = Math.floor((now.getTime() - endDateTime.getTime()) / 60000);
-      if (overdueMinutes <= 10) {
-        const msg = isArabic
-          ? `الوقت خلص خلاص (فترة سماح: ${10 - overdueMinutes} دقيقة متبقية)`
-          : `Time ended (Grace period: ${10 - overdueMinutes}m remaining)`;
-        return {
-          overdueMinutes,
-          extraHours: 0,
-          overtimeStatus: 'grace_period',
-          alertStatus: 'ended_grace',
-          alertMessage: msg
-        };
-      }
-
-      const extraHours = Math.ceil((overdueMinutes - 10) / 60);
-      const msg = isArabic
-        ? `الوقت عدى بـ ${overdueMinutes} دقيقة (+${extraHours} ساعة زيادة)`
-        : `Overtime by ${overdueMinutes}m (+${extraHours}h extra charged)`;
-
-      return {
-        overdueMinutes,
-        extraHours,
-        overtimeStatus: 'extra_hour',
-        alertStatus: 'overtime_charged',
-        alertMessage: msg
-      };
+    if (res.isOverdue) {
+      overtimeStatus = 'extra_hour';
+      alertStatus = 'overtime_charged';
+    } else if (res.alertStatus === 'ending_soon') {
+      overtimeStatus = 'normal';
+      alertStatus = 'ending_soon';
     }
 
     return {
-      overdueMinutes: 0,
-      extraHours: 0,
-      overtimeStatus: 'normal',
-      alertStatus: 'normal',
-      alertMessage: ''
+      overdueMinutes: res.overdueMinutes,
+      extraHours: res.extraHours,
+      overtimeStatus,
+      alertStatus,
+      alertMessage: isArabic ? res.alertMessageAr : res.alertMessageEn
     };
   }
 

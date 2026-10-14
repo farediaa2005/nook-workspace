@@ -13,23 +13,14 @@
         class="btn-export-data"
         (click)="exportInstructorsToCSV()"
         [title]="t().exportDisplayedToCSV"
-        style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.85rem; font-weight: 600; cursor: pointer;"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 15px; height: 15px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="export-icon">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
           <polyline points="7 10 12 15 17 10"></polyline>
           <line x1="12" y1="15" x2="12" y2="3"></line>
         </svg>
         <span>{{ t().export }}</span>
       </button>
-
-      <!-- Search Box -->
-      <app-search-box
-        class="instructors-search-box"
-        [placeholder]="t().searchInstructorsPlaceholder"
-        [value]="searchQuery()"
-        (valueChange)="onSearchChange($event)"
-      ></app-search-box>
 
       <!-- Add Instructor Primary CTA -->
       <app-primary-button
@@ -84,6 +75,35 @@
     </app-metric-card>
   </div>
 
+  <!-- Dedicated Toolbar & Filters Card (Aligned with Students page) -->
+  <div class="toolbar-card">
+    <div class="toolbar-search">
+      <app-search-box
+        [placeholder]="t().searchInstructorsPlaceholder"
+        [value]="searchQuery()"
+        (valueChange)="onSearchChange($event)"
+      ></app-search-box>
+    </div>
+
+    <div class="toolbar-filters">
+      <div class="filter-item">
+        <app-custom-select
+          [options]="statusFilterOptions()"
+          [selectedValue]="statusFilter()"
+          (valueChange)="statusFilter.set($event); currentPage.set(1)"
+        ></app-custom-select>
+      </div>
+
+      <div class="filter-item">
+        <app-custom-select
+          [options]="specialtyFilterOptions()"
+          [selectedValue]="specialtyFilter()"
+          (valueChange)="specialtyFilter.set($event); currentPage.set(1)"
+        ></app-custom-select>
+      </div>
+    </div>
+  </div>
+
   <!-- Data Table Container Card -->
   <div class="table-container-card">
     <div class="table-responsive">
@@ -105,7 +125,7 @@
               <td class="cell-student-td">
                 <div class="student-cell-content">
                   <div class="member-avatar-box">
-                    {{ ins.name.charAt(0) }}
+                    <img [src]="getInstructorAvatar(ins.name)" [alt]="ins.name" class="member-avatar-img" />
                   </div>
                   <div class="student-meta">
                     <strong class="student-name">{{ isArabic() ? ins.name : (ins.nameEn || ins.name) }}</strong>
@@ -131,10 +151,10 @@
                 </span>
               </td>
 
-              <!-- Total Sessions -->
+              <!-- Total Sessions (Dynamic derivation - Ticket O-8) -->
               <td class="cell-center">
                 <span class="sessions-pill">
-                  {{ ins.totalSessions }} {{ isArabic() ? 'ورشة' : 'sessions' }}
+                  {{ getInstructorSessionCount(ins) }} {{ isArabic() ? 'ورشة / جلسة' : 'sessions' }}
                 </span>
               </td>
 
@@ -257,11 +277,13 @@
           }
         </div>
 
+<<<<<<< Updated upstream
         <!-- Email Address -->
         <div class="field-group">
           <label class="field-label">{{ t().emailLabel }}</label>
           <input
             type="email"
+            dir="ltr"
             class="custom-input"
             [class.input-error]="!!emailError()"
             [placeholder]="'instructor@example.com'"
@@ -273,68 +295,113 @@
             <span class="field-error-msg">{{ eErr }}</span>
           }
         </div>
+=======
+        <!-- Sessions Count (Read-only computed from bookings - O-8) -->
+        @if (modalMode() === 'edit') {
+          <div class="field-group">
+            <label class="field-label">
+              <span>{{ t().sessionsCountTh }}</span>
+              <span class="optional-hint">({{ isArabic() ? 'محسوبة تلقائياً للقراءة فقط' : 'Read-only calculated' }})</span>
+            </label>
+            <div class="readonly-value-box" style="padding: 9px 12px; background: rgba(245, 185, 33, 0.08); border: 1px solid rgba(245, 185, 33, 0.25); border-radius: 8px; font-weight: 700; color: var(--yellow);">
+              {{ formSessions() }} {{ isArabic() ? 'جلسة / ورشة عمل' : 'sessions' }}
+            </div>
+          </div>
+        }
+>>>>>>> Stashed changes
 
-        <!-- Specialty / Domain -->
-        <div class="field-group">
-          <label class="field-label">{{ t().specialtyLabel }}</label>
-          <input
-            type="text"
-            class="custom-input"
-            [placeholder]="isArabic() ? 'مثال: الذكاء الاصطناعي، UI/UX' : 'e.g. AI, UI/UX Design'"
-            [ngModel]="formSpecialty()"
-            (ngModelChange)="formSpecialty.set($event)"
-            name="formSpecialty"
-          />
-        </div>
+        <!-- Extended Fields (Gap B3 — Hidden until supported by Backend DTOs) -->
+        @if (INSTRUCTOR_EXTENDED_FIELDS) {
+          <!-- Email Address -->
+          <div class="field-group">
+            <label class="field-label">{{ t().emailLabel }}</label>
+            <input
+              type="email"
+              dir="ltr"
+              class="custom-input"
+              [class.input-error]="!!emailError()"
+              [placeholder]="'instructor@example.com'"
+              [ngModel]="formEmail()"
+              (ngModelChange)="onEmailChange($event)"
+              name="formEmail"
+            />
+            @if (emailError(); as eErr) {
+              <span class="field-error-msg">{{ eErr }}</span>
+            }
+          </div>
 
-        <!-- Affiliation / Academy -->
-        <div class="field-group">
-          <label class="field-label">{{ t().affiliationLabel }}</label>
-          <input
-            type="text"
-            class="custom-input"
-            [placeholder]="isArabic() ? 'مثال: جامعة القاهرة، مستقل' : 'e.g. Cairo University, Freelance'"
-            [ngModel]="formAffiliation()"
-            (ngModelChange)="formAffiliation.set($event)"
-            name="formAffiliation"
-          />
-        </div>
+          <!-- Specialty / Domain -->
+          <div class="field-group">
+            <label class="field-label">{{ t().specialtyLabel }}</label>
+            <input
+              type="text"
+              class="custom-input"
+              [placeholder]="isArabic() ? 'مثال: الذكاء الاصطناعي، UI/UX' : 'e.g. AI, UI/UX Design'"
+              [ngModel]="formSpecialty()"
+              (ngModelChange)="formSpecialty.set($event)"
+              name="formSpecialty"
+            />
+          </div>
 
+<<<<<<< HEAD
+<<<<<<< Updated upstream
         <!-- Total Sessions -->
+=======
+        <!-- Total Sessions (O-8) -->
+>>>>>>> fix/audit-remediation
         <div class="field-group">
-          <label class="field-label">{{ t().sessionsCountTh }}</label>
+          <label class="field-label">
+            <span>{{ t().sessionsCountTh }}</span>
+            <span class="optional-hint">({{ isArabic() ? 'محسوبة تلقائياً من الحجوزات مع إمكانية الضبط' : 'Auto-computed from bookings' }})</span>
+          </label>
           <input
             type="number"
+            min="0"
             class="custom-input"
             [ngModel]="formSessions()"
             (ngModelChange)="formSessions.set($event)"
             name="formSessions"
           />
         </div>
+=======
+          <!-- Affiliation / Academy -->
+          <div class="field-group">
+            <label class="field-label">{{ t().affiliationLabel }}</label>
+            <input
+              type="text"
+              class="custom-input"
+              [placeholder]="isArabic() ? 'مثال: جامعة القاهرة، مستقل' : 'e.g. Cairo University, Freelance'"
+              [ngModel]="formAffiliation()"
+              (ngModelChange)="formAffiliation.set($event)"
+              name="formAffiliation"
+            />
+          </div>
+>>>>>>> Stashed changes
 
-        <!-- Status -->
-        <div class="field-group">
-          <label class="field-label">{{ t().status }}</label>
-          <app-custom-select
-            [options]="statusOptions()"
-            [selectedValue]="formStatus()"
-            [fullWidth]="true"
-            (valueChange)="formStatus.set($any($event))"
-          ></app-custom-select>
-        </div>
+          <!-- Status -->
+          <div class="field-group">
+            <label class="field-label">{{ t().status }}</label>
+            <app-custom-select
+              [options]="statusOptions()"
+              [selectedValue]="formStatus()"
+              [fullWidth]="true"
+              (valueChange)="formStatus.set($any($event))"
+            ></app-custom-select>
+          </div>
 
-        <!-- Bio / Notes -->
-        <div class="field-group full-width">
-          <label class="field-label">{{ t().bioLabel }}</label>
-          <textarea
-            class="custom-textarea"
-            rows="3"
-            [placeholder]="isArabic() ? 'اكتب نبذة مختصرة عن الخبرات والمجالات...' : 'Short bio or relevant qualifications...'"
-            [ngModel]="formBio()"
-            (ngModelChange)="formBio.set($event)"
-            name="formBio"
-          ></textarea>
-        </div>
+          <!-- Bio / Notes -->
+          <div class="field-group full-width">
+            <label class="field-label">{{ t().bioLabel }}</label>
+            <textarea
+              class="custom-textarea"
+              rows="3"
+              [placeholder]="isArabic() ? 'اكتب نبذة مختصرة عن الخبرات والمجالات...' : 'Short bio or relevant qualifications...'"
+              [ngModel]="formBio()"
+              (ngModelChange)="formBio.set($event)"
+              name="formBio"
+            ></textarea>
+          </div>
+        }
       </div>
 
       <div class="modal-footer-actions">

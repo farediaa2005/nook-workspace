@@ -33,15 +33,13 @@ export interface CreateStudentPayload {
   phoneNumber?: string | null;
   whatsapp?: string | null;
   email?: string | null;
-  college?: string | null;
   university?: string | null;
+  facultyId?: string | null;
+  parentId?: string | null;
   roomId?: string | null;
   zone?: number;
   addedBy?: string | null;
-  printingPrice?: number;
-  facultyId?: string | null;
-  parentId?: string | null;
-  notes?: string | null;
+  printingPrice?: number | null;
 }
 
 export interface UpdateStudentPayload {
@@ -49,12 +47,10 @@ export interface UpdateStudentPayload {
   phoneNumber?: string | null;
   whatsapp?: string | null;
   email?: string | null;
-  college?: string | null;
   university?: string | null;
   facultyId?: string | null;
   parentId?: string | null;
   canBook?: boolean;
-  notes?: string | null;
 }
 
 export interface StudentCheckoutPayload {

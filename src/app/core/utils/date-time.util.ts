@@ -180,3 +180,15 @@ export function addDaysToDateISO(days: number, fromDate?: Date | string): string
   const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + days);
   return formatLocalDateToISO(d);
 }
+
+/**
+ * Format a time range in Arabic with consistent Arabic markers (ص / م) and en-dash
+ * Example: "03:24 ص – 03:25 ص"
+ * Prevents bidi text reversal in RTL browsers (e.g. "AM - 03:25 AM 03:24").
+ */
+export function formatTimeRangeArabic(start?: string | null, end?: string | null): string {
+  const startFmt = parseIsoToLocal12h(start, true) || '--:--';
+  const endFmt = parseIsoToLocal12h(end, true) || '--:--';
+  return `${startFmt} – ${endFmt}`;
+}
+

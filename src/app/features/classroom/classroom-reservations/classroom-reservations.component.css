@@ -762,7 +762,53 @@
   border: 1px solid #e11d48;
 }
 
-/* Clock Trigger Button in Booking Modal */
+/* Clock Trigger & Keyboard Time Entry in Booking Modal */
+.cal-time-input-group {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(245, 185, 33, 0.08);
+  border: 1.5px solid rgba(245, 185, 33, 0.35);
+  border-radius: 10px;
+  padding: 4px 6px 4px 10px;
+  transition: all 0.2s ease;
+}
+
+.cal-time-input-group:focus-within {
+  background: rgba(245, 185, 33, 0.14);
+  border-color: var(--yellow, #f59e0b);
+  box-shadow: 0 0 0 2px rgba(245, 185, 33, 0.2);
+}
+
+.cal-time-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text, #f8fafc);
+  width: 95px;
+  text-align: center;
+  font-family: inherit;
+}
+
+.btn-cal-clock-trigger-icon {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--yellow, #f59e0b);
+  transition: all 0.15s ease;
+}
+
+.btn-cal-clock-trigger-icon:hover {
+  background: rgba(245, 185, 33, 0.2);
+  transform: scale(1.08);
+}
+
 .btn-cal-clock-trigger {
   display: inline-flex;
   align-items: center;
@@ -1470,6 +1516,8 @@ tr.row--menu-open .col-actions {
   max-width: 520px;
   max-height: 90vh;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow-lg, 0 24px 60px rgba(0, 0, 0, 0.45));

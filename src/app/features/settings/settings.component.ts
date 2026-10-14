@@ -196,13 +196,14 @@ export class SettingsComponent implements OnInit {
   ]);
 
   pkgValidityOptions = computed<SelectOption[]>(() => [
-    { label: `15 ${this.t().validityDays}`, value: '15' },
-    { label: `30 ${this.t().validityDays}`, value: '30' },
-    { label: `45 ${this.t().validityDays}`, value: '45' },
-    { label: `60 ${this.t().validityDays}`, value: '60' },
-    { label: `90 ${this.t().validityDays}`, value: '90' },
-    { label: `180 ${this.t().validityDays}`, value: '180' },
-    { label: `365 ${this.t().validityDays}`, value: '365' },
+    { label: `7 ${this.t().packageValidityDays}`, value: '7' },
+    { label: `15 ${this.t().packageValidityDays}`, value: '15' },
+    { label: `30 ${this.t().packageValidityDays}`, value: '30' },
+    { label: `45 ${this.t().packageValidityDays}`, value: '45' },
+    { label: `60 ${this.t().packageValidityDays}`, value: '60' },
+    { label: `90 ${this.t().packageValidityDays}`, value: '90' },
+    { label: `180 ${this.t().packageValidityDays}`, value: '180' },
+    { label: `365 ${this.t().packageValidityDays}`, value: '365' },
     { label: `⚙️ ${this.t().customOptionLabel}`, value: 'custom' }
   ]);
 
@@ -508,12 +509,38 @@ export class SettingsComponent implements OnInit {
     }
   }
 
-  toggleRoomActive(id: string): void {
-    this.settingsService.toggleRoomActive(id);
+  // Room delete confirmation (NOOK-SEC-01 & O-10)
+  roomToDelete = signal<RoomEntity | null>(null);
+  isDeleteRoomModalOpen = signal<boolean>(false);
+
+  openDeleteRoomModal(room: RoomEntity): void {
+    this.roomToDelete.set(room);
+    this.isDeleteRoomModalOpen.set(true);
+  }
+
+  closeDeleteRoomModal(): void {
+    this.isDeleteRoomModalOpen.set(false);
+    this.roomToDelete.set(null);
+  }
+
+  confirmDeleteRoom(): void {
+    const room = this.roomToDelete();
+    if (!room) return;
+    this.settingsService.deleteRoom(room.id);
+    this.closeDeleteRoomModal();
   }
 
   deleteRoom(id: string): void {
-    this.settingsService.deleteRoom(id);
+    const room = this.settingsService.rooms().find(r => r.id === id);
+    if (room) {
+      this.openDeleteRoomModal(room);
+    } else {
+      this.settingsService.deleteRoom(id);
+    }
+  }
+
+  toggleRoomActive(id: string): void {
+    this.settingsService.toggleRoomActive(id);
   }
 
   getRoomImage(imageUrl?: string | null): string {

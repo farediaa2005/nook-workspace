@@ -202,6 +202,26 @@ export class ShowProductsComponent implements OnInit {
     this.editExpirationDate.set(val);
   }
 
+  formatExpiryDisplay(dateStr: string): string {
+    if (!dateStr) return this.t().selectExpirationDate;
+    if (dateStr === 'N/A') return this.t().noExpirationDisplay;
+    try {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        if (!isNaN(d.getTime())) {
+          const formatted = d.toLocaleDateString(this.isArabic() ? 'ar-EG' : 'en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          });
+          return `${formatted} (${dateStr})`;
+        }
+      }
+    } catch {}
+    return dateStr;
+  }
+
   openEditDatePicker(inputEl: HTMLInputElement): void {
     if (this.editHasNoExpiration()) return;
     try {
@@ -326,19 +346,43 @@ export class ShowProductsComponent implements OnInit {
     exportToCsv(`nook_products_${getTodayDateISO()}.csv`, headers, rows);
   }
 
-  // Delete product
-  deleteProduct(id: string): void {
+  // Delete product confirmation
+  productToDelete = signal<CateringProduct | null>(null);
+  isDeleteModalOpen = signal<boolean>(false);
+
+  openDeleteModal(product: CateringProduct): void {
     if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حذف منتج' : 'Delete Product')) {
       return;
     }
-    this.cateringService.deleteProduct(id).subscribe({
+    this.productToDelete.set(product);
+    this.isDeleteModalOpen.set(true);
+  }
+
+  closeDeleteModal(): void {
+    this.isDeleteModalOpen.set(false);
+    this.productToDelete.set(null);
+  }
+
+  confirmDeleteProduct(): void {
+    const prod = this.productToDelete();
+    if (!prod) return;
+    this.cateringService.deleteProduct(prod.id).subscribe({
       next: () => {
         this.workspaceService.showToast(this.isArabic() ? 'تم حذف المنتج بنجاح' : 'Product deleted successfully', 'success');
+        this.closeDeleteModal();
       },
       error: (err) => {
         this.workspaceService.showToast(err?.error?.message || err?.message || (this.isArabic() ? 'فشل حذف المنتج' : 'Failed to delete product'), 'error');
+        this.closeDeleteModal();
       }
     });
+  }
+
+  deleteProduct(id: string): void {
+    const prod = this.allProducts().find(p => p.id === id);
+    if (prod) {
+      this.openDeleteModal(prod);
+    }
   }
 
   setCategoryTab(cat: CategoryFilterTab): void {

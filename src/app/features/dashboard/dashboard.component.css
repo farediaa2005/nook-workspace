@@ -808,6 +808,13 @@
   font-weight: 800;
 }
 
+.legend-count {
+  color: var(--text-dim, #a8a29e);
+  font-size: 0.82em;
+  font-weight: 500;
+  margin-inline-start: 4px;
+}
+
 /* ============================================================
    4. Operational Activity Boards (Placed AFTER the Graph)
    ============================================================ */

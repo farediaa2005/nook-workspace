@@ -44,3 +44,28 @@ export interface InvoiceData {
   shiftId?: string;
   notes?: string;
 }
+
+/** Official backend invoice DTO from GET /api/Workspaces/{id}/invoice and GET /api/Classrooms/{id}/invoice */
+export interface InvoiceDetailDto {
+  invoiceNumber?: string;
+  issueDate?: string;
+  clientType?: string;
+  clientName?: string | null;
+  clientIdentifier?: string | null;
+  roomOrDesk?: string | null;
+  checkInTime?: string | null;
+  checkOutTime?: string | null;
+  durationFormatted?: string;
+  hourlyRate?: number;
+  baseAmount: number;
+  cateringAmount: number;
+  printingAmount: number;
+  discountAmount: number;
+  discountReason?: string | null;
+  subtotal: number;
+  taxAmount: number;
+  finalTotal: number;
+  paymentMethod?: number; // PayWay enum
+  cashierName?: string | null;
+  shiftId?: string | null;
+}

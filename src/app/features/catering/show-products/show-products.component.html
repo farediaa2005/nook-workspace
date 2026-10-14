@@ -202,7 +202,7 @@
                     <button
                       type="button"
                       class="btn-action-delete"
-                      (click)="deleteProduct(prod.id)"
+                      (click)="openDeleteModal(prod)"
                       [title]="t().delete"
                     >
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -395,10 +395,10 @@
                     <line x1="8" y1="2" x2="8" y2="6"></line>
                     <line x1="3" y1="10" x2="21" y2="10"></line>
                   </svg>
-                  <span class="custom-date-text" [class.custom-date-text--placeholder]="!editSelectedDateValue()">
+                  <span class="custom-date-text" [class.custom-date-text--placeholder]="!editSelectedDateValue() && !editHasNoExpiration()">
                     {{ editHasNoExpiration()
                       ? t().noExpirationDisplay
-                      : (editSelectedDateValue() ? editSelectedDateValue() : t().selectExpirationDate) }}
+                      : formatExpiryDisplay(editSelectedDateValue()) }}
                   </span>
                 </div>
               </div>
@@ -412,12 +412,53 @@
               @if (editImagePreview()) {
                 <div class="image-preview-card">
                   <img [src]="editImagePreview()" alt="Product preview" class="preview-img" />
+<<<<<<< HEAD
+<<<<<<< Updated upstream
                   <button type="button" class="btn-delete-img" (click)="removeEditImage()" [title]="t().removeImage">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <polyline points="3 6 5 6 21 6"></polyline>
                       <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                     </svg>
                   </button>
+=======
+=======
+>>>>>>> fix/audit-remediation
+                  <div class="image-preview-actions">
+                    <label class="btn-change-img" [title]="t().changeImage">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        class="file-input-hidden"
+                        (change)="onEditImageFileChange($event)"
+                      />
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                        <circle cx="12" cy="13" r="4"></circle>
+                      </svg>
+                      <span>{{ t().changeImage }}</span>
+                    </label>
+<<<<<<< HEAD
+                    @if (editSelectedImageFile()) {
+                      <button type="button" class="btn-delete-img" (click)="removeEditImage()" [title]="t().removeImage">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        <span>{{ t().removeImage }}</span>
+                      </button>
+                    }
+                  </div>
+>>>>>>> Stashed changes
+=======
+                    <button type="button" class="btn-delete-img" (click)="removeEditImage()" [title]="t().removeImage">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      </svg>
+                      <span>{{ t().removeImage }}</span>
+                    </button>
+                  </div>
+>>>>>>> fix/audit-remediation
                 </div>
               } @else {
                 <label class="upload-dropzone">
@@ -454,6 +495,33 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  }
+
+  <!-- Delete Confirmation Modal (NOOK-SEC-01 & O-10) -->
+  @if (isDeleteModalOpen() && productToDelete(); as delProd) {
+    <div class="modal-backdrop" (click)="closeDeleteModal()">
+      <div class="modal-card modal-card--delete" (click)="$event.stopPropagation()">
+        <div class="delete-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" style="width: 32px; height: 32px;">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+        </div>
+
+        <h3 class="modal-title" style="margin-top: 12px; text-align: center;">{{ isArabic() ? 'تأكيد حذف المنتج' : 'Confirm Product Deletion' }}</h3>
+        <p class="delete-subtitle" style="text-align: center; margin-top: 6px; color: var(--text-dim); font-size: 0.92rem;">
+          {{ isArabic() ? 'هل أنت متأكد من رغبتك في حذف المنتج "' + delProd.name + '" نهائياً؟' : 'Are you sure you want to permanently delete "' + delProd.name + '"?' }}
+        </p>
+
+        <div class="modal-footer" style="margin-top: 24px; justify-content: center; gap: 12px;">
+          <button type="button" class="btn-cancel" (click)="closeDeleteModal()">{{ t().cancel }}</button>
+          <button type="button" class="btn-confirm-delete" (click)="confirmDeleteProduct()" style="background: #ef4444; color: #fff; padding: 10px 24px; border-radius: 10px; font-weight: 700; border: none; cursor: pointer;">
+            {{ t().delete }}
+          </button>
+        </div>
       </div>
     </div>
   }

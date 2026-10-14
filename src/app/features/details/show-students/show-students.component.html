@@ -340,7 +340,7 @@
 
             <div class="modal-field-group">
               <label class="modal-label">{{ isArabic() ? 'البريد الإلكتروني' : 'Email' }}</label>
-              <input type="email" class="modal-input" [ngModel]="regEmail()" (ngModelChange)="regEmail.set($event)" placeholder="student@example.com" />
+              <input type="email" dir="ltr" class="modal-input" [ngModel]="regEmail()" (ngModelChange)="regEmail.set($event)" placeholder="student@example.com" />
             </div>
 
             <div class="modal-field-group">
@@ -404,7 +404,7 @@
 
             <div class="modal-field-group">
               <label class="modal-label">{{ isArabic() ? 'البريد الإلكتروني' : 'Email' }}</label>
-              <input type="email" class="modal-input" [ngModel]="editEmail()" (ngModelChange)="editEmail.set($event)" />
+              <input type="email" dir="ltr" class="modal-input" [ngModel]="editEmail()" (ngModelChange)="editEmail.set($event)" />
             </div>
 
             <div class="modal-field-group">

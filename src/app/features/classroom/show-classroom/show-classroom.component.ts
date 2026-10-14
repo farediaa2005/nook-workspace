@@ -26,6 +26,15 @@ import { CheckoutSuccessModalComponent } from '../../../shared/components/checko
 import { InvoiceService } from '../../../core/services/invoice.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { InvoiceData } from '../../../core/models/invoice.model';
+import { isSelfReservation } from '../../../core/utils/reservation-conflict.util';
+import { RoomPricingService } from '../../../core/services/room-pricing.service';
+import {
+  normalizeArabicDigits,
+  sanitizePhoneInput,
+  isValidEgyptianPhone,
+  isValidEmail,
+  isValidPersonName
+} from '../../../core/utils/validators.util';
 
 @Component({
   selector: 'app-show-classroom',
@@ -53,6 +62,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   private destroyRef = inject(DestroyRef);
   private invoiceService = inject(InvoiceService);
   private authService = inject(AuthService);
+  private roomPricing = inject(RoomPricingService);
 
   completedInvoice = signal<InvoiceData | null>(null);
 
@@ -197,8 +207,10 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   bookingEmail = signal('');
   bookingNotes = signal('');
   bookingHourlyRate = signal<number>(0);
-  bookingPrintingCharges = signal<number>(0);
   bookingDate = signal('');
+  isSavingBooking = signal(false);
+  bookingFormSubmitted = signal(false);
+  bookingFormErrorMessage = signal<string | null>(null);
 
   todayDate = computed(() => this.classroomService.getTodayDateISO());
 
@@ -310,11 +322,9 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     const editingId = this.editingCardId();
 
     return this.allCards().some(card => {
-      // Skip if current card is the one we are editing
-      if (editingId) {
-        const cleanEdit = editingId.trim().toLowerCase();
-        if (card.id && card.id.trim().toLowerCase() === cleanEdit) return false;
-        if (card.reservationId && card.reservationId.trim().toLowerCase() === cleanEdit) return false;
+      // Skip if current card is the one we are editing (NOOK-DEV-02)
+      if (editingId && isSelfReservation(card as any, editingId)) {
+        return false;
       }
 
       // Skip if card is available or cancelled
@@ -445,6 +455,8 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
 
     return rate * dur;
   });
+
+  bookingPrintingCharges = signal<number>(0);
 
   bookingSubtotal = computed(() => {
     return this.bookingRoomRentalTotal() + Number(this.bookingPrintingCharges() || 0);
@@ -820,7 +832,19 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   closeBookingModal(): void {
     this.isBookingModalOpen.set(false);
     this.editingCardId.set(null);
+    this.isSavingBooking.set(false);
+    this.bookingFormSubmitted.set(false);
+    this.bookingFormErrorMessage.set(null);
     document.body.style.overflow = '';
+  }
+
+  /** Check-in a scheduled room session directly from the live board (NOOK-DEV-01) */
+  checkInScheduledCard(card: ClassroomCard): void {
+    this.classroomService.checkInCard(card.id);
+    this.workspaceService.showToast(
+      this.isArabic() ? `تم بدء الجلسة في ${card.name} بنجاح` : `Session started in ${card.name}`,
+      'success'
+    );
   }
 
   /** Check if a room currently has an active classroom session right now */
@@ -832,7 +856,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
 
     return cards.some(c => {
       if (c.status !== 'active') return false;
-      if (editingId && c.id === editingId) return false;
+      if (editingId && (c.id === editingId || c.reservationId === editingId)) return false;
       const cName = (c.name || '').trim().toLowerCase();
       const cRoomId = (c.roomId || '').trim().toLowerCase();
       return (cleanId && cRoomId && cRoomId === cleanId) ||
@@ -871,7 +895,8 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     }
 
     this.selectedRoomId.set(roomId);
-    this.bookingHourlyRate.set(room.hourlyRate);
+    const resolvedRate = this.roomPricing.getRoomHourlyRate(room) || room.hourlyRate || 0;
+    this.bookingHourlyRate.set(resolvedRate);
   }
 
   toggleDiscount(): void {
@@ -881,7 +906,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   // Validation Signals
   isInstructorValid = computed(() => {
     const val = this.bookingInstructor().trim();
-    return val.length >= 2 && val.length <= 50;
+    return isValidPersonName(val);
   });
 
   isActivityValid = computed(() => {
@@ -892,14 +917,13 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   isPhoneValid = computed(() => {
     const val = this.bookingPhone().trim();
     if (!val) return true; // Optional field
-    return val.length === 11;
+    return isValidEgyptianPhone(val);
   });
 
   isEmailValid = computed(() => {
     const val = this.bookingEmail().trim();
     if (!val) return true; // Optional field
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return val.length <= 80 && regex.test(val);
+    return isValidEmail(val);
   });
 
   onInstructorInput(event: Event): void {
@@ -951,7 +975,8 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
 
   onPhoneInput(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const cleaned = input.value.replace(/\D/g, '').substring(0, 11);
+    const normalized = normalizeArabicDigits(input.value);
+    const cleaned = sanitizePhoneInput(normalized).substring(0, 11);
     input.value = cleaned;
     this.bookingPhone.set(cleaned);
   }
@@ -1686,13 +1711,37 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     const rate = Math.max(0, Number(this.tempBookingRate()) || 0);
     this.bookingHourlyRate.set(rate);
     this.isEditingBookingRate.set(false);
+    const selectedRoom = this.selectableRooms().find(r => r.id === this.selectedRoomId());
+    if (selectedRoom && rate > 0) {
+      this.roomPricing.setRoomHourlyRate(selectedRoom.id, selectedRoom.name, rate);
+    }
   }
 
   onRoomSelected(roomId: string): void {
     this.selectedRoomId.set(roomId);
     const room = this.selectableRooms().find(r => r.id === roomId);
     if (room) {
+<<<<<<< HEAD
+<<<<<<< Updated upstream
       this.bookingHourlyRate.set(room.hourlyRate);
+=======
+      const hasPlan = this.roomPricing.hasActivePlanForScope(room.id, 2);
+      if (!hasPlan) {
+        this.bookingFormErrorMessage.set(
+          this.isArabic()
+            ? `تنبيه: القاعة "${room.name}" ليس لها خطة تسعير نشطة في النظام (0 ج.م) — الحجز معطّل حتى يتم إضافة خطة تسعير.`
+            : `Warning: Room "${room.name}" has no active pricing plan (0 EGP) — booking is blocked until a plan is configured.`
+        );
+      } else {
+        this.bookingFormErrorMessage.set(null);
+      }
+      const resolvedRate = this.roomPricing.getRoomHourlyRate(room) || room.hourlyRate || 0;
+      this.bookingHourlyRate.set(resolvedRate);
+>>>>>>> Stashed changes
+=======
+      const resolvedRate = this.roomPricing.getRoomHourlyRate(room) || room.hourlyRate || 0;
+      this.bookingHourlyRate.set(resolvedRate);
+>>>>>>> fix/audit-remediation
     }
   }
 
@@ -1708,26 +1757,41 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     const hasInstructor = !!this.bookingInstructor().trim() && this.isInstructorValid();
     const hasActivity = !!this.bookingActivity().trim() && this.isActivityValid();
     const hasDate = !!this.bookingDate().trim();
-    const hasHourlyRate = !isNaN(Number(this.bookingHourlyRate())) && Number(this.bookingHourlyRate()) >= 0;
+    const hasHourlyRate = !isNaN(Number(this.bookingHourlyRate())) && Number(this.bookingHourlyRate()) > 0;
     const hasTimes = !!this.bookingStartTime() && !!this.bookingEndTime();
     const validRange = this.isTimeRangeValid() && this.bookingDurationHours() > 0;
     const notBlacklisted = !this.isCurrentInstructorBlacklisted();
+<<<<<<< HEAD
+<<<<<<< Updated upstream
     return hasInstructor && hasActivity && hasDate && hasHourlyRate && hasTimes && validRange && notBlacklisted;
+=======
+    const noOverlap = !this.hasBookingOverlap();
+    const hasPlan = this.roomPricing.hasActivePlanForScope(this.selectedRoomId(), 2);
+    return hasInstructor && hasActivity && hasDate && hasHourlyRate && hasTimes && validRange && notBlacklisted && noOverlap && hasPlan;
+>>>>>>> Stashed changes
+=======
+    const noOverlap = !this.hasBookingOverlap();
+    return hasInstructor && hasActivity && hasDate && hasHourlyRate && hasTimes && validRange && notBlacklisted && noOverlap;
+>>>>>>> fix/audit-remediation
   });
 
   confirmNewBooking(): void {
+    this.bookingFormSubmitted.set(true);
+    this.bookingFormErrorMessage.set(null);
+
     if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حجز قاعة' : 'Classroom Booking')) {
       return;
     }
     if (this.isCurrentInstructorBlacklisted()) {
-      this.workspaceService.showToast(
-        this.isArabic()
-          ? `لا يمكن إتمام الحجز: العميل "${this.bookingInstructor()}" محظور في القائمة السوداء (Blacklist)!`
-          : `Booking denied: "${this.bookingInstructor()}" is blacklisted!`,
-        'error'
-      );
+      const msg = this.isArabic()
+        ? `لا يمكن إتمام الحجز: العميل "${this.bookingInstructor()}" محظور في القائمة السوداء (Blacklist)!`
+        : `Booking denied: "${this.bookingInstructor()}" is blacklisted!`;
+      this.bookingFormErrorMessage.set(msg);
+      this.workspaceService.showToast(msg, 'error');
       return;
     }
+<<<<<<< HEAD
+<<<<<<< Updated upstream
     if (!this.isBookingFormValid()) {
       if (!this.bookingInstructor().trim() || !this.isInstructorValid()) {
         this.workspaceService.showToast(
@@ -1757,8 +1821,100 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
         );
         return;
       }
+=======
+    const hasPlan = this.roomPricing.hasActivePlanForScope(this.selectedRoomId(), 2);
+    if (!hasPlan) {
+      const msg = this.isArabic()
+        ? 'لا يمكن إتمام الحجز: القاعة المختارة ليس لها خطة تسعير نشطة في النظام.'
+        : 'Cannot complete booking: Selected room has no active pricing plan.';
+      this.bookingFormErrorMessage.set(msg);
+      this.workspaceService.showToast(msg, 'error');
       return;
     }
+=======
+>>>>>>> fix/audit-remediation
+
+    const scrollToField = (elementId: string) => {
+      setTimeout(() => {
+        const el = document.getElementById(elementId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+            el.focus();
+          }
+        }
+      }, 50);
+    };
+
+    if (!this.bookingInstructor().trim() || !this.isInstructorValid()) {
+      const msg = this.isArabic() ? 'يرجى كتابة اسم الإنستراكتور / العميل (حرفين على الأقل)' : 'Please enter a valid instructor / client name';
+      this.bookingFormErrorMessage.set(msg);
+      this.workspaceService.showToast(msg, 'info');
+      scrollToField('bookingInstructorInput');
+<<<<<<< HEAD
+>>>>>>> Stashed changes
+=======
+>>>>>>> fix/audit-remediation
+      return;
+    }
+
+    if (!this.bookingActivity().trim() || !this.isActivityValid()) {
+      const msg = this.isArabic() ? 'يرجى كتابة النشاط أو موضوع الورشة' : 'Please enter an activity / workshop subject';
+      this.bookingFormErrorMessage.set(msg);
+      this.workspaceService.showToast(msg, 'info');
+      scrollToField('bookingActivityInput');
+      return;
+    }
+
+    if (this.bookingPhone().trim() && !this.isPhoneValid()) {
+      const msg = this.isArabic() ? 'يرجى كتابة رقم هاتف صحيح (11 رقم)' : 'Please enter a valid phone number (11 digits)';
+      this.bookingFormErrorMessage.set(msg);
+      this.workspaceService.showToast(msg, 'info');
+      scrollToField('bookingPhoneInput');
+      return;
+    }
+
+    if (this.bookingEmail().trim() && !this.isEmailValid()) {
+      const msg = this.isArabic() ? 'يرجى كتابة بريد إلكتروني صحيح' : 'Please enter a valid email address';
+      this.bookingFormErrorMessage.set(msg);
+      this.workspaceService.showToast(msg, 'info');
+      scrollToField('bookingEmailInput');
+      return;
+    }
+
+    if (!this.bookingDate().trim()) {
+      const msg = this.isArabic() ? 'يرجى اختيار تاريخ الحجز' : 'Please select a booking date';
+      this.bookingFormErrorMessage.set(msg);
+      this.workspaceService.showToast(msg, 'info');
+      scrollToField('bookingDateInput');
+      return;
+    }
+
+    if (!this.bookingStartTime() || !this.bookingEndTime() || !this.isTimeRangeValid() || this.bookingDurationHours() <= 0) {
+      const msg = this.isArabic() ? 'يرجى تحديد وقت بداية ونهاية صحيحين ومختلفين' : 'Please specify valid start and end times';
+      this.bookingFormErrorMessage.set(msg);
+      this.workspaceService.showToast(msg, 'info');
+      scrollToField('bookingTimeSection');
+      return;
+    }
+
+    if (this.bookingHourlyRate() <= 0) {
+      const msg = this.isArabic() ? 'سعر الساعة غير محدد لهذه القاعة، يرجى ضبط سعر الساعة' : 'Hourly rate is not configured for this room. Please set a price.';
+      this.bookingFormErrorMessage.set(msg);
+      this.workspaceService.showToast(msg, 'error');
+      scrollToField('bookingRateSummarySection');
+      return;
+    }
+
+    if (this.hasBookingOverlap()) {
+      const msg = this.isArabic() ? 'يوجد تعارض في التوقيت مع جلسة أخرى في نفس القاعة' : 'Time slot overlaps with another booking in this room';
+      this.bookingFormErrorMessage.set(msg);
+      this.workspaceService.showToast(msg, 'error');
+      scrollToField('bookingTimeSection');
+      return;
+    }
+
+    this.isSavingBooking.set(true);
 
     const rooms = this.selectableRooms();
     const selectedRoom = rooms.find(r => r.id === this.selectedRoomId()) || (rooms.length > 0 ? rooms[0] : null);
@@ -1826,11 +1982,17 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
           rental: rentalAmount
         }).subscribe({
           next: () => {
+            this.isSavingBooking.set(false);
+            this.bookingFormSubmitted.set(false);
+            this.bookingFormErrorMessage.set(null);
             this.workspaceService.showToast(this.isArabic() ? 'تم تحديث حجز القاعة بنجاح!' : 'Room booking updated successfully!', 'success');
             this.classroomService.syncWithBackend();
+            this.closeBookingModal();
           },
           error: (err) => {
+            this.isSavingBooking.set(false);
             const errorMsg = err?.error?.message || err?.message || (this.isArabic() ? 'فشل تحديث حجز القاعة' : 'Failed to update classroom booking');
+            this.bookingFormErrorMessage.set(errorMsg);
             this.workspaceService.showToast(errorMsg, 'error');
           }
         });
@@ -1867,6 +2029,10 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       };
       this.classroomService.addBooking(newCard).subscribe({
         next: () => {
+          this.isSavingBooking.set(false);
+          this.bookingFormSubmitted.set(false);
+          this.bookingFormErrorMessage.set(null);
+
           const opt = this.repeatOption();
           const allDates = this.generatedRecurrenceDates();
           const recurrenceDates = allDates.slice(1);
@@ -1890,28 +2056,31 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
           } else {
             this.workspaceService.showToast(this.isArabic() ? 'تم تأكيد وحفظ حجز القاعة بنجاح!' : 'Room booking confirmed and saved successfully!', 'success');
           }
+
+          // Deduct actual covered hours from package
+          if (isPkg && pkg && coveredHours > 0) {
+            this.packageService.recordSessionUsage(pkg.id, {
+              date: `${this.bookingDate()} ${this.bookingStartTime()}`,
+              duration: coveredHours,
+              sessionAr: `${this.bookingActivity() || 'حجز قاعة'} - ${selectedRoom ? selectedRoom.name : 'قاعة'}`,
+              sessionEn: `${this.bookingActivity() || 'Classroom Session'} - ${selectedRoom ? selectedRoom.name : 'Room'}`,
+              roomOrDesk: selectedRoom ? selectedRoom.name : 'Classroom'
+            });
+          }
+
           this.classroomService.syncWithBackend();
+          this.closeBookingModal();
         },
         error: (err) => {
+          this.isSavingBooking.set(false);
           const errorMsg = err?.error?.message || err?.message || (this.isArabic() ? 'فشل حفظ حجز القاعة في السيرفر' : 'Failed to save classroom booking');
+          this.bookingFormErrorMessage.set(errorMsg);
           this.workspaceService.showToast(errorMsg, 'error');
         }
       });
     }
-
-    // Deduct actual covered hours from package
-    if (isPkg && pkg && coveredHours > 0) {
-      this.packageService.recordSessionUsage(pkg.id, {
-        date: `${this.bookingDate()} ${this.bookingStartTime()}`,
-        duration: coveredHours,
-        sessionAr: `${this.bookingActivity() || 'حجز قاعة'} - ${selectedRoom ? selectedRoom.name : 'قاعة'}`,
-        sessionEn: `${this.bookingActivity() || 'Classroom Session'} - ${selectedRoom ? selectedRoom.name : 'Room'}`,
-        roomOrDesk: selectedRoom ? selectedRoom.name : 'Classroom'
-      });
-    }
-
-    this.closeBookingModal();
   }
+
 
   deleteCurrentEditingBooking(): void {
     const id = this.editingCardId();

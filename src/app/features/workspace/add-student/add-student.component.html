@@ -39,15 +39,15 @@
         </div>
 
         <div class="field-group">
-          <label class="field-label">{{ t().college }}</label>
-          <input type="text" class="field-input" placeholder="e.g. Cairo University" [value]="college()"
-            (input)="college.set($any($event.target).value)" />
+          <label class="field-label">{{ t().faculty }}</label>
+          <input type="text" class="field-input" [placeholder]="isArabic() ? 'مثل: جامعة القاهرة' : 'e.g. Cairo University'" [value]="faculty()"
+            (input)="faculty.set($any($event.target).value)" />
         </div>
 
         <div class="field-group field-group--full">
-          <label class="field-label">{{ t().faculty }}</label>
-          <input type="text" class="field-input" placeholder="e.g. Computer Science" [value]="faculty()"
-            (input)="faculty.set($any($event.target).value)" />
+          <label class="field-label">{{ t().college }}</label>
+          <input type="text" class="field-input" [placeholder]="isArabic() ? 'مثل: حاسبات ومعلومات / هندسة' : 'e.g. Computer Science / Engineering'" [value]="college()"
+            (input)="college.set($any($event.target).value)" />
         </div>
       </div>
     </div>

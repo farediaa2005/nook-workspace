@@ -140,6 +140,7 @@ export class AddStudentComponent {
       packageOrCoupon: pkg,
       sessionPrice: this.selectedBilling() === 'new-session' ? this.sessionPrice() : undefined,
       printingCount: this.printingCount(),
+      printingPages: this.printingCount(),
       walletAmount: this.walletAmount(),
       wifiCode: this.wifiCode()
     });

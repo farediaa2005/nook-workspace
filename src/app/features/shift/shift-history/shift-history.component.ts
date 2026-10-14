@@ -9,7 +9,7 @@ import { exportToCsv } from '../../../core/utils/csv.util';
 import { CustomSelectComponent, SelectOption } from '../../../shared/components/custom-select/custom-select.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 import { DateFilterDropdownComponent, DateFilterOption } from '../../../shared/components/date-filter-dropdown/date-filter-dropdown.component';
-import { getTodayDateISO } from '../../../core/utils/date-time.util';
+import { getTodayDateISO, formatTimeRangeArabic } from '../../../core/utils/date-time.util';
 
 import { AuthService } from '../../../core/services/auth.service';
 
@@ -36,6 +36,10 @@ export class ShiftHistoryComponent implements OnInit {
   currencyText = computed(() => this.t().currency);
   isLoadingHistory = this.shiftService.isLoadingHistory;
   isAdmin = computed(() => this.authService.isAdmin());
+
+  formatShiftTimeRange(start?: string, end?: string): string {
+    return formatTimeRangeArabic(start, end);
+  }
 
   // Edit Shift Time (Admin only)
   isEditingShiftTime = signal<boolean>(false);

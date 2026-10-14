@@ -77,6 +77,8 @@
   --bg-subtle: var(--surface-2);
   --text-main: var(--text);
   --text-muted: var(--text-dim);
+  --text-primary: var(--text);
+  --text-secondary: var(--text-dim);
   --input-bg: var(--surface-2);
   --primary-accent: var(--yellow);
   --border-color: var(--border);
@@ -130,6 +132,8 @@
   --bg-subtle: var(--surface-2);
   --text-main: var(--text);
   --text-muted: var(--text-dim);
+  --text-primary: var(--text);
+  --text-secondary: var(--text-dim);
   --input-bg: var(--surface);
   --primary-accent: var(--accent);
   --border-color: var(--border);

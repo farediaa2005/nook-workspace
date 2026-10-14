@@ -7,6 +7,7 @@ import { LanguageService } from '../../../core/services/language.service';
 import { ShiftRecord, ShiftHistoryItem, ShiftTransaction } from '../../../core/models/shift.model';
 import { getSafeAvatar } from '../../../core/utils/avatar.util';
 import { exportToCsv } from '../../../core/utils/csv.util';
+import { parseIsoToLocal12h } from '../../../core/utils/date-time.util';
 
 @Component({
   selector: 'app-show-shift',
@@ -103,8 +104,15 @@ export class ShowShiftComponent implements OnInit {
   displayStaffName = computed(() => this.targetRecord()?.staffName || this.targetHistoryItem()?.staffName || this.shiftService.activeStaffName());
   displayStaffAvatar = computed(() => getSafeAvatar(this.targetHistoryItem()?.staffAvatar || this.shiftService.activeStaffAvatar(), this.displayStaffName()));
   displayDate = computed(() => this.targetHistoryItem()?.date || new Date().toLocaleDateString('ar-EG', { day: 'numeric', month: 'short', year: 'numeric' }));
-  displayStartTime = computed(() => this.targetRecord()?.startTime || this.targetHistoryItem()?.startTime || '09:00 AM');
-  displayEndTime = computed(() => this.targetRecord()?.endTime || this.targetHistoryItem()?.endTime || 'Active');
+  displayStartTime = computed(() => {
+    const raw = this.targetRecord()?.startTime || this.targetHistoryItem()?.startTime;
+    return raw ? parseIsoToLocal12h(raw, true) : '09:00 ص';
+  });
+  displayEndTime = computed(() => {
+    const raw = this.targetRecord()?.endTime || this.targetHistoryItem()?.endTime;
+    if (!raw || raw === 'Active') return this.isArabic() ? 'مستمر' : 'Active';
+    return parseIsoToLocal12h(raw, true);
+  });
   isShiftActive = computed(() => !this.targetRecord()?.endTime && this.targetRecord()?.status !== 'closed');
   shiftStatus = computed<'active' | 'balanced' | 'disputed'>(() => {
     if (this.isShiftActive()) return 'active';

@@ -729,24 +729,16 @@ export class ShowInstructorPackageComponent implements OnInit {
     this.activeActionMenuId.set(null);
   }
 
-  // Password Guard for Package Deletion
-  deletePasswordInput = signal<string>('');
-  deletePasswordError = signal<string | null>(null);
-
   openDeleteModal(pkg: PackageItem): void {
     if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حذف باقة' : 'Delete Package')) {
       return;
     }
     this.closeActionMenu();
-    this.deletePasswordInput.set('');
-    this.deletePasswordError.set(null);
     this.packageToDelete.set(pkg);
   }
 
   closeDeleteModal(): void {
     this.packageToDelete.set(null);
-    this.deletePasswordInput.set('');
-    this.deletePasswordError.set(null);
   }
 
   confirmDelete(): void {

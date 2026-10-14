@@ -23,6 +23,17 @@ import { generateAvatarSvg, getSafeAvatar } from '../../../core/utils/avatar.uti
 import { exportToCsv } from '../../../core/utils/csv.util';
 import { CouponApiService } from '../../../core/services/api/coupon-api.service';
 import { getTodayDateISO, parseIsoToLocal12h, parseIsoToLocalDate } from '../../../core/utils/date-time.util';
+import {
+  normalizeArabicDigits,
+  sanitizePhoneInput,
+  toEgyptianLocalPhone,
+  isValidEgyptianPhone,
+  isValidEmail,
+  isValidPersonName,
+  validateNameError,
+  validatePhoneError,
+  validateEmailError
+} from '../../../core/utils/validators.util';
 
 import { CustomSelectComponent, SelectOption } from '../../../shared/components/custom-select/custom-select.component';
 
@@ -128,7 +139,9 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   getStudentSeatingType(student?: { seatingType?: string; zone?: number; roomName?: string; activeSession?: any; currentStatus?: string; status?: string } | null): 'Shared' | 'Silent' | null {
     if (!student) return null;
     if (student.activeSession) {
-      const isSilent = student.activeSession.zone === 1 || (student.activeSession.roomName && student.activeSession.roomName.toLowerCase().includes('silent'));
+      const isSilent = student.activeSession.zone === 1 ||
+        student.activeSession.seatingType === 'Silent' ||
+        (student.activeSession.roomName && student.activeSession.roomName.toLowerCase().includes('silent'));
       return isSilent ? 'Silent' : 'Shared';
     }
     // Seating is strictly for active sessions in workspace
@@ -156,7 +169,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     if (phone && map.has(phone)) return map.get(phone)!;
     if (name && map.has(name)) return map.get(name)!;
 
-    return { visits: 1, hours: 2 };
+    return this.workspaceService.getStudentVisitStats(studentId || id || phone || name);
   }
 
   getStudentAvatar(student: { avatar?: string; name: string } | null | undefined): string {
@@ -701,7 +714,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       if (activeMatch) {
         student.currentStatus = 'active';
         student.activeSession = activeMatch;
-        const isSilent = activeMatch.zone === 1 || (activeMatch.roomName && activeMatch.roomName.toLowerCase().includes('silent'));
+        const isSilent = activeMatch.zone === 1 || activeMatch.seatingType === 'Silent' || (activeMatch.roomName && activeMatch.roomName.toLowerCase().includes('silent'));
         student.seatingType = isSilent ? 'Silent' : 'Share';
       }
 
@@ -1337,6 +1350,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   // Check-In Form Validation Signals
   ciNameError = signal<string | null>(null);
   ciPhoneError = signal<string | null>(null);
+  ciWhatsappError = signal<string | null>(null);
   ciEmailError = signal<string | null>(null);
   ciRoomError = signal<string | null>(null);
   ciSubmitted = signal<boolean>(false);
@@ -1730,15 +1744,17 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   onNameInput(val: string): void {
     this.ciName.set(val);
     if (this.ciSubmitted()) {
-      this.validateCheckIn();
+      this.ciNameError.set(validateNameError(val, this.isArabic(), true));
     }
   }
 
   onPhoneInput(val: string): void {
-    this.ciPhone.set(val);
-    const cleanP = val.trim().replace(/[^\d]/g, '');
-    if (cleanP && cleanP.length === 11) {
-      const existing = this.workspaceService.getStudentProfile(cleanP);
+    const normalized = normalizeArabicDigits(val);
+    const clean = sanitizePhoneInput(normalized);
+    this.ciPhone.set(clean);
+    const canonical = toEgyptianLocalPhone(clean);
+    if (canonical && canonical.length === 11) {
+      const existing = this.workspaceService.getStudentProfile(canonical);
       if (existing) {
         if (!this.ciName() && existing.name) this.ciName.set(existing.name);
         if (!this.ciWhatsapp() && existing.whatsapp) this.ciWhatsapp.set(existing.whatsapp);
@@ -1750,51 +1766,50 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       }
     }
     if (this.ciSubmitted()) {
-      this.validateCheckIn();
+      this.ciPhoneError.set(validatePhoneError(clean, this.isArabic(), true));
+    }
+  }
+
+  onWhatsappInput(val: string): void {
+    const normalized = normalizeArabicDigits(val);
+    const clean = sanitizePhoneInput(normalized);
+    this.ciWhatsapp.set(clean);
+    if (this.ciSubmitted() && clean) {
+      this.ciWhatsappError.set(validatePhoneError(clean, this.isArabic(), false, this.isArabic() ? 'رقم الواتساب' : 'WhatsApp number'));
+    } else {
+      this.ciWhatsappError.set(null);
     }
   }
 
   onEmailInput(val: string): void {
-    this.ciEmail.set(val);
+    const clean = val.trim();
+    this.ciEmail.set(clean);
     if (this.ciSubmitted()) {
-      this.validateCheckIn();
+      this.ciEmailError.set(validateEmailError(clean, this.isArabic(), false));
     }
   }
 
   validateCheckIn(): boolean {
     let isValid = true;
-    const name = this.ciName().trim();
-    const phone = this.ciPhone().trim();
-    const email = this.ciEmail().trim();
+    const nameErr = validateNameError(this.ciName(), this.isArabic(), true);
+    this.ciNameError.set(nameErr);
+    if (nameErr) isValid = false;
 
-    // 1. Name validation
-    if (!name) {
-      this.ciNameError.set(this.isArabic() ? 'يرجى إدخال اسم الطالب' : 'Student name is required');
-      isValid = false;
-    } else {
-      this.ciNameError.set(null);
-    }
+    const phoneErr = validatePhoneError(this.ciPhone(), this.isArabic(), true);
+    this.ciPhoneError.set(phoneErr);
+    if (phoneErr) isValid = false;
 
-    // 2. Phone validation (must be exactly 11 digits)
-    if (!phone) {
-      this.ciPhoneError.set(this.isArabic() ? 'يرجى إدخال رقم الهاتف' : 'Phone number is required');
-      isValid = false;
-    } else if (!/^01[0-9]{9}$/.test(phone.replace(/\s+/g, ''))) {
-      this.ciPhoneError.set(this.isArabic() ? 'رقم الهاتف يجب أن يتكون من 11 رقم ويبدأ بـ 01' : 'Phone must be 11 digits starting with 01');
-      isValid = false;
-    } else {
-      this.ciPhoneError.set(null);
-    }
+    const emailErr = validateEmailError(this.ciEmail(), this.isArabic(), false);
+    this.ciEmailError.set(emailErr);
+    if (emailErr) isValid = false;
 
-    // 3. Email validation (optional, but if filled must be valid)
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      this.ciEmailError.set(this.t().validEmailFormatRequired);
-      isValid = false;
-    } else {
-      this.ciEmailError.set(null);
-    }
+    const whatsappErr = this.ciWhatsapp().trim()
+      ? validatePhoneError(this.ciWhatsapp(), this.isArabic(), false, this.isArabic() ? 'رقم الواتساب' : 'WhatsApp number')
+      : null;
+    this.ciWhatsappError.set(whatsappErr);
+    if (whatsappErr) isValid = false;
 
-    // 4. Room validation (Strict Requirement 2)
+    // Room validation (Strict Requirement 2)
     if (!this.selectedRoomId() || !this.selectedRoom()) {
       this.ciRoomError.set(this.isArabic() ? 'يرجى اختيار الغرفة قبل تأكيد الدخول' : 'Please select a room before confirming check-in');
       isValid = false;
@@ -1802,7 +1817,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       this.ciRoomError.set(null);
     }
 
-    // 5. Time Range validation
+    // Time Range validation
     if (!this.isOpenSession() && !this.isTimeRangeValid()) {
       isValid = false;
     }
@@ -2132,17 +2147,43 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       return;
     }
     const name = this.regName().trim();
-    const phone = this.regPhone().trim();
-    if (!name || !phone) {
-      this.workspaceService.showToast(this.isArabic() ? 'يرجى إدخال اسم الطالب ورقم الهاتف على الأقل' : 'Please enter student name and phone', 'error');
+    const rawPhone = this.regPhone().trim();
+    const phone = toEgyptianLocalPhone(rawPhone) || sanitizePhoneInput(normalizeArabicDigits(rawPhone));
+    const rawWhatsapp = this.regWhatsapp().trim();
+    const whatsapp = rawWhatsapp ? (toEgyptianLocalPhone(rawWhatsapp) || sanitizePhoneInput(normalizeArabicDigits(rawWhatsapp))) : phone;
+    const email = this.regEmail().trim();
+
+    const nameErr = validateNameError(name, this.isArabic(), true);
+    if (nameErr) {
+      this.workspaceService.showToast(nameErr, 'error');
+      return;
+    }
+
+    const phoneErr = validatePhoneError(phone, this.isArabic(), true);
+    if (phoneErr) {
+      this.workspaceService.showToast(phoneErr, 'error');
+      return;
+    }
+
+    if (rawWhatsapp) {
+      const wErr = validatePhoneError(whatsapp, this.isArabic(), false, this.isArabic() ? 'رقم الواتساب' : 'WhatsApp number');
+      if (wErr) {
+        this.workspaceService.showToast(wErr, 'error');
+        return;
+      }
+    }
+
+    const emailErr = validateEmailError(email, this.isArabic(), false);
+    if (emailErr) {
+      this.workspaceService.showToast(emailErr, 'error');
       return;
     }
 
     this.workspaceService.registerNewStudent({
       name,
       phone,
-      whatsapp: this.regWhatsapp().trim() || phone,
-      email: this.regEmail().trim(),
+      whatsapp,
+      email,
       college: this.regCollege().trim(),
       faculty: this.regFaculty().trim(),
       notes: this.regNotes().trim()
@@ -2197,12 +2238,36 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     this.editWallet.set(0);
   }
 
-  deleteDirectoryStudent(student: StudentDirectoryItem): void {
+  // Directory Student Delete Confirmation (NOOK-SEC-01 & O-10)
+  directoryStudentToDelete = signal<StudentDirectoryItem | null>(null);
+  isDeleteDirectoryStudentModalOpen = signal<boolean>(false);
+
+  openDeleteDirectoryStudentModal(student: StudentDirectoryItem): void {
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حذف الطالب من الدليل' : 'Delete Student from Directory')) {
+      return;
+    }
     this.closeActionMenu();
+    this.directoryStudentToDelete.set(student);
+    this.isDeleteDirectoryStudentModalOpen.set(true);
+  }
+
+  closeDeleteDirectoryStudentModal(): void {
+    this.isDeleteDirectoryStudentModalOpen.set(false);
+    this.directoryStudentToDelete.set(null);
+  }
+
+  confirmDeleteDirectoryStudent(): void {
+    const student = this.directoryStudentToDelete();
+    if (!student) return;
     if (student.currentStatus === 'active' && student.activeSession) {
       this.workspaceService.deleteStudent(student.activeSession.id);
     }
     this.workspaceService.deleteStudentProfile(student.phone || student.name || student.id);
+    this.closeDeleteDirectoryStudentModal();
+  }
+
+  deleteDirectoryStudent(student: StudentDirectoryItem): void {
+    this.openDeleteDirectoryStudentModal(student);
   }
 
   setTab(tab: 'all' | 'active' | 'history'): void {
@@ -2251,6 +2316,9 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
           let discountVal = coupon.value || 10;
           if (coupon.discountType === 1) {
             discountVal = +((this.coSubtotal() * discountVal) / 100).toFixed(2);
+            this.coDiscountPercent.set(coupon.value || 0);
+          } else if (this.coSubtotal() > 0) {
+            this.coDiscountPercent.set(Math.round((discountVal / this.coSubtotal()) * 100));
           }
           const clampedDiscount = Math.min(discountVal, this.coSubtotal());
           this.coCouponDiscount.set(clampedDiscount);
@@ -2273,6 +2341,17 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
         );
       }
     });
+  }
+
+  removeCouponCode(): void {
+    this.coCouponInput.set('');
+    this.coCouponDiscount.set(0);
+    this.coCouponApplied.set(false);
+    this.coDiscountPercent.set(0);
+    this.workspaceService.showToast(
+      this.isArabic() ? 'تمت إزالة كود الخصم بنجاح' : 'Coupon code removed successfully',
+      'info'
+    );
   }
 
   openStudentCateringModal(student: ActiveStudentSession): void {
@@ -2585,34 +2664,67 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
 
   saveEditStudent(): void {
     const current = this.studentToEdit();
-    if (current) {
-      const updated: ActiveStudentSession = {
-        ...current,
-        name: this.editName().trim(),
-        phone: this.editPhone().trim(),
-        whatsapp: this.editWhatsapp().trim() || this.editPhone().trim(),
-        email: this.editEmail().trim(),
-        university: this.editUniversity().trim(),
-        college: this.editCollege().trim(),
-        faculty: this.editCollege().trim() || this.editFaculty().trim(),
-        notes: this.editNotes().trim(),
-        printingCount: this.editPrinting(),
-        walletAmount: this.editWallet()
-      };
-      this.workspaceService.updateStudent(updated);
-      this.workspaceService.saveStudentProfile({
-        id: current.studentId || current.id,
-        name: updated.name,
-        phone: updated.phone,
-        whatsapp: updated.whatsapp,
-        email: updated.email,
-        university: updated.university,
-        college: updated.college,
-        faculty: updated.faculty,
-        notes: updated.notes
-      });
-      this.closeEditModal();
+    if (!current) return;
+
+    const name = this.editName().trim();
+    const rawPhone = this.editPhone().trim();
+    const phone = toEgyptianLocalPhone(rawPhone) || sanitizePhoneInput(normalizeArabicDigits(rawPhone));
+    const rawWhatsapp = this.editWhatsapp().trim();
+    const whatsapp = rawWhatsapp ? (toEgyptianLocalPhone(rawWhatsapp) || sanitizePhoneInput(normalizeArabicDigits(rawWhatsapp))) : phone;
+    const email = this.editEmail().trim();
+
+    const nameErr = validateNameError(name, this.isArabic(), true);
+    if (nameErr) {
+      this.workspaceService.showToast(nameErr, 'error');
+      return;
     }
+
+    const phoneErr = validatePhoneError(phone, this.isArabic(), true);
+    if (phoneErr) {
+      this.workspaceService.showToast(phoneErr, 'error');
+      return;
+    }
+
+    if (rawWhatsapp) {
+      const wErr = validatePhoneError(whatsapp, this.isArabic(), false, this.isArabic() ? 'رقم الواتساب' : 'WhatsApp number');
+      if (wErr) {
+        this.workspaceService.showToast(wErr, 'error');
+        return;
+      }
+    }
+
+    const emailErr = validateEmailError(email, this.isArabic(), false);
+    if (emailErr) {
+      this.workspaceService.showToast(emailErr, 'error');
+      return;
+    }
+
+    const updated: ActiveStudentSession = {
+      ...current,
+      name,
+      phone,
+      whatsapp,
+      email,
+      university: this.editUniversity().trim(),
+      college: this.editCollege().trim(),
+      faculty: this.editCollege().trim() || this.editFaculty().trim(),
+      notes: this.editNotes().trim(),
+      printingCount: this.editPrinting(),
+      walletAmount: this.editWallet()
+    };
+    this.workspaceService.updateStudent(updated);
+    this.workspaceService.saveStudentProfile({
+      id: current.studentId || current.id,
+      name: updated.name,
+      phone: updated.phone,
+      whatsapp: updated.whatsapp,
+      email: updated.email,
+      university: updated.university,
+      college: updated.college,
+      faculty: updated.faculty,
+      notes: updated.notes
+    });
+    this.closeEditModal();
   }
 
   // ----------------------------------------------------
@@ -2620,6 +2732,10 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   // ----------------------------------------------------
   openEditSessionTimeModal(student: ActiveStudentSession): void {
     if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تعديل وقت الجلسة' : 'Edit Session Time')) {
+      return;
+    }
+    if (!this.authService.isAuthenticated()) {
+      this.workspaceService.showToast(this.isArabic() ? 'غير مصرح: يجب تسجيل الدخول أولاً' : 'Unauthorized: Please login', 'error');
       return;
     }
     this.closeActionMenu();
@@ -2644,12 +2760,70 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     const s = this.sessionTimeToEdit();
     if (!s) return;
 
-    const newCheckIn = this.editCheckInTimeInput().trim();
-    if (newCheckIn) {
-      s.checkInTime = newCheckIn;
+    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تعديل وقت الجلسة' : 'Edit Session Time')) {
+      return;
     }
-    if (this.editExpectedCheckoutInput()) {
-      s.expectedCheckout = this.editExpectedCheckoutInput().trim();
+
+    if (!this.authService.isAuthenticated()) {
+      this.workspaceService.showToast(this.isArabic() ? 'غير مصرح: يجب تسجيل الدخول أولاً' : 'Unauthorized: Please login', 'error');
+      return;
+    }
+
+    const rawCheckIn = this.editCheckInTimeInput().trim();
+    if (!rawCheckIn) {
+      this.workspaceService.showToast(
+        this.isArabic() ? 'يرجى إدخال وقت الدخول' : 'Please provide check-in time',
+        'error'
+      );
+      return;
+    }
+
+    const cleanCheckIn = normalizeArabicDigits(rawCheckIn);
+    const checkInMatch = cleanCheckIn.match(/^(\d{1,2}):(\d{2})(\s*(AM|PM|ص|م))?$/i);
+    if (!checkInMatch) {
+      this.workspaceService.showToast(
+        this.isArabic() ? 'صيغة وقت الدخول غير صحيحة (مثال: 10:00 AM أو 14:30)' : 'Invalid check-in time format (e.g. 10:00 AM or 14:30)',
+        'error'
+      );
+      return;
+    }
+
+    const checkInDate = this.parseTimeAndDateToDate(cleanCheckIn, s.date);
+    const now = new Date();
+    // Boundary check: Check-in cannot be more than 15 minutes into the future
+    if (checkInDate.getTime() > now.getTime() + 15 * 60000) {
+      this.workspaceService.showToast(
+        this.isArabic() ? 'لا يمكن تعيين وقت دخول في المستقبل' : 'Check-in time cannot be in the future',
+        'error'
+      );
+      return;
+    }
+
+    const rawCheckout = this.editExpectedCheckoutInput().trim();
+    let cleanCheckout: string | undefined = undefined;
+    if (rawCheckout) {
+      cleanCheckout = normalizeArabicDigits(rawCheckout);
+      const checkoutMatch = cleanCheckout.match(/^(\d{1,2}):(\d{2})(\s*(AM|PM|ص|م))?$/i);
+      if (!checkoutMatch) {
+        this.workspaceService.showToast(
+          this.isArabic() ? 'صيغة وقت الخروج المتوقع غير صحيحة' : 'Invalid expected checkout format',
+          'error'
+        );
+        return;
+      }
+      const checkoutDate = this.parseTimeAndDateToDate(cleanCheckout, s.date);
+      if (checkoutDate.getTime() <= checkInDate.getTime()) {
+        this.workspaceService.showToast(
+          this.isArabic() ? 'يجب أن يكون وقت الخروج بعد وقت الدخول' : 'Expected checkout must be after check-in time',
+          'error'
+        );
+        return;
+      }
+    }
+
+    s.checkInTime = cleanCheckIn;
+    if (cleanCheckout) {
+      s.expectedCheckout = cleanCheckout;
     }
     const newPrice = this.editRecalculatedPrice();
     s.cost = newPrice;
@@ -2731,6 +2905,10 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     if (opt === 'yesterday') return `${this.t().yesterdayText}, ${yestFormatted}`;
     if (opt === 'custom' && this.customDateValue()) return this.customDateValue();
     return this.t().allDates;
+  }
+
+  retryLoadSessions(): void {
+    this.workspaceService.loadFromBackend();
   }
 
   goToPage(page: number): void {

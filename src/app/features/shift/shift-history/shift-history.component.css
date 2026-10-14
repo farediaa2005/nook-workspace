@@ -157,10 +157,12 @@
 .table-responsive {
   width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .history-table {
   width: 100%;
+  min-width: 980px;
   border-collapse: collapse;
   text-align: left;
 }

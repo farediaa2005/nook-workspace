@@ -359,8 +359,10 @@ export class PackageService {
                 };
               });
 
-              // Set clean, pure API data into signals (clearing all previous data)
-              this.packagesState.set([...mappedStudents, ...mappedInstructors]);
+              const allMapped = [...mappedStudents, ...mappedInstructors];
+              if (allMapped.length > 0 || this.packagesState().length === 0) {
+                this.packagesState.set(allMapped);
+              }
             },
             error: (err) => {
               this.error.set('فشل في تحميل الباقات من السيرفر');

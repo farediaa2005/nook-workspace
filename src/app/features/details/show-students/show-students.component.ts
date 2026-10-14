@@ -16,6 +16,14 @@ import { PaginationComponent } from '../../../shared/components/pagination/pagin
 import { generateAvatarSvg, getSafeAvatar } from '../../../core/utils/avatar.util';
 import { exportToCsv } from '../../../core/utils/csv.util';
 import { getTodayDateISO } from '../../../core/utils/date-time.util';
+import {
+  normalizeArabicDigits,
+  sanitizePhoneInput,
+  toEgyptianLocalPhone,
+  validateNameError,
+  validatePhoneError,
+  validateEmailError
+} from '../../../core/utils/validators.util';
 import { Router } from '@angular/router';
 
 export interface StudentDirectoryItem {
@@ -442,17 +450,43 @@ export class ShowStudentsComponent implements OnInit, OnDestroy {
 
   submitRegisterStudent(): void {
     const name = this.regName().trim();
-    const phone = this.regPhone().trim();
-    if (!name || !phone) {
-      alert(this.isArabic() ? 'يرجى إدخال اسم الطالب ورقم الهاتف' : 'Please enter student name and phone number');
+    const rawPhone = this.regPhone().trim();
+    const phone = toEgyptianLocalPhone(rawPhone) || sanitizePhoneInput(normalizeArabicDigits(rawPhone));
+    const rawWhatsapp = this.regWhatsapp().trim();
+    const whatsapp = rawWhatsapp ? (toEgyptianLocalPhone(rawWhatsapp) || sanitizePhoneInput(normalizeArabicDigits(rawWhatsapp))) : phone;
+    const email = this.regEmail().trim();
+
+    const nameErr = validateNameError(name, this.isArabic(), true);
+    if (nameErr) {
+      this.workspaceService.showToast(nameErr, 'error');
+      return;
+    }
+
+    const phoneErr = validatePhoneError(phone, this.isArabic(), true);
+    if (phoneErr) {
+      this.workspaceService.showToast(phoneErr, 'error');
+      return;
+    }
+
+    if (rawWhatsapp) {
+      const wErr = validatePhoneError(whatsapp, this.isArabic(), false, this.isArabic() ? 'رقم الواتساب' : 'WhatsApp number');
+      if (wErr) {
+        this.workspaceService.showToast(wErr, 'error');
+        return;
+      }
+    }
+
+    const emailErr = validateEmailError(email, this.isArabic(), false);
+    if (emailErr) {
+      this.workspaceService.showToast(emailErr, 'error');
       return;
     }
 
     this.workspaceService.registerNewStudent({
       name,
       phone,
-      whatsapp: this.regWhatsapp().trim() || phone,
-      email: this.regEmail().trim(),
+      whatsapp,
+      email,
       college: this.regCollege().trim(),
       faculty: this.regFaculty().trim()
     });
@@ -479,15 +513,44 @@ export class ShowStudentsComponent implements OnInit, OnDestroy {
 
   submitEditStudent(): void {
     const name = this.editName().trim();
-    const phone = this.editPhone().trim();
-    if (!name || !phone) return;
+    const rawPhone = this.editPhone().trim();
+    const phone = toEgyptianLocalPhone(rawPhone) || sanitizePhoneInput(normalizeArabicDigits(rawPhone));
+    const rawWhatsapp = this.editWhatsapp().trim();
+    const whatsapp = rawWhatsapp ? (toEgyptianLocalPhone(rawWhatsapp) || sanitizePhoneInput(normalizeArabicDigits(rawWhatsapp))) : phone;
+    const email = this.editEmail().trim();
+
+    const nameErr = validateNameError(name, this.isArabic(), true);
+    if (nameErr) {
+      this.workspaceService.showToast(nameErr, 'error');
+      return;
+    }
+
+    const phoneErr = validatePhoneError(phone, this.isArabic(), true);
+    if (phoneErr) {
+      this.workspaceService.showToast(phoneErr, 'error');
+      return;
+    }
+
+    if (rawWhatsapp) {
+      const wErr = validatePhoneError(whatsapp, this.isArabic(), false, this.isArabic() ? 'رقم الواتساب' : 'WhatsApp number');
+      if (wErr) {
+        this.workspaceService.showToast(wErr, 'error');
+        return;
+      }
+    }
+
+    const emailErr = validateEmailError(email, this.isArabic(), false);
+    if (emailErr) {
+      this.workspaceService.showToast(emailErr, 'error');
+      return;
+    }
 
     const targetId = this.editTargetId();
     this.workspaceService.updateStudent(targetId, {
       name,
       phone,
-      whatsapp: this.editWhatsapp().trim() || phone,
-      email: this.editEmail().trim(),
+      whatsapp,
+      email,
       college: this.editCollege().trim(),
       faculty: this.editFaculty().trim(),
       studentId: targetId

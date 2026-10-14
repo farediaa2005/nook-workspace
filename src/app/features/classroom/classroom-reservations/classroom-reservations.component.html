@@ -636,13 +636,13 @@
         <div class="row-grid-2">
           <!-- Phone Number Field -->
           <div class="field-wrap">
-            <label class="field-label">{{ isArabic() ? 'رقم الهاتف' : 'Phone Number' }}</label>
+            <label class="field-label">{{ isArabic() ? 'رقم الهاتف' : t().phone }}</label>
             <div class="input-container">
               <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
               </svg>
               <input type="tel" class="custom-input" dir="ltr" [placeholder]="isArabic() ? 'رقم هاتف المحاضر (اختياري)' : 'Instructor phone (optional)'"
-                [ngModel]="resPhone()" (ngModelChange)="resPhone.set($event)" />
+                [ngModel]="resPhone()" (ngModelChange)="onResPhoneChange($event)" />
               @if (resPhone()) {
               <button type="button" class="input-clear-btn" (click)="resPhone.set('')">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -657,7 +657,7 @@
 
           <!-- Email Address Field -->
           <div class="field-wrap">
-            <label class="field-label">{{ isArabic() ? 'البريد الإلكتروني' : 'Email Address' }}</label>
+            <label class="field-label">{{ isArabic() ? 'البريد الإلكتروني' : t().email }}</label>
             <div class="input-container">
               <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
@@ -680,7 +680,7 @@
 
         <!-- Notes Field (Req 5) -->
         <div class="field-wrap">
-          <label class="field-label">{{ isArabic() ? 'ملاحظات الحجز' : 'Reservation Notes' }}</label>
+          <label class="field-label">{{ isArabic() ? 'ملاحظات الحجز' : t().notes }}</label>
           <div class="input-container">
             <textarea class="custom-input" rows="2" style="padding-top: 10px; resize: vertical; min-height: 54px;"
               [placeholder]="isArabic() ? 'أي متطلبات خاصة بالقاعة أو الحجز (شاشة، ترتيب المقاعد، ضيافة...)' : 'Special requirements, seating arrangement, catering...'"
@@ -726,15 +726,25 @@
 
               @if (!isAllDay()) {
               <div class="cal-time-range-group">
-                <!-- Start Time Clock Trigger Button -->
+                <!-- Start Time Input & Clock Trigger -->
                 <div class="cal-time-chip-select-wrap cal-time-chip--start">
-                  <button type="button" class="btn-cal-clock-trigger" (click)="openClockPicker('start')" title="{{ isArabic() ? 'اختيار الوقت بساعة الحائط' : 'Pick time via clock dial' }}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="clock-trigger-icon">
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <polyline points="12 6 12 12 16 14"></polyline>
-                    </svg>
-                    <span class="cal-clock-val">{{ resStartTime() || '09:00 AM' }}</span>
-                  </button>
+                  <div class="cal-time-input-group">
+                    <input
+                      type="text"
+                      class="cal-time-input"
+                      [ngModel]="resStartTime()"
+                      (ngModelChange)="onManualStartTimeInput($event)"
+                      placeholder="09:00 AM"
+                      dir="ltr"
+                      aria-label="Start Time"
+                    />
+                    <button type="button" class="btn-cal-clock-trigger-icon" (click)="openClockPicker('start')" title="{{ isArabic() ? 'اختيار الوقت بساعة الحائط' : 'Pick time via clock dial' }}">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="clock-trigger-icon">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
 
                 <span class="cal-time-sep">
@@ -744,15 +754,25 @@
                   </svg>
                 </span>
 
-                <!-- End Time Clock Trigger Button -->
+                <!-- End Time Input & Clock Trigger -->
                 <div class="cal-time-chip-select-wrap cal-time-chip--end">
-                  <button type="button" class="btn-cal-clock-trigger" (click)="openClockPicker('end')" title="{{ isArabic() ? 'اختيار الوقت بساعة الحائط' : 'Pick time via clock dial' }}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="clock-trigger-icon">
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <polyline points="12 6 12 12 16 14"></polyline>
-                    </svg>
-                    <span class="cal-clock-val">{{ resEndTime() || '11:00 AM' }}</span>
-                  </button>
+                  <div class="cal-time-input-group">
+                    <input
+                      type="text"
+                      class="cal-time-input"
+                      [ngModel]="resEndTime()"
+                      (ngModelChange)="onManualEndTimeInput($event)"
+                      placeholder="11:00 AM"
+                      dir="ltr"
+                      aria-label="End Time"
+                    />
+                    <button type="button" class="btn-cal-clock-trigger-icon" (click)="openClockPicker('end')" title="{{ isArabic() ? 'اختيار الوقت بساعة الحائط' : 'Pick time via clock dial' }}">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="clock-trigger-icon">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
               }
@@ -1379,7 +1399,7 @@
       </div>
 
       <div class="modal-body" style="padding: 20px 24px;">
-        <p style="font-size: 0.95rem; color: var(--text-secondary, #94a3b8); margin-bottom: 16px; line-height: 1.5;">
+        <p style="font-size: 0.95rem; color: var(--text-dim); margin-bottom: 16px; line-height: 1.5;">
           {{ isArabic()
           ? 'هذا الموعد جزء من سلسلة مواعيد متكررة. حدد نوع الإلغاء الذي ترغب بتنفيذه:'
           : 'This occurrence belongs to a recurring series. Which events do you want to cancel?' }}
@@ -1387,39 +1407,38 @@
 
         <div style="display: flex; flex-direction: column; gap: 12px;">
           <label
-            style="display: flex; gap: 12px; padding: 14px 16px; border: 1.5px solid var(--border-color, #334155); border-radius: 12px; cursor: pointer; transition: all 0.2s;"
-            [style.borderColor]="recurringCancelScope() === 'single' ? '#ef4444' : 'var(--border-color, #334155)'"
-            [style.background]="recurringCancelScope() === 'single' ? 'rgba(239, 68, 68, 0.08)' : 'transparent'">
+            style="display: flex; gap: 12px; padding: 14px 16px; border: 1.5px solid var(--border); border-radius: 12px; cursor: pointer; transition: all 0.2s;"
+            [style.borderColor]="recurringCancelScope() === 'single' ? '#ef4444' : 'var(--border)'"
+            [style.background]="recurringCancelScope() === 'single' ? 'rgba(239, 68, 68, 0.12)' : 'var(--surface-2)'">
             <input type="radio" name="cancelScope" [checked]="recurringCancelScope() === 'single'"
               (change)="recurringCancelScope.set('single')" style="accent-color: #ef4444; margin-top: 3px;" />
             <div>
-              <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary, #f8fafc);">
+              <div style="font-weight: 700; font-size: 0.95rem; color: var(--text);">
                 {{ isArabic() ? 'إلغاء هذا الموعد فقط' : 'This event only' }}
                 <span style="font-size: 0.85rem; color: #ef4444; margin-right: 4px;">({{
                   selectedRecurringRes()?.occurrenceDate || selectedRecurringRes()?.fullDate }})</span>
               </div>
               <div
-                style="font-size: 0.82rem; color: var(--text-secondary, #94a3b8); margin-top: 4px; line-height: 1.4;">
+                style="font-size: 0.82rem; color: var(--text-dim); margin-top: 4px; line-height: 1.4;">
                 {{ isArabic()
                 ? 'سيتم حذف هذا الموعد فقط من الجدول وإتاحته للحجز مجدداً، مع استمرار باقي مواعيد السلسلة دون تأثر.'
-                : 'This specific date will be cancelled and freed up for bookings. All other occurrences will remain
-                active.' }}
+                : 'This specific date will be cancelled and freed up for bookings. All other occurrences will remain active.' }}
               </div>
             </div>
           </label>
 
           <label
-            style="display: flex; gap: 12px; padding: 14px 16px; border: 1.5px solid var(--border-color, #334155); border-radius: 12px; cursor: pointer; transition: all 0.2s;"
-            [style.borderColor]="recurringCancelScope() === 'all' ? '#ef4444' : 'var(--border-color, #334155)'"
-            [style.background]="recurringCancelScope() === 'all' ? 'rgba(239, 68, 68, 0.08)' : 'transparent'">
+            style="display: flex; gap: 12px; padding: 14px 16px; border: 1.5px solid var(--border); border-radius: 12px; cursor: pointer; transition: all 0.2s;"
+            [style.borderColor]="recurringCancelScope() === 'all' ? '#ef4444' : 'var(--border)'"
+            [style.background]="recurringCancelScope() === 'all' ? 'rgba(239, 68, 68, 0.12)' : 'var(--surface-2)'">
             <input type="radio" name="cancelScope" [checked]="recurringCancelScope() === 'all'"
               (change)="recurringCancelScope.set('all')" style="accent-color: #ef4444; margin-top: 3px;" />
             <div>
-              <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary, #f8fafc);">
+              <div style="font-weight: 700; font-size: 0.95rem; color: var(--text);">
                 {{ isArabic() ? 'إلغاء السلسلة بالكامل وجميع المواعيد' : 'All events in series' }}
               </div>
               <div
-                style="font-size: 0.82rem; color: var(--text-secondary, #94a3b8); margin-top: 4px; line-height: 1.4;">
+                style="font-size: 0.82rem; color: var(--text-dim); margin-top: 4px; line-height: 1.4;">
                 {{ isArabic()
                 ? 'سيتم حذف الحجز بالكامل وإلغاء جميع الجلسات المجدولة السابقة والمستقبلية المرتبطة به.'
                 : 'The entire recurring reservation will be deleted completely from the system.' }}
@@ -1569,7 +1588,7 @@
               <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
             </svg>
             <input type="tel" class="custom-input" dir="ltr" [placeholder]="isArabic() ? 'مثال: 01012345678' : 'e.g. 01012345678'"
-              [ngModel]="newInstructorPhone()" (ngModelChange)="newInstructorPhone.set($event)" />
+              [ngModel]="newInstructorPhone()" (ngModelChange)="onNewInstructorPhoneChange($event)" />
           </div>
         </div>
 
@@ -1618,48 +1637,6 @@
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
             <span>{{ isArabic() ? 'حفظ واختيار' : 'Save & Select' }}</span>
-          }
-        </button>
-      </div>
-    </div>
-  </div>
-  }
-
-  <!-- 6. DELETE CONFIRMATION MODAL (Req 11) -->
-  @if (isDeleteModalOpen() && reservationToDelete(); as targetRes) {
-  <div class="modal-backdrop" (click)="closeDeleteModal()">
-    <div class="modal-dialog modal-dialog--delete" (click)="$event.stopPropagation()" style="max-width: 440px;">
-      <div class="modal-header">
-        <div class="modal-header__text">
-          <h2 class="modal-title" style="color: #ef4444;">{{ isArabic() ? 'تأكيد حذف الحجز' : 'Confirm Delete Reservation' }}</h2>
-          <p class="modal-subtitle">{{ targetRes.classroom }} &bull; {{ targetRes.activity }}</p>
-        </div>
-        <button type="button" class="btn-close-circle" (click)="closeDeleteModal()" aria-label="Close">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      </div>
-
-      <div class="modal-body" style="padding: 20px 24px;">
-        <p style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary, #cbd5e1); margin: 0;">
-          {{ isArabic() 
-            ? 'هل أنت متأكد من حذف هذا الحجز الخاص بـ "' + (targetRes.instructor || targetRes.activity) + '"؟ لا يمكن التراجع عن هذا الإجراء.' 
-            : 'Are you sure you want to delete this reservation for "' + (targetRes.instructor || targetRes.activity) + '"? This action cannot be undone.' }}
-        </p>
-      </div>
-
-      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; padding: 16px 24px;">
-        <button type="button" class="btn-ghost-modal" (click)="closeDeleteModal()" [disabled]="isDeleting()">
-          {{ t().cancel }}
-        </button>
-        <button type="button" class="btn-danger-modal" (click)="confirmDelete()" [disabled]="isDeleting()"
-          style="background: #ef4444; color: #ffffff; border: none; border-radius: 8px; padding: 10px 20px; font-weight: 700; cursor: pointer;">
-          @if (isDeleting()) {
-            <span>{{ isArabic() ? 'جاري الحذف...' : 'Deleting...' }}</span>
-          } @else {
-            <span>{{ isArabic() ? 'حذف الحجز نهائياً' : 'Delete Reservation' }}</span>
           }
         </button>
       </div>

@@ -131,6 +131,9 @@ export interface SpaceDistributionMetrics {
   privateOffset: number;
   sharedOffset: number;
   meetingOffset: number;
+  privateCount?: number;
+  sharedCount?: number;
+  meetingCount?: number;
 }
 
 export interface DashboardMetrics {

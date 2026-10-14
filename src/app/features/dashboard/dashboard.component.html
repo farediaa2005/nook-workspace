@@ -331,17 +331,32 @@
           <div class="legend-row">
             <span class="legend-dot dot--yellow"></span>
             <span class="legend-label">{{ t().privateDesks }}</span>
-            <strong class="legend-val">{{ spaceDistribution().privatePct }}%</strong>
+            <strong class="legend-val">
+              {{ spaceDistribution().privatePct }}%
+              @if (spaceDistribution().privateCount !== undefined) {
+                <span class="legend-count">({{ spaceDistribution().privateCount }})</span>
+              }
+            </strong>
           </div>
           <div class="legend-row">
             <span class="legend-dot dot--blue"></span>
             <span class="legend-label">{{ t().sharedSpaces }}</span>
-            <strong class="legend-val">{{ spaceDistribution().sharedPct }}%</strong>
+            <strong class="legend-val">
+              {{ spaceDistribution().sharedPct }}%
+              @if (spaceDistribution().sharedCount !== undefined) {
+                <span class="legend-count">({{ spaceDistribution().sharedCount }})</span>
+              }
+            </strong>
           </div>
           <div class="legend-row">
             <span class="legend-dot dot--green"></span>
             <span class="legend-label">{{ t().meetingRooms }}</span>
-            <strong class="legend-val">{{ spaceDistribution().meetingPct }}%</strong>
+            <strong class="legend-val">
+              {{ spaceDistribution().meetingPct }}%
+              @if (spaceDistribution().meetingCount !== undefined) {
+                <span class="legend-count">({{ spaceDistribution().meetingCount }})</span>
+              }
+            </strong>
           </div>
         </div>
       </div>

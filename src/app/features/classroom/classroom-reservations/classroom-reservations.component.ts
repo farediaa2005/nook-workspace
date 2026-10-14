@@ -33,6 +33,15 @@ import { PrimaryButtonComponent } from '../../../shared/components/primary-butto
 import { CustomSelectComponent, SelectOption } from '../../../shared/components/custom-select/custom-select.component';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { ClockTimePickerComponent, ClockTimeSelection } from '../../../shared/components/clock-time-picker/clock-time-picker.component';
+import { checkReservationOverlap, isSelfReservation, extractBaseReservationId } from '../../../core/utils/reservation-conflict.util';
+import { RoomPricingService } from '../../../core/services/room-pricing.service';
+import {
+  normalizeArabicDigits,
+  sanitizePhoneInput,
+  isValidEgyptianPhone,
+  isValidEmail,
+  isValidPersonName
+} from '../../../core/utils/validators.util';
 
 @Component({
   selector: 'app-classroom-reservations',
@@ -55,6 +64,7 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
   private workspaceService = inject(WorkspaceService);
   protected shiftService = inject(ShiftService);
   private instructorApi = inject(InstructorApiService);
+  private roomPricing = inject(RoomPricingService);
   private router = inject(Router);
   private timerHandle: any = null;
 
@@ -453,7 +463,12 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     for (const res of resList) {
       if (!res || res.status === 'cancelled' || !res.startTime || !res.endTime) continue;
 
-      let roomIndex = roomsList.findIndex(r => r.name.toLowerCase() === (res.classroom || '').toLowerCase() || r.id === res.classroom);
+      let roomIndex = roomsList.findIndex(r =>
+        (res.roomId && r.id === res.roomId) ||
+        r.name.toLowerCase() === (res.classroom || '').toLowerCase() ||
+        (r as any).nameAr?.toLowerCase() === (res.classroom || '').toLowerCase() ||
+        r.id === res.classroom
+      );
       if (roomIndex === -1 && res.classroom) {
         roomIndex = roomsList.findIndex(r => r.name.toLowerCase().includes(res.classroom.toLowerCase()) || res.classroom.toLowerCase().includes(r.name.toLowerCase()));
       }
@@ -813,6 +828,7 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
   modalMode = signal<'new' | 'edit' | 'duplicate'>('new');
   modalErrorMessage = signal<string>('');
   resId = signal('');
+  resRoomId = signal('');
   resRoomName = signal('');
   resInstructor = signal('');
   resPhone = signal('');
@@ -835,6 +851,15 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
   isAddInstructorModalOpen = signal(false);
   newInstructorName = signal('');
   newInstructorPhone = signal('');
+  onNewInstructorPhoneChange(val: string): void {
+    const clean = sanitizePhoneInput(normalizeArabicDigits(val));
+    this.newInstructorPhone.set(clean);
+  }
+
+  onResPhoneChange(val: string): void {
+    const clean = sanitizePhoneInput(normalizeArabicDigits(val));
+    this.resPhone.set(clean);
+  }
   newInstructorEmail = signal('');
   newInstructorSpecialty = signal('');
   isSavingNewInstructor = signal(false);
@@ -933,7 +958,8 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
 
   onManualStartTimeInput(val: string): void {
     if (!val) return;
-    const match = val.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM|ص|م)?$/i);
+    const clean = normalizeArabicDigits(val.trim());
+    const match = clean.match(/^(\d{1,2}):(\d{2})\s*(AM|PM|ص|م)?$/i);
     if (match) {
       let h = parseInt(match[1], 10);
       const m = match[2];
@@ -942,8 +968,13 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
         const p = match[3].toUpperCase();
         per = (p === 'PM' || p === 'م') ? 'PM' : 'AM';
       } else {
-        per = h >= 12 ? 'PM' : 'AM';
-        h = h % 12 || 12;
+        if (h >= 12) {
+          per = 'PM';
+          if (h > 12) h = h - 12;
+        } else {
+          per = 'AM';
+          if (h === 0) h = 12;
+        }
       }
       this.resStartHour.set(String(h).padStart(2, '0'));
       this.resStartMinute.set(m);
@@ -953,7 +984,8 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
 
   onManualEndTimeInput(val: string): void {
     if (!val) return;
-    const match = val.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM|ص|م)?$/i);
+    const clean = normalizeArabicDigits(val.trim());
+    const match = clean.match(/^(\d{1,2}):(\d{2})\s*(AM|PM|ص|م)?$/i);
     if (match) {
       let h = parseInt(match[1], 10);
       const m = match[2];
@@ -962,8 +994,13 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
         const p = match[3].toUpperCase();
         per = (p === 'PM' || p === 'م') ? 'PM' : 'AM';
       } else {
-        per = h >= 12 ? 'PM' : 'AM';
-        h = h % 12 || 12;
+        if (h >= 12) {
+          per = 'PM';
+          if (h > 12) h = h - 12;
+        } else {
+          per = 'AM';
+          if (h === 0) h = 12;
+        }
       }
       this.resEndHour.set(String(h).padStart(2, '0'));
       this.resEndMinute.set(m);
@@ -1592,10 +1629,31 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
       }
     }
 
+    this.resRoomId.set(room.id);
     this.resRoomName.set(room.name);
+<<<<<<< HEAD
+<<<<<<< Updated upstream
     if (room.hourlyRate) {
       this.resHourlyRate.set(room.hourlyRate);
     }
+=======
+    const hasPlan = this.roomPricing.hasActivePlanForScope(room.id, 2);
+    if (!hasPlan) {
+      const msg = this.isArabic()
+        ? `تنبيه: القاعة "${room.name}" ليس لها خطة تسعير نشطة في النظام (0 ج.م) — الحجز معطّل حتى يتم إضافة خطة تسعير للقاعة من الإعدادات.`
+        : `Warning: Room "${room.name}" has no active pricing plan (0 EGP) — booking is blocked until a plan is configured.`;
+      this.modalErrorMessage.set(msg);
+      this.workspaceService.showToast(msg, 'error');
+    } else {
+      this.modalErrorMessage.set('');
+    }
+    const resolvedRate = this.roomPricing.getRoomHourlyRate(room) || room.hourlyRate || 0;
+    this.resHourlyRate.set(resolvedRate);
+>>>>>>> Stashed changes
+=======
+    const resolvedRate = this.roomPricing.getRoomHourlyRate(room) || room.hourlyRate || 0;
+    this.resHourlyRate.set(resolvedRate);
+>>>>>>> fix/audit-remediation
   }
 
   /** Check if a room currently has an active classroom session right now */
@@ -1650,13 +1708,15 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
 
   isReservationFormValid = computed(() => {
     const hasRoom = !!this.resRoomName().trim();
-    const hasInstructor = !!this.resInstructor().trim() && this.resInstructor().trim().length >= 2;
+    const hasInstructor = isValidPersonName(this.resInstructor().trim());
     const hasActivity = !!this.resActivity().trim() && this.resActivity().trim().length >= 2;
     const hasDate = !!this.resDate().trim();
     const hasRate = Number(this.resHourlyRate()) > 0;
     const hasDur = this.resDurationHours() > 0;
     const notBlacklisted = !this.isCurrentInstructorBlacklisted();
-    return hasRoom && hasInstructor && hasActivity && hasDate && hasRate && hasDur && !this.isSaving() && notBlacklisted;
+    const phoneValid = !this.resPhone().trim() || isValidEgyptianPhone(this.resPhone().trim());
+    const emailValid = !this.resEmail().trim() || isValidEmail(this.resEmail().trim());
+    return hasRoom && hasInstructor && hasActivity && hasDate && hasRate && hasDur && !this.isSaving() && notBlacklisted && phoneValid && emailValid;
   });
 
   // Split Modal
@@ -1673,6 +1733,7 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     this.resId.set('');
     const availableRooms = this.rooms().filter(r => !this.isRoomCurrentlyOccupied(r));
     const targetRoom = availableRooms.length > 0 ? availableRooms[0] : (this.rooms()[0] || null);
+    this.resRoomId.set(targetRoom?.id || '');
     this.resRoomName.set(targetRoom?.name || 'Nook Hall');
     this.resInstructor.set('');
     this.resPhone.set('');
@@ -1689,7 +1750,8 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     this.resDate.set(`${y}-${m}-${day}`);
 
     this.setResTimeToNow();
-    this.resHourlyRate.set(targetRoom?.hourlyRate || 0);
+    const targetRate = this.roomPricing.getRoomHourlyRate(targetRoom) || targetRoom?.hourlyRate || 0;
+    this.resHourlyRate.set(targetRate);
 
     // Reset recurrence state
     this.isAllDay.set(false);
@@ -1724,7 +1786,12 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     this.modalMode.set('edit');
     this.selectedRecurringEditRes.set(res);
     this.resId.set(res.reservationId || res.id);
-    this.resRoomName.set(res.classroom);
+    const matchedRoom = this.rooms().find(r =>
+      (res.roomId && r.id === res.roomId) ||
+      (res.classroom && (r.name.toLowerCase() === res.classroom.toLowerCase() || (r as any).nameAr === res.classroom))
+    );
+    this.resRoomId.set(res.roomId || matchedRoom?.id || '');
+    this.resRoomName.set(matchedRoom?.name || res.classroom);
     this.resInstructor.set(res.instructor);
     this.resPhone.set(res.phoneNumber || res.instructorPhone || res.phone || '');
     this.resEmail.set(res.email || res.instructorEmail || '');
@@ -1852,7 +1919,49 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
       this.isSaving.set(false);
       return;
     }
+<<<<<<< HEAD
+<<<<<<< Updated upstream
     if (!this.isReservationFormValid()) return;
+=======
+=======
+>>>>>>> fix/audit-remediation
+    if (this.resPhone().trim() && !isValidEgyptianPhone(this.resPhone().trim())) {
+      const msg = this.isArabic()
+        ? 'رقم هاتف المحاضر غير صحيح (يجب أن يكون 11 رقماً ويبدأ بـ 01)'
+        : 'Invalid instructor phone number (must be 11 digits starting with 01)';
+      this.modalErrorMessage.set(msg);
+      this.workspaceService.showToast(msg, 'error');
+      return;
+    }
+    if (this.resEmail().trim() && !isValidEmail(this.resEmail().trim())) {
+      const msg = this.isArabic()
+        ? 'صيغة البريد الإلكتروني للمحاضر غير صحيحة'
+        : 'Invalid instructor email address format';
+      this.modalErrorMessage.set(msg);
+      this.workspaceService.showToast(msg, 'error');
+      return;
+    }
+    if (!this.isReservationFormValid()) {
+<<<<<<< HEAD
+      if (this.resHourlyRate() <= 0 || !this.roomPricing.hasActivePlanForScope(this.resRoomId(), 2)) {
+        const msg = this.isArabic()
+          ? 'لا توجد خطة تسعير نشطة لهذه القاعة في النظام (0 ج.م) — الحجز معطّل حتى يتم إضافة خطة تسعير للقاعة.'
+          : 'No active pricing plan configured for this room (0 EGP). Booking is blocked until a plan is added.';
+=======
+      if (this.resHourlyRate() <= 0) {
+        const msg = this.isArabic()
+          ? 'سعر الساعة غير محدد لهذه القاعة، يرجى ضبط سعر الساعة'
+          : 'Hourly price is not configured for this room. Please set a rate.';
+>>>>>>> fix/audit-remediation
+        this.modalErrorMessage.set(msg);
+        this.workspaceService.showToast(msg, 'error');
+      }
+      return;
+    }
+<<<<<<< HEAD
+>>>>>>> Stashed changes
+=======
+>>>>>>> fix/audit-remediation
     this.isSaving.set(true);
     this.modalErrorMessage.set('');
     this.conflictDetails.set(null);
@@ -1863,8 +1972,13 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     const startTimeStr = this.resStartTime();
     const endTimeStr = this.resEndTime();
     const dateStr = this.resDate();
-    const roomMatch = this.rooms().find(r => r.name.toLowerCase() === this.resRoomName().toLowerCase() || r.id === this.resRoomName());
-    const realRoomId = roomMatch?.id || this.resRoomName();
+    const roomMatch = this.rooms().find(r =>
+      (this.resRoomId() && r.id === this.resRoomId()) ||
+      r.name.toLowerCase() === this.resRoomName().toLowerCase() ||
+      (r as any).nameAr?.toLowerCase() === this.resRoomName().toLowerCase() ||
+      r.id === this.resRoomName()
+    );
+    const realRoomId = roomMatch?.id || this.resRoomId();
 
     const [y, m, d] = dateStr.split('-').map(Number);
     const currDay = new Date(y, m - 1, d).getDay();
@@ -2197,11 +2311,12 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
       }).subscribe({
         next: (conflictResult) => {
           if (conflictResult && conflictResult.hasConflict) {
-            // Self-conflict guard: if in edit mode and the only conflicting reservation matches current id or original title
+            // Self-conflict guard (NOOK-DEV-02): if in edit mode and conflict is with self or empty backend list with clean local check
             if (this.modalMode() === 'edit' && excludeId) {
               const conflicts = conflictResult.conflicts || [];
               const origTitle = orig?.activity?.trim().toLowerCase();
-              const isOnlySelf = conflicts.length > 0 && conflicts.every((c: any) =>
+              const isOnlySelf = conflicts.length === 0 || conflicts.every((c: any) =>
+                isSelfReservation(c, excludeId) ||
                 (c.reservationId && c.reservationId === excludeId) ||
                 (c.id && c.id === excludeId) ||
                 (c.conflictingEntityId && c.conflictingEntityId === excludeId) ||
@@ -2214,7 +2329,7 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
                   (origTitle && c.conflictingReservationTitle.trim().toLowerCase() === origTitle)
                 ))
               );
-              if (isOnlySelf) {
+              if (isOnlySelf && !localConflict.hasConflict) {
                 executeSave();
                 return;
               }
@@ -2435,37 +2550,38 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
 
     this.isDeleting.set(true);
     const isAr = this.isArabic();
-    const isClassroom = res.isClassroomSession || !res.reservationId || this.classroomService.cards().some(c => c.id === res.id);
+    const targetReservationId = res.reservationId || res.id;
+    const isPureClassroomCard = res.isClassroomSession && !res.reservationId;
 
-    const deleteObs$ = isClassroom
+    const deleteObs$ = isPureClassroomCard
       ? this.classroomService.deleteBooking(res.id)
-      : this.classroomService.deleteReservation(res.reservationId || res.id);
+      : this.classroomService.deleteReservation(targetReservationId);
 
     deleteObs$.subscribe({
       next: () => {
         this.isDeleting.set(false);
         this.closeDeleteModal();
-        this.workspaceService.showToast(isAr ? 'تم الحذف بنجاح' : 'Deleted successfully', 'success');
+        this.workspaceService.showToast(isAr ? 'تم حذف الحجز بنجاح' : 'Reservation deleted successfully', 'success');
         this.classroomService.loadClassrooms().subscribe();
         this.classroomService.loadReservations().subscribe();
       },
       error: (e) => {
-        // If 404, gracefully attempt the opposite endpoint in case of ID mix-up
-        const fallback$ = isClassroom
-          ? this.classroomService.deleteReservation(res.id)
+        // If 404, gracefully attempt alternative endpoint in case of ID mix-up
+        const fallback$ = isPureClassroomCard
+          ? this.classroomService.deleteReservation(targetReservationId)
           : this.classroomService.deleteBooking(res.id);
 
         fallback$.subscribe({
           next: () => {
             this.isDeleting.set(false);
             this.closeDeleteModal();
-            this.workspaceService.showToast(isAr ? 'تم الحذف بنجاح' : 'Deleted successfully', 'success');
+            this.workspaceService.showToast(isAr ? 'تم حذف الحجز بنجاح' : 'Reservation deleted successfully', 'success');
             this.classroomService.loadClassrooms().subscribe();
             this.classroomService.loadReservations().subscribe();
           },
           error: (err2) => {
             this.isDeleting.set(false);
-            const msg = err2?.error?.message || e?.error?.message || (isAr ? 'فشل الحذف' : 'Failed to delete');
+            const msg = err2?.error?.message || e?.error?.message || (isAr ? 'فشل حذف الحجز' : 'Failed to delete reservation');
             this.workspaceService.showToast(msg, 'error');
           }
         });

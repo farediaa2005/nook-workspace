@@ -103,14 +103,14 @@ export class ShiftApiService extends BaseApiService {
    */
   startShift(dto: CreateShiftDto): Observable<ShiftDto> {
     const now = new Date().toISOString();
-    const balance = dto.openingBalance ?? dto.previousTotal ?? dto.startCash ?? 0;
+    const balance = dto.previousTotal ?? dto.openingBalance ?? dto.startCash ?? 0;
     const payload: any = {
-      openingBalance: balance,
-      notes: dto.notes || '',
-      // Backward compatibility aliases for server binders
-      previousTotal: balance,
       date: dto.date || now,
-      timeFrom: dto.timeFrom || now
+      timeFrom: dto.timeFrom || now,
+      previousTotal: balance,
+      startVodafoneCash: dto.startVodafoneCash ?? 0,
+      startInstapay: dto.startInstapay ?? 0,
+      startFawry: dto.startFawry ?? 0
     };
     if (dto.userId && typeof dto.userId === 'string' && dto.userId.trim().length > 0) {
       payload.userId = dto.userId;
@@ -122,30 +122,28 @@ export class ShiftApiService extends BaseApiService {
 
   /**
    * PUT /api/shifts/{id}/close — Close Shift
-   * Request Body:
-   * {
-   *   "closingBalance": 750.0,
-   *   "notes": "string"
-   * }
-   * Response: ApiResponse<ShiftDto>
-   * Logic: Calculates expected closing balance from opening balance + items, records variance.
+   * Request Body: UpdateShiftDto
    */
   closeShift(id: string, dto: CloseShiftDto): Observable<ShiftDto> {
     const now = new Date().toISOString();
     const balance = dto.closingBalance ?? dto.totalCost ?? dto.endCash ?? 0;
     const payload: any = {
-      closingBalance: balance,
-      notes: dto.notes ?? dto.note ?? '',
-      // Backward compatibility aliases for server binders
-      totalCost: balance,
-      note: dto.notes ?? dto.note ?? '',
       timeTo: dto.timeTo || now,
       administrative: dto.administrative ?? 0,
       vfCashInside: dto.vfCashInside ?? 0,
       vfCashOutside: dto.vfCashOutside ?? 0,
+      instapayInside: dto.instapayInside ?? 0,
+      instapayOutside: dto.instapayOutside ?? 0,
+      fawryInside: dto.fawryInside ?? 0,
+      fawryOutside: dto.fawryOutside ?? 0,
+      actualVodafone: dto.actualVodafone ?? 0,
+      actualInstapay: dto.actualInstapay ?? 0,
+      actualFawry: dto.actualFawry ?? 0,
       increase: dto.increase ?? 0,
       loss: dto.loss ?? 0,
-      status: dto.status ?? 2
+      totalCost: balance,
+      note: dto.note ?? dto.notes ?? '',
+      status: typeof dto.status === 'number' ? dto.status : 2
     };
     return this.put<ApiResponse<ShiftDto>>(API_ENDPOINTS.SHIFTS.CLOSE(id), payload).pipe(
       map(extractData)

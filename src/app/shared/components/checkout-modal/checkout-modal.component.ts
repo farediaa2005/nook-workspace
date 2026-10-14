@@ -35,12 +35,62 @@ export class CheckoutModalComponent {
   removeCatering = output<string>();
   editRate = output<void>();
   editPrinting = output<void>();
+  removeCoupon = output<void>();
   processPayment = output<ProcessPaymentEvent>();
 
   // Local state for expandable coupon/discount input
   localCouponInput = signal<string>('');
   customDiscountMode = signal<'percentage' | 'fixed'>('percentage');
   customDiscountInput = signal<number | null>(null);
+
+  // Synchronized active discount percentage across preset pills & coupon codes
+  effectiveActiveDiscountPercent = computed(() => {
+    const d = this.data().financialBreakdown;
+    if (d.discountPercent && d.discountPercent > 0) return d.discountPercent;
+    if (d.couponDiscount && d.subtotal > 0) {
+      return Math.round((d.couponDiscount / d.subtotal) * 100);
+    }
+    return 0;
+  });
+
+  // Applied discount amount (coupon takes precedence or non-stacking highest)
+  appliedDiscountAmount = computed(() => {
+    const d = this.data().financialBreakdown;
+    const couponAmt = d.couponDiscount || 0;
+    const pct = d.discountPercent || 0;
+    const manualPctAmt = pct > 0 ? +((d.subtotal * pct) / 100).toFixed(2) : 0;
+    return Math.min(d.subtotal, Math.max(couponAmt, manualPctAmt));
+  });
+
+  // Explicit label showing promo code, percentage, and amount for breakdown & receipt
+  discountLineLabel = computed(() => {
+    const d = this.data().financialBreakdown;
+    const code = (d.couponCode || this.localCouponInput() || '').trim().toUpperCase();
+    const pct = this.effectiveActiveDiscountPercent();
+    const couponAmt = d.couponDiscount || 0;
+    const isAr = this.isArabic();
+
+    if (code) {
+      if (pct > 0) {
+        return isAr ? `خصم (${code} — ${pct}%)` : `Discount (${code} — ${pct}%)`;
+      } else if (couponAmt > 0) {
+        return isAr ? `خصم (${code} — ${couponAmt.toFixed(2)} ج.م)` : `Discount (${code} — ${couponAmt.toFixed(2)} EGP)`;
+      }
+      return isAr ? `خصم كود (${code})` : `Coupon (${code})`;
+    }
+
+    if (pct > 0) {
+      return isAr ? `خصم (${pct}%)` : `Discount (${pct}%)`;
+    }
+
+    return isAr ? 'خصم مطبق' : 'Discount Applied';
+  });
+
+  // Helper checking if received cash was explicitly input
+  hasReceivedAmountInput = computed(() => {
+    const received = this.data().payment.amountReceived;
+    return received !== null && !isNaN(received) && received >= 0;
+  });
 
   // Wallet Interaction State ('debit' = عليه / خصم أو مديونية, 'credit' = ليه / إضافة رصيد, 'none' = بدون)
   walletMode = signal<'none' | 'debit' | 'credit'>('none');
@@ -60,7 +110,7 @@ export class CheckoutModalComponent {
     return finalTotal;
   });
 
-  // Resulting wallet balance after checkout (supports negative balance as debt)
+  // Resulting wallet balance after checkout (supports negative balance as debt, neutral until input)
   newWalletBalance = computed(() => {
     const d = this.data();
     const prevWallet = d.financialBreakdown.walletBalance || 0;
@@ -75,9 +125,13 @@ export class CheckoutModalComponent {
       return +(prevWallet + amt).toFixed(2);
     }
 
-    // Default mode 'none'
+    // Default mode 'none': if user hasn't typed an amount yet, balance remains unchanged/neutral
+    const received = d.payment.amountReceived;
+    if (received === null || isNaN(received)) {
+      return prevWallet;
+    }
+
     const finalTotal = d.financialBreakdown.finalTotal || 0;
-    const received = d.payment.amountReceived !== null && !isNaN(d.payment.amountReceived) ? d.payment.amountReceived : 0;
     return +(prevWallet + received - finalTotal).toFixed(2);
   });
 
@@ -155,6 +209,13 @@ export class CheckoutModalComponent {
     if (code) {
       this.couponSubmit.emit(code);
     }
+  }
+
+  removeDiscountAndCoupon(): void {
+    this.localCouponInput.set('');
+    this.customDiscountInput.set(null);
+    this.discountChange.emit(0);
+    this.removeCoupon.emit();
   }
 
   // Wallet Actions

@@ -92,10 +92,40 @@ export class WorkspaceCheckoutComponent implements OnInit {
   couponApplied = signal(false);
   couponDiscount = signal<number>(0);
 
+  // Non-stacking rule: coupon discount takes precedence over manual discount
   totalDiscounts = computed(() => {
-    const raw = +(this.discountAmount() + this.couponDiscount()).toFixed(2);
-    return Math.min(raw, this.subtotal());
+    if (this.couponApplied() && this.couponDiscount() > 0) {
+      return Math.min(this.couponDiscount(), this.subtotal());
+    }
+    return Math.min(this.discountAmount(), this.subtotal());
   });
+
+  discountLineLabel = computed(() => {
+    const code = this.couponInput().trim().toUpperCase();
+    const isAr = this.isArabic();
+    if (this.couponApplied() && code) {
+      if (this.discountMode() === 'percent' && this.discountValue() > 0) {
+        return isAr ? `خصم (${code} — ${this.discountValue()}%)` : `Discount (${code} — ${this.discountValue()}%)`;
+      }
+      return isAr ? `خصم (${code} — ${this.totalDiscounts().toFixed(2)} ج.م)` : `Discount (${code} — ${this.totalDiscounts().toFixed(2)} EGP)`;
+    }
+    if (this.discountValue() > 0) {
+      const valStr = this.discountMode() === 'percent' ? `${this.discountValue()}%` : `${this.discountValue()} ج.م`;
+      return isAr ? `خصم يدوي (${valStr})` : `Manual Discount (${valStr})`;
+    }
+    return isAr ? 'الخصومات المطبقة' : 'Discounts Applied';
+  });
+
+  removeDiscountAndCoupon(): void {
+    this.couponInput.set('');
+    this.couponApplied.set(false);
+    this.couponDiscount.set(0);
+    this.discountValue.set(0);
+    this.workspaceService.showToast(
+      this.isArabic() ? 'تمت إزالة الخصم والكوبون بنجاح' : 'Discount and coupon removed successfully',
+      'info'
+    );
+  }
 
   // Summary Totals
   subtotal = computed(() => +(this.baseCost() + this.cateringTotal() + this.printingTotal() + this.wifiCost()).toFixed(2));
@@ -224,9 +254,10 @@ export class WorkspaceCheckoutComponent implements OnInit {
       }]);
     }
 
-    const pages = student.printingPages || student.printingCount;
-    if (pages) {
-      this.printingPages.set(pages);
+    const pages = student.printingPages ?? student.printingCount ?? 0;
+    this.printingPages.set(pages);
+    if (student.printingPrice && student.printingPrice > 0) {
+      this.printingRate.set(student.printingPrice);
     }
     if (student.depositAmount) {
       this.depositAmount.set(student.depositAmount);
@@ -344,13 +375,18 @@ export class WorkspaceCheckoutComponent implements OnInit {
           let discountVal = coupon.value || 10;
           if (coupon.discountType === 1) {
             discountVal = +((this.subtotal() * discountVal) / 100).toFixed(2);
+            this.discountMode.set('percent');
+            this.discountValue.set(coupon.value || 0);
+          } else {
+            this.discountMode.set('fixed');
+            this.discountValue.set(coupon.value || 0);
           }
           // Clamp fixed discount to subtotal so invoice never goes negative
           const clampedDiscount = Math.min(discountVal, this.subtotal());
           this.couponDiscount.set(clampedDiscount);
           this.couponApplied.set(true);
           this.workspaceService.showToast(
-            this.isArabic() ? `تم تطبيق الكوبون "${code}": ${clampedDiscount} ج.م!` : `Coupon "${code}" applied: ${clampedDiscount} EGP!`,
+            this.isArabic() ? `تم تطبيق الكوبون "${code}": خصم ${clampedDiscount} ج.م` : `Coupon "${code}" applied: ${clampedDiscount} EGP off!`,
             'success'
           );
         } else {

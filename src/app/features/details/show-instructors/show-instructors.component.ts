@@ -12,9 +12,22 @@ import { CustomSelectComponent, SelectOption } from '../../../shared/components/
 
 import { DetailsService } from '../../../core/services/details.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { ClassroomService } from '../../../core/services/classroom.service';
 import { Instructor } from '../../../core/models/details.model';
 import { exportToCsv } from '../../../core/utils/csv.util';
 import { getTodayDateISO } from '../../../core/utils/date-time.util';
+import { generateAvatarSvg } from '../../../core/utils/avatar.util';
+import {
+  normalizeArabicDigits,
+  sanitizePhoneInput,
+  toEgyptianLocalPhone,
+  isValidEgyptianPhone,
+  isValidEmail,
+  isValidPersonName,
+  validateNameError,
+  validatePhoneError,
+  validateEmailError
+} from '../../../core/utils/validators.util';
 
 export type { Instructor };
 
@@ -39,18 +52,30 @@ export class ShowInstructorsComponent implements OnInit {
   private langService = inject(LanguageService);
   private detailsService = inject(DetailsService);
   private notificationService = inject(NotificationService);
+  private classroomService = inject(ClassroomService);
   private cdr = inject(ChangeDetectorRef);
 
   t = this.langService.t;
   isArabic = this.langService.isArabic;
 
+  /**
+   * Backend Gap B3 Feature Flag:
+   * InstructorDto / CreateInstructorDto / UpdateInstructorDto on backend contain ONLY:
+   * id, name, phoneNumber, colour.
+   * Fields email, specialty, organization, status, bio, and sessionsCount do NOT exist on the API.
+   * Setting this flag to false hides unpersisted fields to prevent silent data loss.
+   */
+  readonly INSTRUCTOR_EXTENDED_FIELDS = false;
+
   // Instructors Master State
   instructors = signal<Instructor[]>([]);
 
-  // Search & Pagination State
+  // Search & Filter & Pagination State
   searchQuery = signal<string>('');
+  statusFilter = signal<string>('all');
+  specialtyFilter = signal<string>('all');
   currentPage = signal<number>(1);
-  pageSize = signal<number>(5);
+  pageSize = signal<number>(10);
 
   // Add / Edit Modal State
   isModalOpen = signal<boolean>(false);
@@ -75,14 +100,10 @@ export class ShowInstructorsComponent implements OnInit {
   emailError = signal<string | null>(null);
 
   isFormInvalid = computed<boolean>(() => {
-    const name = this.formName().trim();
-    const phone = this.formPhone().trim();
+    const hasNameErr = !isValidPersonName(this.formName().trim());
+    const hasPhoneErr = !isValidEgyptianPhone(this.formPhone().trim());
     const email = this.formEmail().trim();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    const hasNameErr = !name;
-    const hasPhoneErr = !phone || phone.length !== 11 || !/^\d{11}$/.test(phone);
-    const hasEmailErr = !!email && !emailRegex.test(email);
+    const hasEmailErr = !!email && !isValidEmail(email);
 
     return hasNameErr || hasPhoneErr || hasEmailErr;
   });
@@ -111,27 +132,70 @@ export class ShowInstructorsComponent implements OnInit {
     });
   }
 
+  statusFilterOptions = computed<SelectOption[]>(() => [
+    { label: this.isArabic() ? 'جميع الحالات' : 'All Statuses', value: 'all' },
+    { label: this.isArabic() ? '🟢 نشط' : '🟢 Active', value: 'active' },
+    { label: this.isArabic() ? '⚪ غير نشط' : '⚪ Inactive', value: 'inactive' }
+  ]);
+
+  specialtyFilterOptions = computed<SelectOption[]>(() => {
+    const defaultOpt: SelectOption = { label: this.isArabic() ? 'جميع التخصصات' : 'All Specialties', value: 'all' };
+    const list = this.instructors();
+    const unique = Array.from(new Set(list.map(i => (i.specialty || '').trim()).filter(s => s && s !== '-'))).sort();
+    return [defaultOpt, ...unique.map(u => ({ label: u, value: u }))];
+  });
+
+  getInstructorAvatar(name: string): string {
+    return generateAvatarSvg(name);
+  }
+
+  getInstructorSessionCount(ins: Instructor): number {
+    const cards = this.classroomService.cards();
+    const insName = (ins.name || '').trim().toLowerCase();
+    const insPhone = (ins.phone || '').trim().replace(/\D/g, '');
+    const insId = ins.id;
+
+    const cardMatches = cards.filter(c => {
+      const cName = (c.instructor || (c as any).instructorName || '').trim().toLowerCase();
+      const cPhone = (c.phone || (c as any).instructorPhone || '').trim().replace(/\D/g, '');
+      const cId = (c as any).instructorId;
+      if (insId && cId === insId) return true;
+      if (insPhone && insPhone.length >= 8 && cPhone && cPhone === insPhone) return true;
+      if (insName && cName && (cName === insName || cName.includes(insName) || insName.includes(cName))) return true;
+      return false;
+    }).length;
+
+    const stored = ins.totalSessions || 0;
+    return Math.max(stored, cardMatches);
+  }
+
   // Filtered List Computation
   filteredInstructors = computed(() => {
     const q = this.searchQuery().toLowerCase().trim();
+    const st = this.statusFilter();
+    const sp = this.specialtyFilter();
     const list = this.instructors();
-    if (!q) return list;
 
     return list.filter(ins => {
-      const nameMatch = (ins.name || '').toLowerCase().includes(q) || ((ins.nameEn || '').toLowerCase().includes(q));
-      const phoneMatch = (ins.phone || '').includes(q);
-      const emailMatch = (ins.email || '').toLowerCase().includes(q);
-      const specMatch = (ins.specialty || '').toLowerCase().includes(q) || ((ins.specialtyEn || '').toLowerCase().includes(q));
-      const affMatch = (ins.affiliation || '').toLowerCase().includes(q) || ((ins.affiliationEn || '').toLowerCase().includes(q));
-      return nameMatch || phoneMatch || emailMatch || specMatch || affMatch;
+      if (st !== 'all' && ins.status !== st) return false;
+      if (sp !== 'all' && ins.specialty !== sp && ins.specialtyEn !== sp) return false;
+      if (q) {
+        const nameMatch = (ins.name || '').toLowerCase().includes(q) || ((ins.nameEn || '').toLowerCase().includes(q));
+        const phoneMatch = (ins.phone || '').includes(q);
+        const emailMatch = (ins.email || '').toLowerCase().includes(q);
+        const specMatch = (ins.specialty || '').toLowerCase().includes(q) || ((ins.specialtyEn || '').toLowerCase().includes(q));
+        const affMatch = (ins.affiliation || '').toLowerCase().includes(q) || ((ins.affiliationEn || '').toLowerCase().includes(q));
+        return nameMatch || phoneMatch || emailMatch || specMatch || affMatch;
+      }
+      return true;
     });
   });
 
   // KPI Computations
   totalInstructorsCount = computed(() => this.instructors().length);
-  
+
   activeWorkshopsCount = computed(() =>
-    this.instructors().reduce((acc, ins) => acc + (ins.status === 'active' ? ins.totalSessions : 0), 0)
+    this.instructors().reduce((acc, ins) => acc + (ins.status === 'active' ? this.getInstructorSessionCount(ins) : 0), 0)
   );
 
   corporatePartnersCount = computed(() => {
@@ -189,44 +253,22 @@ export class ShowInstructorsComponent implements OnInit {
   // Real-time Field Validation Handlers
   onNameChange(val: string): void {
     this.formName.set(val);
-    if (!val.trim()) {
-      this.nameError.set(this.isArabic() ? 'يرجى إدخال اسم المحاضر' : 'Instructor name is required');
-    } else {
-      this.nameError.set(null);
-    }
+    this.nameError.set(validateNameError(val, this.isArabic(), true));
     if (this.formError()) this.formError.set(null);
   }
 
   onPhoneChange(val: string): void {
-    this.formPhone.set(val);
-    const clean = val.trim();
-    if (!clean) {
-      this.phoneError.set(this.isArabic() ? 'رقم الهاتف مطلوب' : 'Phone number is required');
-    } else if (clean.length !== 11 || !/^\d{11}$/.test(clean)) {
-      this.phoneError.set(
-        this.isArabic()
-          ? 'رقم الهاتف يجب أن يتكون من 11 رقماً (مثال: 01012345678)'
-          : 'Phone number must be exactly 11 digits (e.g. 01012345678)'
-      );
-    } else {
-      this.phoneError.set(null);
-    }
+    const normalized = normalizeArabicDigits(val);
+    const clean = sanitizePhoneInput(normalized);
+    this.formPhone.set(clean);
+    this.phoneError.set(validatePhoneError(clean, this.isArabic(), true));
     if (this.formError()) this.formError.set(null);
   }
 
   onEmailChange(val: string): void {
-    this.formEmail.set(val);
     const clean = val.trim();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (clean && !emailRegex.test(clean)) {
-      this.emailError.set(
-        this.isArabic()
-          ? 'يرجى إدخال بريد إلكتروني صحيح (مثال: name@domain.com)'
-          : 'Please enter a valid email address (e.g. name@domain.com)'
-      );
-    } else {
-      this.emailError.set(null);
-    }
+    this.formEmail.set(clean);
+    this.emailError.set(validateEmailError(clean, this.isArabic(), false));
     if (this.formError()) this.formError.set(null);
   }
 
@@ -258,7 +300,7 @@ export class ShowInstructorsComponent implements OnInit {
     this.formEmail.set(instructor.email === '-' ? '' : instructor.email);
     this.formSpecialty.set(instructor.specialty === '-' ? '' : instructor.specialty);
     this.formAffiliation.set(instructor.affiliation === '-' ? '' : instructor.affiliation);
-    this.formSessions.set(instructor.totalSessions || 0);
+    this.formSessions.set(this.getInstructorSessionCount(instructor));
     this.formStatus.set(instructor.status);
     this.formBio.set(instructor.bio || '');
     this.formError.set(null);
@@ -286,37 +328,19 @@ export class ShowInstructorsComponent implements OnInit {
 
     let hasError = false;
 
-    if (!name) {
-      this.nameError.set(
-        this.isArabic() ? 'يرجى إدخال اسم المحاضر' : 'Instructor name is required'
-      );
-      hasError = true;
-    } else {
-      this.nameError.set(null);
-    }
+    const nameErr = validateNameError(name, this.isArabic(), true);
+    this.nameError.set(nameErr);
+    if (nameErr) hasError = true;
 
-    if (!phone || phone.length !== 11 || !/^\d{11}$/.test(phone)) {
-      this.phoneError.set(
-        this.isArabic()
-          ? 'رقم الهاتف يجب أن يتكون من 11 رقماً (مثال: 01012345678)'
-          : 'Phone number must be exactly 11 digits (e.g. 01012345678)'
-      );
-      hasError = true;
-    } else {
-      this.phoneError.set(null);
-    }
+    const rawPhone = this.formPhone().trim();
+    const phoneCanonical = toEgyptianLocalPhone(rawPhone) || sanitizePhoneInput(normalizeArabicDigits(rawPhone));
+    const phoneErr = validatePhoneError(phoneCanonical, this.isArabic(), true);
+    this.phoneError.set(phoneErr);
+    if (phoneErr) hasError = true;
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (email && !emailRegex.test(email)) {
-      this.emailError.set(
-        this.isArabic()
-          ? 'يرجى إدخال بريد إلكتروني صحيح (مثال: name@domain.com)'
-          : 'Please enter a valid email address (e.g. name@domain.com)'
-      );
-      hasError = true;
-    } else {
-      this.emailError.set(null);
-    }
+    const emailErr = validateEmailError(email, this.isArabic(), false);
+    this.emailError.set(emailErr);
+    if (emailErr) hasError = true;
 
     if (hasError) {
       this.formError.set(
@@ -329,20 +353,26 @@ export class ShowInstructorsComponent implements OnInit {
     this.isSaving.set(true);
     this.formError.set(null);
 
+    const basePayload: any = {
+      name,
+      nameEn: name,
+      phone,
+      colour: '#f5b921'
+    };
+
+    if (this.INSTRUCTOR_EXTENDED_FIELDS) {
+      basePayload.email = email || '';
+      basePayload.specialty = specialty;
+      basePayload.specialtyEn = specialty;
+      basePayload.affiliation = affiliation;
+      basePayload.affiliationEn = affiliation;
+      basePayload.totalSessions = sessions || 0;
+      basePayload.status = status || 'active';
+      basePayload.bio = bio;
+    }
+
     if (this.modalMode() === 'add') {
-      this.detailsService.createInstructor({
-        name,
-        nameEn: name,
-        phone,
-        email: email || '',
-        specialty,
-        specialtyEn: specialty,
-        affiliation,
-        affiliationEn: affiliation,
-        totalSessions: sessions || 0,
-        status: status || 'active',
-        bio
-      }).subscribe({
+      this.detailsService.createInstructor(basePayload).subscribe({
         next: () => {
           this.isSaving.set(false);
           this.notificationService.success(
@@ -362,6 +392,7 @@ export class ShowInstructorsComponent implements OnInit {
       const id = this.editingId();
       if (!id) return;
 
+<<<<<<< Updated upstream
       this.detailsService.updateInstructor(id, {
         name,
         nameEn: name,
@@ -371,8 +402,13 @@ export class ShowInstructorsComponent implements OnInit {
         specialtyEn: specialty,
         affiliation,
         affiliationEn: affiliation,
+        totalSessions: sessions,
+        status,
         bio
       }).subscribe({
+=======
+      this.detailsService.updateInstructor(id, basePayload).subscribe({
+>>>>>>> Stashed changes
         next: () => {
           this.isSaving.set(false);
           this.notificationService.success(

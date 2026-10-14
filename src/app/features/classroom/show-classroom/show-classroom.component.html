@@ -200,22 +200,34 @@
 
         <!-- Action Buttons -->
         <div class="card-actions">
-          <button type="button" class="action-btn action-btn--extend" (click)="addHourToCard(card)" [title]="isArabic() ? 'تمديد الجلسة ساعة إضافية' : 'Add 1 hour'">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-            <span>+1 {{ isArabic() ? 'ساعة' : 'hr' }}</span>
-          </button>
-          <button type="button" class="action-btn action-btn--ghost" (click)="openEditBookingModal(card)">
-            {{ t().edit }}
-          </button>
-          <button type="button" class="action-btn action-btn--ghost" (click)="onAddCatering(card)">
-            {{ t().addCatering }}
-          </button>
-          <button type="button" class="action-btn action-btn--checkout" (click)="openCheckoutModal(card)">
-            {{ t().checkOutBtn }}
-          </button>
+          @if (card.status === 'scheduled') {
+            <button type="button" class="action-btn action-btn--checkout" (click)="checkInScheduledCard(card)" [title]="isArabic() ? 'بدء الجلسة وتفعيل القاعة الآن' : 'Start session now'">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+              <span>{{ isArabic() ? 'بدء الجلسة' : 'Check In' }}</span>
+            </button>
+            <button type="button" class="action-btn action-btn--ghost" (click)="openEditBookingModal(card)">
+              {{ t().edit }}
+            </button>
+          } @else {
+            <button type="button" class="action-btn action-btn--extend" (click)="addHourToCard(card)" [title]="isArabic() ? 'تمديد الجلسة ساعة إضافية' : 'Add 1 hour'">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span>+1 {{ isArabic() ? 'ساعة' : 'hr' }}</span>
+            </button>
+            <button type="button" class="action-btn action-btn--ghost" (click)="openEditBookingModal(card)">
+              {{ t().edit }}
+            </button>
+            <button type="button" class="action-btn action-btn--ghost" (click)="onAddCatering(card)">
+              {{ t().addCatering }}
+            </button>
+            <button type="button" class="action-btn action-btn--checkout" (click)="openCheckoutModal(card)">
+              {{ t().checkOutBtn }}
+            </button>
+          }
         </div>
       </div>
     </div>
@@ -361,6 +373,17 @@
       </button>
     </div>
 
+    @if (bookingFormErrorMessage()) {
+      <div class="modal-form-alert" style="margin: 0 24px 16px; background: rgba(239, 68, 68, 0.12); border: 1.5px solid rgba(239, 68, 68, 0.35); border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 10px; color: #ef4444; font-weight: 700; font-size: 0.88rem;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; flex-shrink: 0;">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span>{{ bookingFormErrorMessage() }}</span>
+      </div>
+    }
+
     <!-- Modal Body (2 Columns) -->
     <div class="modal-grid">
       <!-- LEFT COLUMN: Core Details & Rates -->
@@ -378,8 +401,10 @@
                 <line x1="21" y1="21" x2="16.65" y2="16.65"/>
               </svg>
               <input
+                id="bookingInstructorInput"
                 type="text"
                 class="custom-input"
+                [class.input--error]="bookingFormSubmitted() && (!bookingInstructor().trim() || !isInstructorValid())"
                 [placeholder]="t().instructorPlaceholder"
                 [ngModel]="bookingInstructor()"
                 (focus)="isInstructorDropdownOpen.set(true)"
@@ -446,7 +471,7 @@
               </div>
             }
 
-            @if (bookingInstructor() && !isInstructorValid()) {
+            @if ((bookingInstructor() || bookingFormSubmitted()) && !isInstructorValid()) {
               <span class="field-error-msg">{{ t().errorInstructor }}</span>
             }
           </div>
@@ -455,10 +480,12 @@
           <div class="field-wrap">
             <label class="field-label">{{ t().activitySubject }}</label>
             <div class="input-container">
-              <input type="text" class="custom-input" [placeholder]="t().activityPlaceholder" [ngModel]="bookingActivity()"
+              <input id="bookingActivityInput" type="text" class="custom-input"
+                [class.input--error]="bookingFormSubmitted() && (!bookingActivity().trim() || !isActivityValid())"
+                [placeholder]="t().activityPlaceholder" [ngModel]="bookingActivity()"
                 (input)="onActivityInput($event)" />
             </div>
-            @if (bookingActivity() && !isActivityValid()) {
+            @if ((bookingActivity() || bookingFormSubmitted()) && !isActivityValid()) {
               <span class="field-error-msg">{{ t().errorActivity }}</span>
             }
           </div>
@@ -478,7 +505,7 @@
             <div class="field-wrap">
               <label class="field-label">{{ t().emailAddress }}</label>
               <div class="input-container">
-                <input type="email" class="custom-input" [placeholder]="t().emailPlaceholder" [ngModel]="bookingEmail()"
+                <input type="email" dir="ltr" class="custom-input" [placeholder]="t().emailPlaceholder" [ngModel]="bookingEmail()"
                   (input)="onEmailInput($event)" />
               </div>
               @if (bookingEmail() && !isEmailValid()) {
@@ -517,17 +544,23 @@
                 <line x1="8" y1="2" x2="8" y2="6"></line>
                 <line x1="3" y1="10" x2="21" y2="10"></line>
               </svg>
-              <input #bookingDatePicker type="date" class="custom-input custom-input--date" [min]="todayDate()"
+              <input #bookingDatePicker id="bookingDateInput" type="date" class="custom-input custom-input--date" [min]="todayDate()"
+                [class.input--error]="bookingFormSubmitted() && !bookingDate().trim()"
                 [ngModel]="bookingDate()" (ngModelChange)="bookingDate.set($event)"
                 (click)="bookingDatePicker.showPicker()" />
             </div>
+            @if (bookingFormSubmitted() && !bookingDate().trim()) {
+              <span class="field-error-msg">{{ isArabic() ? 'يرجى اختيار تاريخ الحجز' : 'Please select a booking date' }}</span>
+            }
           </div>
 
           <!-- Start & End Time -->
-          <div class="row-grid-2">
+          <div id="bookingTimeSection" class="row-grid-2">
             <!-- Start Time -->
             <div class="field-wrap">
-              <label class="field-label">{{ t().startTime }}</label>
+              <div class="time-header-row">
+                <label class="field-label" style="margin-bottom: 0;">{{ t().startTime }}</label>
+              </div>
               <div class="time-picker-box"
                 [class.time-picker-box--invalid]="!isTimeRangeValid() && bookingStartTime() && bookingEndTime()">
                 <svg class="time-box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -563,7 +596,7 @@
 
             <!-- End Time -->
             <div class="field-wrap">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+              <div class="time-header-row">
                 <label class="field-label" style="margin-bottom: 0;">{{ t().endTime }}</label>
                 <button type="button" class="btn-extend-hour" (click)="extendBookingModalByOneHour()">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -799,7 +832,7 @@
                   }
                 </div>
                 @if (!isEditingBookingRate()) {
-                <strong class="summary-value">{{ bookingHourlyRate() }} {{ t().currency }}/{{ t().hrs }}</strong>
+                <strong class="summary-value">{{ bookingHourlyRate() }} {{ t().currency }}{{ t().perHour }}</strong>
                 } @else {
                 <div class="summary-rate-edit-box">
                   <input type="number" min="0" step="5" class="summary-rate-input" [ngModel]="tempBookingRate()"
@@ -931,8 +964,13 @@
           {{ t().cancel }}
         </button>
         <button type="button" class="btn btn--primary btn-modal-confirm"
-          [class.btn--pending]="!isBookingFormValid()" (click)="confirmNewBooking()">
-          {{ editingCardId() ? t().saveChanges : t().confirmBooking }}
+          [disabled]="isSavingBooking()" (click)="confirmNewBooking()">
+          @if (isSavingBooking()) {
+            <span class="btn-spinner" style="display: inline-block; width: 14px; height: 14px; border: 2px solid #16130a; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite;"></span>
+            <span>{{ isArabic() ? 'جاري الحفظ...' : 'Saving...' }}</span>
+          } @else {
+            <span>{{ editingCardId() ? t().saveChanges : t().confirmBooking }}</span>
+          }
         </button>
       </div>
     </div>

@@ -384,7 +384,7 @@
         </div>
         <div class="stat-body">
           <div class="stat-number text-negative">
-            -{{ adminExpenses().toFixed(2) }} <span class="currency-label text-negative">{{ currencyText() }}</span>
+            {{ adminExpenses() > 0 ? ('-' + adminExpenses().toFixed(2)) : '0.00' }} <span class="currency-label text-negative">{{ currencyText() }}</span>
           </div>
           <div class="stat-footnote text-negative">
             <span>{{ t().pettyExpensesSub }}</span>

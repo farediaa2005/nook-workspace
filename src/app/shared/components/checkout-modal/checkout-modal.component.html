@@ -171,6 +171,31 @@
               </div>
             </div>
 
+            <!-- Explicit Discount Breakdown Line (O-1 fix) -->
+            @if (appliedDiscountAmount() > 0) {
+              <div class="breakdown-line discount-breakdown-row" style="background: rgba(16, 185, 129, 0.08); padding: 8px 12px; border-radius: 8px; margin: 6px 0; border: 1px dashed rgba(16, 185, 129, 0.35);">
+                <div class="line-desc" style="display: flex; align-items: center; gap: 8px;">
+                  <span style="color: #10b981; font-weight: 700;">🏷️ {{ discountLineLabel() }}</span>
+                  <button type="button" class="btn-remove-discount" (click)="removeDiscountAndCoupon()" [title]="isArabic() ? 'إلغاء الخصم' : 'Remove discount'" style="background: none; border: none; color: #ef4444; font-size: 0.9rem; font-weight: 700; cursor: pointer; padding: 0 4px; line-height: 1;">
+                    ✕
+                  </button>
+                </div>
+                <div class="line-amount">
+                  <span class="amount-number" style="color: #10b981; font-weight: 800;">-{{ appliedDiscountAmount().toFixed(2) }}</span>
+                  <span class="currency-symbol" style="color: #10b981;">{{ t().currency }}</span>
+                </div>
+              </div>
+
+              <!-- Net Total After Discount -->
+              <div class="breakdown-line net-total-row" style="margin-bottom: 6px;">
+                <strong class="line-title" style="font-weight: 700; color: var(--text);">{{ isArabic() ? 'الإجمالي بعد الخصم' : 'Total After Discount' }}</strong>
+                <div class="line-amount">
+                  <strong class="amount-number" style="font-weight: 800; color: var(--yellow);">{{ (data().financialBreakdown.subtotal - appliedDiscountAmount()).toFixed(2) }}</strong>
+                  <span class="currency-symbol">{{ t().currency }}</span>
+                </div>
+              </div>
+            }
+
             <!-- Discount Presets & Coupon Input -->
             <div class="discount-actions-bar">
               <div class="discount-preset-pills">
@@ -178,25 +203,25 @@
                 <button
                   type="button"
                   class="btn-pill"
-                  [class.btn-pill--active]="data().financialBreakdown.discountPercent === 0 && customDiscountInput() === null"
+                  [class.btn-pill--active]="effectiveActiveDiscountPercent() === 0 && customDiscountInput() === null"
                   (click)="setDiscount(0); customDiscountInput.set(null)"
                 >0%</button>
                 <button
                   type="button"
                   class="btn-pill"
-                  [class.btn-pill--active]="data().financialBreakdown.discountPercent === 10 && customDiscountInput() === null"
+                  [class.btn-pill--active]="effectiveActiveDiscountPercent() === 10 && customDiscountInput() === null"
                   (click)="setDiscount(10); customDiscountInput.set(null)"
                 >10%</button>
                 <button
                   type="button"
                   class="btn-pill"
-                  [class.btn-pill--active]="data().financialBreakdown.discountPercent === 15 && customDiscountInput() === null"
+                  [class.btn-pill--active]="effectiveActiveDiscountPercent() === 15 && customDiscountInput() === null"
                   (click)="setDiscount(15); customDiscountInput.set(null)"
                 >15%</button>
                 <button
                   type="button"
                   class="btn-pill"
-                  [class.btn-pill--active]="data().financialBreakdown.discountPercent === 20 && customDiscountInput() === null"
+                  [class.btn-pill--active]="effectiveActiveDiscountPercent() === 20 && customDiscountInput() === null"
                   (click)="setDiscount(20); customDiscountInput.set(null)"
                 >20%</button>
               </div>
@@ -500,17 +525,19 @@
               </div>
             }
 
-            <!-- Live New Wallet Balance Box -->
+            <!-- Live New Wallet Balance Box (O-1 fix: stays neutral before amount is typed) -->
             <div
               class="wallet-live-badge"
-              [class.wallet-live-badge--debt]="newWalletBalance() < 0"
-              [class.wallet-live-badge--credit]="newWalletBalance() > 0"
-              [class.wallet-live-badge--neutral]="newWalletBalance() === 0"
+              [class.wallet-live-badge--debt]="walletMode() === 'debit' || (hasReceivedAmountInput() && newWalletBalance() < 0)"
+              [class.wallet-live-badge--credit]="walletMode() === 'credit' || (hasReceivedAmountInput() && newWalletBalance() > 0)"
+              [class.wallet-live-badge--neutral]="walletMode() === 'none' && (!hasReceivedAmountInput() || newWalletBalance() === 0)"
             >
               <div class="badge-text">
                 <span class="badge-title">{{ isArabic() ? 'رصيد المحفظة بعد العملية:' : 'New Wallet Balance:' }}</span>
                 <span class="badge-sub">
-                  @if (newWalletBalance() < 0) {
+                  @if (!hasReceivedAmountInput() && walletMode() === 'none') {
+                    {{ isArabic() ? 'الرصيد دون تغيير (أدخل المبلغ المستلم للمحاسبة)' : 'Unchanged (enter received cash to settle)' }}
+                  } @else if (newWalletBalance() < 0) {
                     {{ isArabic() ? 'مديونية مستحقة على الطالب (عليه)' : 'Outstanding debt on student' }}
                   } @else if (newWalletBalance() > 0) {
                     {{ isArabic() ? 'رصيد دائن متاح للطالب (ليه)' : 'Credit balance available' }}
@@ -519,8 +546,12 @@
                   }
                 </span>
               </div>
-              <strong class="badge-value">
-                {{ newWalletBalance() }} {{ t().currency }}
+              <strong
+                class="badge-value"
+                [class.text-danger]="walletMode() === 'debit' || (hasReceivedAmountInput() && newWalletBalance() < 0)"
+                [class.text-success]="walletMode() === 'credit' || (hasReceivedAmountInput() && newWalletBalance() > 0)"
+              >
+                {{ newWalletBalance().toFixed(2) }} {{ t().currency }}
               </strong>
             </div>
           </div>

@@ -1662,5 +1662,79 @@
   }
 }
 
+/* Validity Chips and Custom Days Row (NOOK-FEAT-01 & O-11) */
+.validity-chips-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+  margin-bottom: 12px;
+}
+
+.btn-val-chip {
+  padding: 6px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.btn-val-chip:hover {
+  border-color: #f5b921;
+  color: var(--text);
+}
+
+.btn-val-chip--active {
+  background: rgba(245, 185, 33, 0.15);
+  border-color: #f5b921;
+  color: #f5b921;
+}
+
+.custom-days-inline-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.custom-days-inline-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.inline-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 140px;
+}
+
+.custom-input--compact {
+  height: 38px;
+  padding-inline-end: 46px;
+  width: 100%;
+}
+
+.inline-input-affix {
+  position: absolute;
+  inset-inline-end: 12px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
 
 

@@ -215,10 +215,15 @@
           <strong class="summary-val">{{ subtotal().toFixed(2) }} {{ t().egp }}</strong>
         </div>
 
-        <div class="summary-row">
-          <span class="summary-label">{{ t().discountsApplied }}</span>
-          <strong class="summary-val summary-val--discount">-{{ totalDiscounts().toFixed(2) }} {{ t().egp }}</strong>
+        @if (totalDiscounts() > 0) {
+        <div class="summary-row" style="background: rgba(16, 185, 129, 0.08); padding: 8px 10px; border-radius: 8px; margin: 4px 0; border: 1px dashed rgba(16, 185, 129, 0.35);">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="summary-label" style="color: #10b981; font-weight: 700;">🏷️ {{ discountLineLabel() }}</span>
+            <button type="button" (click)="removeDiscountAndCoupon()" [title]="isArabic() ? 'إلغاء الخصم' : 'Remove discount'" style="background: none; border: none; color: #ef4444; font-size: 0.9rem; font-weight: 700; cursor: pointer; padding: 0 4px; line-height: 1;">✕</button>
+          </div>
+          <strong class="summary-val summary-val--discount" style="color: #10b981; font-weight: 800;">-{{ totalDiscounts().toFixed(2) }} {{ t().egp }}</strong>
         </div>
+        }
 
         @if (walletDeduction() > 0) {
         <div class="summary-row">

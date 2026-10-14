@@ -120,12 +120,12 @@
 
               <!-- Shift Time -->
               <td class="cell-shift-time">
-                <div class="time-tag-wrap">
+                <div class="time-tag-wrap" dir="ltr">
                   <svg viewBox="0 0 24 24" fill="none" class="clock-icon">
                     <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
                     <polyline points="12 6 12 12 16 14" stroke="currentColor" stroke-width="2"/>
                   </svg>
-                  <span>{{ item.startTime }} - {{ item.endTime }}</span>
+                  <span>{{ formatShiftTimeRange(item.startTime, item.endTime) }}</span>
                 </div>
               </td>
 
@@ -282,7 +282,7 @@
                 </div>
               </div>
             } @else {
-              <strong style="font-size: 0.95rem; color: var(--text);">{{ shift.startTime }} &mdash; {{ shift.endTime }}</strong>
+              <strong style="font-size: 0.95rem; color: var(--text);" dir="ltr">{{ formatShiftTimeRange(shift.startTime, shift.endTime) }}</strong>
             }
           </div>
           <div>
@@ -323,6 +323,40 @@
             </strong>
           </div>
         </div>
+
+        <!-- Per-Channel Balance Breakdown (O-5) -->
+        @if (shift.channelBreakdown && shift.channelBreakdown.length > 0) {
+          <div style="margin-bottom: 20px;">
+            <h4 style="margin: 0 0 10px 0; font-size: 0.92rem; font-weight: 700; color: var(--text);">
+              {{ isArabic() ? 'مطابقة وموازنة القنوات النقدية والرقمية' : 'Payment Channels Reconciliation' }}
+            </h4>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              @for (ch of shift.channelBreakdown; track ch.channelKey) {
+                <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <span style="font-weight: 700; color: var(--text); font-size: 0.86rem; display: block;">{{ isArabic() ? ch.channelNameAr : ch.channelNameEn }}</span>
+                    <span style="font-size: 0.74rem; color: var(--text-dim);" dir="ltr">
+                      {{ isArabic() ? 'افتتاحي' : 'Opening' }}: {{ ch.opening.toFixed(2) }} | 
+                      {{ isArabic() ? 'متوقع' : 'Exp' }}: {{ ch.expected.toFixed(2) }} | 
+                      {{ isArabic() ? 'فعلي' : 'Counted' }}: {{ ch.countedClosing.toFixed(2) }}
+                    </span>
+                  </div>
+                  <div>
+                    @if (ch.isBalanced) {
+                      <span style="font-size: 0.8rem; font-weight: 700; color: #10b981; background: rgba(16, 185, 129, 0.12); padding: 3px 8px; border-radius: 6px;">
+                        &check; {{ isArabic() ? 'متطابق' : 'Balanced' }}
+                      </span>
+                    } @else {
+                      <span style="font-size: 0.8rem; font-weight: 700; color: #ef4444; background: rgba(239, 68, 68, 0.12); padding: 3px 8px; border-radius: 6px;">
+                        {{ ch.difference > 0 ? '+' : '' }}{{ ch.difference.toFixed(2) }} {{ currencyText() }}
+                      </span>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
 
         <!-- Notes -->
         @if (shift.notes) {

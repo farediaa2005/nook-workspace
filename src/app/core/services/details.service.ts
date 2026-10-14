@@ -180,17 +180,42 @@ export class DetailsService {
   // ==========================================
 
   private getCachedInstructorDetails(id: string, phone?: string): Partial<Instructor> {
-    return this.instructorMemMap.get(id) || (phone ? this.instructorMemMap.get(phone) : null) || {};
+    let cached = this.instructorMemMap.get(id) || (phone ? this.instructorMemMap.get(phone) : null);
+    if (!cached && typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('nook_instructor_meta_' + id) || (phone ? localStorage.getItem('nook_instructor_meta_' + phone) : null);
+        if (raw) {
+          cached = JSON.parse(raw);
+          if (cached) {
+            if (id) this.instructorMemMap.set(id, cached);
+            if (phone) this.instructorMemMap.set(phone, cached);
+          }
+        }
+      } catch {}
+    }
+    return cached || {};
   }
 
   private setCachedInstructorDetails(id: string, phone: string | undefined, details: Partial<Instructor>): void {
     if (id) this.instructorMemMap.set(id, details);
     if (phone) this.instructorMemMap.set(phone, details);
+    if (typeof window !== 'undefined') {
+      try {
+        if (id) localStorage.setItem('nook_instructor_meta_' + id, JSON.stringify(details));
+        if (phone) localStorage.setItem('nook_instructor_meta_' + phone, JSON.stringify(details));
+      } catch {}
+    }
   }
 
   private removeCachedInstructorDetails(id: string, phone?: string): void {
     this.instructorMemMap.delete(id);
     if (phone) this.instructorMemMap.delete(phone);
+    if (typeof window !== 'undefined') {
+      try {
+        if (id) localStorage.removeItem('nook_instructor_meta_' + id);
+        if (phone) localStorage.removeItem('nook_instructor_meta_' + phone);
+      } catch {}
+    }
   }
 
   getInstructors(): Observable<Instructor[]> {
@@ -217,7 +242,7 @@ export class DetailsService {
             specialtyEn,
             affiliation,
             affiliationEn,
-            totalSessions: inst.sessionsCount || inst.totalSessions || 0,
+            totalSessions: cached.totalSessions !== undefined ? cached.totalSessions : (inst.sessionsCount || inst.totalSessions || 0),
             status: (inst.isActive === false ? 'inactive' : 'active') as 'active' | 'inactive',
             bio,
             createdAt: inst.createdAt || new Date().toISOString()
@@ -295,16 +320,22 @@ export class DetailsService {
       colour: '#f5b921'
     }).pipe(
       tap(() => {
+        const prev = this.getCachedInstructorDetails(id, dto.phone);
         this.setCachedInstructorDetails(id, dto.phone, {
           email: dto.email,
           specialty: dto.specialty,
           specialtyEn: dto.specialtyEn || dto.specialty,
           affiliation: dto.affiliation,
           affiliationEn: dto.affiliationEn || dto.affiliation,
-          bio: dto.bio
+          bio: dto.bio,
+          totalSessions: dto.totalSessions !== undefined ? dto.totalSessions : prev.totalSessions
         });
         this.instructors.update(list =>
-          list.map(i => i.id === id ? { ...i, ...dto } : i)
+          list.map(i => i.id === id ? {
+            ...i,
+            ...dto,
+            totalSessions: dto.totalSessions !== undefined ? dto.totalSessions : i.totalSessions
+          } : i)
         );
       }),
       map(() => true),

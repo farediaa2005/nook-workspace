@@ -56,6 +56,16 @@ export interface ShiftRecord {
   startInstapay?: number;
   startFawry?: number;
 
+  // Server-computed financial figures
+  serverExpectedCash?: number;
+  cashDifference?: number;
+  vodafoneDifference?: number;
+  instapayDifference?: number;
+  fawryDifference?: number;
+  totalExpenses?: number;
+  increase?: number;
+  loss?: number;
+
   // Category Revenues
   canteenRevenue: number;
   classroomRevenue: number;
@@ -90,4 +100,6 @@ export interface ShiftHistoryItem {
   variance: number;
   status: 'balanced' | 'disputed';
   notes?: string;
+  channelBreakdown?: any[];
 }
+

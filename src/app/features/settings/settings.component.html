@@ -199,7 +199,7 @@
           <button type="button" class="btn-edit-direct" (click)="openEditRoomModal(room)">
             <span>{{ t().edit }}</span>
           </button>
-          <button type="button" class="btn-delete-direct" (click)="deleteRoom(room.id)">
+          <button type="button" class="btn-delete-direct" (click)="openDeleteRoomModal(room)">
             <span>{{ t().delete }}</span>
           </button>
         </div>
@@ -284,7 +284,7 @@
             </td>
             <td><span class="hour-pill">{{ preset.hours }} {{ t().hrs }}</span></td>
             <td><span class="price-pill">{{ preset.price }} {{ t().currency }}</span></td>
-            <td><span class="validity-badge">{{ preset.validityDays }} {{ t().validityDays }}</span></td>
+            <td><span class="validity-badge">{{ preset.validityDays }} {{ t().packageValidityDays }}</span></td>
             <td class="cell-center">
               <div class="actions-wrapper">
                 <button type="button" class="btn-edit-direct" (click)="openEditPackageModal(preset)" [title]="t().edit">
@@ -667,7 +667,7 @@
               @for (h of [10, 20, 30, 50, 100]; track h) {
               <button type="button" class="btn-compact-chip" [class.btn-compact-chip--active]="formPkgHours() === h"
                 (click)="formPkgHours.set(h)">
-                {{ h }}{{ t().hrs }}
+                {{ h }} {{ t().hrs }}
               </button>
               }
             </div>
@@ -695,11 +695,11 @@
         <div class="field-group full-width">
           <label class="field-label">{{ t().defaultValidity }} *</label>
           <div class="validity-chips-bar">
-            @for (val of [15, 30, 60, 90, 180]; track val) {
+            @for (val of [7, 15, 30, 60, 90, 180]; track val) {
             <button type="button" class="btn-val-chip"
               [class.btn-val-chip--active]="formPkgValiditySelection() === val.toString()"
               (click)="onPkgValidityChange(val.toString())">
-              {{ val }} {{ t().validityDays }}
+              {{ val }} {{ t().packageValidityDays }}
             </button>
             }
             <button type="button" class="btn-val-chip"
@@ -716,7 +716,7 @@
               <input type="number" min="1" class="custom-input custom-input--compact"
                 [placeholder]="t().customDaysPlaceholder" [ngModel]="customValidityDays()"
                 (ngModelChange)="onCustomValidityDaysChange(+$event)" name="customValidityDays" />
-              <span class="inline-input-affix">{{ t().validityDays }}</span>
+              <span class="inline-input-affix">{{ t().packageValidityDays }}</span>
             </div>
           </div>
           }
@@ -736,4 +736,28 @@
       </div>
     </form>
   </app-modal>
+
+  <!-- Delete Room Confirmation Modal (NOOK-SEC-01 & O-10) -->
+  @if (isDeleteRoomModalOpen() && roomToDelete(); as delRoom) {
+  <app-modal [isOpen]="true" (close)="closeDeleteRoomModal()" [title]="isArabic() ? 'تأكيد حذف القاعة' : 'Confirm Room Deletion'">
+    <div style="padding: 16px 0; text-align: center;">
+      <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(239, 68, 68, 0.12); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" style="width: 32px; height: 32px;">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="15" y1="9" x2="9" y2="15"/>
+          <line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+      </div>
+      <p style="color: var(--text-dim); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6;">
+        {{ isArabic() ? 'هل أنت متأكد من رغبتك في حذف القاعة "' + (delRoom.name || delRoom.nameEn) + '" نهائياً؟ سيتم مسح جميع الإعدادات المرتبطة بها.' : 'Are you sure you want to permanently delete room "' + (delRoom.nameEn || delRoom.name) + '"? All related settings will be removed.' }}
+      </p>
+      <div style="display: flex; gap: 12px; justify-content: center;">
+        <button type="button" class="btn-cancel" (click)="closeDeleteRoomModal()">{{ t().cancel }}</button>
+        <button type="button" (click)="confirmDeleteRoom()" style="background: #ef4444; color: #fff; padding: 10px 24px; border-radius: 10px; font-weight: 700; border: none; cursor: pointer; transition: opacity 0.2s ease;">
+          {{ t().delete }}
+        </button>
+      </div>
+    </div>
+  </app-modal>
+  }
 </div>

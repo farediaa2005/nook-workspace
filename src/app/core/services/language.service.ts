@@ -776,6 +776,7 @@ export interface Translations {
   productImageOptional: string;
   imageFileFormat: string;
   removeImage: string;
+  changeImage: string;
   addProductToInventory: string;
   cashierLabel: string;
   sessionCatering: string;
@@ -2093,6 +2094,7 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     productImageOptional: 'Product Image (Optional)',
     imageFileFormat: 'PNG, JPG up to 5MB',
     removeImage: 'Remove Image',
+    changeImage: 'Change Image',
     addProductToInventory: 'Add Product to Inventory',
     cashierLabel: 'Cashier: ',
     sessionCatering: 'Session Catering',
@@ -3407,6 +3409,7 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     productImageOptional: 'صورة المنتج (اختياري)',
     imageFileFormat: 'PNG, JPG حتى 5MB',
     removeImage: 'امسح الصورة',
+    changeImage: 'تغيير الصورة',
     addProductToInventory: 'ضيف المنتج للمخزون',
     cashierLabel: 'الكاشير:',
     sessionCatering: 'طلب كاترنج للسيشن',
@@ -3893,7 +3896,7 @@ const TRANSLATIONS: Record<Lang, Translations> = {
     egpPerPage: 'ج.م/ورقة',
     wifiVoucherPlaceholder: 'مثلاً: NOOK-WIFI-99',
     freshOrangeJuicePlaceholder: 'مثلاً: عصير برتقال فريش',
-    hrsBadge: 'س',
+    hrsBadge: 'ساعة',
 
     // Global Notifications & Operational Alerts
     notificationsTitle: 'مركز الإشعارات',
