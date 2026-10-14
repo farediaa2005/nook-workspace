@@ -124,13 +124,13 @@ export class SettingsService {
             const meta = this.getRoomMeta(r.id);
             const matchedPlan = (plans || []).find(p => p.roomId === r.id);
             const planPrice = matchedPlan ? (matchedPlan.baseCost || matchedPlan.overageHourlyRate || 0) : 0;
-            const hourlyPrice = planPrice || meta.hourlyPrice || 0;
-            const capacity = meta.capacity || (r.supportsClassroom ? 20 : 30);
+            const hourlyPrice = r.hourlyPrice || planPrice || meta.hourlyPrice || 0;
+            const capacity = r.capacity || meta.capacity || (r.supportsClassroom ? 20 : 30);
 
             return {
               id: r.id,
               name: r.name,
-              nameEn: r.name,
+              nameEn: r.nameEn || r.name,
               type: r.supportsClassroom ? 'Classroom' : (r.workspaceZone === 2 ? 'Silent Zone' : 'Shared Space'),
               capacity,
               hourlyPrice,
@@ -194,13 +194,13 @@ export class SettingsService {
           const meta = this.getRoomMeta(r.id);
           const matchedPlan = this.pricingTiers().find(p => p.roomId === r.id);
           const planPrice = matchedPlan ? matchedPlan.priceEgp : 0;
-          const hourlyPrice = planPrice || meta.hourlyPrice || 0;
-          const capacity = meta.capacity || (r.supportsClassroom ? 20 : 30);
+          const hourlyPrice = r.hourlyPrice || planPrice || meta.hourlyPrice || 0;
+          const capacity = r.capacity || meta.capacity || (r.supportsClassroom ? 20 : 30);
 
           return {
             id: r.id,
             name: r.name,
-            nameEn: r.name,
+            nameEn: r.nameEn || r.name,
             type: r.supportsClassroom ? 'Classroom' : (r.workspaceZone === 2 ? 'Silent Zone' : 'Shared Space'),
             capacity,
             hourlyPrice,
@@ -440,7 +440,7 @@ export class SettingsService {
         const newRoom: RoomEntity = {
           id: created.id,
           name: created.name,
-          nameEn: created.name,
+          nameEn: created.nameEn || created.name,
           type: created.supportsClassroom ? 'Classroom' : (created.workspaceZone === 2 ? 'Silent Zone' : 'Shared Space'),
           capacity: room.capacity || (created.supportsClassroom ? 20 : 30),
           hourlyPrice: room.hourlyPrice || 0,
@@ -524,7 +524,7 @@ export class SettingsService {
         const updatedRoom: RoomEntity = {
           ...room,
           name: updated.name || room.name,
-          nameEn: updated.name || room.nameEn || room.name,
+          nameEn: updated.nameEn || room.nameEn,
           type: updated.supportsClassroom ? 'Classroom' : (updated.workspaceZone === 2 ? 'Silent Zone' : 'Shared Space'),
           capacity: room.capacity,
           hourlyPrice: room.hourlyPrice,

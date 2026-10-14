@@ -11,21 +11,6 @@
   </div>
   }
 
-  <!-- Stale / Cached Data Alert Banner (Gap 4) -->
-  @if (workspaceService.isServingCachedStudents()) {
-    <div class="cached-data-banner" style="background: rgba(245, 185, 33, 0.12); border: 1px solid var(--yellow); color: var(--text); padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span>⚠️</span>
-        <span style="font-weight: 600; font-size: 0.9rem;">
-          {{ isArabic() ? 'يتم حالياً عرض بيانات الطلاب المحفوظة محلياً لتعذر المزامنة مع الخادم' : 'Showing offline cached student data due to connection issues' }}
-        </span>
-      </div>
-      <button type="button" class="btn-retry-sync" (click)="workspaceService.loadFromBackend()" style="background: var(--yellow); color: #111; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 700; cursor: pointer;">
-        {{ isArabic() ? 'إعادة المحاولة' : 'Retry Sync' }}
-      </button>
-    </div>
-  }
-
   <!-- Page Header -->
   <div class="show-head">
     <div>

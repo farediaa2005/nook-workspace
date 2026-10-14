@@ -326,24 +326,13 @@ export class ClassroomService {
         const mapped: SelectableRoom[] = activeRooms.map((r, idx) => {
           const resolved = resolveImageUrl(r.imageUrl);
           const roomImg = resolved || roomImages[idx % roomImages.length];
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-          const matchedPlan = (plans || []).find(p => p.roomId === r.id);
-          const planCost = matchedPlan ? (matchedPlan.baseCost || matchedPlan.overageHourlyRate || 0) : 0;
-          const rate = r.hourlyPrice || (r as any).hourlyRate || planCost || 0;
-=======
           const rate = this.roomPricing.getRoomHourlyRate(r);
->>>>>>> fix/audit-remediation
           const cap = r.capacity || 20;
-=======
-          const rate = this.roomPricing.getRoomHourlyRate(r);
-          const cap = 20;
->>>>>>> Stashed changes
           return {
             id: r.id,
             name: r.name,
             nameAr: r.name,
-            nameEn: r.name,
+            nameEn: r.nameEn || r.name,
             type: 'Classroom',
             capacity: cap,
             maxCapacity: cap,

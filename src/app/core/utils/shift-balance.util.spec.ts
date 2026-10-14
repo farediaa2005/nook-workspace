@@ -2,14 +2,10 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   calculateChannelBalance,
   calculateShiftBalances,
-<<<<<<< HEAD
-  sanitizeMoney
-=======
   sanitizeMoney,
   saveShiftFloats,
   getSavedShiftFloats,
   ShiftFloatsRecord
->>>>>>> fix/audit-remediation
 } from './shift-balance.util';
 
 describe('ShiftBalanceUtil', () => {
@@ -117,8 +113,6 @@ describe('ShiftBalanceUtil', () => {
       expect(report.status).toBe('disputed');
     });
   });
-<<<<<<< HEAD
-=======
 
   describe('Storage persistence', () => {
     it('should save and load shift floats by ID and active fallback', () => {
@@ -139,5 +133,4 @@ describe('ShiftBalanceUtil', () => {
       expect(loadedActive).toEqual(record);
     });
   });
->>>>>>> fix/audit-remediation
 });

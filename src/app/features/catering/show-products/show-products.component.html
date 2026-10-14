@@ -412,17 +412,6 @@
               @if (editImagePreview()) {
                 <div class="image-preview-card">
                   <img [src]="editImagePreview()" alt="Product preview" class="preview-img" />
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-                  <button type="button" class="btn-delete-img" (click)="removeEditImage()" [title]="t().removeImage">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline points="3 6 5 6 21 6"></polyline>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
-                  </button>
-=======
-=======
->>>>>>> fix/audit-remediation
                   <div class="image-preview-actions">
                     <label class="btn-change-img" [title]="t().changeImage">
                       <input
@@ -437,19 +426,6 @@
                       </svg>
                       <span>{{ t().changeImage }}</span>
                     </label>
-<<<<<<< HEAD
-                    @if (editSelectedImageFile()) {
-                      <button type="button" class="btn-delete-img" (click)="removeEditImage()" [title]="t().removeImage">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <polyline points="3 6 5 6 21 6"></polyline>
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                        <span>{{ t().removeImage }}</span>
-                      </button>
-                    }
-                  </div>
->>>>>>> Stashed changes
-=======
                     <button type="button" class="btn-delete-img" (click)="removeEditImage()" [title]="t().removeImage">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="3 6 5 6 21 6"></polyline>
@@ -458,7 +434,6 @@
                       <span>{{ t().removeImage }}</span>
                     </button>
                   </div>
->>>>>>> fix/audit-remediation
                 </div>
               } @else {
                 <label class="upload-dropzone">

@@ -70,45 +70,7 @@ Every modification adheres strictly to the core engineering principles:
 | **NOOK-FEAT-07** | Shift balance cache graceful degradation | Handled multi-channel float caching while awaiting `PUT /api/Shifts/{id}` backend implementation. | `5a3011c` |
 | **NOOK-FEAT-08** | WhatsApp notification integration spec | Comprehensive architectural specification authored in `docs/specs/NOOK-FEAT-08-whatsapp-integration.md`. | `9e77d51` |
 | **NOOK-FEAT-09** | WiFi presence detection spec | Network MAC detection integration spec authored in `docs/specs/NOOK-FEAT-09-wifi-presence.md`. | `9e77d51` |
-<<<<<<< HEAD
----
-
-### 2.4 API Wiring Corrections & False Premises Eradicated (Mission Pass)
-
-The previous remediation pass introduced several frontend workarounds based on incorrect assumptions about backend capabilities. In this mission pass, all false premises were identified via `live_openapi.json` and live backend experimentation, and corrected to use what the backend **already provides**:
-
-1. **Shift Financials & Eradication of LocalStorage Floats:**
-   - *Previous False Premise:* "Backend lacks `PUT /api/Shifts` so opening balances are lost on F5 refresh, requiring localStorage caching (`nook_shift_floats_{shiftId}`)."
-   - *Corrected Reality:* `POST /api/Shifts` (`CreateShiftDto`) already accepts all 4 channel opening floats (`previousTotal`, `startVodafoneCash`, `startInstapay`, `startFawry`). `GET /api/shifts/current` and `GET /api/shifts/{id}` return them back in `ShiftDetailDto` and factor them into `expectedCash`.
-   - *Action:* Completely deleted localStorage float caching. Shift page now loads opening balances and differences strictly from the server API.
-
-2. **Room Pricing Authority via `PricingPlans`:**
-   - *Previous False Premise:* "Backend is missing `hourlyPrice` on `RoomDto`, causing rooms to appear as 0 EGP."
-   - *Corrected Reality:* Backend intentionally separates Room physical topology from pricing. Hourly rates are governed by `PricingPlans` (`GET /api/PricingPlans` and `GET /api/PricingPlans/suggestion?roomId=&scope=&hours=`). Rooms showing 0 EGP (e.g. `Meeting room`, `Nook 2`) simply have no active pricing plan in the database.
-   - *Action:* `RoomPricingService` uses `/api/PricingPlans/suggestion` as single source of truth. Rooms lacking active plans display a clear Arabic warning and booking is blocked.
-
-3. **Single-POST Recurring Reservations & Conflict Exemption:**
-   - *Previous False Premise:* "Backend needs a dedicated `POST /api/Reservations/recurring` and series delete endpoints."
-   - *Corrected Reality:* `POST /api/Reservations` natively handles recurrence in a single call via `recurrenceFrequency`, `recurrenceInterval`, `daysOfWeek`, `totalSessions`, `isOngoing`. Single-day cancellations use `POST /api/Reservations/{id}/cancel-day`, and series deletion uses `DELETE /api/Reservations/{id}`. `POST /api/Reservations/check-conflict` supports `excludeReservationId` on updates.
-   - *Action:* Removed iterative creation loops. Conflict checks on edit pass `excludeReservationId` to prevent false self-collisions.
-
-4. **Invoices & Discount Line Breakdown:**
-   - *Previous False Premise:* "Backend needs a server-side PDF invoice generator (`/api/Invoices/{id}/pdf`)."
-   - *Corrected Reality:* `GET /api/Workspaces/{id}/invoice` and `GET /api/Classrooms/{id}/invoice` return comprehensive `InvoiceDetailDto` with base amount, catering, printing, discount, and subtotal.
-   - *Action:* Client renders printable invoice directly from `InvoiceDetailDto`, displaying an explicit discount line with promo code and amount.
-
-5. **Instructor Unpersisted Fields:**
-   - *Previous False Premise:* "Session count doesn't save due to frontend form bugs."
-   - *Corrected Reality:* `InstructorDto` in OpenAPI only contains `id`, `name`, `phoneNumber`, `colour`. Fields like `email`, `specialty`, `organization`, `status`, and `bio` do not exist on the backend DTO.
-   - *Action:* Placed unpersisted fields behind `INSTRUCTOR_EXTENDED_FIELDS = false` (hidden to prevent silent data loss) and requested them in `BACKEND_REQUESTS.md` (B3). Sessions count is calculated dynamically and shown read-only.
-
-6. **Student Faculty vs University Fields:**
-   - *Previous False Premise:* "University and Faculty are a single coupled text field."
-   - *Corrected Reality:* Backend provides `university` (string) and `facultyId` (UUID linked to `GET /api/Faculties`).
-   - *Action:* Form maps "الجامعة" to `university` and "الكلية" to `facultyId` (selecting from or adding to `/api/Faculties`). Non-spec `notes` and `college` properties removed.
-=======
 | **NOOK-FEAT-10** | Thermal receipt & invoice PDF spec | Invoice layout & thermal receipt spec authored in `docs/specs/NOOK-FEAT-10-invoice-pdf-printing.md`. | `9e77d51` |
->>>>>>> fix/audit-remediation
 
 ---
 

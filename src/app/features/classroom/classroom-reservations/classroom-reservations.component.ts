@@ -1631,29 +1631,8 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
 
     this.resRoomId.set(room.id);
     this.resRoomName.set(room.name);
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-    if (room.hourlyRate) {
-      this.resHourlyRate.set(room.hourlyRate);
-    }
-=======
-    const hasPlan = this.roomPricing.hasActivePlanForScope(room.id, 2);
-    if (!hasPlan) {
-      const msg = this.isArabic()
-        ? `تنبيه: القاعة "${room.name}" ليس لها خطة تسعير نشطة في النظام (0 ج.م) — الحجز معطّل حتى يتم إضافة خطة تسعير للقاعة من الإعدادات.`
-        : `Warning: Room "${room.name}" has no active pricing plan (0 EGP) — booking is blocked until a plan is configured.`;
-      this.modalErrorMessage.set(msg);
-      this.workspaceService.showToast(msg, 'error');
-    } else {
-      this.modalErrorMessage.set('');
-    }
     const resolvedRate = this.roomPricing.getRoomHourlyRate(room) || room.hourlyRate || 0;
     this.resHourlyRate.set(resolvedRate);
->>>>>>> Stashed changes
-=======
-    const resolvedRate = this.roomPricing.getRoomHourlyRate(room) || room.hourlyRate || 0;
-    this.resHourlyRate.set(resolvedRate);
->>>>>>> fix/audit-remediation
   }
 
   /** Check if a room currently has an active classroom session right now */
@@ -1919,12 +1898,6 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
       this.isSaving.set(false);
       return;
     }
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-    if (!this.isReservationFormValid()) return;
-=======
-=======
->>>>>>> fix/audit-remediation
     if (this.resPhone().trim() && !isValidEgyptianPhone(this.resPhone().trim())) {
       const msg = this.isArabic()
         ? 'رقم هاتف المحاضر غير صحيح (يجب أن يكون 11 رقماً ويبدأ بـ 01)'
@@ -1942,26 +1915,15 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
       return;
     }
     if (!this.isReservationFormValid()) {
-<<<<<<< HEAD
-      if (this.resHourlyRate() <= 0 || !this.roomPricing.hasActivePlanForScope(this.resRoomId(), 2)) {
-        const msg = this.isArabic()
-          ? 'لا توجد خطة تسعير نشطة لهذه القاعة في النظام (0 ج.م) — الحجز معطّل حتى يتم إضافة خطة تسعير للقاعة.'
-          : 'No active pricing plan configured for this room (0 EGP). Booking is blocked until a plan is added.';
-=======
       if (this.resHourlyRate() <= 0) {
         const msg = this.isArabic()
           ? 'سعر الساعة غير محدد لهذه القاعة، يرجى ضبط سعر الساعة'
           : 'Hourly price is not configured for this room. Please set a rate.';
->>>>>>> fix/audit-remediation
         this.modalErrorMessage.set(msg);
         this.workspaceService.showToast(msg, 'error');
       }
       return;
     }
-<<<<<<< HEAD
->>>>>>> Stashed changes
-=======
->>>>>>> fix/audit-remediation
     this.isSaving.set(true);
     this.modalErrorMessage.set('');
     this.conflictDetails.set(null);

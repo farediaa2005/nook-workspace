@@ -60,10 +60,10 @@ export interface PricingSuggestionDto {
   hours: number;
   baseHours: number;
   baseCost: number;
-  overageHourlyRate?: number;
-  suggestedCost: number;
-  // Backward compat alias
-  suggestedTotal?: number;
+  overageHours: number;
+  overageRate: number;
+  overageCost: number;
+  suggestedTotal: number;
 }
 
 /** Package pricing plan DTO from /api/PackagePricingPlans */

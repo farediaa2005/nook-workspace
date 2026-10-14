@@ -281,7 +281,6 @@ export class WorkspaceService {
   readonly isLoading = signal<boolean>(false);
   readonly isLoadingDirectory = signal<boolean>(false);
   readonly error = signal<string | null>(null);
-  readonly isServingCachedStudents = signal<boolean>(false);
 
   readonly activeStudents = this.activeStudentsState.asReadonly();
   readonly historyStudents = this.historyStudentsState.asReadonly();
@@ -590,7 +589,8 @@ export class WorkspaceService {
         phoneNumber: cleanProfile.phone,
         whatsapp: cleanProfile.whatsapp || cleanProfile.phone,
         email: cleanProfile.email || undefined,
-        university: cleanProfile.university || undefined,
+        college: cleanProfile.college || undefined,
+        university: cleanProfile.faculty || cleanProfile.university || undefined,
         facultyId: facultyId || undefined
       }).subscribe({
         next: (created) => {
@@ -691,45 +691,6 @@ export class WorkspaceService {
         }
 
         // 2. Populate students map and directory state
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-        const profileList: StudentProfileRecord[] = [];
-        (students || []).forEach(s => {
-          this.studentMap.set(s.id, s);
-          const phone = s.phoneNumber || s.whatsapp || '';
-          profileList.push({
-            id: s.id,
-            name: s.name,
-            phone: phone,
-            whatsapp: s.whatsapp || s.phoneNumber || '',
-            email: s.email || '',
-            college: s.college || '',
-            faculty: s.university || s.facultyName || '',
-            university: s.university || s.facultyName || '',
-            notes: (s as any).notes || s.notes || ''
-          });
-        });
-        this.backendStudentsState.set(profileList);
-=======
-        if (students !== null) {
-          this.isServingCachedStudents.set(false);
-          const profileList: StudentProfileRecord[] = [];
-          (students || []).forEach(s => {
-            this.studentMap.set(s.id, s);
-            const phone = s.phoneNumber || s.whatsapp || '';
-            profileList.push({
-              id: s.id,
-              name: s.name,
-              phone: phone,
-              whatsapp: s.whatsapp || s.phoneNumber || '',
-              email: s.email || '',
-              college: s.facultyName || '',
-              faculty: s.facultyName || '',
-              university: s.university || '',
-              notes: (s as any).notes || s.notes || ''
-            });
-          });
-=======
         if (students !== null) {
           const profileList: StudentProfileRecord[] = [];
           (students || []).forEach(s => {
@@ -747,21 +708,13 @@ export class WorkspaceService {
               notes: (s as any).notes || s.notes || ''
             });
           });
->>>>>>> fix/audit-remediation
           const mergedProfiles = this.mergeWithLocalProfiles(profileList);
           this.backendStudentsState.set(mergedProfiles);
           this.persistCachedStudents(mergedProfiles);
         } else {
           // Keep cached data, do NOT clear list
-<<<<<<< HEAD
-          this.isServingCachedStudents.set(true);
           this.error.set(this.langService.isArabic() ? 'تعذر مزامنة قائمة الطلاب مع السيرفر - يتم عرض البيانات المحفوظة محلياً' : 'Could not sync student list from server - showing cached records');
         }
->>>>>>> Stashed changes
-=======
-          this.error.set(this.langService.isArabic() ? 'تعذر مزامنة قائمة الطلاب مع السيرفر - يتم عرض البيانات المحفوظة محلياً' : 'Could not sync student list from server - showing cached records');
-        }
->>>>>>> fix/audit-remediation
 
         // 3. Populate blacklist state (deduplicated by studentId/phone/name)
         if (blacklists !== null) {
@@ -954,6 +907,9 @@ export class WorkspaceService {
     };
 
     const executeCheckIn = (studentGuid?: string) => {
+      if (studentGuid && /^[0-9a-fA-F-]{36}$/.test(studentGuid) && newStudent.notes) {
+        this.studentApi.updateStudent(studentGuid, { notes: newStudent.notes }).subscribe({ error: () => {} });
+      }
 
       const zone = newStudent.zone ?? (newStudent.roomName?.toLowerCase().includes('silent') ? 1 : 0);
       const payload = {
@@ -1021,6 +977,7 @@ export class WorkspaceService {
       zone: newStudent.zone ?? (newStudent.roomName?.toLowerCase().includes('silent') ? 1 : 0),
       addedBy: newStudent.addedBy || this.shiftService.activeStaffName(),
       printingPrice: newStudent.printingPrice || 0,
+      notes: newStudent.notes,
       facultyId: matchedFacultyId
     }).subscribe({
       next: (createdStudent) => {
@@ -1477,7 +1434,9 @@ export class WorkspaceService {
           phoneNumber: resolvedPhone,
           whatsapp: resolvedWhatsapp,
           email: resolvedEmail || undefined,
+          college: resolvedCollege || undefined,
           university: resolvedCollege || undefined,
+          notes: resolvedNotes,
           facultyId: facultyId || undefined
         }).subscribe({
           next: (updated) => {

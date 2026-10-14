@@ -1721,27 +1721,8 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     this.selectedRoomId.set(roomId);
     const room = this.selectableRooms().find(r => r.id === roomId);
     if (room) {
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-      this.bookingHourlyRate.set(room.hourlyRate);
-=======
-      const hasPlan = this.roomPricing.hasActivePlanForScope(room.id, 2);
-      if (!hasPlan) {
-        this.bookingFormErrorMessage.set(
-          this.isArabic()
-            ? `تنبيه: القاعة "${room.name}" ليس لها خطة تسعير نشطة في النظام (0 ج.م) — الحجز معطّل حتى يتم إضافة خطة تسعير.`
-            : `Warning: Room "${room.name}" has no active pricing plan (0 EGP) — booking is blocked until a plan is configured.`
-        );
-      } else {
-        this.bookingFormErrorMessage.set(null);
-      }
       const resolvedRate = this.roomPricing.getRoomHourlyRate(room) || room.hourlyRate || 0;
       this.bookingHourlyRate.set(resolvedRate);
->>>>>>> Stashed changes
-=======
-      const resolvedRate = this.roomPricing.getRoomHourlyRate(room) || room.hourlyRate || 0;
-      this.bookingHourlyRate.set(resolvedRate);
->>>>>>> fix/audit-remediation
     }
   }
 
@@ -1761,18 +1742,8 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     const hasTimes = !!this.bookingStartTime() && !!this.bookingEndTime();
     const validRange = this.isTimeRangeValid() && this.bookingDurationHours() > 0;
     const notBlacklisted = !this.isCurrentInstructorBlacklisted();
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-    return hasInstructor && hasActivity && hasDate && hasHourlyRate && hasTimes && validRange && notBlacklisted;
-=======
-    const noOverlap = !this.hasBookingOverlap();
-    const hasPlan = this.roomPricing.hasActivePlanForScope(this.selectedRoomId(), 2);
-    return hasInstructor && hasActivity && hasDate && hasHourlyRate && hasTimes && validRange && notBlacklisted && noOverlap && hasPlan;
->>>>>>> Stashed changes
-=======
     const noOverlap = !this.hasBookingOverlap();
     return hasInstructor && hasActivity && hasDate && hasHourlyRate && hasTimes && validRange && notBlacklisted && noOverlap;
->>>>>>> fix/audit-remediation
   });
 
   confirmNewBooking(): void {
@@ -1790,49 +1761,6 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       this.workspaceService.showToast(msg, 'error');
       return;
     }
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-    if (!this.isBookingFormValid()) {
-      if (!this.bookingInstructor().trim() || !this.isInstructorValid()) {
-        this.workspaceService.showToast(
-          this.isArabic() ? 'يرجى كتابة اسم الإنستراكتور / العميل (حرفين على الأقل)' : 'Please enter a valid instructor / client name',
-          'info'
-        );
-        return;
-      }
-      if (!this.bookingActivity().trim() || !this.isActivityValid()) {
-        this.workspaceService.showToast(
-          this.isArabic() ? 'يرجى كتابة النشاط أو موضوع الورشة' : 'Please enter an activity / workshop subject',
-          'info'
-        );
-        return;
-      }
-      if (!this.bookingDate().trim()) {
-        this.workspaceService.showToast(
-          this.isArabic() ? 'يرجى اختيار تاريخ الحجز' : 'Please select a booking date',
-          'info'
-        );
-        return;
-      }
-      if (!this.bookingStartTime() || !this.bookingEndTime() || !this.isTimeRangeValid() || this.bookingDurationHours() <= 0) {
-        this.workspaceService.showToast(
-          this.isArabic() ? 'يرجى تحديد وقت بداية ونهاية صحيحين ومختلفين' : 'Please specify valid start and end times',
-          'info'
-        );
-        return;
-      }
-=======
-    const hasPlan = this.roomPricing.hasActivePlanForScope(this.selectedRoomId(), 2);
-    if (!hasPlan) {
-      const msg = this.isArabic()
-        ? 'لا يمكن إتمام الحجز: القاعة المختارة ليس لها خطة تسعير نشطة في النظام.'
-        : 'Cannot complete booking: Selected room has no active pricing plan.';
-      this.bookingFormErrorMessage.set(msg);
-      this.workspaceService.showToast(msg, 'error');
-      return;
-    }
-=======
->>>>>>> fix/audit-remediation
 
     const scrollToField = (elementId: string) => {
       setTimeout(() => {
@@ -1851,10 +1779,6 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       this.bookingFormErrorMessage.set(msg);
       this.workspaceService.showToast(msg, 'info');
       scrollToField('bookingInstructorInput');
-<<<<<<< HEAD
->>>>>>> Stashed changes
-=======
->>>>>>> fix/audit-remediation
       return;
     }
 

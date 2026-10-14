@@ -5,7 +5,6 @@ import { API_ENDPOINTS } from '../../constants/api-endpoints';
 import { ApiResponse, extractData } from '../../models/api-response.model';
 import {
   PricingPlanDto,
-  PricingSuggestionDto,
   CreatePricingPlanDto,
   UpdatePricingPlanDto
 } from '../../models/pricing-plan.model';
@@ -32,16 +31,6 @@ export class PricingPlanApiService extends BaseApiService {
   /** Get pricing plan by ID */
   getPricingPlanById(id: string): Observable<PricingPlanDto> {
     return this.get<ApiResponse<PricingPlanDto>>(API_ENDPOINTS.PRICING_PLANS.BY_ID(id)).pipe(
-      map(extractData)
-    );
-  }
-
-  /** Get pricing suggestion from backend single source of truth */
-  getPricingSuggestion(roomId: string, scope: number, hours: number): Observable<PricingSuggestionDto> {
-    return this.get<ApiResponse<PricingSuggestionDto>>(
-      API_ENDPOINTS.PRICING_PLANS.SUGGESTION,
-      { roomId, scope, hours }
-    ).pipe(
       map(extractData)
     );
   }

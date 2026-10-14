@@ -128,8 +128,6 @@ export function calculateShiftBalances(flows: {
     status
   };
 }
-<<<<<<< HEAD
-=======
 
 // ============================================================
 // Storage Persistence for Opening Floats and Reconciliation
@@ -188,4 +186,3 @@ export function getSavedShiftFloats(shiftId?: string | null): ShiftFloatsRecord 
   }
   return null;
 }
->>>>>>> fix/audit-remediation

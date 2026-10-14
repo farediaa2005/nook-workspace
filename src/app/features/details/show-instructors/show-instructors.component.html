@@ -277,7 +277,6 @@
           }
         </div>
 
-<<<<<<< Updated upstream
         <!-- Email Address -->
         <div class="field-group">
           <label class="field-label">{{ t().emailLabel }}</label>
@@ -295,60 +294,34 @@
             <span class="field-error-msg">{{ eErr }}</span>
           }
         </div>
-=======
-        <!-- Sessions Count (Read-only computed from bookings - O-8) -->
-        @if (modalMode() === 'edit') {
-          <div class="field-group">
-            <label class="field-label">
-              <span>{{ t().sessionsCountTh }}</span>
-              <span class="optional-hint">({{ isArabic() ? 'محسوبة تلقائياً للقراءة فقط' : 'Read-only calculated' }})</span>
-            </label>
-            <div class="readonly-value-box" style="padding: 9px 12px; background: rgba(245, 185, 33, 0.08); border: 1px solid rgba(245, 185, 33, 0.25); border-radius: 8px; font-weight: 700; color: var(--yellow);">
-              {{ formSessions() }} {{ isArabic() ? 'جلسة / ورشة عمل' : 'sessions' }}
-            </div>
-          </div>
-        }
->>>>>>> Stashed changes
 
-        <!-- Extended Fields (Gap B3 — Hidden until supported by Backend DTOs) -->
-        @if (INSTRUCTOR_EXTENDED_FIELDS) {
-          <!-- Email Address -->
-          <div class="field-group">
-            <label class="field-label">{{ t().emailLabel }}</label>
-            <input
-              type="email"
-              dir="ltr"
-              class="custom-input"
-              [class.input-error]="!!emailError()"
-              [placeholder]="'instructor@example.com'"
-              [ngModel]="formEmail()"
-              (ngModelChange)="onEmailChange($event)"
-              name="formEmail"
-            />
-            @if (emailError(); as eErr) {
-              <span class="field-error-msg">{{ eErr }}</span>
-            }
-          </div>
+        <!-- Specialty / Domain -->
+        <div class="field-group">
+          <label class="field-label">{{ t().specialtyLabel }}</label>
+          <input
+            type="text"
+            class="custom-input"
+            [placeholder]="isArabic() ? 'مثال: الذكاء الاصطناعي، UI/UX' : 'e.g. AI, UI/UX Design'"
+            [ngModel]="formSpecialty()"
+            (ngModelChange)="formSpecialty.set($event)"
+            name="formSpecialty"
+          />
+        </div>
 
-          <!-- Specialty / Domain -->
-          <div class="field-group">
-            <label class="field-label">{{ t().specialtyLabel }}</label>
-            <input
-              type="text"
-              class="custom-input"
-              [placeholder]="isArabic() ? 'مثال: الذكاء الاصطناعي، UI/UX' : 'e.g. AI, UI/UX Design'"
-              [ngModel]="formSpecialty()"
-              (ngModelChange)="formSpecialty.set($event)"
-              name="formSpecialty"
-            />
-          </div>
+        <!-- Affiliation / Academy -->
+        <div class="field-group">
+          <label class="field-label">{{ t().affiliationLabel }}</label>
+          <input
+            type="text"
+            class="custom-input"
+            [placeholder]="isArabic() ? 'مثال: جامعة القاهرة، مستقل' : 'e.g. Cairo University, Freelance'"
+            [ngModel]="formAffiliation()"
+            (ngModelChange)="formAffiliation.set($event)"
+            name="formAffiliation"
+          />
+        </div>
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-        <!-- Total Sessions -->
-=======
         <!-- Total Sessions (O-8) -->
->>>>>>> fix/audit-remediation
         <div class="field-group">
           <label class="field-label">
             <span>{{ t().sessionsCountTh }}</span>
@@ -363,45 +336,30 @@
             name="formSessions"
           />
         </div>
-=======
-          <!-- Affiliation / Academy -->
-          <div class="field-group">
-            <label class="field-label">{{ t().affiliationLabel }}</label>
-            <input
-              type="text"
-              class="custom-input"
-              [placeholder]="isArabic() ? 'مثال: جامعة القاهرة، مستقل' : 'e.g. Cairo University, Freelance'"
-              [ngModel]="formAffiliation()"
-              (ngModelChange)="formAffiliation.set($event)"
-              name="formAffiliation"
-            />
-          </div>
->>>>>>> Stashed changes
 
-          <!-- Status -->
-          <div class="field-group">
-            <label class="field-label">{{ t().status }}</label>
-            <app-custom-select
-              [options]="statusOptions()"
-              [selectedValue]="formStatus()"
-              [fullWidth]="true"
-              (valueChange)="formStatus.set($any($event))"
-            ></app-custom-select>
-          </div>
+        <!-- Status -->
+        <div class="field-group">
+          <label class="field-label">{{ t().status }}</label>
+          <app-custom-select
+            [options]="statusOptions()"
+            [selectedValue]="formStatus()"
+            [fullWidth]="true"
+            (valueChange)="formStatus.set($any($event))"
+          ></app-custom-select>
+        </div>
 
-          <!-- Bio / Notes -->
-          <div class="field-group full-width">
-            <label class="field-label">{{ t().bioLabel }}</label>
-            <textarea
-              class="custom-textarea"
-              rows="3"
-              [placeholder]="isArabic() ? 'اكتب نبذة مختصرة عن الخبرات والمجالات...' : 'Short bio or relevant qualifications...'"
-              [ngModel]="formBio()"
-              (ngModelChange)="formBio.set($event)"
-              name="formBio"
-            ></textarea>
-          </div>
-        }
+        <!-- Bio / Notes -->
+        <div class="field-group full-width">
+          <label class="field-label">{{ t().bioLabel }}</label>
+          <textarea
+            class="custom-textarea"
+            rows="3"
+            [placeholder]="isArabic() ? 'اكتب نبذة مختصرة عن الخبرات والمجالات...' : 'Short bio or relevant qualifications...'"
+            [ngModel]="formBio()"
+            (ngModelChange)="formBio.set($event)"
+            name="formBio"
+          ></textarea>
+        </div>
       </div>
 
       <div class="modal-footer-actions">

@@ -14,22 +14,12 @@ import { AuditService } from './audit.service';
 import { ShiftDto, CreateShiftItemDto, ShiftItemCategory } from '../models/shift-api.model';
 import { getSafeAvatar } from '../utils/avatar.util';
 import { parseIsoToLocal12h, parseIsoToLocalDate, getTodayDateISO } from '../utils/date-time.util';
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-=======
-import {
-  calculateShiftBalances,
-  sanitizeMoney
-} from '../utils/shift-balance.util';
->>>>>>> Stashed changes
-=======
 import {
   saveShiftFloats,
   getSavedShiftFloats,
   calculateShiftBalances,
   sanitizeMoney
 } from '../utils/shift-balance.util';
->>>>>>> fix/audit-remediation
 
 @Injectable({
   providedIn: 'root'
@@ -267,11 +257,6 @@ export class ShiftService implements OnDestroy {
   readonly expectedCash = computed(() => {
     const shift = this.currentShift();
     if (!shift) return 0;
-
-    // Single source of truth: prefer server-calculated expectedCash when available
-    if (shift.serverExpectedCash !== undefined && shift.serverExpectedCash !== null && !isNaN(shift.serverExpectedCash)) {
-      return sanitizeMoney(shift.serverExpectedCash);
-    }
 
     const opening = this.openingCash();
     const receipts = this.posReceipts();
@@ -972,10 +957,7 @@ export class ShiftService implements OnDestroy {
         notes: notes,
         date: nowIso,
         timeFrom: nowIso,
-        previousTotal: initialCash,
-        startVodafoneCash: startVodafone,
-        startInstapay: startInstaPay,
-        startFawry: startFawry
+        previousTotal: initialCash
       }).subscribe({
         next: (apiShift) => {
           createSuccessShift(apiShift);
@@ -1412,15 +1394,6 @@ export class ShiftService implements OnDestroy {
       return;
     }
 
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-    const expCash = this.expectedCash();
-    const variance = actualCash - expCash;
-    const isBalanced = Math.abs(variance) < 0.01;
-    const endTimeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-=======
-=======
->>>>>>> fix/audit-remediation
     const report = calculateShiftBalances({
       cash: {
         opening: this.openingCash(),
@@ -1448,12 +1421,6 @@ export class ShiftService implements OnDestroy {
       }
     });
 
-<<<<<<< HEAD
-    const variance = report.totalDifference;
-    const isBalanced = report.isBalanced;
-    const endTimeStr = parseIsoToLocal12h(new Date().toISOString(), true);
->>>>>>> Stashed changes
-=======
     saveShiftFloats({
       shiftId: active.id,
       initialCash: this.openingCash(),
@@ -1475,7 +1442,6 @@ export class ShiftService implements OnDestroy {
     const variance = report.totalDifference;
     const isBalanced = report.isBalanced;
     const endTimeStr = parseIsoToLocal12h(new Date().toISOString(), true);
->>>>>>> fix/audit-remediation
     const locale = this.langService.isArabic() ? 'ar-EG' : 'en-US';
 
     const historyItem: ShiftHistoryItem = {
@@ -1508,15 +1474,8 @@ export class ShiftService implements OnDestroy {
         notes: notes || '',
         timeTo: new Date().toISOString(),
         administrative: active.adminExpenses || 0,
-        vfCashInside: active.vodafoneCashInside || 0,
+        vfCashInside: actualVodafone || active.vodafoneCashInside || 0,
         vfCashOutside: active.vodafoneCashOutside || 0,
-        instapayInside: active.instapayCashInside || 0,
-        instapayOutside: active.instapayCashOutside || 0,
-        fawryInside: active.fawryCashInside || 0,
-        fawryOutside: active.fawryCashOutside || 0,
-        actualVodafone: actualVodafone,
-        actualInstapay: actualInstaPay,
-        actualFawry: actualFawry,
         increase: variance > 0 ? variance : 0,
         loss: variance < 0 ? Math.abs(variance) : 0,
         totalCost: actualCash,
@@ -1638,16 +1597,6 @@ export class ShiftService implements OnDestroy {
     const rawEndTime = dto.endedAt || dto.timeTo || dto.endTime;
     const isActive = this.isShiftActiveDto(dto);
     const isClosed = !isActive;
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-    const opening = dto.openingBalance ?? dto.previousTotal ?? dto.startCash ?? 0;
-=======
-    const opening = Number(dto.previousTotal ?? dto.openingBalance ?? dto.startCash ?? 0);
-    const startVodafone = Number(dto.startVodafoneCash ?? 0);
-    const startInstapay = Number(dto.startInstapay ?? 0);
-    const startFawry = Number(dto.startFawry ?? 0);
->>>>>>> Stashed changes
-=======
     const savedFloats = getSavedShiftFloats(dto.id);
     const opening = (dto.openingBalance !== undefined && dto.openingBalance !== null && dto.openingBalance !== 0)
       ? Number(dto.openingBalance)
@@ -1661,7 +1610,6 @@ export class ShiftService implements OnDestroy {
     const startFawry = (dto.startFawry !== undefined && dto.startFawry !== null && dto.startFawry !== 0)
       ? Number(dto.startFawry)
       : (savedFloats?.startFawry ?? 0);
->>>>>>> fix/audit-remediation
 
     const formattedStart = rawTime && !String(rawTime).startsWith('0001') ? parseIsoToLocal12h(rawTime) : '09:00 AM';
     const isRealEndTime = rawEndTime && !String(rawEndTime).startsWith('0001') && new Date(rawEndTime).getFullYear() >= 2000;
@@ -1959,29 +1907,9 @@ export class ShiftService implements OnDestroy {
       endTime: formattedEnd,
       status: isClosed ? 'closed' : 'active',
       initialCashDrawer: opening,
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-      startVodafoneCash: dto.startVodafoneCash ?? 0,
-      startInstapay: dto.startInstapay ?? 0,
-      startFawry: dto.startFawry ?? 0,
-=======
       startVodafoneCash: startVodafone,
       startInstapay: startInstapay,
       startFawry: startFawry,
-      serverExpectedCash: dto.expectedCash !== undefined && dto.expectedCash !== null ? Number(dto.expectedCash) : undefined,
-      cashDifference: dto.cashDifference !== undefined && dto.cashDifference !== null ? Number(dto.cashDifference) : undefined,
-      vodafoneDifference: dto.vodafoneDifference !== undefined && dto.vodafoneDifference !== null ? Number(dto.vodafoneDifference) : undefined,
-      instapayDifference: dto.instapayDifference !== undefined && dto.instapayDifference !== null ? Number(dto.instapayDifference) : undefined,
-      fawryDifference: dto.fawryDifference !== undefined && dto.fawryDifference !== null ? Number(dto.fawryDifference) : undefined,
-      totalExpenses: dto.totalExpenses !== undefined && dto.totalExpenses !== null ? Number(dto.totalExpenses) : undefined,
-      increase: dto.increase !== undefined && dto.increase !== null ? Number(dto.increase) : undefined,
-      loss: dto.loss !== undefined && dto.loss !== null ? Number(dto.loss) : undefined,
->>>>>>> Stashed changes
-=======
-      startVodafoneCash: startVodafone,
-      startInstapay: startInstapay,
-      startFawry: startFawry,
->>>>>>> fix/audit-remediation
       canteenRevenue: canteenRev,
       classroomRevenue: classroomRev,
       workspaceRevenue: workspaceRev,
@@ -2007,21 +1935,6 @@ export class ShiftService implements OnDestroy {
     const rawTime = dto.startedAt || dto.timeFrom || dto.startTime || dto.date;
     const rawEndTime = dto.endedAt || dto.timeTo || dto.endTime;
     const finalTotal = dto.closingBalance ?? dto.totalCost ?? dto.endCash ?? 0;
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-    const variance = dto.variance !== undefined && dto.variance !== null ? dto.variance : (((dto.increase || 0) - (dto.loss || 0)) || (dto.difference ?? 0));
-=======
-
-    // Prefer server-computed variance and differences directly from API
-    const variance = dto.cashDifference !== undefined && dto.cashDifference !== null
-      ? sanitizeMoney(dto.cashDifference)
-      : (dto.variance !== undefined && dto.variance !== null
-          ? sanitizeMoney(dto.variance)
-          : sanitizeMoney(((dto.increase || 0) - (dto.loss || 0)) || (dto.difference ?? 0)));
-
-    const isBalanced = Math.abs(variance) < 0.01;
->>>>>>> Stashed changes
-=======
 
     const saved = getSavedShiftFloats(dto.id);
     const variance = dto.variance !== undefined && dto.variance !== null
@@ -2031,7 +1944,6 @@ export class ShiftService implements OnDestroy {
     const isBalanced = saved?.closing?.status
       ? saved.closing.status === 'balanced'
       : (Math.abs(variance) < 0.01);
->>>>>>> fix/audit-remediation
 
     const fallbackStaff = this.langService.isArabic() ? 'موظف الاستقبال' : 'Receptionist';
     const staffName = dto.userName || fallbackStaff;
@@ -2041,28 +1953,6 @@ export class ShiftService implements OnDestroy {
       staffName,
       staffAvatar: getSafeAvatar(dto.userAvatar || dto.avatar, staffName),
       date: rawTime ? parseIsoToLocalDate(rawTime) : getTodayDateISO(),
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-      startTime: rawTime ? parseIsoToLocal12h(rawTime) : '09:00 AM',
-      endTime: rawEndTime ? parseIsoToLocal12h(rawEndTime) : '05:00 PM',
-      cashIn: dto.totalCost ?? dto.systemCash ?? 0,
-      cashOut: dto.administrative ?? 0,
-      finalTotal: finalTotal,
-      variance: variance,
-      status: Math.abs(variance) < 0.01 ? 'balanced' : 'disputed',
-      notes: dto.notes || dto.note || undefined
-=======
-      startTime: rawTime ? parseIsoToLocal12h(rawTime, true) : '09:00 ص',
-      endTime: rawEndTime ? parseIsoToLocal12h(rawEndTime, true) : (this.isShiftActiveDto(dto) ? 'مستمر' : '05:00 م'),
-      cashIn: sanitizeMoney(dto.totalRevenue ?? dto.totalCost ?? dto.systemCash ?? 0),
-      cashOut: sanitizeMoney(dto.totalExpenses ?? dto.administrative ?? 0),
-      finalTotal: sanitizeMoney(finalTotal),
-      variance: variance,
-      status: isBalanced ? 'balanced' : 'disputed',
-      notes: dto.notes || dto.note || undefined,
-      channelBreakdown: undefined
->>>>>>> Stashed changes
-=======
       startTime: rawTime ? parseIsoToLocal12h(rawTime, true) : '09:00 ص',
       endTime: rawEndTime ? parseIsoToLocal12h(rawEndTime, true) : (this.isShiftActiveDto(dto) ? 'مستمر' : '05:00 م'),
       cashIn: sanitizeMoney(dto.totalCost ?? dto.systemCash ?? 0),
@@ -2072,7 +1962,6 @@ export class ShiftService implements OnDestroy {
       status: isBalanced ? 'balanced' : 'disputed',
       notes: dto.notes || dto.note || undefined,
       channelBreakdown: saved?.closing?.channelReports
->>>>>>> fix/audit-remediation
     };
   }
 

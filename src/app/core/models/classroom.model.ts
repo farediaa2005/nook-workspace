@@ -174,7 +174,6 @@ export interface CheckoutClassroomDto {
   printing?: number;
   discount?: number;
   discountType?: DiscountType | number | null;
-  discountReason?: string | null;
   payWay?: PayWay | number;
   note?: string | null;
   // Shift & Audit tracking
@@ -363,15 +362,20 @@ export interface UpdateCateringItemDto {
   unitPrice?: number;
 }
 
-/** Room DTO from /api/Rooms — matches OpenAPI RoomDto exactly */
+/** Room DTO from /api/Rooms */
 export interface RoomDto {
   id: string;
   name: string;
   supportsWorkspace?: boolean;
   supportsClassroom?: boolean;
-  workspaceZone?: number | null;
+  workspaceZone?: number;
   isActive?: boolean;
-  imageUrl?: string | null;
+  imageUrl?: string;
+  capacity?: number;
+  description?: string;
+  createdAt?: string;
+  nameEn?: string;
+  hourlyPrice?: number;
 }
 
 /** Create room request — POST /api/Rooms */
@@ -379,10 +383,12 @@ export interface CreateRoomDto {
   name: string;
   supportsWorkspace?: boolean;
   supportsClassroom?: boolean;
-  workspaceZone?: number | null;
+  workspaceZone?: number;
   isActive?: boolean;
-  imageUrl?: string | null;
+  imageUrl?: string;
   imageFile?: File;
+  capacity?: number;
+  description?: string;
 }
 
 // ==========================================

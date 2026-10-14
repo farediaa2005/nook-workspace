@@ -156,17 +156,15 @@ export interface CheckoutWorkspaceDto {
   registration?: number;
   discount?: number;
   discountType?: DiscountType | number | null;
-  discountReason?: string | null;
   wallet?: number;
-  amountReceived?: number;
-  changeDue?: number;
-  remainingAmount?: number;
   payWay?: PayWay | number;
   note?: string | null;
   // UI and backward compatibility fields
   paidAmount?: number;
+  discountId?: string;
   paymentMethod?: string;
   totalCost?: number;
+  remainingAmount?: number;
 }
 
 /** Alias for CheckoutWorkspaceDto */

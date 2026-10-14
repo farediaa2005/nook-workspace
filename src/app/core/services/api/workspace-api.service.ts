@@ -133,13 +133,14 @@ export class WorkspaceApiService extends BaseApiService {
       printing: dto.printing ?? 0,
       registration: dto.registration ?? 0,
       discount: dto.discount ?? 0,
-      discountType: dto.discountType != null ? Number(dto.discountType) : null,
-      discountReason: dto.discountReason || null,
+      discountType: dto.discountType ?? null,
       wallet: dto.wallet ?? 0,
-      amountReceived: dto.amountReceived ?? 0,
-      changeDue: dto.changeDue ?? 0,
-      remainingAmount: dto.remainingAmount ?? 0,
       payWay: dto.payWay ?? 1,
+      paymentMethod: dto.paymentMethod || (dto.payWay === 3 ? 'Wallet' : (dto.payWay === 2 ? 'Visa' : 'Cash')),
+      usePackageHours: dto.usePackageHours != null ? dto.usePackageHours : null,
+      packageId: dto.packageId || null,
+      discountId: dto.discountId || null,
+      couponCode: dto.couponCode || null,
       note: dto.note || null
     };
 

@@ -1,0 +1,1188 @@
+{
+  "openapiPathsCount": 174,
+  "results": [
+    {
+      "raw": "/api/Auth/login",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Auth/login",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Auth/register",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Auth/register",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Auth/me",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Auth/me",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Auth/refresh-token",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Auth/refresh-token",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Auth/revoke-token",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Auth/revoke-token",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Auth/forgot-password",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Auth/forgot-password",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Auth/reset-password",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Auth/reset-password",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Auth/change-password",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Auth/change-password",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Auth/google",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Auth/google",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Accounts",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Accounts",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Accounts/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Accounts/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Accounts/${id}/toggle-active",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Accounts/{param}/toggle-active",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Accounts/${id}/profile",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Accounts/{param}/profile",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Accounts/${id}/profiles/staff",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Accounts/{param}/profiles/staff",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Accounts/${id}/profiles/student",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Accounts/{param}/profiles/student",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Accounts/${id}/profiles/instructor",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Accounts/{param}/profiles/instructor",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Accounts/${id}/profiles/parent",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Accounts/{param}/profiles/parent",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Accounts/${id}/profiles/${role}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Accounts/{param}/profiles/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Accounts/unlinked-students",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Accounts/unlinked-students",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Accounts/unlinked-instructors",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Accounts/unlinked-instructors",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Workspaces",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Workspaces",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Workspaces/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Workspaces/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Workspaces/${id}/checkout",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Workspaces/{param}/checkout",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Workspaces/walk-in",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Workspaces/walk-in",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/workspaces/${workspaceId}/catering",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/workspaces/{param}/catering",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/workspaces/${workspaceId}/catering/${itemId}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/workspaces/{param}/catering/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Classrooms",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Classrooms",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Classrooms/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Classrooms/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Classrooms/${id}/checkout",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Classrooms/{param}/checkout",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/classrooms/${classroomId}/catering",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/classrooms/{param}/catering",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/classrooms/${classroomId}/catering/${itemId}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/classrooms/{param}/catering/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Bookings",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Bookings",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Bookings/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Bookings/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Bookings/${id}/status",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Bookings/{param}/status",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Packages",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Packages",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Packages/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Packages/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Packages/student/${studentId}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Packages/student/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/WorkspacePackages",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/WorkspacePackages",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/WorkspacePackages/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/WorkspacePackages/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/WorkspacePackages/student/${studentId}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/WorkspacePackages/student/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/ClassroomPackages",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/ClassroomPackages",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/ClassroomPackages/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/ClassroomPackages/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/ClassroomPackages/instructor/${instructorId}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/ClassroomPackages/instructor/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Discounts",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Discounts",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Discounts/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Discounts/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Discounts/active",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Discounts/active",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Discounts/faculty/${facultyId}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Discounts/faculty/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Coupons",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Coupons",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Coupons/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Coupons/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Coupons/code/${code}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Coupons/code/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Coupons/${id}/redemptions",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Coupons/{param}/redemptions",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Coupons/redeem/${code}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Coupons/redeem/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Faculties",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Faculties",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Faculties/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Faculties/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Blacklists",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Blacklists",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Blacklists/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Blacklists/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Instructors",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Instructors",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Instructors/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Instructors/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Rooms",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Rooms",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Rooms/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Rooms/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Rooms/${id}/image",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Rooms/{param}/image",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/PricingPlans",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/PricingPlans",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/PricingPlans/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/PricingPlans/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/PricingPlans/suggestion",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/PricingPlans/suggestion",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/PackagePricingPlans",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/PackagePricingPlans",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/PackagePricingPlans/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/PackagePricingPlans/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Courses",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Courses",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Courses/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Courses/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Courses/${courseId}/enroll",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Courses/{param}/enroll",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Courses/${courseId}/enroll/${studentId}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Courses/{param}/enroll/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Courses/${courseId}/students",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Courses/{param}/students",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Courses/${courseId}/sessions",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Courses/{param}/sessions",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Courses/sessions/${sessionId}/attendance",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Courses/sessions/{param}/attendance",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Courses/${courseId}/students/${studentId}/attendance",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Courses/{param}/students/{param}/attendance",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Courses/${courseId}/files",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Courses/{param}/files",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Courses/files/${fileId}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Courses/files/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Courses/${courseId}/materials-summary",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Courses/{param}/materials-summary",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Courses/${courseId}/announcements",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Courses/{param}/announcements",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Dashboard/summary",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Dashboard/summary",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Analysis/revenue",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Analysis/revenue",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Analysis/occupancy",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Analysis/occupancy",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Analysis/top-students",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Analysis/top-students",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Analysis/instructor-activity",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Analysis/instructor-activity",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/shifts",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/shifts",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/shifts/current",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/shifts/current",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/shifts/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/shifts/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/shifts/${id}/recalculate",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/shifts/{param}/recalculate",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/shifts/open/${userId}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/shifts/open/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/shifts/${id}/close",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/shifts/{param}/close",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/shifts/${id}/items",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/shifts/{param}/items",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/shifts/${shiftId}/items/${itemId}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/shifts/{param}/items/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/shifts/${shiftId}/verify-password",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/shifts/{param}/verify-password",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/shifts/verify-password",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/shifts/verify-password",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Students",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Students",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Students/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Students/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Students/${id}/checkout",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Students/{param}/checkout",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Students?search=${encodeURIComponent(term)}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Students?search={param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Products",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Products",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Products/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Products/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Products/${id}/image",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Products/{param}/image",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Reservations",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Reservations",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Reservations/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Reservations/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Reservations/instructor/${instructorId}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Reservations/instructor/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Reservations/check-conflict",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Reservations/check-conflict",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Reservations/${id}/cancel-day",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Reservations/{param}/cancel-day",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Reservations/${id}/create-classroom",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Reservations/{param}/create-classroom",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Wallet/student/${studentId}/balance",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Wallet/student/{param}/balance",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Wallet/student/${studentId}/transactions",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Wallet/student/{param}/transactions",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Wallet/topup/direct",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Wallet/topup/direct",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Wallet/deduct",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Wallet/deduct",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Wallet/topup/request",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Wallet/topup/request",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Wallet/topup/requests",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Wallet/topup/requests",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Wallet/topup/requests/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Wallet/topup/requests/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Wallet/topup/requests/${id}/review",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Wallet/topup/requests/{param}/review",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/FloorPlans",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/FloorPlans",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/FloorPlans/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/FloorPlans/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/SeatElements/floor-plan/${floorPlanId}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/SeatElements/floor-plan/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/SeatElements/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/SeatElements/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/SeatElements",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/SeatElements",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/SeatElements/sync/${floorPlanId}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/SeatElements/sync/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/SeatElementTypes",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/SeatElementTypes",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/SeatElementTypes/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/SeatElementTypes/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/SeatElementTypes/${id}/image",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/SeatElementTypes/{param}/image",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/instructor/profile",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/instructor/profile",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/instructor/rooms",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/instructor/rooms",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/instructor/rooms/${roomId}/availability",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/instructor/rooms/{param}/availability",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/instructor/classrooms",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/instructor/classrooms",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/instructor/classrooms/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/instructor/classrooms/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/instructor/reservations",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/instructor/reservations",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/instructor/reservations/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/instructor/reservations/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/instructor/packages",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/instructor/packages",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/instructor/pricing-plans",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/instructor/pricing-plans",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/instructor/package-pricing-plans",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/instructor/package-pricing-plans",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/instructor/notifications",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/instructor/notifications",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/instructor/notifications/${id}/read",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/instructor/notifications/{param}/read",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/instructor/notifications/read-all",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/instructor/notifications/read-all",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/student/profile",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/student/profile",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/student/rooms",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/student/rooms",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/student/rooms/${roomId}/floor-plan",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/student/rooms/{param}/floor-plan",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/student/bookings",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/student/bookings",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/student/bookings/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/student/bookings/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/student/bookings/${id}/cancel",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/student/bookings/{param}/cancel",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/student/wallet/balance",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/student/wallet/balance",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/student/wallet/transactions",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/student/wallet/transactions",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/student/wallet/topup",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/student/wallet/topup",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/student/wallet/topup-requests",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/student/wallet/topup-requests",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/student/packages",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/student/packages",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/student/pricing-plans",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/student/pricing-plans",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/student/package-pricing-plans",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/student/package-pricing-plans",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/student/notifications",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/student/notifications",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/student/notifications/${id}/read",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/student/notifications/{param}/read",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/mobile/student/notifications/read-all",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/mobile/student/notifications/read-all",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Notifications",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Notifications",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Notifications/${id}/read",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Notifications/{param}/read",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Notifications/read-all",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Notifications/read-all",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Notifications/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Notifications/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/AuditLogs",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/AuditLogs",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/AuditLogs/entity/${entityType}/${entityId}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/AuditLogs/entity/{param}/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Students/${id}/analytics",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Students/{param}/analytics",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Discounts/rules",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Discounts/rules",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Discounts/rules/${id}",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Discounts/rules/{param}",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Discounts/redeem",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Discounts/redeem",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Students/${studentId}/discount-eligibility",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Students/{param}/discount-eligibility",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Settings/operational-alerts",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Settings/operational-alerts",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Classrooms/${id}/invoice",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Classrooms/{param}/invoice",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Workspaces/${id}/invoice",
+      "file": "src\\app\\core\\constants\\api-endpoints.ts",
+      "normalized": "/api/Workspaces/{param}/invoice",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Students/active",
+      "file": "src\\app\\core\\interceptors\\auth.interceptor.spec.ts",
+      "normalized": "/api/Students/active",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Students/all",
+      "file": "src\\app\\core\\interceptors\\auth.interceptor.spec.ts",
+      "normalized": "/api/Students/all",
+      "matchedPath": "/",
+      "status": "OK"
+    },
+    {
+      "raw": "/api/Students/123",
+      "file": "src\\app\\core\\interceptors\\auth.interceptor.spec.ts",
+      "normalized": "/api/Students/123",
+      "matchedPath": "/",
+      "status": "OK"
+    }
+  ]
+}

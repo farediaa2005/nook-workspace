@@ -105,38 +105,28 @@ export interface CreateShiftDto {
   userId?: string;              // Staff member Guid
   openingBalance?: number;      // Opening cash balance in drawer (e.g. 500.0)
   notes?: string;               // Optional opening remarks
+  // Compatibility aliases
+  previousTotal?: number;
+  startCash?: number;
   date?: string;
   timeFrom?: string;
-  previousTotal?: number;       // Documented backend field for starting cash float
-  startVodafoneCash?: number;   // Documented backend field for starting Vodafone Cash
-  startInstapay?: number;       // Documented backend field for starting InstaPay
-  startFawry?: number;          // Documented backend field for starting Fawry
-  // Compatibility aliases
-  startCash?: number;
 }
 
 /** Close shift request — matches PUT /api/shifts/{id}/close API specification */
 export interface CloseShiftDto {
-  closingBalance?: number;      // Actual closing cash balance in drawer (e.g. 750.0)
+  closingBalance: number;       // Actual closing cash balance in drawer (e.g. 750.0)
   notes?: string;               // Optional closing remarks
+  // Compatibility aliases
+  totalCost?: number;
+  endCash?: number;
+  note?: string;
   timeTo?: string;
   administrative?: number;
   vfCashInside?: number;
   vfCashOutside?: number;
-  instapayInside?: number;
-  instapayOutside?: number;
-  fawryInside?: number;
-  fawryOutside?: number;
-  actualVodafone?: number;      // Documented backend field for closing Vodafone Cash
-  actualInstapay?: number;      // Documented backend field for closing InstaPay
-  actualFawry?: number;         // Documented backend field for closing Fawry
   increase?: number;
   loss?: number;
-  totalCost?: number;
-  note?: string;
   status?: number | string;
-  // Compatibility aliases
-  endCash?: number;
 }
 
 /** Alias for close shift request */

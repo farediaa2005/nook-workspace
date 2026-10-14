@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { InvoiceData, InvoiceDetailDto, InvoiceLineItem } from '../models/invoice.model';
+import { InvoiceData } from '../models/invoice.model';
 import { LanguageService } from './language.service';
 import { AuthService } from './auth.service';
 
@@ -633,78 +633,5 @@ export class InvoiceService {
         setTimeout(() => document.body.removeChild(iframe), 2000);
       }, 500);
     }
-  }
-
-  /**
-   * Render and print invoice directly from backend InvoiceDetailDto
-   * (GET /api/Workspaces/{id}/invoice or GET /api/Classrooms/{id}/invoice)
-   */
-  printInvoiceDetailDto(dto: InvoiceDetailDto): void {
-    const isAr = this.langService.isArabic();
-    const payMethodMap: Record<number, string> = {
-      1: isAr ? 'نقدي (كاش)' : 'Cash',
-      2: isAr ? 'فودافون كاش' : 'Vodafone Cash',
-      3: isAr ? 'إنستاباي' : 'InstaPay',
-      4: isAr ? 'فوري' : 'Fawry'
-    };
-    const paymentMethodStr = (dto.paymentMethod && payMethodMap[Number(dto.paymentMethod)]) 
-      ? payMethodMap[Number(dto.paymentMethod)] 
-      : (isAr ? 'نقدي' : 'Cash');
-
-    const lineItems: InvoiceLineItem[] = [];
-    if (dto.baseAmount > 0) {
-      lineItems.push({
-        description: isAr ? `استخدام ${dto.roomOrDesk || 'المساحة'}` : `Usage of ${dto.roomOrDesk || 'Space'}`,
-        quantity: 1,
-        unitPrice: dto.baseAmount,
-        totalPrice: dto.baseAmount,
-        type: 'room'
-      });
-    }
-    if (dto.cateringAmount > 0) {
-      lineItems.push({
-        description: isAr ? 'مأكولات ومشروبات' : 'Catering & Beverages',
-        quantity: 1,
-        unitPrice: dto.cateringAmount,
-        totalPrice: dto.cateringAmount,
-        type: 'catering'
-      });
-    }
-    if (dto.printingAmount > 0) {
-      lineItems.push({
-        description: isAr ? 'خدمات طباعة وتصوير' : 'Printing Services',
-        quantity: 1,
-        unitPrice: dto.printingAmount,
-        totalPrice: dto.printingAmount,
-        type: 'printing'
-      });
-    }
-
-    const data: InvoiceData = {
-      invoiceNumber: dto.invoiceNumber || this.generateInvoiceNumber(),
-      issueDate: dto.issueDate || new Date().toISOString(),
-      clientType: (dto.clientType as any) || 'Student',
-      clientName: dto.clientName || (isAr ? 'طالب / عميل' : 'Customer'),
-      clientIdentifier: dto.clientIdentifier || undefined,
-      roomOrDesk: dto.roomOrDesk || (isAr ? 'مساحة العمل' : 'Workspace'),
-      checkInTime: dto.checkInTime || '',
-      checkOutTime: dto.checkOutTime || '',
-      durationFormatted: dto.durationFormatted || '',
-      lineItems,
-      subtotal: dto.subtotal || dto.baseAmount || 0,
-      discountAmount: dto.discountAmount || 0,
-      discountReason: dto.discountReason || undefined,
-      cateringAmount: dto.cateringAmount || 0,
-      printingAmount: dto.printingAmount || 0,
-      taxAmount: dto.taxAmount || 0,
-      finalTotal: dto.finalTotal || 0,
-      amountReceived: dto.finalTotal || 0,
-      changeDue: 0,
-      paymentMethod: paymentMethodStr,
-      cashierName: dto.cashierName || (isAr ? 'موظف الاستقبال' : 'Receptionist'),
-      shiftId: dto.shiftId || undefined
-    };
-
-    this.printInvoice(data);
   }
 }

@@ -58,15 +58,6 @@ export class ShowInstructorsComponent implements OnInit {
   t = this.langService.t;
   isArabic = this.langService.isArabic;
 
-  /**
-   * Backend Gap B3 Feature Flag:
-   * InstructorDto / CreateInstructorDto / UpdateInstructorDto on backend contain ONLY:
-   * id, name, phoneNumber, colour.
-   * Fields email, specialty, organization, status, bio, and sessionsCount do NOT exist on the API.
-   * Setting this flag to false hides unpersisted fields to prevent silent data loss.
-   */
-  readonly INSTRUCTOR_EXTENDED_FIELDS = false;
-
   // Instructors Master State
   instructors = signal<Instructor[]>([]);
 
@@ -353,26 +344,20 @@ export class ShowInstructorsComponent implements OnInit {
     this.isSaving.set(true);
     this.formError.set(null);
 
-    const basePayload: any = {
-      name,
-      nameEn: name,
-      phone,
-      colour: '#f5b921'
-    };
-
-    if (this.INSTRUCTOR_EXTENDED_FIELDS) {
-      basePayload.email = email || '';
-      basePayload.specialty = specialty;
-      basePayload.specialtyEn = specialty;
-      basePayload.affiliation = affiliation;
-      basePayload.affiliationEn = affiliation;
-      basePayload.totalSessions = sessions || 0;
-      basePayload.status = status || 'active';
-      basePayload.bio = bio;
-    }
-
     if (this.modalMode() === 'add') {
-      this.detailsService.createInstructor(basePayload).subscribe({
+      this.detailsService.createInstructor({
+        name,
+        nameEn: name,
+        phone,
+        email: email || '',
+        specialty,
+        specialtyEn: specialty,
+        affiliation,
+        affiliationEn: affiliation,
+        totalSessions: sessions || 0,
+        status: status || 'active',
+        bio
+      }).subscribe({
         next: () => {
           this.isSaving.set(false);
           this.notificationService.success(
@@ -392,7 +377,6 @@ export class ShowInstructorsComponent implements OnInit {
       const id = this.editingId();
       if (!id) return;
 
-<<<<<<< Updated upstream
       this.detailsService.updateInstructor(id, {
         name,
         nameEn: name,
@@ -406,9 +390,6 @@ export class ShowInstructorsComponent implements OnInit {
         status,
         bio
       }).subscribe({
-=======
-      this.detailsService.updateInstructor(id, basePayload).subscribe({
->>>>>>> Stashed changes
         next: () => {
           this.isSaving.set(false);
           this.notificationService.success(

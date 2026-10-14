@@ -54,9 +54,9 @@ describe('authInterceptor', () => {
   it('should attach Bearer token to authenticated API requests', () => {
     authServiceMock.getToken.mockReturnValue('mock-jwt-token');
 
-    http.get('/api/Students').subscribe();
+    http.get('/api/Students/active').subscribe();
 
-    const req = httpTesting.expectOne('/api/Students');
+    const req = httpTesting.expectOne('/api/Students/active');
     expect(req.request.headers.has('Authorization')).toBe(true);
     expect(req.request.headers.get('Authorization')).toBe('Bearer mock-jwt-token');
     req.flush([]);
@@ -75,9 +75,9 @@ describe('authInterceptor', () => {
   it('should pass request through without Authorization header when no token exists', () => {
     authServiceMock.getToken.mockReturnValue(null);
 
-    http.get('/api/Students').subscribe();
+    http.get('/api/Students/all').subscribe();
 
-    const req = httpTesting.expectOne('/api/Students');
+    const req = httpTesting.expectOne('/api/Students/all');
     expect(req.request.headers.has('Authorization')).toBe(false);
     req.flush([]);
   });
@@ -86,13 +86,13 @@ describe('authInterceptor', () => {
     authServiceMock.getToken.mockReturnValue('expired-token');
     authServiceMock.getRefreshToken.mockReturnValue(null);
 
-    http.get('/api/Students/00000000-0000-0000-0000-000000000000').subscribe({
+    http.get('/api/Students/123').subscribe({
       error: (err) => {
         expect(err.status).toBe(401);
       },
     });
 
-    const req = httpTesting.expectOne('/api/Students/00000000-0000-0000-0000-000000000000');
+    const req = httpTesting.expectOne('/api/Students/123');
     req.flush('Unauthorized', { status: 401, statusText: 'Unauthorized' });
 
     expect(authServiceMock.clearAuthState).toHaveBeenCalled();
