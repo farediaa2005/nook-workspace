@@ -1,5 +1,6 @@
 {
-  "version": 2,
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "outputDirectory": "dist/nook_website",
   "rewrites": [
     {
       "source": "/api/:match*",
