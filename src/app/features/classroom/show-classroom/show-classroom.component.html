@@ -756,7 +756,6 @@
             <div class="room-thumb-card" 
               [class.room-thumb-card--active]="selectedRoomId() === r.id"
               [class.room-thumb-card--occupied]="isRoomCurrentlyOccupied(r)"
-              [class.room-thumb-card--disabled]="isRoomCurrentlyOccupied(r)"
               [title]="isRoomCurrentlyOccupied(r) ? ((isArabic() ? 'مشغولة حالياً: ' : 'Occupied: ') + getRoomOccupantName(r)) : (isArabic() ? (r.nameAr || r.name) : (r.nameEn || r.name))"
               (click)="selectRoom(r.id)">
               <div class="room-thumb-media">

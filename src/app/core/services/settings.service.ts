@@ -56,6 +56,8 @@ export class SettingsService {
   private authService = inject(AuthService);
 
   private roomMetaMem = new Map<string, { capacity?: number; hourlyPrice?: number }>();
+  private allBackendPricingPlans = signal<PricingPlanDto[]>([]);
+  readonly allPricingPlans = computed(() => this.allBackendPricingPlans());
 
   getRoomMeta(roomId: string): { capacity?: number; hourlyPrice?: number } {
     return this.roomMetaMem.get(roomId) || {};
@@ -119,13 +121,20 @@ export class SettingsService {
       )
       .subscribe({
         next: ({ rooms, plans, packages }) => {
+          this.allBackendPricingPlans.set(plans || []);
           // Map Rooms with capacity and hourly price from pricing plans and room metadata
           const mappedRooms: RoomEntity[] = (rooms || []).map(r => {
             const meta = this.getRoomMeta(r.id);
-            const matchedPlan = (plans || []).find(p => p.roomId === r.id);
+            const matchedPlans = (plans || []).filter(p => p.roomId === r.id);
+            const matchedPlan = matchedPlans.find(p => p.scope === 2) || matchedPlans[0];
             const planPrice = matchedPlan ? (matchedPlan.baseCost || matchedPlan.overageHourlyRate || 0) : 0;
-            const hourlyPrice = r.hourlyPrice || planPrice || meta.hourlyPrice || 0;
-            const capacity = r.capacity || meta.capacity || (r.supportsClassroom ? 20 : 30);
+            let planCapacity: number | undefined;
+            if (matchedPlan?.note) {
+              const capMatch = String(matchedPlan.note).match(/capacity:\s*(\d+)/i);
+              if (capMatch) planCapacity = Number(capMatch[1]);
+            }
+            const hourlyPrice = r.hourlyPrice !== undefined && r.hourlyPrice !== null ? r.hourlyPrice : (planPrice || meta.hourlyPrice || 0);
+            const capacity = r.capacity !== undefined && r.capacity !== null ? r.capacity : (planCapacity || meta.capacity || (r.supportsClassroom ? 20 : 30));
 
             return {
               id: r.id,
@@ -192,10 +201,16 @@ export class SettingsService {
       next: (backendRooms) => {
         const mapped: RoomEntity[] = (backendRooms || []).map(r => {
           const meta = this.getRoomMeta(r.id);
-          const matchedPlan = this.pricingTiers().find(p => p.roomId === r.id);
-          const planPrice = matchedPlan ? matchedPlan.priceEgp : 0;
-          const hourlyPrice = r.hourlyPrice || planPrice || meta.hourlyPrice || 0;
-          const capacity = r.capacity || meta.capacity || (r.supportsClassroom ? 20 : 30);
+          const matchedPlans = this.allBackendPricingPlans().filter(p => p.roomId === r.id);
+          const matchedPlan = matchedPlans.find(p => p.scope === 2) || matchedPlans[0];
+          const planPrice = matchedPlan ? (matchedPlan.baseCost || matchedPlan.overageHourlyRate || 0) : 0;
+          let planCapacity: number | undefined;
+          if (matchedPlan?.note) {
+            const capMatch = String(matchedPlan.note).match(/capacity:\s*(\d+)/i);
+            if (capMatch) planCapacity = Number(capMatch[1]);
+          }
+          const hourlyPrice = r.hourlyPrice !== undefined && r.hourlyPrice !== null ? r.hourlyPrice : (planPrice || meta.hourlyPrice || 0);
+          const capacity = r.capacity !== undefined && r.capacity !== null ? r.capacity : (planCapacity || meta.capacity || (r.supportsClassroom ? 20 : 30));
 
           return {
             id: r.id,
@@ -407,6 +422,7 @@ export class SettingsService {
         if (created && created.id) {
           this.saveRoomMeta(created.id, { capacity: room.capacity, hourlyPrice: room.hourlyPrice });
           if (isClassroom && room.hourlyPrice > 0) {
+            const planNote = room.capacity ? `${room.name} | capacity: ${room.capacity}` : room.name;
             this.pricingPlanApi.createPricingPlan({
               roomId: created.id,
               scope: 2,
@@ -414,9 +430,9 @@ export class SettingsService {
               baseCost: room.hourlyPrice,
               overageHourlyRate: room.hourlyPrice,
               isActive: true,
-              note: room.name
+              note: planNote
             }).subscribe({
-              next: () => this.syncPricingPlansFromBackend()
+              next: () => this.syncAllSettingsFromBackend()
             });
           }
         }
@@ -463,7 +479,8 @@ export class SettingsService {
 
     // Sync Classroom pricing plan with backend /api/PricingPlans
     if (isClassroom && room.hourlyPrice !== undefined) {
-      const existingPlan = this.pricingTiers().find(p => p.roomId === room.id);
+      const existingPlan = this.allBackendPricingPlans().find(p => p.roomId === room.id && (p.scope === 2 || p.scope === 0));
+      const planNote = room.capacity ? `${room.name} | capacity: ${room.capacity}` : room.name;
       if (existingPlan && existingPlan.id) {
         this.pricingPlanApi.updatePricingPlan(existingPlan.id, {
           roomId: room.id,
@@ -472,9 +489,9 @@ export class SettingsService {
           baseCost: room.hourlyPrice,
           overageHourlyRate: room.hourlyPrice,
           isActive: true,
-          note: room.name
+          note: planNote
         }).subscribe({
-          next: () => this.syncPricingPlansFromBackend()
+          next: () => this.syncAllSettingsFromBackend()
         });
       } else if (room.hourlyPrice > 0) {
         this.pricingPlanApi.createPricingPlan({
@@ -484,9 +501,9 @@ export class SettingsService {
           baseCost: room.hourlyPrice,
           overageHourlyRate: room.hourlyPrice,
           isActive: true,
-          note: room.name
+          note: planNote
         }).subscribe({
-          next: () => this.syncPricingPlansFromBackend()
+          next: () => this.syncAllSettingsFromBackend()
         });
       }
     }

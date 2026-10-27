@@ -379,12 +379,14 @@ export class ActiveShiftComponent implements OnInit {
   }
 
   // ============================================================
-  // Admin-Only Shift Time Edit (Item 7)
+  // Shift Time Edit (Item 7)
   // ============================================================
+  canEditShift = computed(() => this.shiftService.canEditShift());
+
   openEditShiftModal(): void {
-    if (!this.isAdmin()) {
+    if (!this.canEditShift()) {
       this.workspaceService.showToast(
-        this.isArabic() ? 'غير مصرح: تعديل وقت الشيفت متاح للمسؤول (Admin) فقط' : 'Unauthorized: Shift time editing is Admin only',
+        this.isArabic() ? 'غير مصرح: لا يمكن تعديل وقت الشيفت المغلق إلا بواسطة مسؤول النظام' : 'Unauthorized: Cannot edit shift time',
         'error'
       );
       return;
@@ -398,7 +400,7 @@ export class ActiveShiftComponent implements OnInit {
   }
 
   saveShiftTime(): void {
-    if (!this.isAdmin()) return;
+    if (!this.canEditShift()) return;
     const curShift = this.shiftService.currentShift();
     if (!curShift) return;
 

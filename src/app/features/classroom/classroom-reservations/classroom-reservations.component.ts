@@ -1557,7 +1557,8 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
   resDurationHours = computed(() => {
     const sMins = this.classroomService.parseTimeToMinutes(this.resStartTime());
     const eMins = this.classroomService.parseTimeToMinutes(this.resEndTime());
-    if (eMins <= sMins) {
+    if (eMins === sMins) return 0;
+    if (eMins < sMins) {
       // crossover midnight
       const diff = (24 * 60 - sMins) + eMins;
       return +(diff / 60).toFixed(1);
@@ -1616,19 +1617,6 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     const room = this.rooms().find(r => r.name.toLowerCase() === roomName.toLowerCase() || r.id === roomName);
     if (!room) return;
 
-    if (this.isRoomCurrentlyOccupied(room) && !(this.modalMode() === 'edit' && this.resRoomName() === room.name)) {
-      const occupant = this.getRoomOccupantName(room);
-      this.workspaceService.showToast(
-        this.isArabic()
-          ? `القاعة "${room.name}" مشغولة حالياً (${occupant})`
-          : `Room "${room.name}" is currently occupied (${occupant})`,
-        'error'
-      );
-      if (this.modalMode() === 'new') {
-        return;
-      }
-    }
-
     this.resRoomId.set(room.id);
     this.resRoomName.set(room.name);
     const resolvedRate = this.roomPricing.getRoomHourlyRate(room) || room.hourlyRate || 0;
@@ -1685,17 +1673,44 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     this.resEndPeriod.set(endPer);
   }
 
+  formValidationReason = computed(() => {
+    if (!this.resRoomName().trim()) {
+      return this.isArabic() ? 'يرجى اختيار القاعة' : 'Please select a room';
+    }
+    const instructor = this.resInstructor().trim();
+    if (!instructor) {
+      return this.isArabic() ? 'يرجى إدخال اسم المحاضر / العميل' : 'Instructor/Client name is required';
+    }
+    if (instructor.length < 2) {
+      return this.isArabic() ? 'اسم المحاضر يجب أن يتكون من حرفين على الأقل' : 'Instructor name must be at least 2 characters';
+    }
+    const activity = this.resActivity().trim();
+    if (!activity || activity.length < 2) {
+      return this.isArabic() ? 'يرجى إدخال اسم الفعالية / النشاط (حرفين على الأقل)' : 'Activity title is required (at least 2 characters)';
+    }
+    if (!this.resDate().trim()) {
+      return this.isArabic() ? 'يرجى تحديد تاريخ الحجز' : 'Reservation date is required';
+    }
+    if (this.resDurationHours() <= 0) {
+      return this.isArabic() ? 'وقت الانتهاء يجب أن يكون بعد وقت البدء' : 'End time must be after start time';
+    }
+    if (Number(this.resHourlyRate()) <= 0) {
+      return this.isArabic() ? 'يرجى تحديد سعر الساعة (أكبر من 0)' : 'Please specify an hourly rate (> 0)';
+    }
+    if (this.isCurrentInstructorBlacklisted()) {
+      return this.isArabic() ? 'العميل محظور في القائمة السوداء' : 'Client is blacklisted';
+    }
+    if (this.resPhone().trim() && !isValidEgyptianPhone(this.resPhone().trim())) {
+      return this.isArabic() ? 'رقم الهاتف غير صحيح (يجب أن يبدأ بـ 01 ويتكون من 11 رقماً)' : 'Invalid phone number';
+    }
+    if (this.resEmail().trim() && !isValidEmail(this.resEmail().trim())) {
+      return this.isArabic() ? 'صيغة البريد الإلكتروني غير صحيحة' : 'Invalid email format';
+    }
+    return '';
+  });
+
   isReservationFormValid = computed(() => {
-    const hasRoom = !!this.resRoomName().trim();
-    const hasInstructor = isValidPersonName(this.resInstructor().trim());
-    const hasActivity = !!this.resActivity().trim() && this.resActivity().trim().length >= 2;
-    const hasDate = !!this.resDate().trim();
-    const hasRate = Number(this.resHourlyRate()) > 0;
-    const hasDur = this.resDurationHours() > 0;
-    const notBlacklisted = !this.isCurrentInstructorBlacklisted();
-    const phoneValid = !this.resPhone().trim() || isValidEgyptianPhone(this.resPhone().trim());
-    const emailValid = !this.resEmail().trim() || isValidEmail(this.resEmail().trim());
-    return hasRoom && hasInstructor && hasActivity && hasDate && hasRate && hasDur && !this.isSaving() && notBlacklisted && phoneValid && emailValid;
+    return this.formValidationReason() === '' && !this.isSaving();
   });
 
   // Split Modal
@@ -1710,8 +1725,7 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
     }
     this.modalMode.set('new');
     this.resId.set('');
-    const availableRooms = this.rooms().filter(r => !this.isRoomCurrentlyOccupied(r));
-    const targetRoom = availableRooms.length > 0 ? availableRooms[0] : (this.rooms()[0] || null);
+    const targetRoom = this.rooms()[0] || null;
     this.resRoomId.set(targetRoom?.id || '');
     this.resRoomName.set(targetRoom?.name || 'Nook Hall');
     this.resInstructor.set('');
@@ -2388,43 +2402,36 @@ export class ClassroomReservationsComponent implements OnInit, AfterViewInit, On
       return false;
     };
 
-    // 1. Check existing reservations in calendar
-    const existingList = this.reservations();
+    // 1. Check existing reservations in calendar using robust checkReservationOverlap
+    const overlapResult = checkReservationOverlap({
+      roomId,
+      roomName,
+      targetDates: checkDates,
+      startTime: startTimeStr,
+      endTime: endTimeStr,
+      excludeReservationId: excludeResId || (this.modalMode() === 'edit' ? this.resId() : undefined),
+      existingReservations: this.reservations() as any[]
+    });
+
+    if (overlapResult.hasConflict) {
+      return {
+        hasConflict: true,
+        conflictingDate: overlapResult.conflictingDate,
+        reason: this.isArabic() ? overlapResult.reasonAr : overlapResult.reasonEn
+      };
+    }
+
+    // 2. Check active classroom cards in space
+    const todayStr = this.classroomService.getTodayDateISO();
+    const activeCards = this.classroomService.cards();
     for (const d of checkDates) {
-      for (const res of existingList) {
-        const resDate = res.occurrenceDate || res.fullDate || res.date;
-        if (isExcluded(res.id, res.reservationId, res.activity, res.instructor, res.roomId, res.roomName || res.classroom, res.startTime, res.endTime, resDate)) continue;
-        if (res.status === 'cancelled') continue;
-        if (!matchesRoom(res.roomId, res.roomName || res.classroom)) continue;
-        if (!resDate || !resDate.startsWith(d)) continue;
-
-        const exStart = this.classroomService.parseTimeToMinutes(res.startTime);
-        const exEnd = this.classroomService.parseTimeToMinutes(res.endTime);
-        if (exStart >= exEnd) continue;
-
-        // Time Overlap: newStart < exEnd && newEnd > exStart
-        if (newStart < exEnd && newEnd > exStart) {
-          const conflictName = res.activity || res.instructor || 'حجز آخر';
-          const conflictTime = `${res.startTime} - ${res.endTime}`;
-          return {
-            hasConflict: true,
-            conflictingDate: d,
-            reason: this.isArabic()
-              ? `تعارض: القاعة محجوزة بالفعل بتاريخ ${d} في التوقيت (${conflictTime}) لـ "${conflictName}". لا يمكن تكرار الحجز.`
-              : `Conflict: Room is already booked on ${d} at (${conflictTime}) for "${conflictName}". Double booking is not allowed.`
-          };
-        }
-      }
-
-      // 2. Check active classroom cards in space
-      const activeCards = this.classroomService.cards();
       for (const card of activeCards) {
         if (isExcluded(card.id, card.reservationId, card.activity, card.instructor, card.roomId, card.name, card.startTime, card.endTime, card.bookingDate)) continue;
         if (card.status === 'available' || card.status === 'completed' || card.status === 'cancelled') continue;
         if (!matchesRoom(card.roomId, card.name)) continue;
 
-        const cardDate = card.bookingDate;
-        if (cardDate && !cardDate.startsWith(d)) continue;
+        const effectiveCardDate = card.bookingDate ? card.bookingDate.split('T')[0] : todayStr;
+        if (effectiveCardDate !== d) continue;
 
         const cStart = this.classroomService.parseTimeToMinutes(card.startTime);
         const cEnd = this.classroomService.parseTimeToMinutes(card.endTime);

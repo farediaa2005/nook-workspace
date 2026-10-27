@@ -45,4 +45,38 @@ describe('RoomPricingService (NOOK-DEV-04, O-3)', () => {
     expect(service.getRoomHourlyRate('room-4')).toBe(150);
     expect(service.getRoomHourlyRate({ id: 'room-4', name: 'Studio' })).toBe(150);
   });
+
+  it('should NOT assign 80 EGP or default rates to Share or Silent rooms when unconfigured', () => {
+    const rooms = [
+      { id: 'room-share-id', name: 'Share' },
+      { id: 'room-silent-id', name: 'Silent Zone' },
+      { id: 'room-meeting-id', name: 'Meeting room', hourlyPrice: 80 }
+    ];
+    // Meeting room has 80, but Share and Silent have no plan
+    service.syncPrices(rooms, [{ roomId: 'room-meeting-id', scope: 2, baseCost: 80 }]);
+
+    expect(service.getRoomHourlyRate('room-share-id')).toBe(0);
+    expect(service.getRoomHourlyRate({ id: 'room-share-id', name: 'Share' })).toBe(0);
+    expect(service.isRoomPriceConfigured('room-share-id')).toBe(false);
+
+    expect(service.getRoomHourlyRate('room-silent-id')).toBe(0);
+    expect(service.getRoomHourlyRate({ id: 'room-silent-id', name: 'Silent Zone' })).toBe(0);
+    expect(service.isRoomPriceConfigured('room-silent-id')).toBe(false);
+
+    expect(service.getRoomHourlyRate('room-meeting-id')).toBe(80);
+  });
+
+  it('should resolve authoritative configured pricing for Share room when configured', () => {
+    const rooms = [
+      { id: 'room-share-id', name: 'Share' }
+    ];
+    const plans = [
+      { roomId: 'room-share-id', scope: 2, baseCost: 60, overageHourlyRate: 60 }
+    ];
+    service.syncPrices(rooms, plans);
+
+    expect(service.getRoomHourlyRate('room-share-id')).toBe(60);
+    expect(service.getRoomHourlyRate({ id: 'room-share-id', name: 'Share' })).toBe(60);
+    expect(service.isRoomPriceConfigured('room-share-id')).toBe(true);
+  });
 });

@@ -68,6 +68,8 @@ export class ShiftService implements OnDestroy {
     return false;
   }
 
+  private shiftTimeOverrides = new Map<string, { startTime: string; startedAt?: string; endTime?: string }>();
+
   /** Requirement 7: Shift edit permissions */
   public canEditShift(shiftRecord?: ShiftRecord | null): boolean {
     const isAdmin = this.authService.isAdmin();
@@ -75,6 +77,10 @@ export class ShiftService implements OnDestroy {
 
     const target = shiftRecord || this.currentShift();
     if (!target) return false;
+
+    // Normal User cannot edit after checkout has completed
+    const isClosed = target.status === 'closed' || !!target.endTime;
+    if (isClosed) return false;
 
     // Normal User can edit shift time ONLY while shift is active (status === 'active') before checkout
     return target.status === 'active';
@@ -98,6 +104,8 @@ export class ShiftService implements OnDestroy {
         if (s.date && !newStartTime.includes('-') && !newStartTime.includes('T')) {
           const dateObj = this.parseShiftTimeString(newStartTime, s.date);
           newStartedAt = dateObj.toISOString();
+        } else if (newStartTime.includes('T')) {
+          newStartedAt = newStartTime;
         }
         return {
           ...s,
@@ -105,6 +113,11 @@ export class ShiftService implements OnDestroy {
           startedAt: newStartedAt,
           endTime: newEndTime || s.endTime
         };
+      });
+      this.shiftTimeOverrides.set(shiftId, {
+        startTime: newStartTime,
+        startedAt: this.currentShift()?.startedAt,
+        endTime: newEndTime
       });
     }
     this.shiftHistory.update(list => list.map(s => s.id === shiftId ? { ...s, startTime: newStartTime, endTime: newEndTime || s.endTime } : s));
@@ -1626,8 +1639,9 @@ export class ShiftService implements OnDestroy {
    * Helper to map ShiftDto to ShiftRecord
    */
   private mapDtoToShiftRecord(dto: ShiftDto | any): ShiftRecord {
-    const rawTime = dto.startedAt || dto.timeFrom || dto.startTime || dto.date;
-    const rawEndTime = dto.endedAt || dto.timeTo || dto.endTime;
+    const timeOverride = dto.id ? this.shiftTimeOverrides.get(dto.id) : undefined;
+    const rawTime = timeOverride?.startedAt || dto.startedAt || dto.timeFrom || dto.startTime || dto.date;
+    const rawEndTime = timeOverride?.endTime || dto.endedAt || dto.timeTo || dto.endTime;
     const isActive = this.isShiftActiveDto(dto);
     const isClosed = !isActive;
     const savedFloats = getSavedShiftFloats(dto.id);
@@ -1644,9 +1658,9 @@ export class ShiftService implements OnDestroy {
       ? Number(dto.startFawry)
       : (savedFloats?.startFawry ?? 0);
 
-    const formattedStart = rawTime && !String(rawTime).startsWith('0001') ? parseIsoToLocal12h(rawTime) : '09:00 AM';
+    const formattedStart = timeOverride?.startTime || (rawTime && !String(rawTime).startsWith('0001') ? parseIsoToLocal12h(rawTime) : '09:00 AM');
     const isRealEndTime = rawEndTime && !String(rawEndTime).startsWith('0001') && new Date(rawEndTime).getFullYear() >= 2000;
-    const formattedEnd: string | undefined = isRealEndTime ? parseIsoToLocal12h(rawEndTime) : undefined;
+    const formattedEnd: string | undefined = timeOverride?.endTime || (isRealEndTime ? parseIsoToLocal12h(rawEndTime) : undefined);
 
     const mappedTransactions: ShiftTransaction[] = Array.isArray(dto.items) && dto.items.length > 0
       ? dto.items.map((it: any, idx: number) => {

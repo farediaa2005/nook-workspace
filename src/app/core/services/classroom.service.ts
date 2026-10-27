@@ -327,7 +327,13 @@ export class ClassroomService {
           const resolved = resolveImageUrl(r.imageUrl);
           const roomImg = resolved || roomImages[idx % roomImages.length];
           const rate = this.roomPricing.getRoomHourlyRate(r);
-          const cap = r.capacity || 20;
+          const matchedPlan = (plans || []).find((p: any) => p.roomId === r.id && p.scope === 2) || (plans || []).find((p: any) => p.roomId === r.id);
+          let planCap: number | undefined;
+          if (matchedPlan?.note) {
+            const m = String(matchedPlan.note).match(/capacity:\s*(\d+)/i);
+            if (m) planCap = Number(m[1]);
+          }
+          const cap = r.capacity || planCap || 20;
           return {
             id: r.id,
             name: r.name,

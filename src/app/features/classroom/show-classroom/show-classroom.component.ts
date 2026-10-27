@@ -592,18 +592,19 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     this.appliedCoupon.set(null);
     this.couponError.set('');
 
-    const availableRooms = this.selectableRooms().filter(r => !this.isRoomCurrentlyOccupied(r));
-    const targetRooms = availableRooms.length > 0 ? availableRooms : this.selectableRooms();
+    const targetRooms = this.selectableRooms();
 
     if (roomName) {
       const match = this.selectableRooms().find(r => r.name.toLowerCase() === roomName.toLowerCase());
-      if (match && !this.isRoomCurrentlyOccupied(match)) {
+      if (match) {
         this.selectedRoomId.set(match.id);
-        this.bookingHourlyRate.set(match.hourlyRate);
+        const resolvedRate = this.roomPricing.getRoomHourlyRate(match) || match.hourlyRate || 0;
+        this.bookingHourlyRate.set(resolvedRate);
       } else if (targetRooms.length > 0) {
         const firstRoom = targetRooms[0];
         this.selectedRoomId.set(firstRoom.id);
-        this.bookingHourlyRate.set(firstRoom.hourlyRate);
+        const resolvedRate = this.roomPricing.getRoomHourlyRate(firstRoom) || firstRoom.hourlyRate || 0;
+        this.bookingHourlyRate.set(resolvedRate);
       }
     } else if (targetRooms.length > 0) {
       const current = this.selectedRoomId();
@@ -611,9 +612,11 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       if (!match) {
         const firstRoom = targetRooms[0];
         this.selectedRoomId.set(firstRoom.id);
-        this.bookingHourlyRate.set(firstRoom.hourlyRate);
+        const resolvedRate = this.roomPricing.getRoomHourlyRate(firstRoom) || firstRoom.hourlyRate || 0;
+        this.bookingHourlyRate.set(resolvedRate);
       } else {
-        this.bookingHourlyRate.set(match.hourlyRate);
+        const resolvedRate = this.roomPricing.getRoomHourlyRate(match) || match.hourlyRate || 0;
+        this.bookingHourlyRate.set(resolvedRate);
       }
     }
 
@@ -882,17 +885,6 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   selectRoom(roomId: string): void {
     const room = this.selectableRooms().find(r => r.id === roomId);
     if (!room) return;
-
-    if (this.isRoomCurrentlyOccupied(room)) {
-      const occupant = this.getRoomOccupantName(room);
-      this.workspaceService.showToast(
-        this.isArabic()
-          ? `القاعة "${room.name}" مشغولة حالياً (${occupant}) ولا يمكن حجزها الآن`
-          : `Room "${room.name}" is currently occupied (${occupant}) and cannot be booked right now`,
-        'error'
-      );
-      return;
-    }
 
     this.selectedRoomId.set(roomId);
     const resolvedRate = this.roomPricing.getRoomHourlyRate(room) || room.hourlyRate || 0;

@@ -72,11 +72,11 @@
                   <span style="font-size: 0.78rem; opacity: 0.85; font-weight: 600; margin-inline-start: 4px; color: var(--text-dim);">({{ shiftStartDate() }})</span>
                 }
               </span>
-              @if (isAdmin()) {
+              @if (canEditShift()) {
                 <button
                   type="button"
                   (click)="openEditShiftModal()"
-                  [title]="isArabic() ? 'تعديل وقت الشيفت (صلاحية المشرف)' : 'Edit Shift Time (Admin Only)'"
+                  [title]="isArabic() ? 'تعديل وقت بداية الشيفت' : 'Edit Shift Start Time'"
                   style="background: rgba(245, 185, 33, 0.15); border: 1px solid rgba(245, 185, 33, 0.35); border-radius: 6px; padding: 2px 8px; color: #f5b921; cursor: pointer; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; transition: all 0.2s;"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 12px; height: 12px;">

@@ -505,7 +505,6 @@
             @for (r of rooms(); track r.id) {
             <div class="room-thumb-card" [class.room-thumb-card--active]="resRoomName() === r.name"
               [class.room-thumb-card--occupied]="isRoomCurrentlyOccupied(r) && !(modalMode() === 'edit' && resRoomName() === r.name)"
-              [class.room-thumb-card--disabled]="isRoomCurrentlyOccupied(r) && modalMode() === 'new'"
               (click)="onRoomChange(r.name)">
               <div class="room-thumb-media">
                 <img [src]="r.image || '/images/rooms/room-workshop.jpg'" [alt]="r.name" class="room-thumb-img" />
@@ -891,6 +890,11 @@
               (ngModelChange)="resHourlyRate.set(+$event)" />
             <span class="input-trailing-tag">{{ isArabic() ? 'ج.م / ساعة' : 'EGP / hr' }}</span>
           </div>
+          @if (resHourlyRate() <= 0) {
+            <span class="field-error-hint" style="color: #f59e0b; font-size: 0.78rem; font-weight: 600; margin-top: 4px; display: block;">
+              ⚠️ {{ isArabic() ? 'سعر الساعة غير محدد لهذه القاعة، يرجى كتابة السعر المناسب' : 'Hourly rate not configured for this room; please enter rate' }}
+            </span>
+          }
         </div>
 
         <!-- Cost & Duration Summary Banner -->
@@ -918,19 +922,31 @@
       </div>
 
       <!-- Modal Footer -->
-      <div class="modal-footer">
-        <button type="button" class="btn-ghost-modal" (click)="closeReservationModal()">
-          {{ t().cancel }}
-        </button>
-        <button type="button" class="btn-primary-modal" [disabled]="!isReservationFormValid() || isSaving()"
-          (click)="saveReservation()">
-          @if (isSaving()) {
-          <span class="spinner-sm"></span>
-          <span>{{ isArabic() ? 'جاري الحفظ...' : 'Saving...' }}</span>
-          } @else {
-          <span>{{ modalMode() === 'edit' ? t().saveChanges : t().save }}</span>
-          }
-        </button>
+      <div class="modal-footer" style="display: flex; flex-direction: column; gap: 8px; align-items: stretch;">
+        @if (!isReservationFormValid() && !isSaving() && formValidationReason()) {
+          <div style="color: #ef4444; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; justify-content: flex-end;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px; flex-shrink: 0;">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span>{{ formValidationReason() }}</span>
+          </div>
+        }
+        <div style="display: flex; justify-content: flex-end; gap: 10px; width: 100%;">
+          <button type="button" class="btn-ghost-modal" (click)="closeReservationModal()">
+            {{ t().cancel }}
+          </button>
+          <button type="button" class="btn-primary-modal" [disabled]="!isReservationFormValid() || isSaving()"
+            (click)="saveReservation()">
+            @if (isSaving()) {
+            <span class="spinner-sm"></span>
+            <span>{{ isArabic() ? 'جاري الحفظ...' : 'Saving...' }}</span>
+            } @else {
+            <span>{{ modalMode() === 'edit' ? t().saveChanges : t().save }}</span>
+            }
+          </button>
+        </div>
       </div>
     </div>
   </div>
