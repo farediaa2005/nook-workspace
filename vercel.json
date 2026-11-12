@@ -1,0 +1,22 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist/nook_website",
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://nook.runasp.net/api/:path*" },
+    { "source": "/uploads/:path*", "destination": "https://nook.runasp.net/uploads/:path*" },
+    { "source": "/Uploads/:path*", "destination": "https://nook.runasp.net/Uploads/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)-([A-Z0-9]{8})\\.(js|css)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/index.html",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+    }
+  ]
+}
