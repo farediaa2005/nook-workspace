@@ -27,13 +27,6 @@ export class InstructorApiService extends BaseApiService {
     );
   }
 
-  /** Get instructor by ID — GET /api/Instructors/{id} */
-  getInstructorById(id: string): Observable<InstructorDto> {
-    return this.get<ApiResponse<InstructorDto>>(API_ENDPOINTS.INSTRUCTORS.BY_ID(id)).pipe(
-      map(extractData)
-    );
-  }
-
   /** Create instructor — POST /api/Instructors */
   createInstructor(dto: CreateInstructorDto | any): Observable<InstructorDto> {
     const payload = {

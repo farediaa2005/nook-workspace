@@ -40,10 +40,10 @@
   padding: 0 18px;
   background: var(--surface);
   border: 1.5px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   color: var(--text);
   font-weight: 700;
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -55,7 +55,7 @@
 
 :host-context([data-theme="light"]) .btn-export-data,
 [data-theme="light"] .btn-export-data {
-  background: #ffffff;
+  background: var(--surface);
   border-color: var(--border);
   color: var(--text);
 }
@@ -69,9 +69,9 @@
 
 :host-context([data-theme="light"]) .btn-export-data:hover,
 [data-theme="light"] .btn-export-data:hover {
-  background: #fffbeb;
+  background: var(--amber-50);
   border-color: var(--yellow);
-  color: #b45309;
+  color: var(--warning);
 }
 
 .export-icon {
@@ -89,15 +89,15 @@ app-primary-button.students-add-btn,
 :host ::ng-deep .students-add-btn .btn-primary-action {
   height: 44px;
   padding: 0 20px;
-  border-radius: 12px;
-  font-size: 0.9rem;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-base);
   font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   white-space: nowrap;
   background: var(--yellow);
-  color: #1c1810;
+  color: var(--brand-dark);
   border: none;
   box-shadow: 0 4px 14px rgba(245, 185, 33, 0.35);
   cursor: pointer;
@@ -126,14 +126,14 @@ app-primary-button.students-add-btn,
   gap: 14px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius);
   padding: 14px 18px;
   box-shadow: var(--shadow);
 }
 
 :host-context([data-theme="light"]) .toolbar-card,
 [data-theme="light"] .toolbar-card {
-  background: #ffffff;
+  background: var(--surface);
   border-color: var(--border);
   box-shadow: 0 1px 3px rgba(42, 37, 25, 0.07);
 }
@@ -157,7 +157,7 @@ app-primary-button.students-add-btn,
 .table-container-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius);
   box-shadow: var(--shadow-md);
   overflow: hidden;
   display: flex;
@@ -166,7 +166,7 @@ app-primary-button.students-add-btn,
 
 :host-context([data-theme="light"]) .table-container-card,
 [data-theme="light"] .table-container-card {
-  background: #ffffff;
+  background: var(--surface);
   border-color: var(--border);
   box-shadow: 0 10px 30px rgba(42, 37, 25, 0.08);
 }
@@ -190,13 +190,41 @@ app-primary-button.students-add-btn,
   white-space: nowrap !important;
   vertical-align: middle;
   padding: 14px 18px;
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   border-bottom: 1px solid var(--border);
+}
+
+/* Tighter cells on laptop widths so the table needs less horizontal scrolling */
+@media (max-width: 1600px) {
+  .custom-table th,
+  .custom-table td {
+    padding: 12px 12px;
+  }
+}
+
+/* Keep the Actions column pinned so Edit/Delete are always reachable when the table scrolls sideways */
+.custom-table th:last-child,
+.custom-table td:last-child {
+  position: sticky;
+  inset-inline-end: 0;
+  z-index: 1;
+  background: var(--surface);
+  box-shadow: -6px 0 8px -6px rgba(0, 0, 0, 0.15);
+}
+
+.custom-table th:last-child {
+  background: var(--surface-2);
+  z-index: 2;
+}
+
+[dir="rtl"] .custom-table th:last-child,
+[dir="rtl"] .custom-table td:last-child {
+  box-shadow: 6px 0 8px -6px rgba(0, 0, 0, 0.15);
 }
 
 .custom-table th {
   background: var(--surface-2);
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--text-dim);
   text-transform: uppercase;
@@ -205,7 +233,7 @@ app-primary-button.students-add-btn,
 
 :host-context([data-theme="light"]) .custom-table th,
 [data-theme="light"] .custom-table th {
-  background: #fbf8f1;
+  background: var(--surface-2);
   color: var(--text-dim);
   border-bottom-color: var(--border);
 }
@@ -251,7 +279,7 @@ app-primary-button.students-add-btn,
   width: 42px;
   height: 42px;
   min-width: 42px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -261,7 +289,7 @@ app-primary-button.students-add-btn,
 .avatar-img {
   width: 42px;
   height: 42px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   object-fit: cover;
   display: block;
   border: 1.5px solid var(--border);
@@ -273,19 +301,19 @@ app-primary-button.students-add-btn,
   background: var(--surface-2);
   color: var(--yellow);
   border: 1.5px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 1rem;
+  font-size: var(--fs-md);
 }
 
 :host-context([data-theme="light"]) .avatar-initial,
 [data-theme="light"] .avatar-initial {
-  background: #fef3c7;
-  color: #b45309;
-  border-color: #fde68a;
+  background: var(--amber-100);
+  color: var(--warning);
+  border-color: var(--amber-200);
 }
 
 .live-dot-indicator {
@@ -302,7 +330,7 @@ app-primary-button.students-add-btn,
 
 :host-context([data-theme="light"]) .live-dot-indicator,
 [data-theme="light"] .live-dot-indicator {
-  border-color: #ffffff;
+  border-color: var(--on-color);
 }
 
 .student-names {
@@ -314,7 +342,7 @@ app-primary-button.students-add-btn,
 .student-name-main {
   font-weight: 700;
   color: var(--text);
-  font-size: 0.9375rem;
+  font-size: var(--fs-md);
 }
 
 /* Contact Info */
@@ -328,7 +356,7 @@ app-primary-button.students-add-btn,
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   text-decoration: none;
   color: var(--text-dim);
   transition: color 0.15s ease;
@@ -342,7 +370,7 @@ app-primary-button.students-add-btn,
 }
 
 .phone-link:hover {
-  color: #3b82f6;
+  color: var(--info);
 }
 
 :host-context([data-theme="light"]) .phone-link,
@@ -352,7 +380,7 @@ app-primary-button.students-add-btn,
 
 :host-context([data-theme="light"]) .phone-link:hover,
 [data-theme="light"] .phone-link:hover {
-  color: #2563eb;
+  color: var(--info);
 }
 
 .whatsapp-link {
@@ -361,7 +389,7 @@ app-primary-button.students-add-btn,
 }
 
 .whatsapp-link:hover {
-  color: #059669;
+  color: var(--emerald-600);
 }
 
 .email-link {
@@ -384,22 +412,22 @@ app-primary-button.students-add-btn,
   padding: 4px 10px;
   background: rgba(99, 102, 241, 0.15);
   border: 1px solid rgba(99, 102, 241, 0.3);
-  color: #818cf8;
-  border-radius: 8px;
-  font-size: 0.8125rem;
+  color: var(--indigo-400);
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
   width: fit-content;
 }
 
 :host-context([data-theme="light"]) .faculty-badge,
 [data-theme="light"] .faculty-badge {
-  background: #eef2ff;
-  border-color: #c7d2fe;
-  color: #4338ca;
+  background: var(--indigo-50);
+  border-color: var(--indigo-200);
+  color: var(--indigo-700);
 }
 
 .college-subtext {
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   color: var(--text-dim);
 }
 
@@ -418,17 +446,17 @@ app-primary-button.students-add-btn,
   background: rgba(245, 185, 33, 0.14);
   border: 1px solid rgba(245, 185, 33, 0.35);
   color: var(--yellow);
-  border-radius: 8px;
-  font-size: 0.8125rem;
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-sm);
   font-weight: 700;
   width: fit-content;
 }
 
 :host-context([data-theme="light"]) .badge-package-active,
 [data-theme="light"] .badge-package-active {
-  background: #fef3c7;
-  border-color: #fde68a;
-  color: #b45309;
+  background: var(--amber-100);
+  border-color: var(--amber-200);
+  color: var(--warning);
 }
 
 .badge-package-active svg {
@@ -437,7 +465,7 @@ app-primary-button.students-add-btn,
 }
 
 .package-hours-info {
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   color: var(--text-dim);
 }
 
@@ -448,7 +476,7 @@ app-primary-button.students-add-btn,
 
 :host-context([data-theme="light"]) .hours-num,
 [data-theme="light"] .hours-num {
-  color: #b45309;
+  color: var(--warning);
 }
 
 .badge-paygo {
@@ -459,15 +487,15 @@ app-primary-button.students-add-btn,
   background: var(--surface-2);
   border: 1px solid var(--border);
   color: var(--text-dim);
-  border-radius: 8px;
-  font-size: 0.8125rem;
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-sm);
 }
 
 :host-context([data-theme="light"]) .badge-paygo,
 [data-theme="light"] .badge-paygo {
-  background: #f3f4f6;
-  border-color: #e5e7eb;
-  color: #4b5563;
+  background: var(--gray-100);
+  border-color: var(--gray-200);
+  color: var(--gray-600);
 }
 
 .badge-paygo svg {
@@ -488,13 +516,13 @@ app-primary-button.students-add-btn,
 }
 
 .visits-spent {
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   color: var(--success);
   font-weight: 600;
 }
 
 .last-visit-date {
-  font-size: 0.72rem;
+  font-size: var(--fs-2xs);
   color: var(--text-dim);
 }
 
@@ -504,22 +532,22 @@ app-primary-button.students-add-btn,
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 0.8125rem;
+  border-radius: var(--radius-lg);
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
 .badge-status--active {
   background: rgba(16, 185, 129, 0.15);
   border: 1px solid rgba(16, 185, 129, 0.35);
-  color: #34d399;
+  color: var(--emerald-400);
 }
 
 :host-context([data-theme="light"]) .badge-status--active,
 [data-theme="light"] .badge-status--active {
-  background: #d1fae5;
-  border-color: #a7f3d0;
-  color: #065f46;
+  background: var(--emerald-100);
+  border-color: var(--emerald-200);
+  color: var(--emerald-800);
 }
 
 .dot-pulse {
@@ -531,7 +559,7 @@ app-primary-button.students-add-btn,
 
 .active-room-tag {
   display: block;
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   color: var(--text-dim);
   margin-top: 3px;
 }
@@ -542,24 +570,17 @@ app-primary-button.students-add-btn,
   color: var(--text-dim);
 }
 
-:host-context([data-theme="light"]) .badge-status--offline,
-[data-theme="light"] .badge-status--offline {
-  background: #f3f4f6;
-  border-color: #e5e7eb;
-  color: #6b7280;
-}
-
 .badge-status--blocked {
   background: rgba(239, 68, 68, 0.15);
   border: 1px solid rgba(239, 68, 68, 0.35);
-  color: #f87171;
+  color: var(--red-400);
 }
 
 :host-context([data-theme="light"]) .badge-status--blocked,
 [data-theme="light"] .badge-status--blocked {
-  background: #fee2e2;
-  border-color: #fecaca;
-  color: #b91c1c;
+  background: var(--red-100);
+  border-color: var(--red-200);
+  color: var(--red-700);
 }
 
 /* Actions */
@@ -576,7 +597,7 @@ app-primary-button.students-add-btn,
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   background: var(--surface-2);
   border: 1px solid var(--border);
   color: var(--text-dim);
@@ -586,7 +607,7 @@ app-primary-button.students-add-btn,
 
 :host-context([data-theme="light"]) .btn-action-icon,
 [data-theme="light"] .btn-action-icon {
-  background: #fbf8f1;
+  background: var(--surface-2);
   border-color: var(--border);
   color: var(--text-dim);
 }
@@ -600,9 +621,9 @@ app-primary-button.students-add-btn,
 
 :host-context([data-theme="light"]) .btn-action-icon:hover,
 [data-theme="light"] .btn-action-icon:hover {
-  background: #fef3c7;
+  background: var(--amber-100);
   border-color: var(--yellow);
-  color: #b45309;
+  color: var(--warning);
 }
 
 .btn-delete-icon:hover {
@@ -614,9 +635,9 @@ app-primary-button.students-add-btn,
 
 :host-context([data-theme="light"]) .btn-delete-icon:hover,
 [data-theme="light"] .btn-delete-icon:hover {
-  background: #fee2e2;
+  background: var(--red-100);
   border-color: var(--danger);
-  color: #b91c1c;
+  color: var(--red-700);
 }
 
 .btn-action-icon svg {
@@ -641,17 +662,17 @@ app-primary-button.students-add-btn,
 
 .empty-title {
   color: var(--text-dim);
-  font-size: 1rem;
+  font-size: var(--fs-md);
   margin: 0;
 }
 
 .btn-register-action {
   background: var(--yellow);
-  color: #1c1810;
+  color: var(--brand-dark);
   border: none;
   font-weight: 700;
   padding: 8px 18px;
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -677,16 +698,21 @@ app-primary-button.students-add-btn,
   background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(4px);
   display: flex;
-  align-items: center;
+  align-items: flex-start;   /* children use margin:auto: centred when they fit, top-aligned + scrollable when taller than the screen */
   justify-content: center;
+  overflow-y: auto;
   z-index: 9999;
   padding: 16px;
+}
+
+.modal-backdrop-custom > * {
+  margin: auto;
 }
 
 .modal-card-custom {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius);
   width: 100%;
   max-width: 580px;
   box-shadow: var(--shadow-md);
@@ -696,7 +722,7 @@ app-primary-button.students-add-btn,
 
 :host-context([data-theme="light"]) .modal-card-custom,
 [data-theme="light"] .modal-card-custom {
-  background: #ffffff;
+  background: var(--surface);
   border-color: var(--border);
   box-shadow: 0 20px 40px rgba(42, 37, 25, 0.15);
 }
@@ -724,14 +750,14 @@ app-primary-button.students-add-btn,
 }
 
 .modal-title {
-  font-size: 1.15rem;
+  font-size: var(--fs-lg);
   font-weight: 700;
   color: var(--text);
   margin: 0;
 }
 
 .modal-subtitle {
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   color: var(--text-dim);
   margin: 3px 0 0 0;
 }
@@ -742,7 +768,7 @@ app-primary-button.students-add-btn,
   color: var(--text-dim);
   cursor: pointer;
   padding: 4px;
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -788,25 +814,25 @@ app-primary-button.students-add-btn,
 }
 
 .modal-label {
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-dim);
 }
 
 .modal-input {
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding: 10px 14px;
   color: var(--text);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 :host-context([data-theme="light"]) .modal-input,
 [data-theme="light"] .modal-input {
-  background: #fbf8f1;
+  background: var(--surface-2);
   border-color: var(--border);
   color: var(--text);
 }
@@ -818,7 +844,7 @@ app-primary-button.students-add-btn,
 
 .delete-warning-text {
   color: var(--text);
-  font-size: 0.9375rem;
+  font-size: var(--fs-md);
   line-height: 1.5;
   margin: 0;
 }
@@ -835,14 +861,14 @@ app-primary-button.students-add-btn,
 
 :host-context([data-theme="light"]) .modal-footer-custom,
 [data-theme="light"] .modal-footer-custom {
-  background: #fbf8f1;
+  background: var(--surface-2);
   border-top-color: var(--border);
 }
 
 .btn {
   padding: 9px 18px;
-  border-radius: 8px;
-  font-size: 0.875rem;
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-base);
   font-weight: 600;
   cursor: pointer;
   border: none;
@@ -860,7 +886,7 @@ app-primary-button.students-add-btn,
 
 :host-context([data-theme="light"]) .btn-secondary,
 [data-theme="light"] .btn-secondary {
-  background: #ffffff;
+  background: var(--surface);
   border-color: var(--border);
   color: var(--text);
 }
@@ -871,7 +897,7 @@ app-primary-button.students-add-btn,
 
 .btn-primary {
   background: var(--yellow);
-  color: #1c1810;
+  color: var(--brand-dark);
   font-weight: 700;
 }
 
@@ -882,11 +908,11 @@ app-primary-button.students-add-btn,
 
 .btn-danger {
   background: var(--danger);
-  color: #ffffff;
+  color: var(--on-color);
 }
 
 .btn-danger:hover {
-  background: #dc2626;
+  background: var(--danger-strong);
 }
 
 /* Responsive Media Queries */
@@ -941,10 +967,10 @@ app-primary-button.students-add-btn,
 .btn-action-icon {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
-  border: 1px solid var(--border, #e2e8f0);
-  background: var(--surface, #ffffff);
-  color: var(--text-secondary, #64748b);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border, var(--slate-200));
+  background: var(--surface, var(--on-color));
+  color: var(--text-secondary, var(--text-dim));
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -958,19 +984,19 @@ app-primary-button.students-add-btn,
 }
 
 .btn-action-icon:hover {
-  background: var(--surface-2, #f1f5f9);
-  color: var(--text, #0f172a);
+  background: var(--surface-2, var(--slate-100));
+  color: var(--text, var(--slate-900));
 }
 
 .btn-analytics-icon:hover {
   background: rgba(13, 148, 136, 0.12) !important;
-  color: #0d9488 !important;
+  color: var(--teal-600) !important;
   border-color: rgba(13, 148, 136, 0.3) !important;
 }
 
 .btn-delete-icon:hover {
   background: rgba(239, 68, 68, 0.12) !important;
-  color: #ef4444 !important;
+  color: var(--danger-strong) !important;
   border-color: rgba(239, 68, 68, 0.3) !important;
 }
 

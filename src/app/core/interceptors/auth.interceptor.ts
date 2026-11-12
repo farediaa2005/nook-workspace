@@ -18,7 +18,15 @@ const PUBLIC_ENDPOINTS = [
 
 /** State for managing concurrent refresh token requests */
 let isRefreshing = false;
-const refreshTokenSubject = new BehaviorSubject<string | null>(null);
+let refreshTokenSubject = new BehaviorSubject<string | null>(null);
+
+/** Fail every request waiting on the in-flight refresh so none of them hang forever */
+function failRefresh(err: unknown): void {
+  isRefreshing = false;
+  const waiters = refreshTokenSubject;
+  refreshTokenSubject = new BehaviorSubject<string | null>(null);
+  waiters.error(err);
+}
 
 function isPublicEndpoint(url: string): boolean {
   const lowerUrl = url.toLowerCase();
@@ -97,6 +105,14 @@ export const authInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>, ne
               `${API_BASE_URL}${API_ENDPOINTS.AUTH.REFRESH_TOKEN}`,
               refreshPayload
             ).pipe(
+              // Only a failure of the refresh call itself ends the session; an error from the
+              // replayed original request (400/403/500...) must reach its caller untouched.
+              catchError((refreshErr) => {
+                failRefresh(refreshErr || error);
+                authService.clearAuthState();
+                router.navigate(['/auth/login']);
+                return throwError(() => refreshErr || error);
+              }),
               switchMap((res) => {
                 isRefreshing = false;
                 const resData = res?.data || res;
@@ -107,16 +123,10 @@ export const authInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>, ne
                   refreshTokenSubject.next(newToken);
                   return next(attachToken(req, newToken));
                 }
+                failRefresh(error);
                 authService.clearAuthState();
                 router.navigate(['/auth/login']);
                 return throwError(() => error);
-              }),
-              catchError((refreshErr) => {
-                isRefreshing = false;
-                refreshTokenSubject.next(null);
-                authService.clearAuthState();
-                router.navigate(['/auth/login']);
-                return throwError(() => refreshErr || error);
               })
             );
           } else {

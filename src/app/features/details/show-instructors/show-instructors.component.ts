@@ -28,13 +28,15 @@ import {
   validatePhoneError,
   validateEmailError
 } from '../../../core/utils/validators.util';
+import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
+import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 
 export type { Instructor };
 
 @Component({
   selector: 'app-show-instructors',
   standalone: true,
-  imports: [
+  imports: [StatusBadgeComponent, ConfirmDialogComponent, 
     CommonModule,
     FormsModule,
     PageHeaderComponent,
@@ -80,7 +82,6 @@ export class ShowInstructorsComponent implements OnInit {
   formEmail = signal<string>('');
   formSpecialty = signal<string>('');
   formAffiliation = signal<string>('');
-  formSessions = signal<number>(0);
   formStatus = signal<'active' | 'inactive'>('active');
   formBio = signal<string>('');
   formError = signal<string | null>(null);
@@ -89,6 +90,16 @@ export class ShowInstructorsComponent implements OnInit {
   nameError = signal<string | null>(null);
   phoneError = signal<string | null>(null);
   emailError = signal<string | null>(null);
+
+  /** Why the save button is disabled, shown next to it. */
+  formMissing = computed<string[]>(() => {
+    const missing: string[] = [];
+    if (!isValidPersonName(this.formName().trim())) missing.push(this.t().locAValidName);
+    if (!isValidEgyptianPhone(this.formPhone().trim())) missing.push(this.t().locAValidEgyptianPhone);
+    const email = this.formEmail().trim();
+    if (email && !isValidEmail(email)) missing.push(this.t().locAValidEmail);
+    return missing;
+  });
 
   isFormInvalid = computed<boolean>(() => {
     const hasNameErr = !isValidPersonName(this.formName().trim());
@@ -124,13 +135,13 @@ export class ShowInstructorsComponent implements OnInit {
   }
 
   statusFilterOptions = computed<SelectOption[]>(() => [
-    { label: this.isArabic() ? 'جميع الحالات' : 'All Statuses', value: 'all' },
-    { label: this.isArabic() ? '🟢 نشط' : '🟢 Active', value: 'active' },
-    { label: this.isArabic() ? '⚪ غير نشط' : '⚪ Inactive', value: 'inactive' }
+    { label: this.t().stuAllStatuses, value: 'all' },
+    { label: this.t().detActive, value: 'active' },
+    { label: this.t().detInactive, value: 'inactive' }
   ]);
 
   specialtyFilterOptions = computed<SelectOption[]>(() => {
-    const defaultOpt: SelectOption = { label: this.isArabic() ? 'جميع التخصصات' : 'All Specialties', value: 'all' };
+    const defaultOpt: SelectOption = { label: this.t().detAllSpecialties, value: 'all' };
     const list = this.instructors();
     const unique = Array.from(new Set(list.map(i => (i.specialty || '').trim()).filter(s => s && s !== '-'))).sort();
     return [defaultOpt, ...unique.map(u => ({ label: u, value: u }))];
@@ -272,7 +283,6 @@ export class ShowInstructorsComponent implements OnInit {
     this.formEmail.set('');
     this.formSpecialty.set('');
     this.formAffiliation.set('');
-    this.formSessions.set(0);
     this.formStatus.set('active');
     this.formBio.set('');
     this.formError.set(null);
@@ -291,7 +301,6 @@ export class ShowInstructorsComponent implements OnInit {
     this.formEmail.set(instructor.email === '-' ? '' : instructor.email);
     this.formSpecialty.set(instructor.specialty === '-' ? '' : instructor.specialty);
     this.formAffiliation.set(instructor.affiliation === '-' ? '' : instructor.affiliation);
-    this.formSessions.set(this.getInstructorSessionCount(instructor));
     this.formStatus.set(instructor.status);
     this.formBio.set(instructor.bio || '');
     this.formError.set(null);
@@ -313,7 +322,6 @@ export class ShowInstructorsComponent implements OnInit {
     const email = this.formEmail().trim();
     const specialty = this.formSpecialty().trim();
     const affiliation = this.formAffiliation().trim();
-    const sessions = Math.max(0, Number(this.formSessions()) || 0);
     const status = this.formStatus();
     const bio = this.formBio().trim();
 
@@ -336,7 +344,7 @@ export class ShowInstructorsComponent implements OnInit {
     if (hasError) {
       this.formError.set(
         this.emailError() || this.phoneError() || this.nameError() ||
-        (this.isArabic() ? 'يرجى تصحيح الأخطاء الموضحة في الحقول أدناه' : 'Please correct the highlighted form errors')
+        (this.t().detPleaseCorrectTheHighlightedForm)
       );
       return;
     }
@@ -354,21 +362,20 @@ export class ShowInstructorsComponent implements OnInit {
         specialtyEn: specialty,
         affiliation,
         affiliationEn: affiliation,
-        totalSessions: sessions || 0,
         status: status || 'active',
         bio
       }).subscribe({
         next: () => {
           this.isSaving.set(false);
           this.notificationService.success(
-            this.isArabic() ? 'تمت إضافة المحاضر بنجاح' : 'Instructor added successfully'
+            this.t().detInstructorAddedSuccessfully
           );
           this.loadInstructors();
           this.closeModal();
         },
         error: (err) => {
           this.isSaving.set(false);
-          const msg = err?.error?.message || err?.message || (this.isArabic() ? 'فشل حفظ بيانات المحاضر' : 'Failed to save instructor');
+          const msg = err?.error?.message || err?.message || (this.t().detFailedToSaveInstructor);
           this.formError.set(msg);
           this.notificationService.error(msg);
         }
@@ -386,21 +393,20 @@ export class ShowInstructorsComponent implements OnInit {
         specialtyEn: specialty,
         affiliation,
         affiliationEn: affiliation,
-        totalSessions: sessions,
         status,
         bio
       }).subscribe({
         next: () => {
           this.isSaving.set(false);
           this.notificationService.success(
-            this.isArabic() ? 'تم تحديث بيانات المحاضر بنجاح' : 'Instructor updated successfully'
+            this.t().detInstructorUpdatedSuccessfully
           );
           this.loadInstructors();
           this.closeModal();
         },
         error: (err) => {
           this.isSaving.set(false);
-          const msg = err?.error?.message || err?.message || (this.isArabic() ? 'فشل تحديث بيانات المحاضر' : 'Failed to update instructor');
+          const msg = err?.error?.message || err?.message || (this.t().detFailedToUpdateInstructor);
           this.formError.set(msg);
           this.notificationService.error(msg);
         }
@@ -441,8 +447,8 @@ export class ShowInstructorsComponent implements OnInit {
 
   getModalTitle(): string {
     if (this.modalMode() === 'add') {
-      return this.isArabic() ? 'إضافة محاضر / مدرب جديد' : 'Add New Instructor';
+      return this.t().detAddNewInstructor;
     }
-    return this.isArabic() ? 'تعديل بيانات المحاضر' : 'Edit Instructor Details';
+    return this.t().detEditInstructorDetails;
   }
 }

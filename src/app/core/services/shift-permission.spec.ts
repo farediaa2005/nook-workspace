@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { ShiftService } from './shift.service';
+import { LanguageService } from './language.service';
 import { AuthService } from './auth.service';
 import { ShiftRecord } from '../models/shift.model';
 import { provideHttpClient } from '@angular/common/http';
@@ -14,7 +15,7 @@ describe('Shift Editing & Checkout Permissions (Requirement 5)', () => {
     getUser: ReturnType<typeof vi.fn>;
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     authServiceMock = {
       isAuthenticated: vi.fn().mockReturnValue(true),
       isAdmin: vi.fn(),
@@ -29,6 +30,9 @@ describe('Shift Editing & Checkout Permissions (Requirement 5)', () => {
         provideHttpClient()
       ]
     });
+    const lang = TestBed.inject(LanguageService);
+    await lang.preloadAll();
+    lang.setLanguage('ar'); // messages below are checked in Arabic
     shiftService = TestBed.inject(ShiftService);
   });
 
@@ -109,7 +113,7 @@ describe('Shift Editing & Checkout Permissions (Requirement 5)', () => {
     // Also verify updateShiftTime rejects with error
     let thrown = false;
     shiftService.updateShiftTime('shift-closed-1', '08:30 AM').subscribe({
-      next: () => {},
+      next: () => { /* stub */ },
       error: (err) => {
         thrown = true;
         expect(err.message).toContain('غير مصرح');

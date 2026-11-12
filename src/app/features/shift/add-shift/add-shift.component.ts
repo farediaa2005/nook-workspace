@@ -1,4 +1,5 @@
 import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { localizeMeridiem } from '../../../core/utils/date-time.util';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -6,11 +7,14 @@ import { ShiftService } from '../../../core/services/shift.service';
 import { LanguageService } from '../../../core/services/language.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { PrimaryButtonComponent } from '../../../shared/components/primary-button/primary-button.component';
+import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 
+import { AutofocusDirective } from '../../../shared/directives/autofocus.directive';
 @Component({
   selector: 'app-add-shift',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [AutofocusDirective, PageHeaderComponent, CommonModule, FormsModule, RouterLink, PrimaryButtonComponent],
   templateUrl: './add-shift.component.html',
   styleUrl: './add-shift.component.css'
 })
@@ -32,7 +36,8 @@ export class AddShiftComponent implements OnInit {
   // Status of current shift
   hasActiveShift = this.shiftService.hasActiveShift;
   currentActiveStaff = this.shiftService.activeStaffName;
-  currentShiftStartTime = this.shiftService.shiftStartTime;
+  /** start time in the UI language (the stored value keeps ص/م) */
+  currentShiftStartTime = computed(() => localizeMeridiem(this.shiftService.shiftStartTime(), this.isArabic()));
 
   // Logged-in staff
   currentUser = computed(() => this.authService.getUser());
@@ -94,16 +99,14 @@ export class AddShiftComponent implements OnInit {
         this.isSubmitting.set(false);
         if (success) {
           this.notification.success(
-            this.isArabic() ? 'تم فتح الشفت بنجاح' : 'Shift opened successfully'
+            this.t().shiftShiftOpenedSuccessfully
           );
           this.router.navigate(['/shift/active']);
         } else {
           if (errorMsg && (errorMsg.includes('وردية نشطة') || errorMsg.includes('already') || errorMsg.includes('active'))) {
             this.shiftService.fetchCurrentShiftFromApi();
             this.notification.info(
-              this.isArabic()
-                ? 'توجد بالفعل وردية نشطة مفتوحة في النظام، جاري تحويلك إليها...'
-                : 'An active shift is already open, redirecting...'
+              this.t().shiftAnActiveShiftIsAlready
             );
             setTimeout(() => {
               this.router.navigate(['/shift/active']);
@@ -112,7 +115,7 @@ export class AddShiftComponent implements OnInit {
           }
 
           this.notification.error(
-            errorMsg || (this.isArabic() ? 'فشل فتح الشفت' : 'Failed to start shift')
+            errorMsg || (this.t().shiftFailedToStartShift)
           );
         }
       }

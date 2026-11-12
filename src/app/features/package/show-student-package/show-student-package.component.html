@@ -1,25 +1,8 @@
 <div class="page-container">
-  <!-- Toast Notification Alert (if present) -->
-  @if (packageService.toast(); as toast) {
-    <div
-      class="toast-notification"
-      [class.toast-notification--success]="toast.type === 'success'"
-      [class.toast-notification--info]="toast.type === 'info'"
-      [class.toast-notification--error]="toast.type === 'error'"
-    >
-      <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-        <polyline points="22 4 12 14.01 9 11.01"/>
-      </svg>
-      <span>{{ toast.message }}</span>
-    </div>
-  }
-
-  <!-- Page Header -->
+    <!-- Page Header -->
   <div class="show-head">
     <div class="head-title-wrap">
-      <h1 class="page-title">{{ t().studentPackagesTitle }}</h1>
-      <p class="page-subtitle">{{ t().studentPackagesSubtitle }}</p>
+      <app-page-header [spaced]="false" [title]="t().studentPackagesTitle" [subtitle]="t().studentPackagesSubtitle"></app-page-header>
     </div>
 
     <!-- Top Right Controls -->
@@ -41,7 +24,7 @@
 
       <!-- Status Dropdown Filter -->
       <div class="date-filter-wrapper">
-        <div class="date-filter-dropdown" (click)="toggleStatusDropdown()">
+        <div class="date-filter-dropdown" (click)="toggleStatusDropdown()" role="button" tabindex="0" (keydown.enter)="toggleStatusDropdown()">
           <svg class="date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
           </svg>
@@ -52,7 +35,7 @@
         </div>
 
         @if (isStatusDropdownOpen()) {
-          <div class="menu-backdrop" (click)="closeStatusDropdown()"></div>
+          <div class="menu-backdrop" (click)="closeStatusDropdown()" role="presentation"></div>
           <div class="date-menu-card">
             <button type="button" class="date-menu-item" [class.date-menu-item--active]="selectedStatus() === 'all'" (click)="setStatus('all')">
               {{ t().allPackages }}
@@ -105,7 +88,7 @@
     <!-- Card 2: Total Hours Balance -->
     <div class="metric-card metric-card--green">
       <div class="metric-head">
-        <div class="metric-value">{{ packageService.studentRemainingHours() }}<small style="font-size: 0.95rem; font-weight: 600; margin-inline-start: 4px;">{{ t().hrs }}</small></div>
+        <div class="metric-value">{{ packageService.studentRemainingHours() }}<small style="font-size: var(--fs-md); font-weight: 600; margin-inline-start: 4px;">{{ t().hrs }}</small></div>
         <div class="metric-icon-box icon-box--green kpi-icon-badge">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/>
@@ -134,7 +117,7 @@
     <!-- Card 4: Total Revenue -->
     <div class="metric-card metric-card--blue">
       <div class="metric-head">
-        <div class="metric-value">{{ packageService.studentRevenue() }}<small style="font-size: 0.95rem; font-weight: 600; margin-inline-start: 4px;">{{ t().egp }}</small></div>
+        <div class="metric-value">{{ packageService.studentRevenue() }}<small style="font-size: var(--fs-md); font-weight: 600; margin-inline-start: 4px;">{{ t().egp }}</small></div>
         <div class="metric-icon-box icon-box--blue kpi-icon-badge">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="2" y="6" width="20" height="12" rx="2"/>
@@ -151,7 +134,7 @@
   <div class="table-container-card">
     <!-- Table Responsive Wrap -->
     <div class="table-responsive">
-      <table class="students-table">
+      <table class="students-table sticky-actions">
         <thead>
           <tr>
             <th class="th-student">{{ t().studentOrMembers }}</th>
@@ -168,9 +151,9 @@
           @if (packageService.isLoading()) {
             <tr>
               <td colspan="8" class="cell-empty" style="padding: 40px 0;">
-                <div style="display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--text-muted, #94a3b8);">
-                  <div class="spinner" style="width: 20px; height: 20px; border: 2px solid rgba(234,179,8,0.2); border-top-color: #eab308; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
-                  <span>{{ isArabic() ? 'جاري تحميل الباقات من السيرفر...' : 'Loading packages from server...' }}</span>
+                <div style="display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--text-muted, var(--slate-400));">
+                  <div class="spinner" style="width: 20px; height: 20px; border: 2px solid rgba(234,179,8,0.2); border-top-color: var(--yellow-500); border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+                  <span>{{ t().pkgLoadingPackagesFromServer }}</span>
                 </div>
               </td>
             </tr>
@@ -236,25 +219,13 @@
                 <!-- Status Badge -->
                 <td class="cell-center">
                   @if (pkg.status === 'active') {
-                    <span class="badge-status badge-status--active nowrap-text">
-                      <span class="status-dot"></span>
-                      <span>{{ t().statusActivePass }}</span>
-                    </span>
+                    <app-status-badge tone="success" [text]="t().statusActivePass"></app-status-badge>
                   } @else if (pkg.status === 'near_expiry') {
-                    <span class="badge-status badge-status--near-expiry nowrap-text">
-                      <span class="status-dot"></span>
-                      <span>{{ t().statusNearExpiryPass }}</span>
-                    </span>
+                    <app-status-badge tone="warning" [text]="t().statusNearExpiryPass"></app-status-badge>
                   } @else if (pkg.status === 'exhausted') {
-                    <span class="badge-status badge-status--exhausted nowrap-text">
-                      <span class="status-dot"></span>
-                      <span>{{ t().statusExhaustedPass }}</span>
-                    </span>
+                    <app-status-badge tone="neutral" [text]="t().statusExhaustedPass"></app-status-badge>
                   } @else {
-                    <span class="badge-status badge-status--expired nowrap-text">
-                      <span class="status-dot"></span>
-                      <span>{{ t().statusExpiredPass }}</span>
-                    </span>
+                    <app-status-badge tone="danger" [text]="t().statusExpiredPass"></app-status-badge>
                   }
                 </td>
 
@@ -279,7 +250,7 @@
                     <button
                       type="button"
                       class="btn-checkout"
-                      style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.25);"
+                      style="background: rgba(59, 130, 246, 0.1); color: var(--info); border: 1px solid rgba(59, 130, 246, 0.25);"
                       (click)="openEditModal(pkg)"
                       [title]="t().edit"
                     >
@@ -367,8 +338,8 @@
   <!-- 1. SELL STUDENT PACKAGE MODAL                                             -->
   <!-- ========================================================================= -->
   @if (isSellModalOpen()) {
-    <div class="modal-overlay nook-sell-modal-overlay" (click)="closeSellModal()">
-      <div class="modal-card modal-card--2col nook-2col-active" (click)="$event.stopPropagation()">
+    <div class="modal-overlay nook-sell-modal-overlay" (click)="closeSellModal()" role="presentation">
+      <div class="modal-card modal-card--2col nook-2col-active" (click)="$event.stopPropagation()" role="presentation">
         <!-- Modal Head -->
         <div class="modal-head">
           <div class="modal-head-info">
@@ -396,14 +367,14 @@
                 </div>
 
                 <div class="field-wrap">
-                  <label class="field-label">{{ t().searchMemberLabel }} *</label>
+                  <label for="show-student-package-f17" class="field-label">{{ t().searchMemberLabel }} *</label>
                   <div class="member-autocomplete-wrap">
                     <div class="input-container">
                       <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="11" cy="11" r="8"/>
                         <line x1="21" y1="21" x2="16.65" y2="16.65"/>
                       </svg>
-                      <input
+                      <input id="show-student-package-f17"
                         type="text"
                         class="custom-input"
                         [placeholder]="t().searchMemberInputPlaceholder"
@@ -415,10 +386,10 @@
                     </div>
 
                     <!-- Autocomplete Results Dropdown -->
-                    @if (isMemberDropdownOpen() && studentMemberOptions().length > 0) {
+                    @if (isMemberDropdownOpen() && memberOptions().length > 0) {
                       <div class="autocomplete-dropdown-card">
-                        @for (member of studentMemberOptions(); track member.id) {
-                          <div class="autocomplete-item" (click)="addMember(member)">
+                        @for (member of memberOptions(); track member.id) {
+                          <div class="autocomplete-item" (click)="addMember(member)" role="button" tabindex="0" (keydown.enter)="addMember(member)">
                             <div class="ac-item-left">
                               <div class="member-avatar-box">
                                 {{ (isArabic() ? member.nameAr : member.nameEn).charAt(0) }}
@@ -470,7 +441,7 @@
                     <div
                       class="validity-select-card"
                       [class.validity-select-card--active]="validityOption() === preset.days"
-                      (click)="selectValidityOption(preset)"
+                      (click)="selectValidityOption(preset)" role="button" tabindex="0" (keydown.enter)="selectValidityOption(preset)"
                     >
                       <span class="val-card-title">{{ isArabic() ? preset.labelAr : preset.labelEn }}</span>
                     </div>
@@ -480,9 +451,9 @@
                 <!-- Start Date & Expiry Date Inputs -->
                 <div class="row-grid-2">
                   <div class="field-wrap">
-                    <label class="field-label">{{ t().packageStartDate }}</label>
+                    <label for="show-student-package-f16" class="field-label">{{ t().packageStartDate }}</label>
                     <div class="input-container">
-                      <input
+                      <input id="show-student-package-f16"
                         type="date"
                         class="custom-input"
                         [min]="todayDate()"
@@ -495,11 +466,11 @@
 
                   <div class="field-wrap">
                     <div class="label-with-calc">
-                      <label class="field-label">{{ t().packageExpiryDate }}</label>
+                      <label for="show-student-package-f15" class="field-label">{{ t().packageExpiryDate }}</label>
                       <span class="calc-days-tag">{{ sellValidityDays() }} {{ t().packageValidityDays }}</span>
                     </div>
                     <div class="input-container">
-                      <input
+                      <input id="show-student-package-f15"
                         type="date"
                         class="custom-input"
                         [min]="todayDate()"
@@ -513,8 +484,8 @@
 
                 <!-- Notes Textarea -->
                 <div class="field-wrap notes-field-wrap">
-                  <label class="field-label">{{ t().notes }}</label>
-                  <textarea
+                  <label for="show-student-package-f14" class="field-label">{{ t().notes }}</label>
+                  <textarea id="show-student-package-f14"
                     class="custom-textarea custom-textarea--expand"
                     rows="3"
                     [placeholder]="t().packageNotesPlaceholder"
@@ -543,7 +514,7 @@
                     <div
                       class="package-select-card"
                       [class.package-select-card--active]="selectedPackageId() === pkg.id"
-                      (click)="selectPackage(pkg)"
+                      (click)="selectPackage(pkg)" role="button" tabindex="0" (keydown.enter)="selectPackage(pkg)"
                     >
                       <div class="pkg-card-top">
                         <span class="pkg-tier-tag">{{ isArabic() ? pkg.badgeAr : pkg.badgeEn }}</span>
@@ -572,9 +543,9 @@
                   <div class="custom-pkg-config-box">
                     <div class="row-grid-2">
                       <div class="field-wrap">
-                        <label class="field-label">{{ t().customPackageHours }}</label>
+                        <label for="show-student-package-f13" class="field-label">{{ t().customPackageHours }}</label>
                         <div class="input-container">
-                          <input
+                          <input id="show-student-package-f13"
                             type="number"
                             min="1"
                             class="custom-input"
@@ -585,9 +556,9 @@
                         </div>
                       </div>
                       <div class="field-wrap">
-                        <label class="field-label">{{ t().customPackageRate }}</label>
+                        <label for="show-student-package-f12" class="field-label">{{ t().customPackageRate }}</label>
                         <div class="input-container">
-                          <input
+                          <input id="show-student-package-f12"
                             type="number"
                             min="1"
                             class="custom-input"
@@ -680,13 +651,13 @@
 
                 <!-- 2x2 Payment Method Cards Grid -->
                 <div class="payment-method-section">
-                  <label class="field-label">{{ t().paymentMethodLabel }}</label>
+                  <span class="field-label group-label">{{ t().paymentMethodLabel }}</span>
                   <div class="payment-methods-grid">
                     <!-- Cash -->
                     <div
                       class="payment-option-card"
                       [class.payment-option-card--active]="sellPaymentMethod() === 'cash'"
-                      (click)="sellPaymentMethod.set('cash')"
+                      (click)="sellPaymentMethod.set('cash')" role="button" tabindex="0" (keydown.enter)="sellPaymentMethod.set('cash')"
                     >
                       <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="2" y="6" width="20" height="12" rx="2"></rect>
@@ -700,7 +671,7 @@
                     <div
                       class="payment-option-card"
                       [class.payment-option-card--active]="sellPaymentMethod() === 'vodafone'"
-                      (click)="sellPaymentMethod.set('vodafone')"
+                      (click)="sellPaymentMethod.set('vodafone')" role="button" tabindex="0" (keydown.enter)="sellPaymentMethod.set('vodafone')"
                     >
                       <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
@@ -713,7 +684,7 @@
                     <div
                       class="payment-option-card"
                       [class.payment-option-card--active]="sellPaymentMethod() === 'instapay'"
-                      (click)="sellPaymentMethod.set('instapay')"
+                      (click)="sellPaymentMethod.set('instapay')" role="button" tabindex="0" (keydown.enter)="sellPaymentMethod.set('instapay')"
                     >
                       <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
@@ -725,7 +696,7 @@
                     <div
                       class="payment-option-card"
                       [class.payment-option-card--active]="sellPaymentMethod() === 'fawry'"
-                      (click)="sellPaymentMethod.set('fawry')"
+                      (click)="sellPaymentMethod.set('fawry')" role="button" tabindex="0" (keydown.enter)="sellPaymentMethod.set('fawry')"
                     >
                       <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
@@ -740,9 +711,9 @@
                   @if (sellPaymentMethod() === 'cash') {
                     <div class="cash-calc-block">
                       <div class="field-wrap">
-                        <label class="field-label">{{ t().amountReceivedLabel }}</label>
+                        <label for="show-student-package-f11" class="field-label">{{ t().amountReceivedLabel }}</label>
                         <div class="input-container">
-                          <input
+                          <input id="show-student-package-f11"
                             type="number"
                             step="0.5"
                             class="custom-input"
@@ -758,8 +729,8 @@
                           <span>⚠️ {{ t().cashShortAlert }}</span>
                         </div>
                       } @else if (amountReceived() === null || amountReceived() === undefined || amountReceived()! <= 0) {
-                        <div class="cash-short-alert" style="background: rgba(234, 179, 8, 0.1); border-color: rgba(234, 179, 8, 0.3); color: #eab308;">
-                          <span>⚠️ {{ isArabic() ? 'يجب إدخال المبلغ المستلم لتفعيل تأكيد الدفع' : 'Amount received is required to confirm payment' }}</span>
+                        <div class="cash-short-alert" style="background: rgba(234, 179, 8, 0.1); border-color: rgba(234, 179, 8, 0.3); color: var(--yellow-500);">
+                          <span>⚠️ {{ t().pkgAmountReceivedIsRequiredTo }}</span>
                         </div>
                       }
 
@@ -773,6 +744,9 @@
 
                 <!-- Action Buttons -->
                 <div class="modal-card-actions">
+                  @if (sellMissing().length > 0) {
+                    <span class="form-missing-hint" role="status">{{ (t().wsMissing) + sellMissing().join(t().listSeparator) }}</span>
+                  }
                   <button type="button" class="btn-modal-cancel" (click)="closeSellModal()">
                     {{ t().cancel }}
                   </button>
@@ -795,8 +769,8 @@
   <!-- 2. DETAILS & CONSUMPTION DRAWER                                           -->
   <!-- ========================================================================= -->
   @if (selectedPackageForDrawer(); as pkg) {
-    <div class="drawer-backdrop show" (click)="closeDrawer()"></div>
-    <aside class="consumption-drawer show" (click)="$event.stopPropagation()">
+    <div class="drawer-backdrop show" (click)="closeDrawer()" role="presentation"></div>
+    <aside class="consumption-drawer show" (click)="$event.stopPropagation()" role="presentation">
       <!-- Drawer Header -->
       <div class="drawer-head">
         <div class="drawer-title-wrap">
@@ -818,7 +792,7 @@
             <div class="drawer-members-list">
               @for (m of pkg.members; track m.id) {
                 <div class="drawer-member-row">
-                  <div class="member-avatar-box" style="width: 28px; height: 28px; font-size: 0.78rem;">
+                  <div class="member-avatar-box" style="width: 28px; height: 28px; font-size: var(--fs-sm);">
                     {{ (isArabic() ? m.nameAr : m.nameEn).charAt(0) }}
                   </div>
                   <div class="d-mem-meta">
@@ -905,9 +879,9 @@
           </div>
 
           <div class="drawer-field-group">
-            <label class="drawer-field-label">{{ t().expiryDate }}</label>
+            <label for="show-student-package-f10" class="drawer-field-label">{{ t().expiryDate }}</label>
             <div class="input-container">
-              <input
+              <input id="show-student-package-f10"
                 type="date"
                 class="custom-input drawer-input"
                 [min]="todayDate()"
@@ -919,8 +893,8 @@
           </div>
 
           <div class="drawer-field-group" style="margin-top: 10px;">
-            <label class="drawer-field-label">{{ t().notes }}</label>
-            <textarea
+            <label for="show-student-package-f9" class="drawer-field-label">{{ t().notes }}</label>
+            <textarea id="show-student-package-f9"
               class="custom-textarea drawer-textarea"
               rows="3"
               [placeholder]="t().packageNotesPlaceholder"
@@ -931,9 +905,7 @@
           </div>
 
           @if (!isDrawerFormLocked()) {
-            <button type="button" class="btn-save-drawer" (click)="saveDrawerModifications()">
-              {{ t().savePackageModifications }}
-            </button>
+            <app-primary-button [text]="t().savePackageModifications" (clicked)="saveDrawerModifications()"></app-primary-button>
           }
         </div>
 
@@ -973,7 +945,7 @@
                   </div>
                   <div class="hist-meta">
                     <strong class="hist-title">{{ isArabic() ? item.sessionAr : item.sessionEn }}</strong>
-                    <span class="hist-sub">{{ item.date }} • {{ item.roomOrDesk || 'Workspace Desk' }}</span>
+                    <span class="hist-sub">{{ item.date }} • {{ item.roomOrDesk || t().fbWorkspaceDesk }}</span>
                   </div>
                 </div>
 
@@ -1011,8 +983,8 @@
   <!-- 3. SUB-MODAL: DEDUCT HOURS & RECORD SESSION                                -->
   <!-- ========================================================================= -->
   @if (isRecordUsageModalOpen()) {
-    <div class="modal-overlay modal-overlay--nested" (click)="closeRecordUsageModal()">
-      <div class="modal-card modal-card--sm" (click)="$event.stopPropagation()">
+    <div class="modal-overlay modal-overlay--nested" (click)="closeRecordUsageModal()" role="presentation">
+      <div class="modal-card modal-card--sm" (click)="$event.stopPropagation()" role="presentation">
         <div class="modal-head">
           <div class="modal-head-info">
             <h3 class="modal-title">{{ t().deductSessionTitle }}</h3>
@@ -1023,8 +995,8 @@
 
         <form (submit)="confirmRecordUsage(); $event.preventDefault()" class="modal-form-body">
           <div class="modal-field-group">
-            <label class="modal-label">{{ t().sessionTitleLabel }} *</label>
-            <input
+            <label for="show-student-package-f8" class="modal-label">{{ t().sessionTitleLabel }} *</label>
+            <input id="show-student-package-f8"
               type="text"
               class="modal-input"
               [value]="usageSessionTitle()"
@@ -1035,8 +1007,8 @@
 
           <div class="modal-grid-2" style="margin-top: 12px;">
             <div class="modal-field-group">
-              <label class="modal-label">{{ t().hoursToDeductLabel }} *</label>
-              <input
+              <label for="show-student-package-f7" class="modal-label">{{ t().hoursToDeductLabel }} *</label>
+              <input id="show-student-package-f7"
                 type="number"
                 min="0.5"
                 step="0.5"
@@ -1048,8 +1020,8 @@
             </div>
 
             <div class="modal-field-group">
-              <label class="modal-label">{{ t().deskLocationLabel }}</label>
-              <input
+              <label for="show-student-package-f6" class="modal-label">{{ t().deskLocationLabel }}</label>
+              <input id="show-student-package-f6"
                 type="text"
                 class="modal-input"
                 [value]="usageLocation()"
@@ -1071,33 +1043,21 @@
   <!-- 4. DELETE CONFIRMATION MODAL                                              -->
   <!-- ========================================================================= -->
   @if (packageToDelete(); as delPkg) {
-    <div class="modal-overlay modal-overlay--nested" (click)="closeDeleteModal()">
-      <div class="modal-card modal-card--delete" (click)="$event.stopPropagation()">
-        <div class="modal-delete-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" style="width: 32px; height: 32px;">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="15" y1="9" x2="9" y2="15"/>
-            <line x1="9" y1="9" x2="15" y2="15"/>
-          </svg>
-        </div>
-
-        <h3 class="modal-title" style="margin-top: 12px;">{{ t().confirmDeleteStudentPackageTitle }}</h3>
-        <p class="modal-subtitle" style="margin-top: 6px;">
-          {{ isArabic() ? 'هل أنت متأكد من رغبتك في حذف باقة ' + ((delPkg.memberNameAr && delPkg.memberNameAr !== '-') ? ('الطالب "' + delPkg.memberNameAr + '"') : ('"' + (delPkg.packageNameAr || delPkg.packageNameEn || 'الباقة') + '"')) + ' نهائياً؟' : 'Are you sure you want to permanently delete package for ' + ((delPkg.memberNameEn && delPkg.memberNameEn !== '-') ? ('"' + delPkg.memberNameEn + '"') : ('"' + (delPkg.packageNameEn || delPkg.packageNameAr || 'this package') + '"')) + '?' }}
-        </p>
-
-        <div class="modal-actions-footer" style="margin-top: 24px; justify-content: center; gap: 12px;">
-          <button type="button" class="modal-btn-cancel" (click)="closeDeleteModal()">{{ t().cancel }}</button>
-          <button type="button" class="modal-btn-delete" (click)="confirmDelete()">{{ t().yesDeletePackage }}</button>
-        </div>
-      </div>
-    </div>
+    <app-confirm-dialog
+      [isOpen]="true"
+      [title]="t().confirmDeleteStudentPackageTitle"
+      [message]="deleteMessage(delPkg)"
+      [cancelLabel]="t().cancel"
+      [confirmLabel]="t().yesDeletePackage"
+      (confirm)="confirmDelete()"
+      (cancelled)="closeDeleteModal()"
+    ></app-confirm-dialog>
   }
 
   <!-- Modal: Edit Package Modal (Item 29) -->
   @if (isEditModalOpen() && editingPackage()) {
-  <div class="modal-overlay" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 16px;" (click)="closeEditModal()">
-    <div class="modal-dialog-box" style="background: var(--surface); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 480px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.3);" (click)="$event.stopPropagation()">
+  <div class="modal-overlay" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; z-index: 9999; padding: 16px;" (click)="closeEditModal()" role="presentation">
+    <div class="modal-dialog-box" style="margin: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 480px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.3);" (click)="$event.stopPropagation()" role="presentation">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
         <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--text);">
           {{ t().editPackageTitle }}
@@ -1107,29 +1067,29 @@
 
       <div style="display: flex; flex-direction: column; gap: 14px;">
         <div>
-          <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-dim); margin-bottom: 6px;">{{ t().packageName }}</label>
-          <input type="text" [ngModel]="editPackageName()" (ngModelChange)="editPackageName.set($event)" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);" />
+          <label for="show-student-package-f5" style="display: block; font-size: var(--fs-ui); font-weight: 600; color: var(--text-dim); margin-bottom: 6px;">{{ t().packageName }}</label>
+          <input id="show-student-package-f5" type="text" [ngModel]="editPackageName()" (ngModelChange)="editPackageName.set($event)" style="width: 100%; padding: 10px 12px; border-radius: var(--radius-xs); border: 1px solid var(--border); background: var(--surface-2); color: var(--text);" />
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
           <div>
-            <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-dim); margin-bottom: 6px;">{{ t().totalHoursLabel }}</label>
-            <input type="number" min="1" [ngModel]="editAllocatedHours()" (ngModelChange)="editAllocatedHours.set(+$event)" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);" />
+            <label for="show-student-package-f4" style="display: block; font-size: var(--fs-ui); font-weight: 600; color: var(--text-dim); margin-bottom: 6px;">{{ t().totalHoursLabel }}</label>
+            <input id="show-student-package-f4" type="number" min="1" [ngModel]="editAllocatedHours()" (ngModelChange)="editAllocatedHours.set(+$event)" style="width: 100%; padding: 10px 12px; border-radius: var(--radius-xs); border: 1px solid var(--border); background: var(--surface-2); color: var(--text);" />
           </div>
           <div>
-            <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-dim); margin-bottom: 6px;">{{ t().totalCostLabel }}</label>
-            <input type="number" min="0" [ngModel]="editCost()" (ngModelChange)="editCost.set(+$event)" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);" />
+            <label for="show-student-package-f3" style="display: block; font-size: var(--fs-ui); font-weight: 600; color: var(--text-dim); margin-bottom: 6px;">{{ t().totalCostLabel }}</label>
+            <input id="show-student-package-f3" type="number" min="0" [ngModel]="editCost()" (ngModelChange)="editCost.set(+$event)" style="width: 100%; padding: 10px 12px; border-radius: var(--radius-xs); border: 1px solid var(--border); background: var(--surface-2); color: var(--text);" />
           </div>
         </div>
 
         <div>
-          <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-dim); margin-bottom: 6px;">{{ t().expiryDateLabel }}</label>
-          <input type="date" [ngModel]="editExpiryDate()" (ngModelChange)="editExpiryDate.set($event)" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);" />
+          <label for="show-student-package-f2" style="display: block; font-size: var(--fs-ui); font-weight: 600; color: var(--text-dim); margin-bottom: 6px;">{{ t().expiryDateLabel }}</label>
+          <input id="show-student-package-f2" type="date" [ngModel]="editExpiryDate()" (ngModelChange)="editExpiryDate.set($event)" style="width: 100%; padding: 10px 12px; border-radius: var(--radius-xs); border: 1px solid var(--border); background: var(--surface-2); color: var(--text);" />
         </div>
 
         <div>
-          <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-dim); margin-bottom: 6px;">{{ t().notesLabel }}</label>
-          <input type="text" [ngModel]="editNotes()" (ngModelChange)="editNotes.set($event)" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);" />
+          <label for="show-student-package-f1" style="display: block; font-size: var(--fs-ui); font-weight: 600; color: var(--text-dim); margin-bottom: 6px;">{{ t().notesLabel }}</label>
+          <input id="show-student-package-f1" type="text" [ngModel]="editNotes()" (ngModelChange)="editNotes.set($event)" style="width: 100%; padding: 10px 12px; border-radius: var(--radius-xs); border: 1px solid var(--border); background: var(--surface-2); color: var(--text);" />
         </div>
       </div>
 

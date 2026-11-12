@@ -1,52 +1,36 @@
-import { Injectable, signal, computed, inject } from '@angular/core';
-import { Observable, of, forkJoin, catchError, finalize } from 'rxjs';
-import {
-  PackageItem,
-  PackageMemberOption,
-  PackageStatus,
-  PaymentMethod,
-  CreatePackageDto,
-  UpdatePackageDto,
-  UsageHistory,
-  ValidityPresetOption,
-  PresetPackageOption
-} from '../models/package.model';
+import { LanguageService } from './language.service';
+import { Injectable, signal, computed, inject, Injector } from '@angular/core';
+import { Observable, of, forkJoin, catchError, finalize, map, tap } from 'rxjs';
+import { PackageItem, PackageMemberOption, PackageStatus, PaymentMethod, CreatePackageDto, UpdatePackageDto, UsageHistory, PresetPackageOption } from '../models/package.model';
 import { WorkspacePackageApiService } from './api/workspace-package-api.service';
 import { ClassroomPackageApiService } from './api/classroom-package-api.service';
 import { StudentApiService } from './api/student-api.service';
 import { InstructorApiService } from './api/instructor-api.service';
 import { ShiftService } from './shift.service';
 import { AuthService } from './auth.service';
+import { NotificationService } from './notification.service';
+import { extractApiErrorMessage } from '../utils/api-error.util';
+import { PayWay, payWayFor } from '../constants/backend-enums';
 import { parseIsoToLocalDate, getTodayDateISO } from '../utils/date-time.util';
 
-export interface ToastNotification {
+interface ToastNotification {
   id: string;
   message: string;
   type: 'success' | 'info' | 'error';
 }
 
 function paymentMethodToPayWay(method: PaymentMethod | string | undefined): number {
-  switch (method) {
-    case 'vodafone':
-      return 2;
-    case 'fawry':
-      return 3;
-    case 'instapay':
-      return 4;
-    case 'cash':
-    default:
-      return 1;
-  }
+  return payWayFor(method);
 }
 
 function payWayToPaymentMethod(payWay: number | undefined): PaymentMethod {
   switch (payWay) {
     case 2:
       return 'vodafone';
-    case 3:
-      return 'fawry';
-    case 4:
+    case PayWay.InstaPay:
       return 'instapay';
+    case PayWay.Fawry:
+      return 'fawry';
     case 1:
     default:
       return 'cash';
@@ -57,6 +41,8 @@ function payWayToPaymentMethod(payWay: number | undefined): PaymentMethod {
   providedIn: 'root'
 })
 export class PackageService {
+  private langService = inject(LanguageService);
+  private injector = inject(Injector);
   private wpApi = inject(WorkspacePackageApiService);
   private cpApi = inject(ClassroomPackageApiService);
   private studentApi = inject(StudentApiService);
@@ -77,27 +63,6 @@ export class PackageService {
 
   // Toast Notification State
   readonly toast = signal<ToastNotification | null>(null);
-
-  // Dynamic Validity Presets (Req 6: Weekly = 7 days, 15 days, Monthly)
-  readonly studentValidityPresets = signal<ValidityPresetOption[]>([
-    { id: 'custom', days: 'custom', labelAr: 'مخصص', labelEn: 'Custom', tagAr: 'حر', tagEn: 'Manual' },
-    { id: 'val-7', days: 7, hours: 5, labelAr: 'أسبوعي (7 أيام)', labelEn: 'Weekly (7 Days)', tagAr: '7 أيام', tagEn: '7 Days' },
-    { id: 'val-15', days: 15, hours: 8, labelAr: '15 يوم', labelEn: '15 Days', tagAr: '15 يوم', tagEn: '15 Days' },
-    { id: 'val-30', days: 30, hours: 10, labelAr: 'شهري (30 يوم)', labelEn: 'Monthly (30 Days)', tagAr: '30 يوم', tagEn: '30 Days' },
-    { id: 'val-60', days: 60, hours: 20, labelAr: '60 يوم', labelEn: '60 Days', tagAr: '20 س', tagEn: '20 hrs' },
-    { id: 'val-90', days: 90, hours: 30, labelAr: '90 يوم', labelEn: '90 Days', tagAr: '30 س', tagEn: '30 hrs' },
-    { id: 'val-120', days: 120, hours: 50, labelAr: '120 يوم', labelEn: '120 Days', tagAr: '50 س', tagEn: '50 hrs' }
-  ]);
-
-  readonly instructorValidityPresets = signal<ValidityPresetOption[]>([
-    { id: 'custom', days: 'custom', labelAr: 'مخصص', labelEn: 'Custom', tagAr: 'حر', tagEn: 'Manual' },
-    { id: 'val-7', days: 7, hours: 5, labelAr: 'أسبوعي (7 أيام)', labelEn: 'Weekly (7 Days)', tagAr: '7 أيام', tagEn: '7 Days' },
-    { id: 'val-15', days: 15, hours: 8, labelAr: '15 يوم', labelEn: '15 Days', tagAr: '15 يوم', tagEn: '15 Days' },
-    { id: 'val-30', days: 30, hours: 10, labelAr: 'شهري (30 يوم)', labelEn: 'Monthly (30 Days)', tagAr: '30 يوم', tagEn: '30 Days' },
-    { id: 'val-60', days: 60, hours: 25, labelAr: '60 يوم', labelEn: '60 Days', tagAr: '25 س', tagEn: '25 hrs' },
-    { id: 'val-90', days: 90, hours: 50, labelAr: '90 يوم', labelEn: '90 Days', tagAr: '30 س', tagEn: '30 hrs' },
-    { id: 'val-180', days: 180, hours: 100, labelAr: '180 يوم', labelEn: '180 Days', tagAr: '100 س', tagEn: '100 hrs' }
-  ]);
 
   // Dynamic Package Presets
   readonly studentPackagePresets = signal<PresetPackageOption[]>([
@@ -184,7 +149,10 @@ export class PackageService {
   );
 
   readonly studentRemainingHours = computed(() =>
-    this.studentPackages().reduce((acc, p) => acc + (p.remainingHours || 0), 0)
+    // Hours left in expired packages can't be used, so they don't count as remaining.
+    this.studentPackages()
+      .filter(p => p.status === 'active' || p.status === 'near_expiry')
+      .reduce((acc, p) => acc + (p.remainingHours || 0), 0)
   );
 
   readonly studentExpiringSoonCount = computed(
@@ -201,7 +169,9 @@ export class PackageService {
   );
 
   readonly instructorRemainingHours = computed(() =>
-    this.instructorPackages().reduce((acc, p) => acc + (p.remainingHours || 0), 0)
+    this.instructorPackages()
+      .filter(p => p.status === 'active' || p.status === 'near_expiry')
+      .reduce((acc, p) => acc + (p.remainingHours || 0), 0)
   );
 
   readonly instructorExpiringSoonCount = computed(
@@ -364,25 +334,27 @@ export class PackageService {
                 this.packagesState.set(allMapped);
               }
             },
-            error: (err) => {
-              this.error.set('فشل في تحميل الباقات من السيرفر');
+            error: () => {
+              this.error.set(this.langService.t().pkgLoadFailed);
               this.isLoading.set(false);
             }
           });
       },
       error: () => {
         this.isLoading.set(false);
-        this.error.set('فشل في تحميل قائمة الأعضاء');
+        this.error.set(this.langService.t().pkgMembersLoadFailed);
       }
     });
   }
 
   /** Display Toast Message */
+  /** Shows a message in the app-wide toast container (visible on every page). */
   showToast(message: string, type: 'success' | 'info' | 'error' = 'success'): void {
-    this.toast.set({ id: Date.now().toString(), message, type });
-    setTimeout(() => {
-      this.toast.set(null);
-    }, 4000);
+    // Resolved lazily: NotificationService depends on this service.
+    const notifications = this.injector?.get(NotificationService, null);
+    if (notifications) {
+      notifications.show(message, type, type === 'error' ? 6000 : 4000);
+    }
   }
 
   /** Find Package By ID */
@@ -414,10 +386,10 @@ export class PackageService {
   addPackage(dto: CreatePackageDto): boolean {
     const activePkg = this.getActivePackageForMember(dto.memberId, dto.memberPhone, dto.type);
     if (activePkg) {
-      const memberName = dto.memberNameAr || dto.memberNameEn || 'العضو المحدد';
-      const typeLabel = dto.type === 'student' ? 'الطالب' : 'المحاضر';
+      const memberName = dto.memberNameAr || dto.memberNameEn || this.langService.t().pkgSelectedMember;
+      const typeLabel = dto.type === 'student' ? this.langService.t().pkgTypeStudent : this.langService.t().pkgTypeInstructor;
       this.showToast(
-        `خطأ: ${typeLabel} (${memberName}) لديه باقة نشطة بالفعل! لا يمكن إضافة أكثر من باقة نشطة في نفس الوقت.`,
+        this.langService.tf('pkgMemberHasActive', { type: typeLabel, name: memberName }),
         'error'
       );
       return false;
@@ -429,14 +401,20 @@ export class PackageService {
     const status = this.computePackageStatus(dto.expiryDate, remainingHours, dto.status);
     const payWay = paymentMethodToPayWay(dto.paymentMethod);
 
-    // Record shift transaction
-    const pkgPayMethod = (dto.paymentMethod === 'vodafone' ? 'vodafone' : (dto.paymentMethod === 'instapay' ? 'instapay' : (dto.paymentMethod === 'fawry' ? 'fawry' : 'cash')));
-    this.shiftService.recordTransaction({
-      type: 'package',
-      paymentMethod: pkgPayMethod,
-      amount: dto.cost || 0,
-      details: `شراء باقة - ${dto.packageNameAr || dto.packageNameEn || 'باقة'} (${dto.memberNameAr || dto.memberNameEn || ''})`
-    });
+    // The sale is added to the shift once the server accepted the package (see recordSaleOnShift)
+    const pkgPayMethod = (dto.paymentMethod === 'vodafone' ? 'vodafone' : (dto.paymentMethod === 'instapay' ? 'instapay' : (dto.paymentMethod === 'fawry' ? 'fawry' : 'cash'))) as 'cash' | 'vodafone' | 'instapay' | 'fawry';
+    const recordSaleOnShift = () => {
+      if (!(dto.cost > 0)) return;
+      this.shiftService.addManualShiftItem({
+        type: 'revenue',
+        category: 'package',
+        paymentMethod: pkgPayMethod,
+        amount: dto.cost,
+        description: `شراء باقة - ${dto.packageNameAr || dto.packageNameEn || 'باقة'} (${dto.memberNameAr || dto.memberNameEn || ''})`
+      }).subscribe({
+        error: (err) => this.showToast(this.langService.tf('pkgSoldShiftNotRecorded', { error: extractApiErrorMessage(err, this.langService.t().serverErrorFallback) }), 'error')
+      });
+    };
 
     if (dto.type === 'student') {
       const studentId = dto.memberId || Array.from(this.studentMap.keys())[0] || '';
@@ -467,10 +445,11 @@ export class PackageService {
             history: []
           };
           this.packagesState.update(list => [newItem, ...list]);
-          this.showToast('تم بيع واشتراك باقة الطالب بنجاح عبر السيرفر!', 'success');
+          recordSaleOnShift();
+          this.showToast(this.langService.t().pkgStudentSold, 'success');
         },
         error: () => {
-          this.showToast('حدث خطأ أثناء حفظ باقة الطالب في السيرفر', 'error');
+          this.showToast(this.langService.t().pkgStudentSaveFailed, 'error');
         }
       });
     } else {
@@ -502,10 +481,11 @@ export class PackageService {
             history: []
           };
           this.packagesState.update(list => [newItem, ...list]);
-          this.showToast('تم بيع واشتراك باقة المحاضر بنجاح عبر السيرفر!', 'success');
+          recordSaleOnShift();
+          this.showToast(this.langService.t().pkgInstructorSold, 'success');
         },
         error: () => {
-          this.showToast('حدث خطأ أثناء حفظ باقة المحاضر في السيرفر', 'error');
+          this.showToast(this.langService.t().pkgInstructorSaveFailed, 'error');
         }
       });
     }
@@ -602,18 +582,28 @@ export class PackageService {
             };
           })
         );
-        this.showToast('تم حفظ تعديلات الباقة في السيرفر بنجاح!', 'success');
+        this.showToast(this.langService.t().pkgChangesSaved, 'success');
       },
       error: () => {
-        this.showToast('حدث خطأ أثناء حفظ التعديلات في السيرفر', 'error');
+        this.showToast(this.langService.t().pkgChangesSaveFailed, 'error');
       }
     });
   }
 
   /** Record Session Usage (Deduct Hours) via API and immediate optimistic update */
-  recordSessionUsage(id: string, usage: Omit<UsageHistory, 'id'>): void {
+  recordSessionUsage(id: string, usage: Omit<UsageHistory, 'id'>, sessionOrBookingId?: string | null): void {
     const pkg = this.getPackageById(id);
     if (!pkg) return;
+
+    const remainingBefore = Math.max(0, Math.floor(pkg.remainingHours || 0));
+    if (remainingBefore <= 0) {
+      this.showToast(this.langService.t().pkgNoHoursLeft, 'error');
+      return;
+    }
+    if (usage.duration > remainingBefore) {
+      this.showToast(this.langService.tf('pkgPartialHours', { hours: remainingBefore }), 'info');
+      usage = { ...usage, duration: remainingBefore };
+    }
 
     const historyItem: UsageHistory = {
       ...usage,
@@ -638,29 +628,32 @@ export class PackageService {
       })
     );
 
+    const dto = { hours: usage.duration, note: usage.sessionAr || usage.sessionEn || null, sessionOrBookingId: /^[0-9a-fA-F-]{36}$/.test(sessionOrBookingId || '') ? sessionOrBookingId : null };
     const useHoursCall$: Observable<any> = pkg.type === 'student'
-      ? this.wpApi.useHours(id, { hours: usage.duration })
-      : this.cpApi.useHours(id, { hours: usage.duration });
+      ? this.wpApi.useHours(id, dto)
+      : this.cpApi.useHours(id, dto);
 
     useHoursCall$.subscribe({
       next: () => {
-        this.showToast(`تم تسجيل استهلاك ${usage.duration} ساعة بنجاح!`, 'success');
+        this.showToast(this.langService.tf('pkgUsageRecorded', { hours: usage.duration }), 'success');
+        // Replace the optimistic entry with the server's history (ids, dates, remaining hours).
+        this.loadUsageHistory(id).subscribe();
       },
       error: (err) => {
-        console.warn('[PackageService] useHours backend notice:', err?.message || err);
+        this.showToast(this.langService.tf('pkgUsageSyncFailed', { error: extractApiErrorMessage(err, this.langService.t().connectionErrorFallback) }), 'error');
       }
     });
   }
 
   /** Helper for workspace checkout hour deduction */
-  deductStudentPackageHours(phoneOrId: string, hours: number): void {
+  deductStudentPackageHours(phoneOrId: string, hours: number, sessionId?: string | null): void {
     if (!phoneOrId) return;
     const dur = hours > 0 ? hours : 1;
     const cleanQuery = phoneOrId.trim();
     const queryDigits = cleanQuery.replace(/\D/g, '');
 
     // Search active student packages with remaining hours
-    let pkg = this.packagesState().find(p => {
+    const pkg = this.packagesState().find(p => {
       if (p.type !== 'student') return false;
       if ((p.remainingHours || 0) <= 0) return false;
 
@@ -691,11 +684,50 @@ export class PackageService {
         duration: dur,
         sessionAr: 'خصم ساعات جلسة مساحة العمل',
         sessionEn: 'Workspace Session Check-Out Deduction',
-        roomOrDesk: 'Main Co-Working Zone'
-      });
+        roomOrDesk: this.langService.t().fbWorkspaceDesk
+      }, sessionId);
     } else {
-      this.showToast(`تم خصم ${dur} ساعة من باقة الطالب.`, 'info');
+      this.showToast(this.langService.t().pkgNoActiveHours, 'error');
     }
+  }
+
+  /**
+   * Hours already deducted for one session or booking, summed over the member's packages
+   * (from the server usage history, which links each deduction to its session/booking).
+   */
+  hoursDeductedFor(sessionOrBookingId: string, memberId: string | null | undefined, type: 'student' | 'instructor'): Observable<number> {
+    const ids = this.packagesState()
+      .filter(p => p.type === type && !!memberId && p.memberId === memberId)
+      .map(p => p.id);
+    if (!sessionOrBookingId || ids.length === 0) return of(0);
+    const api = type === 'instructor' ? this.cpApi : this.wpApi;
+    return forkJoin(ids.map(id => api.getUsageHistory(id).pipe(catchError(() => of([]))))).pipe(
+      map(lists => lists.flat()
+        .filter(h => h.sessionOrBookingId === sessionOrBookingId)
+        .reduce((sum, h) => sum + (Number(h.usedHours) || 0), 0))
+    );
+  }
+
+  /** Loads a package's usage history from the server and stores it on the package. */
+  loadUsageHistory(id: string): Observable<UsageHistory[]> {
+    const pkg = this.getPackageById(id);
+    const call$ = pkg?.type === 'instructor' ? this.cpApi.getUsageHistory(id) : this.wpApi.getUsageHistory(id);
+    return call$.pipe(
+      map(list => (list || [])
+        .map(h => ({
+          id: h.id,
+          date: h.date || h.createdAt || '',
+          duration: h.usedHours,
+          sessionAr: h.note || h.sessionOrBooking || 'استهلاك ساعات',
+          sessionEn: h.note || h.sessionOrBooking || 'Hours used'
+        }) as UsageHistory)
+        .sort((a, b) => (b.date || '').localeCompare(a.date || ''))),
+      tap(history => this.packagesState.update(all => all.map(p => (p.id === id ? { ...p, history } : p)))),
+      catchError(err => {
+        this.showToast(this.langService.tf('pkgUsageLoadFailed', { error: extractApiErrorMessage(err, this.langService.t().connectionErrorFallback) }), 'error');
+        return of(pkg?.history || []);
+      })
+    );
   }
 
   /** Delete Package via API */
@@ -710,10 +742,10 @@ export class PackageService {
     deleteCall$.subscribe({
       next: () => {
         this.packagesState.update(list => list.filter(p => p.id !== id));
-        this.showToast('تم حذف الباقة بنجاح من السيرفر!', 'info');
+        this.showToast(this.langService.t().pkgDeleted, 'info');
       },
       error: () => {
-        this.showToast('حدث خطأ أثناء حذف الباقة من السيرفر', 'error');
+        this.showToast(this.langService.t().pkgDeleteFailed, 'error');
       }
     });
   }

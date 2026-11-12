@@ -2,11 +2,10 @@ import { Component, inject, signal, computed, OnInit, OnDestroy } from '@angular
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LanguageService } from '../../../core/services/language.service';
-import { WorkspaceService, parseDurationMinutes } from '../../../core/services/workspace.service';
+import { WorkspaceService } from '../../../core/services/workspace.service';
 import { ShiftService } from '../../../core/services/shift.service';
 import { PackageService } from '../../../core/services/package.service';
-import { Student, ActiveStudentSession } from '../../../core/models/student.model';
-import { PackageItem } from '../../../core/models/package.model';
+import { ActiveStudentSession } from '../../../core/models/student.model';
 import { MetricCardComponent } from '../../../shared/components/metric-card/metric-card.component';
 import { SearchBoxComponent } from '../../../shared/components/search-box/search-box.component';
 import { PrimaryButtonComponent } from '../../../shared/components/primary-button/primary-button.component';
@@ -26,7 +25,7 @@ import {
 } from '../../../core/utils/validators.util';
 import { Router } from '@angular/router';
 
-export interface StudentDirectoryItem {
+interface StudentDirectoryItem {
   id: string;
   studentId?: string;
   name: string;
@@ -54,11 +53,13 @@ export interface StudentDirectoryItem {
 }
 
 import { StudentAnalyticsModalComponent } from '../../../shared/components/student-analytics-modal/student-analytics-modal.component';
+import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
+import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 
 @Component({
   selector: 'app-show-students',
   standalone: true,
-  imports: [
+  imports: [StatusBadgeComponent, EmptyStateComponent, 
     CommonModule,
     FormsModule,
     PageHeaderComponent,
@@ -146,20 +147,20 @@ export class ShowStudentsComponent implements OnInit, OnDestroy {
   studentToDelete = signal<StudentDirectoryItem | null>(null);
 
   statusOptions = computed<SelectOption[]>(() => [
-    { label: this.isArabic() ? 'جميع الحالات' : 'All Statuses', value: 'all' },
-    { label: this.isArabic() ? '🟢 جالس الآن' : '🟢 Active Now', value: 'active' },
-    { label: this.isArabic() ? '⚪ غير متواجد' : '⚪ Offline', value: 'offline' },
-    { label: this.isArabic() ? '🔴 محظور' : '🔴 Blocked', value: 'blocked' }
+    { label: this.t().stuAllStatuses, value: 'all' },
+    { label: this.t().stuActiveNow, value: 'active' },
+    { label: this.t().stuOffline, value: 'offline' },
+    { label: this.t().stuBlocked2, value: 'blocked' }
   ]);
 
   packageOptions = computed<SelectOption[]>(() => [
-    { label: this.isArabic() ? 'كل أنواع الاشتراكات' : 'All Packages', value: 'all' },
-    { label: this.isArabic() ? 'مشترك باقة' : 'Package Subscriber', value: 'package' },
-    { label: this.isArabic() ? 'دفع بالساعة' : 'Pay As You Go', value: 'paygo' }
+    { label: this.t().stuAllPackages, value: 'all' },
+    { label: this.t().stuPackageSubscriber, value: 'package' },
+    { label: this.t().wsPayAsYouGo, value: 'paygo' }
   ]);
 
   collegeOptions = computed<SelectOption[]>(() => {
-    const defaultOpt: SelectOption = { label: this.isArabic() ? 'جميع الجامعات / الكليات' : 'All Colleges', value: 'all' };
+    const defaultOpt: SelectOption = { label: this.t().stuAllColleges, value: 'all' };
     const all = this.allStudentsDirectory();
     const colleges = Array.from(new Set(all.map(s => s.college || s.faculty).filter(Boolean))).sort();
     return [defaultOpt, ...colleges.map(c => ({ label: c, value: c }))];
@@ -469,7 +470,7 @@ export class ShowStudentsComponent implements OnInit, OnDestroy {
     }
 
     if (rawWhatsapp) {
-      const wErr = validatePhoneError(whatsapp, this.isArabic(), false, this.isArabic() ? 'رقم الواتساب' : 'WhatsApp number');
+      const wErr = validatePhoneError(whatsapp, this.isArabic(), false, this.t().wsWhatsappNumber);
       if (wErr) {
         this.workspaceService.showToast(wErr, 'error');
         return;
@@ -532,7 +533,7 @@ export class ShowStudentsComponent implements OnInit, OnDestroy {
     }
 
     if (rawWhatsapp) {
-      const wErr = validatePhoneError(whatsapp, this.isArabic(), false, this.isArabic() ? 'رقم الواتساب' : 'WhatsApp number');
+      const wErr = validatePhoneError(whatsapp, this.isArabic(), false, this.t().wsWhatsappNumber);
       if (wErr) {
         this.workspaceService.showToast(wErr, 'error');
         return;

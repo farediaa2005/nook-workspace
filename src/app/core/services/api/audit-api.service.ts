@@ -5,7 +5,7 @@ import { API_ENDPOINTS } from '../../constants/api-endpoints';
 import { ApiResponse, extractData } from '../../models/api-response.model';
 import { AuditLogEntry, AuditAction, AuditEntityType } from '../../models/audit.model';
 
-export interface AuditLogDto {
+interface AuditLogDto {
   id: string;
   entityType: string;
   entityId?: string | null;
@@ -21,14 +21,14 @@ export interface AuditLogDto {
   metadata?: string | null;
 }
 
-export interface AuditLogsPagedResultDto {
+interface AuditLogsPagedResultDto {
   items: AuditLogDto[];
   totalCount: number;
   pageNumber: number;
   pageSize: number;
 }
 
-export interface CreateAuditLogDto {
+interface CreateAuditLogDto {
   entityType: string;
   entityId?: string | null;
   action: string;
@@ -36,7 +36,7 @@ export interface CreateAuditLogDto {
   metadata?: string | null;
 }
 
-export function mapAuditLogDto(dto: AuditLogDto): AuditLogEntry {
+function mapAuditLogDto(dto: AuditLogDto): AuditLogEntry {
   let oldParsed: any = dto.oldValues;
   let newParsed: any = dto.newValues;
   let metaParsed: any = dto.metadata;
@@ -78,24 +78,6 @@ export class AuditApiService extends BaseApiService {
   }): Observable<{ items: AuditLogEntry[]; totalCount: number }> {
     return this.get<ApiResponse<AuditLogsPagedResultDto>>(
       API_ENDPOINTS.AUDIT_LOGS.LIST,
-      params
-    ).pipe(
-      map(extractData),
-      map(res => ({
-        items: (res?.items || []).map(mapAuditLogDto),
-        totalCount: res?.totalCount || 0
-      }))
-    );
-  }
-
-  /** Get audit logs for a specific entity — GET /api/AuditLogs/entity/{entityType}/{entityId} */
-  getEntityAuditLogs(
-    entityType: string,
-    entityId: string,
-    params?: { pageNumber?: number; pageSize?: number }
-  ): Observable<{ items: AuditLogEntry[]; totalCount: number }> {
-    return this.get<ApiResponse<AuditLogsPagedResultDto>>(
-      API_ENDPOINTS.AUDIT_LOGS.BY_ENTITY(entityType, entityId),
       params
     ).pipe(
       map(extractData),

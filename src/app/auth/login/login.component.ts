@@ -99,7 +99,7 @@ export class LoginComponent {
     const em = this.resetEmail().trim();
 
     if (!em) {
-      this.errorMessage.set(this.isArabic() ? 'يرجى إدخال البريد الإلكتروني' : 'Please enter your email address');
+      this.errorMessage.set(this.t().loginPleaseEnterYourEmailAddress);
       return;
     }
 
@@ -107,13 +107,13 @@ export class LoginComponent {
     this.authService.forgotPassword(em).subscribe({
       next: (res) => {
         this.isLoading.set(false);
-        this.successMessage.set(res?.message || (this.isArabic() ? 'تم إرسال كود التحقق (OTP) إلى بريدك الإلكتروني.' : 'Verification code (OTP) has been sent to your email.'));
+        this.successMessage.set(res?.message || (this.t().loginVerificationCodeOtpHasBeen));
         this.resetToken.set('');
         this.mode.set('otp');
       },
       error: (err) => {
         this.isLoading.set(false);
-        const msg = err?.error?.message || err?.error?.title || (this.isArabic() ? 'فشل طلب كود التحقق' : 'Failed to request verification code');
+        const msg = err?.error?.message || err?.error?.title || (this.t().loginFailedToRequestVerificationCode);
         this.errorMessage.set(msg);
       }
     });
@@ -123,7 +123,7 @@ export class LoginComponent {
     this.errorMessage.set('');
     const tok = this.resetToken().trim();
     if (!tok) {
-      this.errorMessage.set(this.isArabic() ? 'يرجى إدخال كود التحقق (OTP)' : 'Please enter the verification code (OTP)');
+      this.errorMessage.set(this.t().loginPleaseEnterTheVerificationCode);
       return;
     }
     this.errorMessage.set('');
@@ -138,27 +138,27 @@ export class LoginComponent {
     this.successMessage.set('');
     const em = this.resetEmail().trim();
     const tok = this.resetToken().trim();
-    const np = this.newPassword().trim();
-    const cp = this.confirmPassword().trim();
+    const np = this.newPassword();
+    const cp = this.confirmPassword();
 
     if (!tok) {
-      this.errorMessage.set(this.isArabic() ? 'كود التحقق مفقود، يرجى الرجوع للخطوة السابقة' : 'Verification code is missing, please go back');
+      this.errorMessage.set(this.t().loginVerificationCodeIsMissingPlease);
       this.mode.set('otp');
       return;
     }
 
     if (!np || !cp) {
-      this.errorMessage.set(this.isArabic() ? 'يرجى إدخال كلمة المرور الجديدة وتأكيدها' : 'Please enter and confirm your new password');
+      this.errorMessage.set(this.t().loginPleaseEnterAndConfirmYour);
       return;
     }
 
     if (np.length < 6) {
-      this.errorMessage.set(this.isArabic() ? 'كلمة المرور يجب ألا تقل عن 6 أحرف أو أرقام' : 'Password must be at least 6 characters');
+      this.errorMessage.set(this.t().loginPasswordMustBeAtLeast);
       return;
     }
 
     if (np !== cp) {
-      this.errorMessage.set(this.isArabic() ? 'كلمتا المرور غير متطابقتين' : 'Passwords do not match');
+      this.errorMessage.set(this.t().loginPasswordsDoNotMatch);
       return;
     }
 
@@ -166,14 +166,14 @@ export class LoginComponent {
     this.authService.resetPassword({ email: em, token: tok, newPassword: np }).subscribe({
       next: () => {
         this.isLoading.set(false);
-        this.successMessage.set(this.isArabic() ? 'تم تغيير كلمة المرور بنجاح! يمكنك تسجيل الدخول الآن.' : 'Password reset successfully! You can now log in.');
+        this.successMessage.set(this.t().loginPasswordResetSuccessfullyYouCan);
         this.email.set(em);
         this.password.set('');
         this.mode.set('login');
       },
       error: (err) => {
         this.isLoading.set(false);
-        const msg = err?.error?.message || err?.error?.title || (this.isArabic() ? 'فشل إعادة تعيين كلمة المرور، يرجى التأكد من كود الـ OTP' : 'Failed to reset password, please verify OTP');
+        const msg = err?.error?.message || err?.error?.title || (this.t().loginFailedToResetPasswordPlease);
         this.errorMessage.set(msg);
       }
     });
@@ -183,7 +183,7 @@ export class LoginComponent {
     this.errorMessage.set('');
     this.successMessage.set('');
     const id = this.email().trim();
-    const pw = this.password().trim();
+    const pw = this.password();
 
     if (!id || !pw) {
       this.errorMessage.set(this.t().loginValidationRequired);

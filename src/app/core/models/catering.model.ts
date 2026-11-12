@@ -63,11 +63,6 @@ export interface UpdateProductDto {
   expireDate?: string;
 }
 
-// Backward compatibility alias
-export type BackendProductDto = ProductDto;
-export type CreateProductPayload = CreateProductDto;
-export type UpdateProductPayload = UpdateProductDto;
-
 // ==========================================
 // 2️⃣ Frontend Domain Models (UI State)
 // ==========================================
@@ -128,12 +123,4 @@ export interface PosCartItem {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
-}
-
-export interface PosSalePayload {
-  items: PosCartItem[];
-  subtotal: number;
-  discount: number;
-  total: number;
-  paymentMethod: 'cash' | 'card' | 'app';
 }

@@ -3,12 +3,13 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { NotificationService } from '../../../core/services/notification.service';
 import { LanguageService } from '../../../core/services/language.service';
-import { StaffNotification, StaffNotificationSeverity } from '../../../core/models/notification.model';
+import { StaffNotification } from '../../../core/models/notification.model';
+import { EmptyStateComponent } from '../empty-state/empty-state.component';
 
 @Component({
   selector: 'app-notification-center',
   standalone: true,
-  imports: [CommonModule],
+  imports: [EmptyStateComponent, CommonModule],
   templateUrl: './notification-center.component.html',
   styleUrl: './notification-center.component.css'
 })
@@ -17,7 +18,7 @@ export class NotificationCenterComponent {
   private langService = inject(LanguageService);
   private router = inject(Router);
 
-  close = output<void>();
+  closed = output<void>();
 
   t = this.langService.t;
   isArabic = this.langService.isArabic;
@@ -55,7 +56,7 @@ export class NotificationCenterComponent {
     this.notificationService.markAsRead(item.id);
     if (item.actionUrl) {
       this.router.navigateByUrl(item.actionUrl);
-      this.close.emit();
+      this.closed.emit();
     }
   }
 
@@ -73,9 +74,9 @@ export class NotificationCenterComponent {
       const diffHours = Math.floor(diffMins / 60);
 
       const isAr = this.isArabic();
-      if (diffMins < 1) return isAr ? 'الآن' : 'Just now';
-      if (diffMins < 60) return isAr ? `منذ ${diffMins} د` : `${diffMins}m ago`;
-      if (diffHours < 24) return isAr ? `منذ ${diffHours} س` : `${diffHours}h ago`;
+      if (diffMins < 1) return this.t().locJustNow;
+      if (diffMins < 60) return this.langService.tf('loctMAgo', { diffMins });
+      if (diffHours < 24) return this.langService.tf('loctHAgo', { diffHours });
       return date.toLocaleDateString(isAr ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric' });
     } catch {
       return '';

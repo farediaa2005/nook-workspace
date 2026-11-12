@@ -1,0 +1,46 @@
+<div class="top-grid" [attr.dir]="isArabic() ? 'rtl' : 'ltr'">
+  <section class="top-card">
+    <h3>{{ t().ui2MostFrequentStudents }}</h3>
+    @if (students() === null) {
+      <p class="top-state">{{ t().set2Loading }}</p>
+    } @else if (failed().students) {
+      <p class="top-state top-state--error">{{ t().ui2CouldNotLoadTheList }}</p>
+    } @else {
+      <ol class="top-list">
+        @for (s of students(); track s.studentId; let i = $index) {
+          <li class="top-row">
+            <span class="top-rank">{{ i + 1 }}</span>
+            <span class="top-name">{{ s.studentName }}</span>
+            <span class="top-meta">{{ s.totalVisits }} {{ t().stuVisits }}</span>
+          </li>
+        } @empty {
+          <li class="top-state">{{ t().ui2NoDataYet }}</li>
+        }
+      </ol>
+    }
+  </section>
+
+  <section class="top-card">
+    <h3>{{ t().ui2InstructorActivity }}</h3>
+    @if (instructors() === null) {
+      <p class="top-state">{{ t().set2Loading }}</p>
+    } @else if (failed().instructors) {
+      <p class="top-state top-state--error">{{ t().ui2CouldNotLoadTheList }}</p>
+    } @else {
+      <ol class="top-list">
+        @for (ins of instructors(); track ins.instructorId; let i = $index) {
+          <li class="top-row">
+            <span class="top-rank">{{ i + 1 }}</span>
+            <span class="top-name">{{ ins.instructorName }}</span>
+            <span class="top-meta">
+              {{ ins.totalClassroomSessions }} {{ t().ui2Sessions }} ·
+              {{ ins.totalSpend | number: '1.0-2' }} {{ t().egp }}
+            </span>
+          </li>
+        } @empty {
+          <li class="top-state">{{ t().ui2NoDataYet }}</li>
+        }
+      </ol>
+    }
+  </section>
+</div>

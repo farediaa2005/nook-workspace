@@ -79,10 +79,10 @@
 }
 
 .status-badge {
-  font-size: 0.72rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   padding: 3px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -90,31 +90,31 @@
 .status-badge--confirmed,
 .status-badge--upcoming {
   background: rgba(59, 130, 246, 0.12);
-  color: #3b82f6;
+  color: var(--info);
   border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 .status-badge--active {
   background: rgba(245, 158, 11, 0.12);
-  color: #f59e0b;
+  color: var(--warning);
   border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
 .status-badge--completed {
   background: rgba(16, 185, 129, 0.12);
-  color: #10b981;
+  color: var(--success-strong);
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 .status-badge--cancelled {
   background: rgba(239, 68, 68, 0.12);
-  color: #ef4444;
+  color: var(--danger-strong);
   border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .status-badge--noshow {
   background: rgba(100, 116, 139, 0.12);
-  color: #64748b;
+  color: var(--text-dim);
   border: 1px solid rgba(100, 116, 139, 0.25);
 }
 
@@ -124,7 +124,7 @@
   color: var(--text-dim);
   cursor: pointer;
   padding: 6px;
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -151,7 +151,7 @@
 .detail-card {
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius);
   padding: 18px 20px;
   display: flex;
   flex-direction: column;
@@ -187,21 +187,21 @@
 }
 
 .instructor-name {
-  font-size: 1.05rem;
+  font-size: var(--fs-lg);
   font-weight: 700;
   color: var(--text);
   margin: 0;
 }
 
 .instructor-subtitle {
-  font-size: 0.85rem;
+  font-size: var(--fs-ui);
   color: var(--text-dim);
   margin: 0;
 }
 
 /* Section Label */
 .card-section-label {
-  font-size: 0.72rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -218,7 +218,7 @@
 .logistics-icon {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   background: rgba(245, 185, 33, 0.12);
   color: var(--yellow);
   display: flex;
@@ -234,19 +234,19 @@
 }
 
 .logistics-primary {
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
   font-weight: 600;
   color: var(--text);
 }
 
 .logistics-secondary {
-  font-size: 0.84rem;
+  font-size: var(--fs-ui);
   color: var(--text-dim);
 }
 
 /* Card 3: Activity */
 .activity-title {
-  font-size: 1.05rem;
+  font-size: var(--fs-lg);
   font-weight: 700;
   color: var(--text);
 }
@@ -255,7 +255,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.86rem;
+  font-size: var(--fs-base);
   color: var(--text-dim);
 }
 
@@ -269,7 +269,7 @@
 }
 
 .cost-heading {
-  font-size: 1rem;
+  font-size: var(--fs-md);
   font-weight: 700;
   color: var(--text);
   margin: 0;
@@ -285,7 +285,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.88rem;
+  font-size: var(--fs-base);
   color: var(--text-dim);
 }
 
@@ -305,7 +305,7 @@
 }
 
 .cost-row--total {
-  font-size: 1.1rem;
+  font-size: var(--fs-lg);
   font-weight: 700;
   color: var(--text);
 }
@@ -356,12 +356,12 @@
   height: 42px;
   min-height: 42px;
   max-height: 42px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  font-size: 0.88rem;
+  font-size: var(--fs-base);
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -383,12 +383,12 @@
 
 .panel-btn--cancel {
   background: rgba(245, 158, 11, 0.08);
-  color: #d97706;
+  color: var(--warning);
   border-color: rgba(245, 158, 11, 0.3);
 }
 
 [data-theme="dark"] .panel-btn--cancel {
-  color: #fbbf24;
+  color: var(--amber-400);
   border-color: rgba(251, 191, 36, 0.3);
 }
 
@@ -398,7 +398,7 @@
 
 .panel-btn--checkout {
   background: rgba(59, 130, 246, 0.08);
-  color: #3b82f6;
+  color: var(--info);
   border-color: rgba(59, 130, 246, 0.2);
 }
 
@@ -411,16 +411,16 @@
   height: 44px;
   min-height: 44px;
   max-height: 44px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   background: rgba(16, 185, 129, 0.12);
-  border: 1px solid #10b981;
-  color: #10b981;
+  border: 1px solid var(--success-strong);
+  color: var(--success-strong);
   font-weight: 700;
-  font-size: 0.88rem;
+  font-size: var(--fs-base);
   box-sizing: border-box;
   white-space: nowrap;
 }
@@ -430,22 +430,22 @@
   height: 44px;
   min-height: 44px;
   max-height: 44px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   background: rgba(100, 116, 139, 0.12);
   border: 1px solid rgba(100, 116, 139, 0.35);
-  color: #64748b;
+  color: var(--text-dim);
   font-weight: 700;
-  font-size: 0.88rem;
+  font-size: var(--fs-base);
   box-sizing: border-box;
   white-space: nowrap;
 }
 
 [data-theme="dark"] .panel-badge-noshow {
-  color: #94a3b8;
+  color: var(--slate-400);
   border-color: rgba(148, 163, 184, 0.3);
 }
 
@@ -454,31 +454,31 @@
   height: 44px;
   min-height: 44px;
   max-height: 44px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   background: rgba(239, 68, 68, 0.12);
-  border: 1px solid #ef4444;
-  color: #ef4444;
+  border: 1px solid var(--danger-strong);
+  color: var(--danger-strong);
   font-weight: 700;
-  font-size: 0.88rem;
+  font-size: var(--fs-base);
   box-sizing: border-box;
   white-space: nowrap;
 }
 
 .panel-btn--start {
   background: rgba(245, 158, 11, 0.12);
-  color: #d97706;
+  color: var(--warning);
   border-color: rgba(245, 158, 11, 0.4);
 }
 
 [data-theme="dark"] .panel-btn--start {
-  color: #f59e0b;
+  color: var(--warning);
 }
 
 .panel-btn--start:hover {
-  background: #f59e0b;
-  color: #0f172a;
+  background: var(--warning);
+  color: var(--slate-900);
 }

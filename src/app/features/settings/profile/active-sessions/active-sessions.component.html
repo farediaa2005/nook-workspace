@@ -1,0 +1,59 @@
+<div class="sessions" [attr.dir]="isArabic() ? 'rtl' : 'ltr'">
+  @if (isLoading()) {
+    <p class="sessions-state">{{ t().set2Loading }}</p>
+  } @else if (loadError()) {
+    <div class="sessions-state sessions-state--error" role="alert">
+      <span>{{ loadError() }}</span>
+      <button type="button" class="sessions-link" (click)="load()">{{ t().set2Retry }}</button>
+    </div>
+  } @else {
+    <div class="sessions-toolbar">
+      <span class="sessions-count">
+        {{ tf('setSignedInDevices', { count: activeSessions().length }) }}
+      </span>
+      <label class="sessions-toggle">
+        <input type="checkbox" [checked]="showInactive()" (change)="showInactive.set($any($event.target).checked)" />
+        {{ t().set2ShowExpiredSignedOut }}
+      </label>
+    </div>
+
+    @if (visibleSessions().length === 0) {
+      <p class="sessions-state">{{ t().set2NoDevices }}</p>
+    } @else {
+      <ul class="sessions-list">
+        @for (s of visibleSessions(); track s.sessionId) {
+          <li class="session-row" [class.session-row--inactive]="!s.isActive">
+            <div class="session-text">
+              <strong>{{ s.deviceInfo && s.deviceInfo !== 'Unknown Device' ? s.deviceInfo : (t().set2UnknownDevice) }}</strong>
+              <small>
+                {{ t().set2SignedIn }}: {{ formatDate(s.createdAt) }} ·
+                {{ t().set2Expires }}: {{ formatDate(s.expiresAt) }}
+              </small>
+            </div>
+            @if (s.isActive) {
+              <button type="button" class="session-revoke" (click)="revoke(s)" [disabled]="busyId() !== null">
+                {{ busyId() === s.sessionId ? (t().set2SigningOut) : (t().set2SignOut) }}
+              </button>
+            } @else {
+              <span class="session-ended">{{ t().set2Ended }}</span>
+            }
+          </li>
+        }
+      </ul>
+    }
+
+    <div class="sessions-all">
+      @if (!confirmAll()) {
+        <button type="button" class="session-revoke session-revoke--danger" (click)="confirmAll.set(true)" [disabled]="busyId() !== null || activeSessions().length === 0">
+          {{ t().set2SignOutOfAllDevices }}
+        </button>
+      } @else {
+        <span class="sessions-confirm-text">{{ t().set2ThisDeviceWillBeSigned }}</span>
+        <button type="button" class="sessions-link" (click)="confirmAll.set(false)">{{ t().set2Cancel }}</button>
+        <button type="button" class="session-revoke session-revoke--danger" (click)="revokeAll()" [disabled]="busyId() !== null">
+          {{ busyId() === 'all' ? (t().set2SigningOut) : (t().set2YesSignOutEverywhere) }}
+        </button>
+      }
+    </div>
+  }
+</div>

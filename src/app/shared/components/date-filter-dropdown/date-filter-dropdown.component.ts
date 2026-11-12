@@ -73,7 +73,7 @@ export class DateFilterDropdownComponent {
     }
 
     if (opt === 'all') {
-      return this.t().allDates || (isAr ? 'كل التواريخ' : 'All Dates');
+      return this.t().allDates || (this.t().allDates);
     }
 
     if (opt === 'custom' && this.customDate()) {
@@ -86,7 +86,7 @@ export class DateFilterDropdownComponent {
       return this.customDate();
     }
 
-    return this.t().selectDate || (isAr ? 'اختر التاريخ' : 'Select Date');
+    return this.t().selectDate || (this.t().selectDate);
   }
 
   getTodayMenuLabel(): string {

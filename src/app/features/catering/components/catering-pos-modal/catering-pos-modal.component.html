@@ -1,5 +1,5 @@
-<div class="modal-backdrop" (click)="close.emit()" [class.modal-backdrop--rtl]="isArabic()">
-  <div class="pos-modal-card" (click)="$event.stopPropagation()">
+<div class="modal-backdrop" (click)="closed.emit()" [class.modal-backdrop--rtl]="isArabic()" role="presentation">
+  <div class="pos-modal-card" (click)="$event.stopPropagation()" role="presentation">
     <!-- Top Header -->
     <div class="pos-header">
       <div class="pos-header-title-box">
@@ -14,7 +14,7 @@
         </div>
       </div>
 
-      <button type="button" class="btn-close-modal" (click)="close.emit()" aria-label="Close" [title]="t().cancel">
+      <button type="button" class="btn-close-modal" (click)="closed.emit()" aria-label="Close" [title]="t().cancel">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -211,7 +211,7 @@
               [class.pos-product-card--out]="getAvailableStock(product) <= 0 || isProductExpired(product)"
               [class.pos-product-card--expired]="isProductExpired(product)"
               (click)="!isProductExpired(product) && getAvailableStock(product) > 0 && addToCart(product)"
-              [title]="isProductExpired(product) ? t().productExpiredTooltip : (getAvailableStock(product) <= 0 ? t().outOfStock : t().clickToAddToOrder)"
+              [title]="isProductExpired(product) ? t().productExpiredTooltip : (getAvailableStock(product) <= 0 ? t().outOfStock : t().clickToAddToOrder)" role="button" tabindex="0" (keydown.enter)="!isProductExpired(product) && getAvailableStock(product) > 0 && addToCart(product)"
             >
               <!-- Image Box with Floating Badges & Quick Add -->
               <div class="product-media-box">

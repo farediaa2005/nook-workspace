@@ -48,7 +48,7 @@ describe('CSV Utility (csv.util)', () => {
   describe('exportToCsv', () => {
     let originalCreateObjectURL: any;
     let originalRevokeObjectURL: any;
-    let createdUrl = 'blob:http://localhost/mock-csv-url';
+    const createdUrl = 'blob:http://localhost/mock-csv-url';
 
     beforeEach(() => {
       originalCreateObjectURL = URL.createObjectURL;

@@ -431,14 +431,14 @@ export class InvoiceService {
   <div class="screen-action-bar no-print">
     <div class="screen-action-text">
       <span>🖨️</span>
-      <span>${isAr ? 'جاهز للطباعة أو الحفظ بتنسيق PDF' : 'Ready to print or save as PDF'}</span>
+      <span>${this.langService.t().locReadyToPrintOrSave}</span>
     </div>
     <div class="screen-btns">
       <button type="button" class="btn-action btn-action--print" onclick="window.print()">
-        ${isAr ? 'طباعة / حفظ كـ PDF' : 'Print / Save PDF'}
+        ${this.langService.t().locPrintSavePdf}
       </button>
       <button type="button" class="btn-action btn-action--close" onclick="window.close()">
-        ${isAr ? 'إغلاق' : 'Close'}
+        ${this.langService.t().closeBtn}
       </button>
     </div>
   </div>
@@ -451,10 +451,10 @@ export class InvoiceService {
           <span class="brand-pill">NOOK</span>
           <span class="brand-title">NOOK STUDIOS</span>
         </div>
-        <div class="brand-subtitle">${isAr ? 'فاتورة حجز واستخدام قاعة تعليمية' : 'Classroom & Studio Rental Invoice'}</div>
+        <div class="brand-subtitle">${this.langService.t().locClassroomStudioRentalInvoice}</div>
       </div>
       <div class="invoice-badge-block">
-        <span class="invoice-tag">${isAr ? 'إيصال رسمي' : 'Official Receipt'}</span>
+        <span class="invoice-tag">${this.langService.t().locOfficialReceipt}</span>
         <div class="invoice-number">${invoice.invoiceNumber}</div>
         <div class="invoice-date">${invoice.issueDate}</div>
       </div>
@@ -463,40 +463,40 @@ export class InvoiceService {
     <!-- Room & Session Information Grid -->
     <div class="section-title">
       <span>📌</span>
-      <span>${isAr ? 'بيانات القاعة والجلسة' : 'Room & Session Details'}</span>
+      <span>${this.langService.t().locRoomSessionDetails}</span>
     </div>
     <div class="grid-details">
       <div class="detail-item detail-item--room">
-        <strong>${isAr ? 'القاعة المحجوزة' : 'Classroom'}</strong>
+        <strong>${this.langService.t().locClassroom}</strong>
         <span>${invoice.roomOrDesk}</span>
       </div>
       <div class="detail-item">
-        <strong>${isAr ? 'المحاضر / العميل' : 'Instructor / Client'}</strong>
+        <strong>${this.langService.t().locInstructorClient}</strong>
         <span>${invoice.clientName}</span>
       </div>
       ${invoice.clientIdentifier ? `
       <div class="detail-item">
-        <strong>${isAr ? 'رقم الهاتف' : 'Phone Number'}</strong>
+        <strong>${this.langService.t().wsCsvSessPhoneNumber}</strong>
         <span dir="ltr">${invoice.clientIdentifier}</span>
       </div>
       ` : ''}
       ${invoice.activity ? `
       <div class="detail-item">
-        <strong>${isAr ? 'النشاط / المادة' : 'Activity / Subject'}</strong>
+        <strong>${this.langService.t().locActivitySubject}</strong>
         <span>${invoice.activity}</span>
       </div>
       ` : ''}
       <div class="detail-item">
-        <strong>${isAr ? 'فترة الجلسة' : 'Session Timing'}</strong>
+        <strong>${this.langService.t().locSessionTiming}</strong>
         <span dir="ltr">${invoice.checkInTime} – ${invoice.checkOutTime}</span>
       </div>
       <div class="detail-item detail-item--actual-time">
-        <strong>⏱️ ${isAr ? 'المدة الفعلية المستغرقة' : 'Actual Time Spent'}</strong>
+        <strong>⏱️ ${this.langService.t().locActualTimeSpent}</strong>
         <span style="color: #0284c7; font-weight: 800;">${invoice.actualDurationFormatted || invoice.durationFormatted}</span>
         ${invoice.durationDifferenceText ? `<span style="font-size: 11px; color: #64748b; font-weight: 600; margin-top: 2px;">${invoice.durationDifferenceText}</span>` : ''}
       </div>
       <div class="detail-item">
-        <strong>${isAr ? 'المدة المحسوبة بالفاتورة' : 'Billed Duration'}</strong>
+        <strong>${this.langService.t().locBilledDuration}</strong>
         <span>${invoice.billedDurationFormatted || invoice.durationFormatted}</span>
       </div>
     </div>
@@ -504,15 +504,15 @@ export class InvoiceService {
     <!-- Line Items Table -->
     <div class="section-title">
       <span>📋</span>
-      <span>${isAr ? 'تفاصيل الحساب والخدمات' : 'Itemized Billing'}</span>
+      <span>${this.langService.t().locItemizedBilling}</span>
     </div>
     <table class="invoice-table">
       <thead>
         <tr>
-          <th>${isAr ? 'البند / الخدمة' : 'Item / Description'}</th>
-          <th class="col-qty">${isAr ? 'الكمية / المدة' : 'Qty / Dur'}</th>
-          <th class="col-price">${isAr ? 'السعر' : 'Rate'}</th>
-          <th class="col-total">${isAr ? 'الإجمالي' : 'Total'}</th>
+          <th>${this.langService.t().locItemDescription}</th>
+          <th class="col-qty">${this.langService.t().locQtyDur}</th>
+          <th class="col-price">${this.langService.t().locRate}</th>
+          <th class="col-total">${this.langService.t().totalLabel}</th>
         </tr>
       </thead>
       <tbody>
@@ -522,11 +522,11 @@ export class InvoiceService {
           <tr>
             <td>
               <strong>${item.description}</strong>
-              ${item.type === 'catering' ? `<span class="badge-item badge-item--catering">${isAr ? 'كاترينج' : 'Catering'}</span>` : ''}
+              ${item.type === 'catering' ? `<span class="badge-item badge-item--catering">${this.langService.t().locCatering}</span>` : ''}
             </td>
             <td class="col-qty">${item.quantity}</td>
-            <td class="col-price">${item.unitPrice.toFixed(2)} ${isAr ? 'ج.م' : 'EGP'}</td>
-            <td class="col-total"><strong>${item.totalPrice.toFixed(2)} ${isAr ? 'ج.م' : 'EGP'}</strong></td>
+            <td class="col-price">${item.unitPrice.toFixed(2)} ${this.langService.t().egp}</td>
+            <td class="col-total"><strong>${item.totalPrice.toFixed(2)} ${this.langService.t().egp}</strong></td>
           </tr>
         `
           )
@@ -538,45 +538,45 @@ export class InvoiceService {
     <div class="totals-wrapper">
       <div class="payment-summary-box">
         <div class="payment-summary-row">
-          <span>${isAr ? 'طريقة الدفع:' : 'Payment Method:'}</span>
+          <span>${this.langService.t().locPaymentMethod}</span>
           <strong>${invoice.paymentMethod}</strong>
         </div>
         <div class="payment-summary-row">
-          <span>${isAr ? 'الموظف / الكاشير:' : 'Cashier / In-Charge:'}</span>
+          <span>${this.langService.t().locCashierInCharge}</span>
           <strong>${invoice.cashierName}</strong>
         </div>
         ${invoice.amountReceived > 0 ? `
         <div class="payment-summary-row">
-          <span>${isAr ? 'المبلغ المستلم:' : 'Amount Received:'}</span>
-          <strong>${invoice.amountReceived.toFixed(2)} ${isAr ? 'ج.م' : 'EGP'}</strong>
+          <span>${this.langService.t().locAmountReceived}</span>
+          <strong>${invoice.amountReceived.toFixed(2)} ${this.langService.t().egp}</strong>
         </div>
         ` : ''}
         ${invoice.changeDue > 0 ? `
         <div class="payment-summary-row">
-          <span>${isAr ? 'الباقي المسترجع:' : 'Change Returned:'}</span>
-          <strong style="color: #10b981;">${invoice.changeDue.toFixed(2)} ${isAr ? 'ج.م' : 'EGP'}</strong>
+          <span>${this.langService.t().locChangeReturned}</span>
+          <strong style="color: #10b981;">${invoice.changeDue.toFixed(2)} ${this.langService.t().egp}</strong>
         </div>
         ` : ''}
       </div>
 
       <table class="totals-table">
         <tr>
-          <td class="total-label">${isAr ? 'المجموع الفرعي:' : 'Subtotal:'}</td>
-          <td class="total-val">${invoice.subtotal.toFixed(2)} ${isAr ? 'ج.م' : 'EGP'}</td>
+          <td class="total-label">${this.langService.t().locSubtotal}</td>
+          <td class="total-val">${invoice.subtotal.toFixed(2)} ${this.langService.t().egp}</td>
         </tr>
         ${
           invoice.discountAmount > 0
             ? `
         <tr>
           <td class="total-label" style="color: #dc2626;">${isAr ? `الخصم المطبق ${invoice.discountReason ? `(${invoice.discountReason})` : ''}:` : `Discount Applied ${invoice.discountReason ? `(${invoice.discountReason})` : ''}:`}</td>
-          <td class="total-val" style="color: #dc2626;">-${invoice.discountAmount.toFixed(2)} ${isAr ? 'ج.م' : 'EGP'}</td>
+          <td class="total-val" style="color: #dc2626;">-${invoice.discountAmount.toFixed(2)} ${this.langService.t().egp}</td>
         </tr>
         `
             : ''
         }
         <tr class="grand-total-row">
-          <td class="total-label">${isAr ? 'الإجمالي النهائي:' : 'Grand Total:'}</td>
-          <td class="total-val">${invoice.finalTotal.toFixed(2)} ${isAr ? 'ج.م' : 'EGP'}</td>
+          <td class="total-label">${this.langService.t().locGrandTotal}</td>
+          <td class="total-val">${invoice.finalTotal.toFixed(2)} ${this.langService.t().egp}</td>
         </tr>
       </table>
     </div>
@@ -584,15 +584,15 @@ export class InvoiceService {
     <!-- Footer -->
     <div class="footer">
       <div class="footer-text">
-        <span class="footer-thankyou">${isAr ? 'شكراً لاختياركم نوك! نسعد دائماً باستضافتكم.' : 'Thank you for choosing Nook! Have a productive session.'}</span>
+        <span class="footer-thankyou">${this.langService.t().locThankYouForChoosingNook}</span>
         <span class="footer-sub">NOOK Coworking & Educational Studios • All rights reserved</span>
       </div>
-      <div class="stamp">${isAr ? '✓ مدفوع بالكامل' : '✓ PAID IN FULL'}</div>
+      <div class="stamp">${this.langService.t().locPaidInFull}</div>
     </div>
 
     <!-- Kernel Panic IT Team Attribution -->
     <div class="team-print-attribution">
-      <span>${isAr ? 'تم تصميم وتشغيل النظام البرمجي بواسطة' : 'Software System Engineered & Powered by'}</span>
+      <span>${this.langService.t().locSoftwareSystemEngineeredPoweredBy}</span>
       <img src="/images/kernel-panic-light.png" alt="Kernel Panic IT Team" class="print-team-logo" />
       <strong style="color: #475569;">Kernel Panic IT Team</strong>
     </div>

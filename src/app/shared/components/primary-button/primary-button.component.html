@@ -2,9 +2,18 @@
   [type]="type()"
   class="btn-primary-action"
   [class.btn-primary-action--full]="fullWidth()"
-  [disabled]="disabled()"
+  [class.btn--secondary]="variant() === 'secondary'"
+  [class.btn--ghost]="variant() === 'ghost'"
+  [class.btn--danger]="variant() === 'danger'"
+  [class.btn--sm]="size() === 'sm'"
+  [class.btn--loading]="loading()"
+  [attr.aria-busy]="loading() || null"
+  [disabled]="disabled() || loading()"
   (click)="onClick($event)"
 >
+  @if (loading()) {
+    <span class="btn-spinner" aria-hidden="true"></span>
+  }
   <span class="btn-icon-slot">
     <ng-content select="[icon]"></ng-content>
   </span>

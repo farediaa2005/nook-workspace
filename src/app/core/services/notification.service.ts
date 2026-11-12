@@ -1,5 +1,5 @@
 import { Injectable, signal, computed, inject, Injector, OnDestroy, effect, untracked } from '@angular/core';
-import { StaffNotification, StaffNotificationType, StaffNotificationSeverity } from '../models/notification.model';
+import { StaffNotification } from '../models/notification.model';
 import { StaffNotificationApiService } from './api/staff-notification-api.service';
 import { SettingsApiService } from './api/settings-api.service';
 import { AuthService } from './auth.service';
@@ -8,9 +8,9 @@ import { WorkspaceService, parseSessionTimeToDate } from './workspace.service';
 import { ClassroomService } from './classroom.service';
 import { CateringService } from './catering.service';
 
-export type NotificationType = 'success' | 'error' | 'warning' | 'info';
+type NotificationType = 'success' | 'error' | 'warning' | 'info';
 
-export interface AppNotification {
+interface AppNotification {
   id: string;
   message: string;
   type: NotificationType;
@@ -21,6 +21,9 @@ export interface AppNotification {
   providedIn: 'root'
 })
 export class NotificationService implements OnDestroy {
+  /** Maximum number of floating toasts displayed at the same time */
+  private static readonly MAX_VISIBLE_TOASTS = 3;
+
   private staffNotificationApi = inject(StaffNotificationApiService);
   private settingsApi = inject(SettingsApiService);
   private authService = inject(AuthService);
@@ -62,7 +65,30 @@ export class NotificationService implements OnDestroy {
   private heartbeatTimer: any = null;
   private backendSyncTimer: any = null;
   private dismissedKeys = new Set<string>();
-  private toastShownKeys = new Set<string>();
+  /**
+   * Operational alerts already shown as a floating toast in this browser session.
+   * Persisted in sessionStorage so a page reload does not pop the same alerts again;
+   * they stay available in the notification center.
+   */
+  private toastShownKeys = NotificationService.loadToastKeys();
+
+  private static readonly TOAST_KEYS_STORAGE = 'nook_op_toasts_shown';
+
+  private static loadToastKeys(): Set<string> {
+    try {
+      const raw = typeof window !== 'undefined' ? sessionStorage.getItem(NotificationService.TOAST_KEYS_STORAGE) : null;
+      return new Set<string>(raw ? JSON.parse(raw) : []);
+    } catch {
+      return new Set<string>();
+    }
+  }
+
+  private markToastShown(key: string): void {
+    this.toastShownKeys.add(key);
+    try {
+      sessionStorage.setItem(NotificationService.TOAST_KEYS_STORAGE, JSON.stringify([...this.toastShownKeys]));
+    } catch {}
+  }
 
   constructor() {
     // Purge any legacy mock database notifications from localStorage
@@ -132,9 +158,16 @@ export class NotificationService implements OnDestroy {
           });
         }
       },
-      error: () => {}
+      error: () => { /* best effort: a failure here is ignored on purpose */ }
     });
 
+    this.reloadAlertSettings();
+  }
+
+  /** Loads the operational alert thresholds (also called after they are edited in Settings). */
+  reloadAlertSettings(): void {
+    // Admin-only endpoint (403 for staff): staff keep the default thresholds
+    if (!this.authService.isAdmin()) return;
     this.settingsApi.getOperationalAlertSettings().subscribe({
       next: (s) => {
         if (s) {
@@ -145,7 +178,7 @@ export class NotificationService implements OnDestroy {
           this.thresholds.longStayHours = s.longStayThresholdHours || 4;
         }
       },
-      error: () => {}
+      error: () => { /* best effort: a failure here is ignored on purpose */ }
     });
   }
 
@@ -157,6 +190,8 @@ export class NotificationService implements OnDestroy {
    */
   public evaluateLiveAlerts(): void {
     if (typeof window === 'undefined') return;
+    // No operational alerts on the login screen / before sign-in.
+    if (!this.authService.isAuthenticated()) return;
 
     const isAr = this.langService.isArabic();
     const now = new Date();
@@ -169,7 +204,7 @@ export class NotificationService implements OnDestroy {
     if (catering) {
       const products = catering.products() || [];
       if (products.length === 0 && !catering.isLoading()) {
-        catering.getProducts().subscribe({ error: () => {} });
+        catering.getProducts().subscribe({ error: () => { /* best effort: a failure here is ignored on purpose */ } });
       }
       for (const prod of products) {
         if (!prod || !prod.id) continue;
@@ -182,10 +217,13 @@ export class NotificationService implements OnDestroy {
           newOpAlertsMap.set(alertId, {
             id: alertId,
             type: 'Catering',
-            title: isAr ? 'نفاد المخزون بالكامل!' : 'Out of Stock Alert!',
-            message: isAr
-              ? `منتج "${name}" نفد بالكامل من الكاترينج (الرصيد: 0)!`
-              : `Product "${name}" is completely out of stock (0 items left)!`,
+            // At or below the critical threshold: "out of stock" only when nothing is left.
+            title: stock <= 0
+              ? (this.langService.t().locOutOfStockAlert)
+              : (this.langService.t().locCriticalStock),
+            message: stock <= 0
+              ? (this.langService.tf('loctProductIsCompletelyOutOf', { name }))
+              : (this.langService.tf('loctProductIsAlmostOutItems', { name, stock })),
             severity: 'critical',
             createdAt: new Date().toISOString(),
             relatedEntityType: 'Product',
@@ -197,10 +235,8 @@ export class NotificationService implements OnDestroy {
           newOpAlertsMap.set(alertId, {
             id: alertId,
             type: 'Catering',
-            title: isAr ? 'تنبيه انخفاض المخزون' : 'Low Stock Warning',
-            message: isAr
-              ? `منتج "${name}" وصل للحد الأدنى (الرصيد الحالي: ${stock} قطع).`
-              : `Product "${name}" reached low stock threshold (${stock} items left).`,
+            title: this.langService.t().locLowStockWarning,
+            message: this.langService.tf('loctProductReachedLowStockThreshold', { name, stock }),
             severity: 'warning',
             createdAt: new Date().toISOString(),
             relatedEntityType: 'Product',
@@ -223,7 +259,7 @@ export class NotificationService implements OnDestroy {
         if (!card || !card.id || card.status !== 'active') continue;
         const alertId = `op_cls_${card.id}`;
         const overtimeInfo = classroom.calculateOvertimeAndAlerts(card, isAr);
-        const roomName = card.name || (isAr ? 'القاعة' : 'Room');
+        const roomName = card.name || (this.langService.t().clsRoom);
         const instructor = card.instructor && card.instructor !== '-' ? ` (${card.instructor})` : '';
 
         if (overtimeInfo.alertStatus === 'ending_soon') {
@@ -235,10 +271,8 @@ export class NotificationService implements OnDestroy {
           newOpAlertsMap.set(alertId, {
             id: alertId,
             type: 'Classroom',
-            title: isAr ? 'اقتراب انتهاء حجز القاعة' : 'Classroom Ending Soon',
-            message: isAr
-              ? `قاعة "${roomName}"${instructor} متبقي لها ${remMins} دقيقة على انتهاء موعد الحجز.`
-              : `Room "${roomName}"${instructor} has ${remMins} minutes remaining.`,
+            title: this.langService.t().locClassroomEndingSoon,
+            message: this.langService.tf('loctRoomHasMinutesRemaining', { roomName, instructor, remMins }),
             severity: 'warning',
             createdAt: new Date().toISOString(),
             relatedEntityType: 'Classroom',
@@ -252,10 +286,8 @@ export class NotificationService implements OnDestroy {
           newOpAlertsMap.set(alertId, {
             id: alertId,
             type: 'Classroom',
-            title: isAr ? 'انتهاء وقت القاعة (فترة سماح)' : 'Classroom Ended (Grace Period)',
-            message: isAr
-              ? `انتهى وقت حجز قاعة "${roomName}"${instructor}، فترة السماح: متبقي ${graceLeft} دقيقة قبل احتساب وقت إضافي.`
-              : `Scheduled time ended for "${roomName}"${instructor}. Grace period: ${graceLeft}m left.`,
+            title: this.langService.t().locClassroomEndedGracePeriod,
+            message: this.langService.tf('loctScheduledTimeEndedForGrace', { roomName, instructor, graceLeft }),
             severity: 'warning',
             createdAt: new Date().toISOString(),
             relatedEntityType: 'Classroom',
@@ -270,10 +302,8 @@ export class NotificationService implements OnDestroy {
           newOpAlertsMap.set(alertId, {
             id: alertId,
             type: 'Classroom',
-            title: isAr ? 'تجاوز وقت القاعة (Overtime)' : 'Classroom Overtime Alert',
-            message: isAr
-              ? `قاعة "${roomName}"${instructor} متأخرة بمقدار ${durationStr} عن موعد الانتهاء (+${extraHours} س إضافية)!`
-              : `Room "${roomName}"${instructor} is overdue by ${durationStr} (+${extraHours}h charged)!`,
+            title: this.langService.t().locClassroomOvertimeAlert,
+            message: this.langService.tf('loctRoomIsOverdueByH', { roomName, instructor, durationStr, extraHours }),
             severity: 'critical',
             createdAt: new Date().toISOString(),
             relatedEntityType: 'Classroom',
@@ -292,9 +322,9 @@ export class NotificationService implements OnDestroy {
         if (!resDateStr || !res.startTime) continue;
         const startObj = parseSessionTimeToDate(res.startTime, resDateStr);
         const diffHours = (startObj.getTime() - now.getTime()) / (1000 * 60 * 60);
-        const roomName = res.classroom || (isAr ? 'القاعة' : 'Room');
+        const roomName = res.classroom || (this.langService.t().clsRoom);
         const who = res.instructor && res.instructor !== '-' ? res.instructor : (res.activity || 'حجز');
-        const noteHint = res.notes ? (isAr ? ` [ملاحظة: ${res.notes}]` : ` [Note: ${res.notes}]`) : '';
+        const noteHint = res.notes ? (this.langService.tf('loctNote', { notes: res.notes })) : '';
 
         // 24 Hours Reminder (between 20 and 24.5 hours ahead)
         if (diffHours > 20 && diffHours <= 24.5) {
@@ -303,9 +333,7 @@ export class NotificationService implements OnDestroy {
             id: alertId,
             type: 'Classroom',
             title: isAr ? `تذكير بموعد حجز غداً: ${roomName}` : `Tomorrow's Booking: ${roomName}`,
-            message: isAr
-              ? `حجز لـ "${who}" غداً في الساعة ${res.startTime}.${noteHint}`
-              : `Reservation for "${who}" tomorrow at ${res.startTime}.${noteHint}`,
+            message: this.langService.tf('loctReservationForTomorrowAt', { who, startTime: res.startTime, noteHint }),
             severity: 'info',
             createdAt: new Date().toISOString(),
             relatedEntityType: 'Reservation',
@@ -322,10 +350,8 @@ export class NotificationService implements OnDestroy {
           newOpAlertsMap.set(alertId, {
             id: alertId,
             type: 'Classroom',
-            title: isAr ? `تذكير بموعد حجز قريباً: ${roomName}` : `Upcoming Booking: ${roomName}`,
-            message: isAr
-              ? `حجز لـ "${who}" يبدأ بعد ${remMins} دقيقة (الساعة ${res.startTime}).${noteHint}`
-              : `Booking for "${who}" starts in ${remMins} minutes (${res.startTime}).${noteHint}`,
+            title: this.langService.tf('loctUpcomingBooking', { roomName }),
+            message: this.langService.tf('loctBookingForStartsInMinutes', { who, remMins, startTime: res.startTime, noteHint }),
             severity: 'warning',
             createdAt: new Date().toISOString(),
             relatedEntityType: 'Reservation',
@@ -346,7 +372,7 @@ export class NotificationService implements OnDestroy {
       for (const st of activeStudents) {
         if (!st || !st.id || st.status !== 'active') continue;
         const alertId = `op_ws_${st.id}`;
-        const studentName = st.name || (isAr ? 'الطالب' : 'Student');
+        const studentName = st.name || (this.langService.t().locStudent);
 
         if (st.expectedCheckout) {
           const endObj = parseSessionTimeToDate(st.expectedCheckout, st.date);
@@ -359,10 +385,8 @@ export class NotificationService implements OnDestroy {
               newOpAlertsMap.set(alertId, {
                 id: alertId,
                 type: 'Workspace',
-                title: isAr ? 'اقتراب انتهاء وقت الطالب (عاجل)' : 'Student Session Ending Very Soon',
-                message: isAr
-                  ? `الطالب "${studentName}" متبقي له ${remMins} دقيقة فقط على انتهاء جلسته في مساحة العمل.`
-                  : `Student "${studentName}" has only ${remMins}m left in workspace session.`,
+                title: this.langService.t().locStudentSessionEndingVerySoon,
+                message: this.langService.tf('loctStudentHasOnlyMLeft', { studentName, remMins }),
                 severity: 'warning',
                 createdAt: new Date().toISOString(),
                 relatedEntityType: 'WorkspaceSession',
@@ -374,10 +398,8 @@ export class NotificationService implements OnDestroy {
               newOpAlertsMap.set(alertId, {
                 id: alertId,
                 type: 'Workspace',
-                title: isAr ? 'اقتراب انتهاء وقت الطالب' : 'Student Session Ending Soon',
-                message: isAr
-                  ? `الطالب "${studentName}" متبقي له ${remMins} دقيقة على انتهاء وقته المحدد.`
-                  : `Student "${studentName}" has ${remMins}m remaining in session.`,
+                title: this.langService.t().locStudentSessionEndingSoon,
+                message: this.langService.tf('loctStudentHasMRemainingIn', { studentName, remMins }),
                 severity: 'info',
                 createdAt: new Date().toISOString(),
                 relatedEntityType: 'WorkspaceSession',
@@ -394,10 +416,8 @@ export class NotificationService implements OnDestroy {
               newOpAlertsMap.set(alertId, {
                 id: alertId,
                 type: 'Workspace',
-                title: isAr ? 'انتهاء وقت الطالب (فترة سماح)' : 'Student Session Ended (Grace Period)',
-                message: isAr
-                  ? `انتهى الوقت المحدد للطالب "${studentName}"، فترة السماح: متبقي ${graceLeft} دقيقة قبل احتساب وقت إضافي.`
-                  : `Scheduled time ended for "${studentName}". Grace period: ${graceLeft}m remaining.`,
+                title: this.langService.t().locStudentSessionEndedGracePeriod,
+                message: this.langService.tf('loctScheduledTimeEndedForGrace2', { studentName, graceLeft }),
                 severity: 'warning',
                 createdAt: new Date().toISOString(),
                 relatedEntityType: 'WorkspaceSession',
@@ -410,10 +430,8 @@ export class NotificationService implements OnDestroy {
               newOpAlertsMap.set(alertId, {
                 id: alertId,
                 type: 'Workspace',
-                title: isAr ? 'تجاوز وقت الطالب (Overtime)' : 'Student Session Overtime Alert',
-                message: isAr
-                  ? `الطالب "${studentName}" متأخر بمقدار ${durationStr} عن موعد الخروج المحدد دون إنهاء الجلسة!`
-                  : `Student "${studentName}" is overdue by ${durationStr} without checking out!`,
+                title: this.langService.t().locStudentSessionOvertimeAlert,
+                message: this.langService.tf('loctStudentIsOverdueByWithout', { studentName, durationStr }),
                 severity: 'critical',
                 createdAt: new Date().toISOString(),
                 relatedEntityType: 'WorkspaceSession',
@@ -432,10 +450,8 @@ export class NotificationService implements OnDestroy {
             newOpAlertsMap.set(alertId, {
               id: alertId,
               type: 'LongStay',
-              title: isAr ? 'تنبيه إقامة طويلة للطالب' : 'Long Stay Alert',
-              message: isAr
-                ? `الطالب "${studentName}" متواجد في مساحة العمل منذ أكثر من ${h} ساعات متواصلة.`
-                : `Student "${studentName}" has been in workspace for over ${h} hours.`,
+              title: this.langService.t().locLongStayAlert,
+              message: this.langService.tf('loctStudentHasBeenInWorkspace', { studentName, h }),
               severity: 'info',
               createdAt: new Date().toISOString(),
               relatedEntityType: 'WorkspaceSession',
@@ -476,6 +492,8 @@ export class NotificationService implements OnDestroy {
         hasChanges = true;
         this.dismissedKeys.delete(id);
         this.toastShownKeys.delete(id);
+        this.toastShownKeys.delete(`${id}_crit`);
+        try { sessionStorage.setItem(NotificationService.TOAST_KEYS_STORAGE, JSON.stringify([...this.toastShownKeys])); } catch {}
       }
     }
 
@@ -511,7 +529,7 @@ export class NotificationService implements OnDestroy {
           // Show floating toast on escalation if not shown yet
           if (escalated && !this.toastShownKeys.has(`${id}_crit`)) {
             this.show(newAlert.message, 'error', 6000);
-            this.toastShownKeys.add(`${id}_crit`);
+            this.markToastShown(`${id}_crit`);
           }
         } else {
           mergedOp.push(existing);
@@ -525,7 +543,7 @@ export class NotificationService implements OnDestroy {
           // Trigger toast for new high-severity alerts
           if ((newAlert.severity === 'critical' || newAlert.severity === 'warning') && !this.toastShownKeys.has(id)) {
             this.show(newAlert.message, newAlert.severity === 'critical' ? 'error' : 'warning', 5000);
-            this.toastShownKeys.add(id);
+            this.markToastShown(id);
           }
         }
       }
@@ -546,7 +564,7 @@ export class NotificationService implements OnDestroy {
 
   private formatDurationHuman(minutes: number, isAr: boolean): string {
     if (minutes < 60) {
-      return isAr ? `${minutes} دقيقة` : `${minutes}m`;
+      return this.langService.tf('loctM', { minutes });
     }
     const d = Math.floor(minutes / 1440);
     const remMins = minutes % 1440;
@@ -563,51 +581,9 @@ export class NotificationService implements OnDestroy {
       }
     }
     if (m === 0) {
-      return isAr ? `${h} ساعة` : `${h}h`;
+      return this.langService.tf('loctH', { h });
     }
-    return isAr ? `${h} ساعة و ${m} دقيقة` : `${h}h ${m}m`;
-  }
-
-  // --- Operational Notification Management Methods ---
-
-  /** Requirement 5: Persistent Note Notifications (1 day & 1 hour before scheduled time) */
-  scheduleNoteReminder(noteInfo: { entityName: string; entityType: 'Student' | 'Classroom' | 'Reservation'; noteText: string; scheduledDateTime: string; sessionId?: string }): void {
-    if (!noteInfo.scheduledDateTime || !noteInfo.noteText) return;
-
-    const targetDate = new Date(noteInfo.scheduledDateTime);
-    if (isNaN(targetDate.getTime())) return;
-
-    const now = new Date();
-    const diffMs = targetDate.getTime() - now.getTime();
-    const diffHours = diffMs / (1000 * 3600);
-
-    // 1 Day Reminder (between 23h and 25h away)
-    if (diffHours >= 23 && diffHours <= 25) {
-      const title = `تذكير ملاحظة (قبل يوم واحد) - ${noteInfo.entityName}`;
-      const msg = `ملاحظة مجدولة لـ ${noteInfo.entityName} بتاريخ ${targetDate.toLocaleDateString()} ${targetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}: "${noteInfo.noteText}"`;
-      this.addStaffNotification({
-        type: 'Classroom',
-        title,
-        message: msg,
-        severity: 'info',
-        relatedEntityId: noteInfo.sessionId,
-        relatedEntityType: noteInfo.entityType
-      });
-    }
-
-    // 1 Hour Reminder (between 0.5h and 1.5h away)
-    if (diffHours >= 0.5 && diffHours <= 1.5) {
-      const title = `تذكير ملاحظة عاجل (قبل ساعة واحدة) - ${noteInfo.entityName}`;
-      const msg = `ملاحظة عاجلة لـ ${noteInfo.entityName} تبدأ خلال ساعة (${targetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}): "${noteInfo.noteText}"`;
-      this.addStaffNotification({
-        type: 'Classroom',
-        title,
-        message: msg,
-        severity: 'warning',
-        relatedEntityId: noteInfo.sessionId,
-        relatedEntityType: noteInfo.entityType
-      });
-    }
+    return this.langService.tf('loctHM', { h, m });
   }
 
   addStaffNotification(notif: Omit<StaffNotification, 'id' | 'createdAt' | 'isRead'>): StaffNotification {
@@ -629,7 +605,7 @@ export class NotificationService implements OnDestroy {
 
     // Sync with backend API if valid GUID
     if (/^[0-9a-fA-F-]{36}$/.test(id)) {
-      this.staffNotificationApi.markAsRead(id).subscribe({ error: () => {} });
+      this.staffNotificationApi.markAsRead(id).subscribe({ error: () => { /* best effort: a failure here is ignored on purpose */ } });
     }
   }
 
@@ -639,7 +615,7 @@ export class NotificationService implements OnDestroy {
     );
 
     // Sync with backend API
-    this.staffNotificationApi.markAllAsRead().subscribe({ error: () => {} });
+    this.staffNotificationApi.markAllAsRead().subscribe({ error: () => { /* best effort: a failure here is ignored on purpose */ } });
   }
 
   dismissStaffNotification(id: string): void {
@@ -650,7 +626,7 @@ export class NotificationService implements OnDestroy {
 
     // Sync with backend API if valid GUID
     if (/^[0-9a-fA-F-]{36}$/.test(id)) {
-      this.staffNotificationApi.deleteNotification(id).subscribe({ error: () => {} });
+      this.staffNotificationApi.deleteNotification(id).subscribe({ error: () => { /* best effort: a failure here is ignored on purpose */ } });
     }
   }
 
@@ -666,19 +642,24 @@ export class NotificationService implements OnDestroy {
     // Delete remotely on backend
     current.forEach(n => {
       if (/^[0-9a-fA-F-]{36}$/.test(n.id)) {
-        this.staffNotificationApi.deleteNotification(n.id).subscribe({ error: () => {} });
+        this.staffNotificationApi.deleteNotification(n.id).subscribe({ error: () => { /* best effort: a failure here is ignored on purpose */ } });
       }
     });
   }
 
   // --- Ephemeral Toast Methods ---
 
-  show(message: string, type: NotificationType = 'info', duration: number = 4000): void {
+  show(message: string, type: NotificationType = 'info', duration = 4000): void {
     if (!message) return;
+
+    // Skip an identical toast that is already on screen (e.g. repeated alerts / double clicks)
+    if (this.notifications().some(n => n.message === message && n.type === type)) return;
+
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const notification: AppNotification = { id, message, type, duration };
 
-    this.notifications.update(list => [...list, notification]);
+    // Cap visible toasts so a burst of alerts never covers the whole screen (oldest dropped first)
+    this.notifications.update(list => [...list, notification].slice(-NotificationService.MAX_VISIBLE_TOASTS));
 
     if (duration > 0) {
       setTimeout(() => {
@@ -687,19 +668,19 @@ export class NotificationService implements OnDestroy {
     }
   }
 
-  success(message: string, duration: number = 4000): void {
+  success(message: string, duration = 4000): void {
     this.show(message, 'success', duration);
   }
 
-  error(message: string, duration: number = 5000): void {
+  error(message: string, duration = 5000): void {
     this.show(message, 'error', duration);
   }
 
-  warning(message: string, duration: number = 4500): void {
+  warning(message: string, duration = 4500): void {
     this.show(message, 'warning', duration);
   }
 
-  info(message: string, duration: number = 4000): void {
+  info(message: string, duration = 4000): void {
     this.show(message, 'info', duration);
   }
 

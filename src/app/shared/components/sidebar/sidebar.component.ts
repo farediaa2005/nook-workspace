@@ -15,6 +15,7 @@ import { EndOfShiftModalComponent } from '../end-of-shift-modal/end-of-shift-mod
 })
 export class SidebarComponent implements OnInit {
   private authService = inject(AuthService);
+  isAdmin = () => this.authService.isAdmin();
   private shiftService = inject(ShiftService);
   private langService = inject(LanguageService);
   private router = inject(Router);

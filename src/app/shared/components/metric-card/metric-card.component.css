@@ -38,7 +38,7 @@
 }
 
 .metric-card--yellow {
-  border-bottom: 3px solid #f5b921;
+  border-bottom: 3px solid var(--yellow);
 }
 
 .metric-card--yellow.metric-card--clickable:hover {
@@ -46,7 +46,7 @@
 }
 
 .metric-card--green {
-  border-bottom: 3px solid #22c55e;
+  border-bottom: 3px solid var(--success-strong);
 }
 
 .metric-card--green.metric-card--clickable:hover {
@@ -54,7 +54,7 @@
 }
 
 .metric-card--blue {
-  border-bottom: 3px solid #3b82f6;
+  border-bottom: 3px solid var(--info);
 }
 
 .metric-card--blue.metric-card--clickable:hover {
@@ -62,7 +62,7 @@
 }
 
 .metric-card--purple {
-  border-bottom: 3px solid #a855f7;
+  border-bottom: 3px solid var(--purple-500);
 }
 
 .metric-card--purple.metric-card--clickable:hover {
@@ -70,7 +70,7 @@
 }
 
 .metric-card--red {
-  border-bottom: 3px solid #ef4444;
+  border-bottom: 3px solid var(--danger-strong);
 }
 
 .metric-card--red.metric-card--clickable:hover {
@@ -107,27 +107,27 @@
 
 .icon-wrap--yellow {
   background: rgba(245, 185, 33, 0.14);
-  color: #f5b921;
+  color: var(--yellow);
 }
 
 .icon-wrap--green {
   background: rgba(34, 197, 94, 0.14);
-  color: #22c55e;
+  color: var(--success-strong);
 }
 
 .icon-wrap--blue {
   background: rgba(59, 130, 246, 0.14);
-  color: #3b82f6;
+  color: var(--info);
 }
 
 .icon-wrap--purple {
   background: rgba(168, 85, 247, 0.14);
-  color: #a855f7;
+  color: var(--purple-500);
 }
 
 .icon-wrap--red {
   background: rgba(239, 68, 68, 0.14);
-  color: #ef4444;
+  color: var(--danger-strong);
 }
 
 .metric-number {
@@ -146,10 +146,10 @@
 
 .metric-title {
   color: var(--text-dim);
-  font-size: 0.92rem;
+  font-size: var(--fs-md);
   font-weight: 500;
   margin: 0;
-  text-align: left;
+  text-align: start;
 }
 
 .metric-card--rtl .metric-title,
@@ -163,8 +163,8 @@
   align-items: center;
   gap: 5px;
   padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 0.76rem;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
 
@@ -175,22 +175,22 @@
 
 .badge--green {
   background: rgba(34, 197, 94, 0.14);
-  color: #22c55e;
+  color: var(--success-strong);
 }
 
 .badge--blue {
   background: rgba(59, 130, 246, 0.14);
-  color: #3b82f6;
+  color: var(--info);
 }
 
 .badge--purple {
   background: rgba(168, 85, 247, 0.14);
-  color: #a855f7;
+  color: var(--purple-500);
 }
 
 .badge--yellow {
   background: rgba(245, 185, 33, 0.14);
-  color: #f5b921;
+  color: var(--yellow);
 }
 
 /* Responsive Media Queries */
@@ -199,26 +199,26 @@
     padding: 16px 14px;
     min-height: 136px;
     gap: 8px;
-    border-radius: 14px;
+    border-radius: var(--radius);
   }
 
   .metric-number {
-    font-size: 1.7rem;
+    font-size: var(--fs-2xl);
   }
 
   .metric-number--text {
-    font-size: 1.15rem !important;
+    font-size: var(--fs-lg) !important;
     white-space: nowrap;
   }
 
   .metric-title {
-    font-size: 0.82rem;
+    font-size: var(--fs-sm);
   }
 
   .metric-icon-wrap {
     width: 38px;
     height: 38px;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
   }
 
   :host ::ng-deep .metric-icon-wrap svg {
@@ -227,7 +227,7 @@
   }
 
   .metric-badge {
-    font-size: 0.70rem;
+    font-size: var(--fs-2xs);
     padding: 3px 8px;
   }
 }
@@ -238,22 +238,22 @@
 
 .badge--green {
   background: rgba(34, 197, 94, 0.14);
-  color: #22c55e;
+  color: var(--success-strong);
 }
 
 .badge--blue {
   background: rgba(59, 130, 246, 0.14);
-  color: #3b82f6;
+  color: var(--info);
 }
 
 .badge--purple {
   background: rgba(168, 85, 247, 0.14);
-  color: #a855f7;
+  color: var(--purple-500);
 }
 
 .badge--yellow {
   background: rgba(245, 185, 33, 0.14);
-  color: #f5b921;
+  color: var(--yellow);
 }
 
 /* Responsive Media Queries */
@@ -262,21 +262,21 @@
     padding: 14px 14px;
     min-height: 124px;
     gap: 8px;
-    border-radius: 14px;
+    border-radius: var(--radius);
   }
 
   .metric-title {
-    font-size: 0.90rem;
+    font-size: var(--fs-base);
   }
 
   .metric-desc {
-    font-size: 0.74rem;
+    font-size: var(--fs-xs);
   }
 
   .metric-icon-wrap {
     width: 36px;
     height: 36px;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
   }
 
   :host ::ng-deep .metric-icon-wrap svg {
@@ -295,7 +295,7 @@
   }
 
   .metric-badge {
-    font-size: 0.70rem;
+    font-size: var(--fs-2xs);
     padding: 3px 8px;
   }
 }

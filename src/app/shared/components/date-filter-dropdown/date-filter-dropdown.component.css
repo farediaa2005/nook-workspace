@@ -18,9 +18,9 @@
   padding: 0 14px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   color: var(--text);
-  font-size: 0.88rem;
+  font-size: var(--fs-base);
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
@@ -33,7 +33,7 @@
 
 .date-filter-dropdown:hover,
 .date-filter-dropdown--active {
-  border-color: #f5b921;
+  border-color: var(--yellow);
   background: var(--surface-2);
 }
 
@@ -46,11 +46,11 @@
 
 .date-display-text {
   white-space: nowrap;
-  font-size: 0.86rem;
+  font-size: var(--fs-base);
   text-overflow: ellipsis;
   overflow: hidden;
   flex: 1;
-  text-align: left;
+  text-align: start;
 }
 
 :host-context(.rtl) .date-display-text,
@@ -88,7 +88,7 @@
   z-index: 100;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 8px;
   min-width: 210px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
@@ -127,13 +127,13 @@
   padding: 9px 12px;
   background: none;
   border: none;
-  border-radius: 8px;
-  font-size: 0.85rem;
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-ui);
   font-weight: 500;
   color: var(--text);
   cursor: pointer;
   transition: all 0.15s ease;
-  text-align: left;
+  text-align: start;
   font-family: inherit;
 }
 
@@ -143,12 +143,12 @@
 
 .date-menu-item:hover {
   background: var(--surface-2);
-  color: #f5b921;
+  color: var(--yellow);
 }
 
 .date-menu-item--active {
   background: rgba(245, 185, 33, 0.12);
-  color: #f5b921;
+  color: var(--yellow);
   font-weight: 700;
 }
 
@@ -166,10 +166,10 @@
 }
 
 .custom-date-label {
-  font-size: 0.76rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--text-dim);
-  text-align: left;
+  text-align: start;
 }
 
 [dir="rtl"] .custom-date-label {
@@ -182,9 +182,9 @@
   padding: 0 8px;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-2xs);
   color: var(--text);
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   font-family: inherit;
   outline: none;
   box-sizing: border-box;
@@ -192,7 +192,7 @@
 }
 
 .custom-date-input:focus {
-  border-color: #f5b921;
+  border-color: var(--yellow);
 }
 
 @media (max-width: 768px) {

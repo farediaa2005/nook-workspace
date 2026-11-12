@@ -23,13 +23,6 @@ export class RoomApiService extends BaseApiService {
     );
   }
 
-  /** Get room by ID — GET /api/Rooms/{id} */
-  getRoomById(id: string): Observable<RoomDto> {
-    return this.get<ApiResponse<RoomDto>>(API_ENDPOINTS.ROOMS.BY_ID(id)).pipe(
-      map(extractData)
-    );
-  }
-
   /**
    * Create room — POST /api/Rooms (supports application/json or multipart/form-data)
    * Always sends multipart/form-data to satisfy ASP.NET Core [FromForm] binding.

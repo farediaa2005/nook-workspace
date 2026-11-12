@@ -1,4 +1,5 @@
 import { Component, inject, signal, computed, OnInit, DestroyRef } from '@angular/core';
+import { localizeMeridiem } from '../../../core/utils/date-time.util';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -10,10 +11,11 @@ import { EndOfShiftModalComponent } from '../../../shared/components/end-of-shif
 import { CustomSelectComponent, SelectOption } from '../../../shared/components/custom-select/custom-select.component';
 
 import { AuthService } from '../../../core/services/auth.service';
+import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 
 @Component({
   selector: 'app-active-shift',
-  imports: [CommonModule, FormsModule, RouterLink, EndOfShiftModalComponent, CustomSelectComponent],
+  imports: [PageHeaderComponent, CommonModule, FormsModule, RouterLink, EndOfShiftModalComponent, CustomSelectComponent],
   templateUrl: './active-shift.component.html',
   styleUrl: './active-shift.component.css'
 })
@@ -27,6 +29,7 @@ export class ActiveShiftComponent implements OnInit {
   private destroyRef = inject(DestroyRef);
 
   t = this.langService.t;
+  tf = this.langService.tf;
   isArabic = this.langService.isArabic;
   hasActiveShift = this.shiftService.hasActiveShift;
   isLoading = this.shiftService.isLoading;
@@ -51,6 +54,8 @@ export class ActiveShiftComponent implements OnInit {
   staffName = this.shiftService.activeStaffName;
   staffAvatar = this.shiftService.activeStaffAvatar;
   shiftStartTime = this.shiftService.shiftStartTime;
+  /** start time in the UI language (the stored value keeps ص/م) */
+  shiftStartTimeDisplay = computed(() => localizeMeridiem(this.shiftService.shiftStartTime(), this.isArabic()));
   shiftStartDate = this.shiftService.shiftStartDate;
   isShiftStartedToday = this.shiftService.isShiftStartedToday;
   shiftDuration = this.shiftService.shiftDuration;
@@ -74,6 +79,8 @@ export class ActiveShiftComponent implements OnInit {
   packageCash = this.shiftService.packageCash;
   cateringCash = this.shiftService.cateringCash;
   otherIncome = this.shiftService.otherIncome;
+  walletTopUps = this.shiftService.walletTopUps;
+  walletPaidRevenue = this.shiftService.walletPaidRevenue;
   adminExpenses = this.shiftService.adminExpenses;
   posReceipts = this.shiftService.posReceipts;
 
@@ -177,7 +184,7 @@ export class ActiveShiftComponent implements OnInit {
     this.newItemCategory.set('hospitality');
     this.newItemAmount.set(null);
     this.newItemPayWay.set('cash');
-    this.newItemDescription.set(this.isArabic() ? 'مصاريف ضيافة وبوفيه' : 'Hospitality & Refreshments');
+    this.newItemDescription.set(this.t().shiftHospitalityRefreshments);
     this.amountErrorMessage.set(null);
     this.isSubmittingItem.set(false);
     this.showAddItemModal.set(true);
@@ -194,10 +201,10 @@ export class ActiveShiftComponent implements OnInit {
     this.amountErrorMessage.set(null);
     if (type === 'expense') {
       this.newItemCategory.set('hospitality');
-      this.newItemDescription.set(this.isArabic() ? 'مصاريف ضيافة وبوفيه' : 'Hospitality & Refreshments');
+      this.newItemDescription.set(this.t().shiftHospitalityRefreshments);
     } else {
       this.newItemCategory.set('extra');
-      this.newItemDescription.set(this.isArabic() ? 'إيراد إضافي متنوع' : 'Additional Revenue');
+      this.newItemDescription.set(this.t().shiftAdditionalRevenue);
     }
   }
 
@@ -233,7 +240,7 @@ export class ActiveShiftComponent implements OnInit {
 
     const amt = this.newItemAmount();
     if (!amt || amt <= 0) {
-      this.amountErrorMessage.set(this.isArabic() ? 'يرجى إدخال مبلغ صحيح أكبر من صفر' : 'Please enter a valid amount greater than zero');
+      this.amountErrorMessage.set(this.t().shiftPleaseEnterAValidAmount);
       return;
     }
 
@@ -244,8 +251,8 @@ export class ActiveShiftComponent implements OnInit {
     const cat = this.newItemCategory();
     const pay = this.newItemPayWay();
     const desc = this.newItemDescription().trim() || (type === 'expense' 
-      ? (this.isArabic() ? 'مصروفات وردية' : 'Shift Expense') 
-      : (this.isArabic() ? 'إيراد إضافي' : 'Additional Income'));
+      ? (this.t().shiftShiftExpense) 
+      : (this.t().shiftAdditionalIncome));
 
     this.shiftService.addManualShiftItem({
       amount: amt,
@@ -256,15 +263,13 @@ export class ActiveShiftComponent implements OnInit {
     }).subscribe({
       next: () => {
         this.isSubmittingItem.set(false);
-        const toastMsg = this.isArabic()
-          ? (type === 'expense' ? `تم تسجيل مصروف بقيمة ${amt.toFixed(2)} ج.م بنجاح` : `تم تسجيل إيراد بقيمة ${amt.toFixed(2)} ج.م بنجاح`)
-          : (type === 'expense' ? `Expense of ${amt.toFixed(2)} EGP recorded successfully` : `Revenue of ${amt.toFixed(2)} EGP recorded successfully`);
+        const toastMsg = this.langService.tf(type === 'expense' ? 'shfExpenseRecorded' : 'shfRevenueRecorded', { amount: amt.toFixed(2) });
         this.workspaceService.showToast(toastMsg, 'success');
         this.closeAddItemModal();
       },
       error: (err) => {
         this.isSubmittingItem.set(false);
-        const msg = err?.error?.message || err?.message || (this.isArabic() ? 'تعذر تسجيل البند في السيرفر' : 'Failed to record item on server');
+        const msg = err?.error?.message || err?.message || (this.t().shiftFailedToRecordItemOn);
         this.workspaceService.showToast(msg, 'error');
       }
     });
@@ -281,13 +286,13 @@ export class ActiveShiftComponent implements OnInit {
         this.isRecalculating.set(false);
         if (ok) {
           this.workspaceService.showToast(
-            this.isArabic() ? 'تم تحديث وتدقيق حسابات الوردية بنجاح!' : 'Shift accounts updated and recalculated successfully!',
+            this.t().shiftShiftAccountsUpdatedAndRecalculated,
             'success'
           );
         } else {
           this.shiftService.fetchCurrentShiftFromApi();
           this.workspaceService.showToast(
-            this.isArabic() ? 'تمت مزامنة بيانات الوردية' : 'Shift data synchronized',
+            this.t().shiftShiftDataSynchronized,
             'info'
           );
         }
@@ -302,7 +307,7 @@ export class ActiveShiftComponent implements OnInit {
   resetShiftData(): void {
     this.shiftService.resetShiftDataForTesting();
     this.workspaceService.showToast(
-      this.isArabic() ? 'تم تصفير أرقام الوردية للاختبار من الصفر!' : 'Shift data reset to zero for test run!',
+      this.t().shiftShiftDataResetToZero,
       'info'
     );
   }
@@ -317,7 +322,7 @@ export class ActiveShiftComponent implements OnInit {
       next: () => {
         this.isDeletingAll.set(false);
         this.workspaceService.showToast(
-          this.isArabic() ? 'تم حذف جميع بنود الوردية بالكامل من الخادم بنجاح!' : 'All shift items permanently deleted from server!',
+          this.t().shiftAllShiftItemsPermanentlyDeleted,
           'success'
         );
       },
@@ -357,12 +362,12 @@ export class ActiveShiftComponent implements OnInit {
         this.deleteTargetTx.set(null);
         if (ok) {
           this.workspaceService.showToast(
-            this.isArabic() ? 'تم حذف البند بنجاح' : 'Item deleted successfully',
+            this.t().shiftItemDeletedSuccessfully,
             'success'
           );
         } else {
           this.workspaceService.showToast(
-            this.isArabic() ? 'تعذر حذف البند من السيرفر' : 'Failed to delete item from server',
+            this.t().shiftFailedToDeleteItemFrom,
             'error'
           );
         }
@@ -371,7 +376,7 @@ export class ActiveShiftComponent implements OnInit {
         this.isDeletingItem.set(null);
         this.deleteTargetTx.set(null);
         this.workspaceService.showToast(
-          this.isArabic() ? 'حدث خطأ أثناء حذف البند' : 'Error deleting item',
+          this.t().shiftErrorDeletingItem,
           'error'
         );
       }
@@ -386,7 +391,7 @@ export class ActiveShiftComponent implements OnInit {
   openEditShiftModal(): void {
     if (!this.canEditShift()) {
       this.workspaceService.showToast(
-        this.isArabic() ? 'غير مصرح: لا يمكن تعديل وقت الشيفت المغلق إلا بواسطة مسؤول النظام' : 'Unauthorized: Cannot edit shift time',
+        this.t().shiftUnauthorizedCannotEditShiftTime,
         'error'
       );
       return;
@@ -407,7 +412,7 @@ export class ActiveShiftComponent implements OnInit {
     const newTime = this.editStartTimeInput().trim();
     if (!newTime) {
       this.workspaceService.showToast(
-        this.isArabic() ? 'يرجى إدخال وقت صحيح' : 'Please enter a valid time',
+        this.t().shiftPleaseEnterAValidTime,
         'error'
       );
       return;
@@ -419,14 +424,14 @@ export class ActiveShiftComponent implements OnInit {
         this.isSavingShiftTime.set(false);
         this.showEditShiftModal.set(false);
         this.workspaceService.showToast(
-          this.isArabic() ? 'تم تعديل وقت بداية الشيفت بنجاح' : 'Shift start time updated successfully',
+          this.t().shiftShiftStartTimeUpdatedSuccessfully,
           'success'
         );
       },
       error: (err) => {
         this.isSavingShiftTime.set(false);
         this.workspaceService.showToast(
-          err?.message || (this.isArabic() ? 'فشل تعديل وقت الشيفت' : 'Failed to update shift time'),
+          err?.message || (this.t().shiftFailedToUpdateShiftTime),
           'error'
         );
       }

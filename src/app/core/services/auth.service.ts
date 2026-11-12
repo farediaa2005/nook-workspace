@@ -1,11 +1,11 @@
 import { Injectable, signal, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, of, tap, catchError, throwError, map } from 'rxjs';
+import { Observable, tap, catchError, throwError, map } from 'rxjs';
 import { AuthUser, AuthResponseDto, MeResponseDto, LoginRequestDto } from '../models/user.model';
 import { ApiResponse } from '../models/api-response.model';
 import { API_BASE_URL, API_ENDPOINTS } from '../constants/api-endpoints';
-import { generateAvatarSvg, getSafeAvatar } from '../utils/avatar.util';
+import { getSafeAvatar } from '../utils/avatar.util';
 
 @Injectable({
   providedIn: 'root'
@@ -146,7 +146,7 @@ export class AuthService {
   login(dto: LoginRequestDto): Observable<AuthResponseDto> {
     const payload = {
       identifier: (dto.identifier || dto.email || '').trim(),
-      password: (dto.password || '').trim()
+      password: dto.password || ''
     };
 
     return this.http.post<ApiResponse<AuthResponseDto>>(
@@ -154,7 +154,7 @@ export class AuthService {
       payload
     ).pipe(
       map(res => {
-        const raw = res?.data || (res as any);
+        const raw = res?.data || (res);
         const token = raw?.accessToken || raw?.token;
         if (token) {
           const authDto: AuthResponseDto = {
@@ -189,14 +189,14 @@ export class AuthService {
       map(res => res.data),
       tap(me => {
         const existing = this.currentUser();
-        const isAdmin = (me.roles || []).some((r: any) => r === 1); // UserRole.Admin = 1
+        const isAdmin = (me.roles || []).some((r: unknown) => r === 1); // UserRole.Admin = 1
         const userName = me.username || existing?.name || 'User';
         const updatedUser: AuthUser = {
           id: me.id || me.accountId || '',
           email: me.email || '',
           name: userName,
           role: isAdmin ? 'admin' : 'user',
-          avatar: getSafeAvatar((me as any)?.avatar || existing?.avatar, userName),
+          avatar: getSafeAvatar((me)?.avatar || existing?.avatar, userName),
           token: existing?.token,
           refreshToken: existing?.refreshToken
         };
@@ -222,7 +222,7 @@ export class AuthService {
     if (this.refreshToken) {
       this.http.post(`${API_BASE_URL}${API_ENDPOINTS.AUTH.REVOKE_TOKEN}`, JSON.stringify(this.refreshToken), {
         headers: { 'Content-Type': 'application/json' }
-      }).subscribe({ error: () => {} });
+      }).subscribe({ error: () => { /* best effort: a failure here is ignored on purpose */ } });
     }
     this.clearAuthState();
     this.router.navigate(['/auth/login']);
@@ -239,7 +239,7 @@ export class AuthService {
 
     const account = authData.account;
     const roles = account?.roles || authData.roles || (authData.role ? [authData.role] : []);
-    const isAdmin = roles.some((r: any) => r === 1 || r === 'Admin' || r === 'admin');
+    const isAdmin = roles.some((r: unknown) => r === 1 || r === 'Admin' || r === 'admin');
     const name = account?.username || authData.username || 'User';
 
     const user: AuthUser = {
@@ -247,7 +247,7 @@ export class AuthService {
       email: account?.email || authData.email || '',
       name,
       role: isAdmin ? 'admin' : 'user',
-      avatar: getSafeAvatar((account as any)?.avatar || authData.avatar, name),
+      avatar: getSafeAvatar((account)?.avatar || authData.avatar, name),
       token,
       refreshToken
     };
@@ -283,7 +283,7 @@ export class AuthService {
       identifier: cleanIdentifier,
       email: cleanIdentifier,
       token: dto.token.trim(),
-      newPassword: (dto.newPassword || dto.password || '').trim()
+      newPassword: dto.newPassword || dto.password || ''
     };
     return this.http.post(`${API_BASE_URL}${API_ENDPOINTS.AUTH.RESET_PASSWORD}`, payload);
   }

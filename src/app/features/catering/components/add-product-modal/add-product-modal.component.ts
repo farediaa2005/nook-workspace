@@ -3,14 +3,15 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LanguageService } from '../../../../core/services/language.service';
 import { CateringService } from '../../../../core/services/catering.service';
-import { CateringProduct, ProductStatus } from '../../../../core/models/catering.model';
+import { CateringProduct } from '../../../../core/models/catering.model';
 import { CustomSelectComponent, SelectOption } from '../../../../shared/components/custom-select/custom-select.component';
 import { getTodayDateISO } from '../../../../core/utils/date-time.util';
 
+import { AutofocusDirective } from '../../../../shared/directives/autofocus.directive';
 @Component({
   selector: 'app-add-product-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule, CustomSelectComponent],
+  imports: [AutofocusDirective, CommonModule, FormsModule, CustomSelectComponent],
   templateUrl: './add-product-modal.component.html',
   styleUrl: './add-product-modal.component.css'
 })
@@ -22,7 +23,7 @@ export class AddProductModalComponent {
   isArabic = this.langService.isArabic;
 
   // Outputs
-  close = output<void>();
+  closed = output<void>();
   productCreated = output<CateringProduct>();
 
   // Submitting state (prevent duplicate clicks)
@@ -208,7 +209,6 @@ export class AddProductModalComponent {
     const selling = Number(this.sellingPrice()) || 0;
     const cost = Number(this.costPrice()) || 0;
     const stockVal = Number(this.initialStock()) || 0;
-    const reorderVal = this.reorderLevel() !== null ? Number(this.reorderLevel()) : 10;
     const expDate = this.hasNoExpiration() || !this.expirationDate().trim() || this.expirationDate() === 'N/A'
       ? undefined
       : this.expirationDate().trim();
@@ -226,7 +226,6 @@ export class AddProductModalComponent {
       sellingPrice: selling,
       costPrice: cost,
       stock: stockVal,
-      reorderLevel: reorderVal,
       expirationDate: expDate,
       imageFile: this.selectedImageFile() || null,
       image: this.productImage() || null

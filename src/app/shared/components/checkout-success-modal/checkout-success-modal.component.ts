@@ -16,7 +16,7 @@ export class CheckoutSuccessModalComponent {
   private invoiceService = inject(InvoiceService);
 
   invoiceData = input.required<InvoiceData>();
-  close = output<void>();
+  closed = output<void>();
   print = output<void>();
 
   t = this.langService.t;
@@ -41,6 +41,6 @@ export class CheckoutSuccessModalComponent {
   }
 
   onClose(): void {
-    this.close.emit();
+    this.closed.emit();
   }
 }

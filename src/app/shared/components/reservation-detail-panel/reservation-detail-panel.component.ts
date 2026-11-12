@@ -14,6 +14,10 @@ export class ReservationDetailPanelComponent {
   private langService = inject(LanguageService);
 
   t = this.langService.t;
+
+  /** "ساعتان" / "3 ساعات" / "2 hours" — one rule for the whole app */
+
+  hoursText = this.langService.hoursText;
   isArabic = this.langService.isArabic;
 
   isOpen = input<boolean>(false);
@@ -130,12 +134,11 @@ export class ReservationDetailPanelComponent {
   getRecurrenceLabel(): string {
     const res = this.reservation();
     if (!res || !res.isRecurring) return '';
-    const isAr = this.isArabic();
     const freq = Number(res.recurrenceFrequency);
-    if (freq === 1) return isAr ? 'يتكرر يومياً' : 'Repeats Daily';
-    if (freq === 2) return isAr ? 'يتكرر أسبوعياً' : 'Repeats Weekly';
-    if (freq === 3) return isAr ? 'يتكرر شهرياً' : 'Repeats Monthly';
-    return isAr ? 'حجز متكرر' : 'Recurring Reservation';
+    if (freq === 1) return this.t().locRepeatsDaily;
+    if (freq === 2) return this.t().locRepeatsWeekly;
+    if (freq === 3) return this.t().locRepeatsMonthly;
+    return this.t().locRecurringReservation;
   }
 }
 

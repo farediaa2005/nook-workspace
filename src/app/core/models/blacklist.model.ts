@@ -1,9 +1,3 @@
-/**
- * Blacklist domain models matching Backend OpenAPI 3.0.4 specifications.
- * Endpoints: GET/POST /api/Blacklists, GET/PUT/DELETE /api/Blacklists/{id}
- */
-
-export type BlacklistReason = 'Damage' | 'NonPayment' | 'Misconduct' | 'Other';
 
 /** Blacklist DTO from GET /api/Blacklists */
 export interface BlacklistDto {
@@ -34,18 +28,6 @@ export interface CreateBlacklistDto {
   studentPhone?: string;
   studentEmail?: string;
   reasonDetails?: string;
-  notes?: string;
-}
-
-/** Update Blacklist request — PUT /api/Blacklists/{id} */
-export interface UpdateBlacklistDto {
-  name: string;
-  reason?: string | null;
-  blacklistedAt?: string | null;
-  studentId?: string | null;
-  // UI and backward compatibility fields
-  reasonDetails?: string;
-  isActive?: boolean;
   notes?: string;
 }
 

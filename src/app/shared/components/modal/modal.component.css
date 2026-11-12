@@ -19,7 +19,7 @@
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius);
   width: 540px;
   max-width: 100%;
   max-height: 90vh;
@@ -44,8 +44,15 @@
   border-bottom: 1px solid var(--border);
 }
 
+.modal-header h3 {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: var(--text);
+}
+
 .modal-title {
-  font-size: 1.15rem;
+  font-size: var(--fs-lg);
   font-weight: 800;
   color: var(--text);
   margin: 0;
@@ -60,7 +67,7 @@
   cursor: pointer;
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   display: flex;
   align-items: center;
   justify-content: center;

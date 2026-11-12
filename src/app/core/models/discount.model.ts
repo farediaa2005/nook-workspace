@@ -8,11 +8,9 @@
 
 import { DiscountType } from './workspace-session.model';
 
-export { DiscountType };
+type DiscountScope = 'All' | 'Faculty' | 'Student' | 'Instructor';
 
-export type DiscountScope = 'All' | 'Faculty' | 'Student' | 'Instructor';
-
-export enum DiscountApplicableTo {
+enum DiscountApplicableTo {
   Workspace = 0,
   Classroom = 1
 }

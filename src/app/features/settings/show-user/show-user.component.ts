@@ -17,11 +17,12 @@ import { AuthService } from '../../../core/services/auth.service';
 import { getTodayDateISO } from '../../../core/utils/date-time.util';
 
 import { ShiftService } from '../../../core/services/shift.service';
+import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 
 @Component({
   selector: 'app-show-user',
   standalone: true,
-  imports: [
+  imports: [EmptyStateComponent, 
     CommonModule,
     FormsModule,
     PageHeaderComponent,
@@ -100,13 +101,9 @@ export class ShowUserComponent implements OnInit {
     const u = this.userToDelete();
     if (!u) return '';
     if (this.isAdminUser(u)) {
-      return this.isArabic()
-        ? `⚠️ تحذير: هذا الحساب مسؤول (Admin). هل أنت متأكد من رغبتك في حذف "${u.name}"؟`
-        : `⚠️ Warning: This is an Administrator account. Are you sure you want to delete "${u.name}"?`;
+      return this.langService.tf('usrDeleteAdminMessage', { name: u.name });
     }
-    return this.isArabic()
-      ? `هل أنت متأكد من رغبتك في حذف حساب "${u.name}"؟`
-      : `Are you sure you want to delete user "${u.name}"?`;
+    return this.langService.tf('usrDeleteUserMessage', { name: u.name });
   });
 
   roleOptions = computed<SelectOption[]>(() => [
@@ -174,7 +171,7 @@ export class ShowUserComponent implements OnInit {
 
   // Add / Edit Modal Handlers
   openAddModal(): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إضافة مستخدم جديد' : 'Add New User')) {
+    if (!this.shiftService.guardActiveShift(this.t().setAddNewUser)) {
       return;
     }
     this.modalMode.set('add');
@@ -192,7 +189,7 @@ export class ShowUserComponent implements OnInit {
   }
 
   openEditModal(u: StaffUser): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تعديل بيانات المستخدم' : 'Edit User')) {
+    if (!this.shiftService.guardActiveShift(this.t().setEditUser)) {
       return;
     }
     this.modalMode.set('edit');
@@ -228,32 +225,24 @@ export class ShowUserComponent implements OnInit {
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      this.formError.set(this.isArabic()
-        ? 'يرجى إدخال عنوان بريد إلكتروني صحيح'
-        : 'Please enter a valid email address');
+      this.formError.set(this.t().setPleaseEnterAValidEmail);
       return;
     }
 
     // BUG-007: Password required and min length 8 for new users
-    const pwd = this.formPassword().trim();
+    const pwd = this.formPassword();
     if (this.modalMode() === 'add') {
       if (!pwd || pwd.length < 8) {
-        this.formError.set(this.isArabic()
-          ? 'كلمة المرور مطلوبة للمستخدم الجديد ويجب أن تكون من 8 أحرف على الأقل.'
-          : 'Password is required for new users and must be at least 8 characters long.');
+        this.formError.set(this.t().setPasswordIsRequiredForNew);
         return;
       }
     } else if (pwd && pwd.length < 8) {
-      this.formError.set(this.isArabic()
-        ? 'كلمة المرور الجديدة يجب أن تكون من 8 أحرف على الأقل.'
-        : 'New password must be at least 8 characters long.');
+      this.formError.set(this.t().setNewPasswordMustBeAt2);
       return;
     }
 
     if (!username || username.length < 2) {
-      this.formError.set(this.isArabic()
-        ? 'يرجى إدخال اسم مستخدم صالح (حرفين على الأقل)'
-        : 'Username must be at least 2 characters');
+      this.formError.set(this.t().setUsernameMustBeAtLeast);
       return;
     }
 
@@ -266,9 +255,7 @@ export class ShowUserComponent implements OnInit {
           const isDemotingRole = !role.toLowerCase().includes('admin') && !role.toLowerCase().includes('manager');
           const isDeactivating = status !== 'active';
           if ((isDemotingRole || isDeactivating) && this.activeAdminCount() <= 1) {
-            this.formError.set(this.isArabic()
-              ? 'لا يمكن تغيير دور أو تعطيل المسؤول الوحيد النشط في النظام!'
-              : 'Cannot demote or deactivate the last remaining active Administrator!');
+            this.formError.set(this.t().setCannotDemoteOrDeactivateThe);
             return;
           }
         }
@@ -329,36 +316,30 @@ export class ShowUserComponent implements OnInit {
   }
 
   toggleUserStatus(u: StaffUser): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تعديل حالة المستخدم' : 'Toggle User Status')) {
+    if (!this.shiftService.guardActiveShift(this.t().setToggleUserStatus)) {
       return;
     }
     // BUG-01: Strict RBAC check to forbid deactivating Admin accounts
     if (this.isAdminUser(u)) {
-      this.notification.warning(this.isArabic()
-        ? '⚠️ تنبيه أمني: لا يمكن تعطيل أو حظر حسابات المسؤولين (Admin).'
-        : '⚠️ Security Alert: Cannot deactivate or suspend Admin accounts.');
+      this.notification.warning(this.t().setSecurityAlertCannotDeactivateOr);
       return;
     }
     this.userService.toggleStatus(u.id);
   }
 
   deleteUser(u: StaffUser): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حذف مستخدم' : 'Delete User')) {
+    if (!this.shiftService.guardActiveShift(this.t().setDeleteUser)) {
       return;
     }
     // BUG-03: Protect logged-in user from deleting own account
     if (this.isCurrentLoggedUser(u)) {
-      this.notification.warning(this.isArabic()
-        ? '⚠️ تنبيه أمني: لا يمكنك حذف حسابك الحالي أثناء تسجيل الدخول به.'
-        : '⚠️ Security Alert: You cannot delete your own active account while logged in.');
+      this.notification.warning(this.t().setSecurityAlertYouCannotDelete);
       return;
     }
 
     // BUG-02: Protect last active Admin account from deletion
     if (this.isAdminUser(u) && this.activeAdminCount() <= 1) {
-      this.notification.warning(this.isArabic()
-        ? '⚠️ تنبيه أمني: لا يمكن حذف آخر مسؤول (Admin) نشط متبقٍ في النظام.'
-        : '⚠️ Security Alert: Cannot delete the last remaining active Admin in the system.');
+      this.notification.warning(this.t().setSecurityAlertCannotDeleteThe);
       return;
     }
 

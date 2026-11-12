@@ -19,14 +19,19 @@ export class CheckoutModalComponent {
   private langService = inject(LanguageService);
 
   t = this.langService.t;
+
+  /** translations with {placeholders} */
+
+  tf = this.langService.tf;
   isArabic = this.langService.isArabic;
   formatTime = (str?: string) => this.langService.formatTimeLocale(str);
+  formatDuration = (str?: string) => this.langService.formatDurationLocale(str);
 
   // Dynamic Input
   data = input.required<CheckoutData>();
 
   // Outputs
-  close = output<void>();
+  closed = output<void>();
   paymentMethodChange = output<PaymentMethodType>();
   amountReceivedChange = output<number | null>();
   discountChange = output<number>();
@@ -68,22 +73,22 @@ export class CheckoutModalComponent {
     const code = (d.couponCode || this.localCouponInput() || '').trim().toUpperCase();
     const pct = this.effectiveActiveDiscountPercent();
     const couponAmt = d.couponDiscount || 0;
-    const isAr = this.isArabic();
 
     if (code) {
-      if (pct > 0) {
-        return isAr ? `خصم (${code} — ${pct}%)` : `Discount (${code} — ${pct}%)`;
-      } else if (couponAmt > 0) {
-        return isAr ? `خصم (${code} — ${couponAmt.toFixed(2)} ج.م)` : `Discount (${code} — ${couponAmt.toFixed(2)} EGP)`;
+      // A coupon shows the amount it actually takes off (a fixed coupon is not a percentage)
+      if (couponAmt > 0) {
+        return this.langService.tf('loctDiscountEgp', { code, value: couponAmt.toFixed(2) });
+      } else if (pct > 0) {
+        return this.langService.tf('loctDiscount', { code, pct });
       }
-      return isAr ? `خصم كود (${code})` : `Coupon (${code})`;
+      return this.langService.tf('loctCoupon', { code });
     }
 
     if (pct > 0) {
-      return isAr ? `خصم (${pct}%)` : `Discount (${pct}%)`;
+      return this.langService.tf('loctDiscount2', { pct });
     }
 
-    return isAr ? 'خصم مطبق' : 'Discount Applied';
+    return this.t().locDiscountApplied;
   });
 
   // Helper checking if received cash was explicitly input
@@ -131,8 +136,10 @@ export class CheckoutModalComponent {
       return prevWallet;
     }
 
+    // Without a wallet choice, overpayment is change handed back in cash (shown as "change due"), so only an
+    // unpaid part changes the wallet (as debt). Leaving the change in the wallet is the "deposit change" button.
     const finalTotal = d.financialBreakdown.finalTotal || 0;
-    return +(prevWallet + received - finalTotal).toFixed(2);
+    return +(prevWallet - Math.max(0, finalTotal - received)).toFixed(2);
   });
 
   // Effective change due to customer
@@ -142,6 +149,13 @@ export class CheckoutModalComponent {
     if (received === null || isNaN(received) || received <= cashDue) return 0;
     return Math.max(0, +(received - cashDue).toFixed(2));
   });
+
+  /** Sessions longer than this need an explicit confirmation (likely left open by mistake). */
+  static readonly LONG_SESSION_MINUTES = 24 * 60;
+  isLongSession = computed(() => (this.data().session.durationMinutes ?? 0) >= CheckoutModalComponent.LONG_SESSION_MINUTES);
+  longSessionConfirmed = signal(false);
+  /** The received-amount error is only shown after the cashier interacted with the field. */
+  amountTouched = signal(false);
 
   isInsufficient = computed(() => {
     const d = this.data();
@@ -196,6 +210,7 @@ export class CheckoutModalComponent {
   }
 
   onAmountInput(val: string): void {
+    this.amountTouched.set(true);
     const num = val !== null && val !== '' ? +val : null;
     this.amountReceivedChange.emit(num);
   }
@@ -281,6 +296,7 @@ export class CheckoutModalComponent {
 
   onProcessPayment(): void {
     if (this.isInsufficient()) return;
+    if (this.isLongSession() && !this.longSessionConfirmed()) return;
     const d = this.data();
     const cashDue = this.netCashDue();
     const received = d.payment.amountReceived !== null && !isNaN(d.payment.amountReceived)

@@ -1,6 +1,6 @@
 <div class="top-nav-actions">
   <button class="lang-btn" (click)="toggleLanguage()" aria-label="Toggle language">
-    <span>{{ isArabic() ? 'English' : 'عربي' }}</span>
+    <span>{{ t().loginText }}</span>
   </button>
 
   <button class="theme-btn" (click)="toggleTheme()" aria-label="Toggle day/night">
@@ -53,7 +53,7 @@
     }
 
     @if (successMessage()) {
-      <div class="alert show" style="background-color: rgba(34, 197, 94, 0.15); color: #22c55e; border-color: rgba(34, 197, 94, 0.3);">{{ successMessage() }}</div>
+      <div class="alert show" style="background-color: rgba(34, 197, 94, 0.15); color: var(--success-strong); border-color: rgba(34, 197, 94, 0.3);">{{ successMessage() }}</div>
     }
 
     @if (mode() === 'login') {
@@ -145,7 +145,7 @@
       <!-- Forgot Password Form -->
       <form (ngSubmit)="onRequestReset()" autocomplete="off">
         <div class="field active">
-          <label for="resetEmail">{{ isArabic() ? 'البريد الإلكتروني' : 'Email Address' }}</label>
+          <label for="resetEmail">{{ t().email }}</label>
           <div class="boxf">
             <span class="lead">
               <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -161,7 +161,7 @@
               (ngModelChange)="resetEmail.set($event)"
               (focus)="onFocus('resetEmail')"
               (blur)="onBlur()"
-              [placeholder]="isArabic() ? 'أدخل البريد الإلكتروني' : 'Enter your email'"
+              [placeholder]="t().loginEnterYourEmail"
             />
           </div>
         </div>
@@ -170,24 +170,24 @@
           @if (isLoading()) {
             <span>{{ t().loginLoadingBtn }}</span>
           } @else {
-            <span>{{ isArabic() ? 'إرسال رمز التعيين' : 'Send Reset Code' }}</span>
+            <span>{{ t().loginSendResetCode }}</span>
           }
         </button>
 
         <div class="row" style="margin-top: 15px; justify-content: center;">
-          <a class="forgot" role="button" tabindex="0" (click)="backToLogin()" (keydown.enter)="backToLogin()">{{ isArabic() ? 'العودة لتسجيل الدخول' : 'Back to Login' }}</a>
+          <a class="forgot" role="button" tabindex="0" (click)="backToLogin()" (keydown.enter)="backToLogin()">{{ t().loginBackToLogin }}</a>
         </div>
       </form>
     } @else if (mode() === 'otp') {
       <!-- Step 2: OTP Verification Screen -->
       <form (ngSubmit)="onVerifyOtpSubmit()" autocomplete="off">
-        <div style="margin-bottom: 14px; text-align: center; color: #a1a1aa; font-size: 0.88rem; line-height: 1.5;">
-          <span>{{ isArabic() ? 'أدخل كود التحقق المرسل إلى: ' : 'Enter verification code sent to: ' }}</span>
-          <strong style="color: #f5b921; direction: ltr; display: inline-block;">{{ resetEmail() }}</strong>
+        <div style="margin-bottom: 14px; text-align: center; color: var(--zinc-400); font-size: var(--fs-base); line-height: 1.5;">
+          <span>{{ t().loginEnterVerificationCodeSentTo }}</span>
+          <strong style="color: var(--yellow); direction: ltr; display: inline-block;">{{ resetEmail() }}</strong>
         </div>
 
         <div class="field active">
-          <label for="resetToken">{{ isArabic() ? 'كود التحقق (OTP)' : 'Verification Code (OTP)' }}</label>
+          <label for="resetToken">{{ t().loginVerificationCodeOtp }}</label>
           <div class="boxf">
             <input
               id="resetToken"
@@ -198,14 +198,14 @@
               (ngModelChange)="resetToken.set($event)"
               (focus)="onFocus('resetToken')"
               (blur)="onBlur()"
-              [placeholder]="isArabic() ? 'أدخل الرمز المستلم' : 'Enter OTP code'"
+              [placeholder]="t().loginEnterOtpCode"
               style="text-align: center; letter-spacing: 4px; font-size: 1.2rem; font-weight: 700;"
             />
           </div>
         </div>
 
         <button type="submit" class="enter" style="margin-top: 18px;">
-          <span>{{ isArabic() ? 'متابعة لتغيير كلمة المرور' : 'Continue to Set Password' }}</span>
+          <span>{{ t().loginContinueToSetPassword }}</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
             <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
@@ -213,22 +213,22 @@
 
         <div class="row" style="margin-top: 15px; justify-content: space-between;">
           <a class="forgot" role="button" tabindex="0" (click)="onRequestReset()" (keydown.enter)="onRequestReset()">
-            {{ isArabic() ? 'إعادة إرسال الكود' : 'Resend Code' }}
+            {{ t().loginResendCode }}
           </a>
           <a class="forgot" role="button" tabindex="0" (click)="mode.set('forgot')" (keydown.enter)="mode.set('forgot')">
-            {{ isArabic() ? 'تغيير البريد' : 'Change Email' }}
+            {{ t().loginChangeEmail }}
           </a>
         </div>
       </form>
     } @else if (mode() === 'reset') {
       <!-- Step 3: New Password Screen -->
       <form (ngSubmit)="onResetPasswordSubmit()" autocomplete="off">
-        <div style="margin-bottom: 14px; text-align: center; color: #a1a1aa; font-size: 0.88rem;">
-          <span>{{ isArabic() ? 'قم بتعيين كلمة المرور الجديدة لحسابك' : 'Set a new password for your account' }}</span>
+        <div style="margin-bottom: 14px; text-align: center; color: var(--zinc-400); font-size: var(--fs-base);">
+          <span>{{ t().loginSetANewPasswordFor }}</span>
         </div>
 
         <div class="field active">
-          <label for="newPassword">{{ isArabic() ? 'كلمة المرور الجديدة' : 'New Password' }}</label>
+          <label for="newPassword">{{ t().loginNewPassword }}</label>
           <div class="boxf">
             <input
               id="newPassword"
@@ -245,7 +245,7 @@
         </div>
 
         <div class="field active" style="margin-top: 10px;">
-          <label for="confirmPassword">{{ isArabic() ? 'تأكيد كلمة المرور' : 'Confirm New Password' }}</label>
+          <label for="confirmPassword">{{ t().loginConfirmNewPassword }}</label>
           <div class="boxf">
             <input
               id="confirmPassword"
@@ -265,16 +265,16 @@
           @if (isLoading()) {
             <span>{{ t().loginLoadingBtn }}</span>
           } @else {
-            <span>{{ isArabic() ? 'حفظ كلمة المرور الجديدة' : 'Save New Password' }}</span>
+            <span>{{ t().loginSaveNewPassword }}</span>
           }
         </button>
 
         <div class="row" style="margin-top: 15px; justify-content: space-between;">
           <a class="forgot" role="button" tabindex="0" (click)="mode.set('otp')" (keydown.enter)="mode.set('otp')">
-            {{ isArabic() ? 'الرجوع لكود الـ OTP' : 'Back to OTP' }}
+            {{ t().loginBackToOtp }}
           </a>
           <a class="forgot" role="button" tabindex="0" (click)="backToLogin()" (keydown.enter)="backToLogin()">
-            {{ isArabic() ? 'العودة لتسجيل الدخول' : 'Back to Login' }}
+            {{ t().loginBackToLogin }}
           </a>
         </div>
       </form>

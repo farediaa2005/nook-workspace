@@ -70,7 +70,7 @@
   <!-- Blacklist Data Table Container Card -->
   <div class="table-container-card">
     <div class="table-responsive">
-      <table class="custom-table">
+      <table class="custom-table sticky-actions">
         <thead>
           <tr>
             <th>{{ t().memberLabel }}</th>
@@ -143,15 +143,9 @@
               <!-- Status Badge -->
               <td class="cell-center">
                 @if (record.status === 'blocked') {
-                  <span class="badge-status badge-status--blocked">
-                    <span class="status-dot"></span>
-                    <span>{{ t().bannedStatus }}</span>
-                  </span>
+                  <app-status-badge tone="danger" [text]="t().bannedStatus"></app-status-badge>
                 } @else {
-                  <span class="badge-status badge-status--resolved">
-                    <span class="status-dot"></span>
-                    <span>{{ t().resolvedStatus }}</span>
-                  </span>
+                  <app-status-badge tone="success" [text]="t().resolvedStatus"></app-status-badge>
                 }
               </td>
 
@@ -192,18 +186,7 @@
           } @empty {
             <tr>
               <td colspan="7" class="cell-empty-wrap">
-                <div class="empty-state-box">
-                  <div class="empty-icon-circle">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                      <polyline points="22 4 12 14.01 9 11.01"/>
-                    </svg>
-                  </div>
-                  <h4 class="empty-title">{{ t().noBlacklistFound }}</h4>
-                  <p class="empty-subtitle">
-                    {{ t().noData }}
-                  </p>
-                </div>
+                <app-empty-state icon="check" tone="success" [title]="t().noBlacklistFound" [message]="t().noData"></app-empty-state>
               </td>
             </tr>
           }
@@ -229,7 +212,7 @@
   <app-modal
     [isOpen]="isBlockModalOpen()"
     [title]="t().addBlacklistModalTitle"
-    (close)="closeBlockModal()"
+    (closed)="closeBlockModal()"
   >
     <form (submit)="saveBlock(); $event.preventDefault()" class="blacklist-modal-form">
       @if (formError(); as err) {
@@ -240,14 +223,14 @@
 
       <div class="form-grid">
         <!-- Searchable Auto-Suggest Dropdown for Registered Students + Instructors -->
-        <div class="field-group full-width auto-suggest-container" (click)="$event.stopPropagation()">
-          <label class="field-label">{{ t().searchMemberOrEnter }}</label>
+        <div class="field-group full-width auto-suggest-container" (click)="$event.stopPropagation()" role="presentation">
+          <label for="show-blacklist-f6" class="field-label">{{ t().searchMemberOrEnter }}</label>
           <div class="search-input-wrapper">
             <svg class="search-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="11" cy="11" r="8"/>
               <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <input
+            <input id="show-blacklist-f6"
               type="text"
               class="custom-input auto-suggest-input"
               [placeholder]="t().searchMemberOrEnter"
@@ -261,10 +244,10 @@
 
           <!-- Floating Suggestions Dropdown Overlay -->
           @if (isSuggestionsOpen()) {
-            <div class="suggestions-overlay-card" (click)="$event.stopPropagation()">
+            <div class="suggestions-overlay-card" (click)="$event.stopPropagation()" role="presentation">
               <div class="suggestions-scroll-container">
                 @for (m of filteredRegisteredMembers(); track m.id) {
-                  <div class="suggestion-item-card" (click)="selectMember(m)">
+                  <div class="suggestion-item-card" (click)="selectMember(m)" role="button" tabindex="0" (keydown.enter)="selectMember(m)">
                     <div class="member-avatar-box" [class.member-avatar-box--instructor]="m.type === 'instructor'">
                       {{ m.avatarInitial }}
                     </div>
@@ -293,11 +276,11 @@
 
         <!-- Student Name -->
         <div class="field-group">
-          <label class="field-label">{{ t().studentName }} *</label>
-          <input
+          <label for="show-blacklist-f5" class="field-label">{{ t().studentName }} *</label>
+          <input id="show-blacklist-f5"
             type="text"
             class="custom-input"
-            [placeholder]="isArabic() ? 'مثال: أحمد سعيد' : 'e.g. Ahmed Said'"
+            [placeholder]="t().detEGAhmedSaid"
             [ngModel]="formName()"
             (ngModelChange)="formName.set($event)"
             name="formName"
@@ -306,8 +289,8 @@
 
         <!-- Phone Number -->
         <div class="field-group">
-          <label class="field-label">{{ t().phone }} *</label>
-          <input
+          <label for="show-blacklist-f4" class="field-label">{{ t().phone }} *</label>
+          <input id="show-blacklist-f4"
             type="text"
             class="custom-input"
             [placeholder]="'01012345678'"
@@ -319,11 +302,11 @@
 
         <!-- Faculty / College -->
         <div class="field-group">
-          <label class="field-label">{{ t().college }}</label>
-          <input
+          <label for="show-blacklist-f3" class="field-label">{{ t().college }}</label>
+          <input id="show-blacklist-f3"
             type="text"
             class="custom-input"
-            [placeholder]="isArabic() ? 'مثال: هندسة - جامعة القاهرة' : 'e.g. Engineering - Cairo Univ'"
+            [placeholder]="t().detEGEngineeringCairoUniv"
             [ngModel]="formFaculty()"
             (ngModelChange)="formFaculty.set($event)"
             name="formFaculty"
@@ -332,7 +315,7 @@
 
         <!-- Severity Level -->
         <div class="field-group">
-          <label class="field-label">{{ t().selectSeverity }}</label>
+          <span class="field-label group-label">{{ t().selectSeverity }}</span>
           <app-custom-select
             [options]="severityOptions()"
             [selectedValue]="formSeverity()"
@@ -343,8 +326,8 @@
 
         <!-- Reason for Blocking -->
         <div class="field-group full-width">
-          <label class="field-label">{{ t().violationReason }} *</label>
-          <textarea
+          <label for="show-blacklist-f2" class="field-label">{{ t().violationReason }} *</label>
+          <textarea id="show-blacklist-f2"
             class="custom-textarea"
             rows="3"
             [placeholder]="t().violationDetailsPlaceholder"
@@ -356,11 +339,11 @@
 
         <!-- Additional Notes -->
         <div class="field-group full-width">
-          <label class="field-label">{{ t().adminNotesOptional }}</label>
-          <input
+          <label for="show-blacklist-f1" class="field-label">{{ t().adminNotesOptional }}</label>
+          <input id="show-blacklist-f1"
             type="text"
             class="custom-input"
-            [placeholder]="isArabic() ? 'ملاحظات المتابعة أو شروط إلغاء الحظر...' : 'Follow-up notes or unblock conditions...'"
+            [placeholder]="t().detFollowUpNotesOrUnblock"
             [ngModel]="formNotes()"
             (ngModelChange)="formNotes.set($event)"
             name="formNotes"
@@ -369,21 +352,17 @@
       </div>
 
       <div class="modal-footer-actions">
-        <button type="button" class="btn-cancel" (click)="closeBlockModal()">
-          {{ t().cancel }}
-        </button>
+        <app-primary-button variant="secondary" [text]="t().cancel" (clicked)="closeBlockModal()"></app-primary-button>
 
-        <button type="submit" class="btn-confirm-block-action">
-          {{ t().confirmBlockActionBtn }}
-        </button>
+        <app-primary-button type="submit" variant="danger" [text]="t().confirmBlockActionBtn"></app-primary-button>
       </div>
     </form>
   </app-modal>
 
   <!-- Unblock Confirmation Dialog Modal -->
   @if (isUnblockModalOpen() && recordToUnblock(); as rec) {
-    <div class="modal-overlay" (click)="closeUnblockModal()">
-      <div class="unblock-dialog-card" (click)="$event.stopPropagation()">
+    <div class="modal-overlay" (click)="closeUnblockModal()" role="presentation">
+      <div class="unblock-dialog-card" (click)="$event.stopPropagation()" role="presentation">
         <div class="unblock-icon-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" style="width: 32px; height: 32px;">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
@@ -397,12 +376,8 @@
         </p>
 
         <div class="unblock-dialog-footer">
-          <button type="button" class="btn-cancel" (click)="closeUnblockModal()">
-            {{ t().cancel }}
-          </button>
-          <button type="button" class="btn-confirm-unblock" (click)="confirmUnblock()">
-            {{ t().yesUnblockBtn }}
-          </button>
+          <app-primary-button variant="secondary" [text]="t().cancel" (clicked)="closeUnblockModal()"></app-primary-button>
+          <app-primary-button [text]="t().yesUnblockBtn" (clicked)="confirmUnblock()"></app-primary-button>
         </div>
       </div>
     </div>
@@ -412,7 +387,7 @@
   <app-modal
     [isOpen]="isDetailsModalOpen()"
     [title]="t().membersInfo"
-    (close)="closeDetailsModal()"
+    (closed)="closeDetailsModal()"
   >
     @if (recordDetails(); as det) {
       <div class="details-modal-content">
@@ -429,7 +404,7 @@
         <div class="details-grid">
           <div class="details-item">
             <span class="details-label">{{ t().college }}:</span>
-            <strong class="details-val">{{ det.faculty || 'General' }}</strong>
+            <strong class="details-val">{{ det.faculty || t().general }}</strong>
           </div>
 
           <div class="details-item">
@@ -456,9 +431,7 @@
         </div>
 
         <div class="modal-footer-actions">
-          <button type="button" class="btn-cancel" (click)="closeDetailsModal()">
-            {{ t().cancel }}
-          </button>
+          <app-primary-button variant="secondary" [text]="t().cancel" (clicked)="closeDetailsModal()"></app-primary-button>
         </div>
       </div>
     }

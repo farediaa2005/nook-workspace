@@ -10,12 +10,12 @@
  * DiscountType enum: 1=Percentage, 2=FixedAmount
  */
 
-export enum ZoneType {
+enum ZoneType {
   Shared = 0,
   Quiet = 1
 }
 
-export enum WorkspaceType {
+enum WorkspaceType {
   PerHour = 1,
   Package = 2,
   Coupon = 3
@@ -29,18 +29,15 @@ export enum SessionStatus {
 export enum PayWay {
   Cash = 1,
   Vodafone = 2,
-  Fawry = 3,
-  Instapay = 4
+  Instapay = 3,
+  Fawry = 4
 }
 
 export enum DiscountType {
   Percentage = 1,
   FixedAmount = 2
 }
-
-export type WorkspaceSessionStatus = 'Active' | 'CheckedOut' | 'Cancelled' | string;
-export type WorkspacePaymentMethod = 'Cash' | 'Vodafone' | 'Fawry' | 'Instapay' | 'Package' | string;
-export type WorkspaceBillingType = 'Session' | 'Package' | 'Coupon' | string;
+type WorkspaceBillingType = 'Session' | 'Package' | 'Coupon' | string;
 
 /** Workspace session response DTO from GET /api/Workspaces */
 export interface WorkspaceDto {
@@ -100,9 +97,6 @@ export interface WorkspaceSessionDto extends WorkspaceDto {
   createdAt?: string;
 }
 
-/** Legacy alias */
-export type BackendWorkspaceDto = WorkspaceSessionDto;
-
 /** Create workspace session request — POST /api/Workspaces */
 export interface CreateWorkspaceDto {
   zone?: ZoneType | number;
@@ -125,9 +119,6 @@ export interface CreateWorkspaceDto {
   workspacePackageId?: string;
   couponId?: string;
 }
-
-/** Alias for CreateWorkspaceDto */
-export type CreateWorkspaceSessionDto = CreateWorkspaceDto;
 
 /** Update workspace session request — PUT /api/Workspaces/{id} */
 export interface UpdateWorkspaceDto {
@@ -156,53 +147,18 @@ export interface CheckoutWorkspaceDto {
   registration?: number;
   discount?: number;
   discountType?: DiscountType | number | null;
+  discountReason?: string | null;
   wallet?: number;
+  amountReceived?: number;
+  changeDue?: number;
+  remainingAmount?: number;
   payWay?: PayWay | number;
   note?: string | null;
-  // UI and backward compatibility fields
-  paidAmount?: number;
+  // Extra fields understood by the checkout endpoint
   discountId?: string;
   paymentMethod?: string;
-  totalCost?: number;
-  remainingAmount?: number;
-}
-
-/** Alias for CheckoutWorkspaceDto */
-export type CheckoutWorkspaceSessionDto = CheckoutWorkspaceDto;
-
-/** Catering line item for workspace sessions */
-export interface CateringLineItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity?: number;
-}
-
-/** Student directory item for workspace directory view */
-export interface StudentDirectoryItem {
-  id: string;
-  studentId?: string;
-  name: string;
-  avatar?: string;
-  phone: string;
-  whatsapp: string;
-  email: string;
-  faculty: string;
-  college: string;
-  currentStatus: 'active' | 'offline' | 'blocked';
-  activeSession?: any;
-  packageInfo?: {
-    hasPackage: boolean;
-    packageName?: string;
-    packageNameAr?: string;
-    packageNameEn?: string;
-    remainingHours?: number;
-    totalHours?: number;
-    status?: string;
-  };
-  totalVisits: number;
-  lastVisitDate?: string;
-  lastVisitTime?: string;
-  totalSpent: number;
+  usePackageHours?: number;
+  packageId?: string;
+  couponCode?: string;
 }
 

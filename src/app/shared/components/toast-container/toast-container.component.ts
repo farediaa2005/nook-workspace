@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { NotificationService, AppNotification } from '../../../core/services/notification.service';
+import { NotificationService } from '../../../core/services/notification.service';
 import { LanguageService } from '../../../core/services/language.service';
 
 @Component({
@@ -62,7 +62,7 @@ import { LanguageService } from '../../../core/services/language.service';
   styles: [`
     .toast-viewport {
       position: fixed;
-      top: 20px;
+      bottom: 20px;
       right: 20px;
       z-index: 99999;
       display: flex;
@@ -81,15 +81,25 @@ import { LanguageService } from '../../../core/services/language.service';
 
     @media (max-width: 600px) {
       .toast-viewport {
-        top: 12px;
+        bottom: 12px;
         left: 12px;
         right: 12px;
         width: calc(100vw - 24px);
+        gap: 6px;
+      }
+
+      /* Compact cards on phones so a burst of alerts doesn't hide the page content */
+      .toast-card {
+        padding: 8px 12px;
+        font-size: 13px;
+        line-height: 1.35;
+        border-radius: 10px;
       }
     }
 
     .toast-card {
-      pointer-events: auto;
+      /* Clicks pass through the toast to the page underneath; only the close button is interactive. */
+      pointer-events: none;
       display: flex;
       align-items: center;
       gap: 12px;
@@ -137,6 +147,7 @@ import { LanguageService } from '../../../core/services/language.service';
     }
 
     .toast-close {
+      pointer-events: auto;
       background: none;
       border: none;
       color: inherit;

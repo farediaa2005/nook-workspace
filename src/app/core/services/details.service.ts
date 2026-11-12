@@ -328,21 +328,18 @@ export class DetailsService {
       colour: '#f5b921'
     }).pipe(
       tap(() => {
-        const prev = this.getCachedInstructorDetails(id, dto.phone);
         this.setCachedInstructorDetails(id, dto.phone, {
           email: dto.email,
           specialty: dto.specialty,
           specialtyEn: dto.specialtyEn || dto.specialty,
           affiliation: dto.affiliation,
           affiliationEn: dto.affiliationEn || dto.affiliation,
-          bio: dto.bio,
-          totalSessions: dto.totalSessions !== undefined ? dto.totalSessions : prev.totalSessions
+          bio: dto.bio
         });
         this.instructors.update(list =>
           list.map(i => i.id === id ? {
             ...i,
-            ...dto,
-            totalSessions: dto.totalSessions !== undefined ? dto.totalSessions : i.totalSessions
+            ...dto
           } : i)
         );
       }),
@@ -424,7 +421,9 @@ export class DetailsService {
       studentName: dto.name,
       name: dto.name,
       studentPhone: dto.phone,
-      reason: 'Other',
+      // The API stores `reason`; 'Other' used to replace the reason that was typed in
+      reason: dto.reason,
+      studentId: dto.studentId && /^[0-9a-fA-F-]{36}$/.test(dto.studentId) ? dto.studentId : undefined,
       reasonDetails: dto.reason,
       notes: dto.notes
     }).pipe(
@@ -633,7 +632,7 @@ export class DetailsService {
         );
       }),
       map(() => true),
-      catchError(() => {
+      catchError((couponErr) => {
         return this.discountApi.updateDiscount(id, {
           name: dto.title || '',
           nameEn: dto.titleEn,
@@ -646,7 +645,8 @@ export class DetailsService {
             );
           }),
           map(() => true),
-          catchError(() => of(false))
+          // Both endpoints refused: report the first (coupon) error, e.g. 403 for staff, instead of a silent false
+          catchError(() => throwError(() => couponErr))
         );
       }),
       finalize(() => this.isLoading.set(false))

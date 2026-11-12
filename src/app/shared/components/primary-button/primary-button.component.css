@@ -14,13 +14,13 @@
   gap: 8px;
   height: 44px;
   padding: 0 22px;
-  background: linear-gradient(135deg, #f5b921 0%, #e8a80e 100%);
-  color: #16130a;
+  background: linear-gradient(135deg, var(--yellow) 0%, var(--tone-e8a80e) 100%);
+  color: var(--on-primary);
   border: none;
   border-radius: var(--radius-sm, 12px);
   font-family: var(--font-display, 'Quicksand', 'Cairo', sans-serif);
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: var(--fs-base);
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(245, 185, 33, 0.25);
   transition: all 0.25s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1));
@@ -36,7 +36,7 @@
 }
 
 .btn-primary-action:hover {
-  background: linear-gradient(135deg, #ffca3a 0%, #f5b921 100%);
+  background: linear-gradient(135deg, var(--yellow-hover) 0%, var(--yellow) 100%);
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(245, 185, 33, 0.35);
 }
@@ -69,6 +69,74 @@
 
 .btn-text-label {
   display: inline-block;
+}
+
+/* ---- Variants (audit/DESIGN_STANDARD.md §4) ---- */
+.btn--secondary {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1.5px solid var(--border-strong);
+  box-shadow: none;
+}
+
+.btn--secondary:hover {
+  background: var(--surface-2);
+  border-color: var(--yellow);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--text-dim);
+  box-shadow: none;
+}
+
+.btn--ghost:hover {
+  background: var(--surface-2);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.btn--danger {
+  background: var(--danger-strong);
+  color: var(--on-color);
+  box-shadow: none;
+}
+
+.btn--danger:hover {
+  background: var(--danger-strong);
+  filter: brightness(1.08);
+  box-shadow: 0 6px 18px var(--danger-line);
+}
+
+.btn--sm {
+  height: 34px;
+  padding: 0 var(--space-3-5);
+  font-size: var(--fs-sm);
+  border-radius: var(--radius-xs);
+}
+
+.btn-primary-action:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.btn--loading {
+  opacity: 0.8;
+}
+
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: btn-spin 0.7s linear infinite;
+}
+
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
 }
 
 @media (max-width: 768px) {

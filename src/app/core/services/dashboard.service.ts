@@ -1,3 +1,4 @@
+import { AuthService } from './auth.service';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { forkJoin, catchError, of, finalize } from 'rxjs';
 import { LanguageService } from './language.service';
@@ -16,7 +17,8 @@ import {
   ActivityFlowPoint,
   SpaceDistributionMetrics
 } from '../models/dashboard.model';
-import { getTodayDateISO, parseIsoToLocalDate, parseIsoToLocalDateObj, parseIsoToLocal24h } from '../utils/date-time.util';
+import { isSilentZone } from '../constants/backend-enums';
+import { getTodayDateISO, parseIsoToLocalDate, parseIsoToLocalDateObj, parseIsoToLocal24h, parseDurationMinutes } from '../utils/date-time.util';
 
 function parseTimeToHour(timeStr?: string): number | null {
   if (!timeStr) return null;
@@ -36,36 +38,6 @@ function parseDurationHours(durStr?: string): number {
   return totalMinutes > 0 ? Math.max(1, Math.ceil(totalMinutes / 60)) : 1;
 }
 
-function parseDurationMinutes(durStr?: string): number {
-  if (!durStr) return 0;
-  let total = 0;
-  const dMatch = durStr.match(/(\d+)\s*(?:d|days?|day|يوم|أيام|ي)(?!\w)/i);
-  const hMatch = durStr.match(/(\d+)\s*(?:h|hours?|hour|hrs?|ساعات|ساعة|س)(?!\w)/i);
-  const mMatch = durStr.match(/(\d+)\s*(?:m|mins?|min|دقائق|دقيقة|د)(?!\w)/i);
-  if (dMatch) total += parseInt(dMatch[1], 10) * 1440;
-  if (hMatch) total += parseInt(hMatch[1], 10) * 60;
-  if (mMatch) total += parseInt(mMatch[1], 10);
-  if (!dMatch && !hMatch && !mMatch) {
-    const colonMatch = durStr.match(/^(\d{1,3}):(\d{1,2})$/);
-    if (colonMatch) {
-      total = parseInt(colonMatch[1], 10) * 60 + parseInt(colonMatch[2], 10);
-    }
-  }
-  return total;
-}
-
-function formatMinutesToDuration(totalMinutes: number): string {
-  if (!totalMinutes || totalMinutes <= 0) return '0h 00m';
-  const d = Math.floor(totalMinutes / 1440);
-  const remMins = Math.round(totalMinutes % 1440);
-  const h = Math.floor(remMins / 60);
-  const m = remMins % 60;
-  if (d > 0) {
-    return `${d}d ${h}h ${String(m).padStart(2, '0')}m`;
-  }
-  return `${h}h ${String(m).padStart(2, '0')}m`;
-}
-
 /**
  * Feature Service for Dashboard & Analytics (Layer 4).
  * Single Source of Truth for Dashboard state, business calculations,
@@ -82,6 +54,7 @@ export class DashboardService {
   private settingsService = inject(SettingsService);
   private dashboardApi = inject(DashboardApiService);
   private analysisApi = inject(AnalysisApiService);
+  private authService = inject(AuthService);
 
   t = this.langService.t;
   isArabic = this.langService.isArabic;
@@ -110,8 +83,9 @@ export class DashboardService {
 
     forkJoin({
       summary: this.dashboardApi.getSummary().pipe(catchError(() => of(null))),
-      occupancy: this.analysisApi.getOccupancyAnalysis().pipe(catchError(() => of(null))),
-      revenue: this.analysisApi.getRevenueAnalysis().pipe(catchError(() => of(null)))
+      // Analysis endpoints are admin-only on the server; staff get the summary-based fallbacks
+      occupancy: this.authService.isAdmin() ? this.analysisApi.getOccupancyAnalysis().pipe(catchError(() => of(null))) : of(null),
+      revenue: this.authService.isAdmin() ? this.analysisApi.getRevenueAnalysis().pipe(catchError(() => of(null))) : of(null)
     })
       .pipe(
         finalize(() => {
@@ -124,7 +98,7 @@ export class DashboardService {
           if (occupancy) this.occupancy.set(occupancy);
           if (revenue) this.revenue.set(revenue);
         },
-        error: (err) => {
+        error: () => {
           this.error.set('Failed to load dashboard data from server');
         }
       });
@@ -209,11 +183,11 @@ export class DashboardService {
     const isStudentPrivate = (s: any): boolean => {
       if (!s) return false;
       return (
-        s.zone === 1 ||
+        isSilentZone(s.zone) ||
         s.seatingType === 'Silent' ||
         (typeof s.roomName === 'string' && s.roomName.toLowerCase().includes('silent')) ||
         (s.activeSession && (
-          s.activeSession.zone === 1 ||
+          isSilentZone(s.activeSession.zone) ||
           s.activeSession.seatingType === 'Silent' ||
           (typeof s.activeSession.roomName === 'string' && s.activeSession.roomName.toLowerCase().includes('silent'))
         ))
@@ -293,10 +267,12 @@ export class DashboardService {
   /** Peak Occupancy Rate Percentage */
   readonly peakOccupancyRate = computed(() => {
     const backend = this.summary();
-    if (backend && (backend as any).occupancyRatePercentage !== undefined) {
-      return (backend as any).occupancyRatePercentage;
-    }
     const points = this.currentChartPoints();
+    const computedPeak = points.length > 0 ? Math.max(0, ...points.map(p => p.occupancy)) : 0;
+    if (backend && (backend as any).occupancyRatePercentage !== undefined) {
+      // The summary can report 0 % while sessions are open; trust what is visible on the chart then.
+      return Math.max(Number((backend as any).occupancyRatePercentage) || 0, computedPeak);
+    }
     if (points.length > 0) {
       const maxOcc = Math.max(...points.map(p => p.occupancy));
       return maxOcc > 0 ? maxOcc : 0;
@@ -310,7 +286,7 @@ export class DashboardService {
     if (backendPeak !== undefined && backendPeak !== null && String(backendPeak).trim() !== '') {
       const h = Number(backendPeak);
       if (!isNaN(h)) {
-        const period = h >= 12 ? (this.isArabic() ? 'م' : 'PM') : (this.isArabic() ? 'ص' : 'AM');
+        const period = h >= 12 ? (this.t().pmMarker) : (this.t().amMarker);
         const h12 = h % 12 || 12;
         return `${String(h12).padStart(2, '0')}:00 ${period}`;
       }
@@ -338,50 +314,15 @@ export class DashboardService {
 
   /** Average Session Duration */
   readonly avgSessionDuration = computed(() => {
-    const backendAvg = this.occupancy()?.averageSessionHours;
-    if (backendAvg && backendAvg > 0) {
-      const raw = formatMinutesToDuration(Math.round(backendAvg * 60));
-      return this.isArabic() ? this.langService.formatDurationLocale(raw) : raw;
-    }
-
-    const workspaceSessions = [
-      ...this.workspaceService.activeStudents(),
-      ...this.workspaceService.historyStudents()
-    ];
-    const classroomSessions = this.classroomService.cards()
-      .filter(c => c.status === 'active' || c.status === 'scheduled');
-
-    let totalMinutes = 0;
-    let totalCount = 0;
-
-    for (const s of workspaceSessions) {
-      const mins = parseDurationMinutes(s.duration);
-      if (mins > 0) {
-        totalMinutes += mins;
-        totalCount++;
-      }
-    }
-
-    for (const c of classroomSessions) {
-      const mins = (c.durationHours || 2) * 60;
-      totalMinutes += mins;
-      totalCount++;
-    }
-
-    if (totalCount === 0) {
-      return '--';
-    }
-
-    const avg = Math.round(totalMinutes / totalCount);
-    const raw = formatMinutesToDuration(avg);
-    return this.isArabic() ? this.langService.formatDurationLocale(raw) : raw;
+    // Same figure as the workspace page (WorkspaceService.avgSession), in the UI language.
+    return this.langService.formatDurationLocale(this.workspaceService.avgSession());
   });
 
   /** Total Footfall Count for Today */
   readonly totalFootfallCount = computed(() => {
     const backend = this.summary();
-    if (backend && (backend as any).activeStudentsCount !== undefined) {
-      return (backend as any).activeStudentsCount + (backend.activeClassroomSessions || 0);
+    if (backend && typeof backend.totalFootfallToday === 'number') {
+      return backend.totalFootfallToday;
     }
 
     const workspaceStudents = Math.max(
@@ -415,7 +356,10 @@ export class DashboardService {
     const isToday = (d?: string) => !d || parseIsoToLocalDate(d) === todayISO;
 
     if (timeframe === 'today') {
-      const todaySessions = allSessions.filter(s => isToday(s.date));
+      // Sessions still open from a previous day are present today as well.
+      const isOpen = (st: any) => st.status === 'active' || !st.checkOutTime;
+      const todaySessions = allSessions.filter(st => isToday(st.date) || isOpen(st));
+      const nowHour = new Date().getHours() + new Date().getMinutes() / 60;
 
       const timeSlots = [
         { h: 9, en: '09 AM', ar: '09 ص', rawX: 25 },
@@ -427,13 +371,18 @@ export class DashboardService {
         { h: 21, en: '09 PM', ar: '09 م', rawX: 495 }
       ];
 
+      // People per hour as counted by the backend (GET /api/Analysis/occupancy → hourlyFlow)
+      const backendFlow = new Map((this.occupancy()?.hourlyFlow || []).map(f => [Number(f.hour), Number(f.count) || 0]));
+
       return timeSlots.map(slot => {
         let count = 0;
         for (const s of todaySessions) {
-          const startH = parseTimeToHour(s.checkInTime);
+          const startedToday = isToday(s.date);
+          const parsedStart = parseTimeToHour(s.checkInTime);
+          const startH = startedToday ? parsedStart : 0;
           if (startH !== null) {
-            const dur = parseDurationHours(s.duration);
-            const endH = startH + dur;
+            // Open sessions last until now; closed ones until start + duration.
+            const endH = isOpen(s) ? Math.max(nowHour, startH + 0.01) : startH + parseDurationHours(s.duration);
             if (slot.h < endH && (slot.h + 2) > startH) {
               count++;
             }
@@ -451,6 +400,8 @@ export class DashboardService {
           }
         }
 
+        // Each slot covers two hours; never show less than the backend counted.
+        count = Math.max(count, backendFlow.get(slot.h) ?? 0, backendFlow.get(slot.h + 1) ?? 0);
         const occupancy = Math.min(100, Math.round((count / capacity) * 100));
         const y = count === 0 ? 155 : Math.max(25, 160 - Math.round((occupancy / 100) * 135));
         const x = isAr ? (520 - slot.rawX) : slot.rawX;

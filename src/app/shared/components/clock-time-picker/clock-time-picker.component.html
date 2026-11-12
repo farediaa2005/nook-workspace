@@ -1,5 +1,5 @@
-<div class="clock-picker-overlay" [class.dark-theme]="isDark()" (click)="cancel()">
-  <div class="clock-picker-dialog" [class.dark-theme]="isDark()" (click)="$event.stopPropagation()" [class.rtl]="isArabic()" [dir]="isArabic() ? 'rtl' : 'ltr'">
+<div class="clock-picker-overlay" [class.dark-theme]="isDark()" (click)="cancel()" role="presentation">
+  <div class="clock-picker-dialog" [class.dark-theme]="isDark()" (click)="$event.stopPropagation()" [class.rtl]="isArabic()" [dir]="isArabic() ? 'rtl' : 'ltr'" role="presentation">
     
     <!-- Dialog Header -->
     <div class="clock-picker-header">
@@ -8,7 +8,7 @@
           <circle cx="12" cy="12" r="10"></circle>
           <polyline points="12 6 12 12 16 14"></polyline>
         </svg>
-        <h3 class="header-title">{{ isArabic() ? 'تحديد وقت الحجز' : 'Select Reservation Time' }}</h3>
+        <h3 class="header-title">{{ t().ui2SelectReservationTime }}</h3>
       </div>
       <button type="button" class="btn-dialog-close" (click)="cancel()" aria-label="Close">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -24,7 +24,7 @@
         <button type="button" class="range-tab-btn" [class.range-tab-btn--active]="activeTarget() === 'start'" (click)="setTarget('start')">
           <span class="range-tab-dot range-tab-dot--start"></span>
           <div class="range-tab-info">
-            <span class="range-tab-label">{{ isArabic() ? 'وقت البدء' : 'Start Time' }}</span>
+            <span class="range-tab-label">{{ t().ui2StartTime }}</span>
             <span class="range-tab-value">{{ formattedStart() }}</span>
           </div>
         </button>
@@ -39,7 +39,7 @@
         <button type="button" class="range-tab-btn" [class.range-tab-btn--active]="activeTarget() === 'end'" (click)="setTarget('end')">
           <span class="range-tab-dot range-tab-dot--end"></span>
           <div class="range-tab-info">
-            <span class="range-tab-label">{{ isArabic() ? 'وقت الانتهاء' : 'End Time' }}</span>
+            <span class="range-tab-label">{{ t().ui2EndTime }}</span>
             <span class="range-tab-value">{{ formattedEnd() }}</span>
           </div>
         </button>
@@ -57,8 +57,8 @@
 
         @if (hourlyRate() > 0) {
           <span class="cost-estimate-badge">
-            {{ isArabic() ? 'التكلفة التقديرية:' : 'Est. Cost:' }}
-            <strong>{{ durationHours() * hourlyRate() }} {{ isArabic() ? 'ج.م' : 'EGP' }}</strong>
+            {{ t().ui2EstCost }}
+            <strong>{{ durationHours() * hourlyRate() }} {{ t().egp }}</strong>
           </span>
         }
       </div>
@@ -66,7 +66,7 @@
       <!-- Quick Duration Preset Chips -->
       <div class="duration-presets-bar">
         <div class="presets-header">
-          <span class="presets-label">{{ isArabic() ? 'خيارات مدة سريعة:' : 'Quick Duration Presets:' }}</span>
+          <span class="presets-label">{{ t().ui2QuickDurationPresets }}</span>
         </div>
         <div class="preset-chips-scroll">
           @for (preset of durationPresets; track preset.mins) {
@@ -75,7 +75,7 @@
             </button>
           }
           <button type="button" class="preset-chip-btn preset-chip-btn--now" (click)="setToNow()">
-            {{ isArabic() ? 'الآن' : 'Now' }}
+            {{ t().resNow }}
           </button>
         </div>
       </div>
@@ -96,10 +96,10 @@
       <!-- AM / PM Pill -->
       <div class="period-pill-group">
         <button type="button" class="period-btn" [class.period-btn--active]="currentPeriod() === 'AM'" (click)="togglePeriod('AM')">
-          {{ isArabic() ? 'ص (AM)' : 'AM' }}
+          {{ t().ui2Am }}
         </button>
         <button type="button" class="period-btn" [class.period-btn--active]="currentPeriod() === 'PM'" (click)="togglePeriod('PM')">
-          {{ isArabic() ? 'م (PM)' : 'PM' }}
+          {{ t().ui2Pm }}
         </button>
       </div>
     </div>
@@ -107,7 +107,7 @@
     <!-- Analog Wall Clock Face -->
     <div class="clock-face-container">
       <div class="clock-face-rim">
-        <div #clockFace class="clock-face" (click)="onFaceClick($event)" (mousedown)="onStartDrag($event)" (touchstart)="onStartDrag($event)">
+        <div #clockFace class="clock-face" (click)="onFaceClick($event)" (mousedown)="onStartDrag($event)" (touchstart)="onStartDrag($event)" role="presentation">
           
           <!-- Center Pivot Pin -->
           <div class="clock-center-pin"></div>
@@ -121,13 +121,13 @@
           <!-- Numbers Layer -->
           @if (pickerMode() === 'hours') {
             @for (h of hourNumbers; track h) {
-              <div class="clock-number" [class.clock-number--selected]="currentHour() === h" [ngStyle]="getNumberTransform(h, 12)" (click)="$event.stopPropagation(); selectHour(h)">
+              <div class="clock-number" [class.clock-number--selected]="currentHour() === h" [ngStyle]="getNumberTransform(h, 12)" (click)="$event.stopPropagation(); selectHour(h)" role="button" tabindex="0" (keydown.enter)="$event.stopPropagation(); selectHour(h)">
                 <span>{{ h }}</span>
               </div>
             }
           } @else {
             @for (m of minuteNumbers; track m.val) {
-              <div class="clock-number clock-number--minute" [class.clock-number--selected]="currentMinute() === m.val" [ngStyle]="getNumberTransform(m.val / 5, 12)" (click)="$event.stopPropagation(); selectMinute(m.val)">
+              <div class="clock-number clock-number--minute" [class.clock-number--selected]="currentMinute() === m.val" [ngStyle]="getNumberTransform(m.val / 5, 12)" (click)="$event.stopPropagation(); selectMinute(m.val)" role="button" tabindex="0" (keydown.enter)="$event.stopPropagation(); selectMinute(m.val)">
                 <span>{{ m.label }}</span>
               </div>
             }
@@ -144,20 +144,20 @@
       </div>
 
       <div class="clock-hint-text">
-        {{ pickerMode() === 'hours' ? (isArabic() ? 'اضغط على الساعة أو اسحب العقرب' : 'Tap hour or drag clock hand') : (isArabic() ? 'اضغط على الدقائق أو اسحب العقرب' : 'Tap minute or drag clock hand') }}
+        {{ pickerMode() === 'hours' ? (t().ui2TapHourOrDragClock) : (t().ui2TapMinuteOrDragClock) }}
       </div>
     </div>
 
     <!-- Dialog Actions -->
     <div class="clock-picker-actions">
       <button type="button" class="btn-picker-cancel" (click)="cancel()">
-        {{ isArabic() ? 'إلغاء' : 'Cancel' }}
+        {{ t().resCancel2 }}
       </button>
       <button type="button" class="btn-picker-confirm" (click)="confirm()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="confirm-icon">
           <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
-        <span>{{ isArabic() ? 'تأكيد الموعد' : 'Apply Time' }}</span>
+        <span>{{ t().ui2ApplyTime }}</span>
       </button>
     </div>
 

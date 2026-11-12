@@ -3,11 +3,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ShiftService } from '../../../core/services/shift.service';
 import { LanguageService } from '../../../core/services/language.service';
+import { PrimaryButtonComponent } from '../primary-button/primary-button.component';
 
+import { AutofocusDirective } from '../../directives/autofocus.directive';
 @Component({
   selector: 'app-end-of-shift-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [AutofocusDirective, CommonModule, FormsModule, PrimaryButtonComponent],
   templateUrl: './end-of-shift-modal.component.html',
   styleUrl: './end-of-shift-modal.component.css'
 })

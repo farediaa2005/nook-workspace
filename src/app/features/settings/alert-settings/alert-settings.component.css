@@ -1,0 +1,119 @@
+.alerts-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.alerts-head h3 {
+  margin: 0 0 4px;
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.alerts-head p {
+  margin: 0 0 18px;
+  font-size: var(--fs-ui);
+  color: var(--text-dim);
+}
+
+.alerts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.alerts-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.alerts-label {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.alerts-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alerts-input {
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+}
+
+.alerts-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.alerts-unit {
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  min-width: 40px;
+}
+
+.alerts-hint {
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+}
+
+.alerts-errors {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 10px 14px;
+  list-style: none;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  font-size: var(--fs-ui);
+}
+
+.alerts-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.alerts-link {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: var(--fs-base);
+  cursor: pointer;
+  text-decoration: underline;
+  min-height: 40px;
+}
+
+.alerts-link:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.alerts-state {
+  color: var(--text-dim);
+  font-size: var(--fs-base);
+}
+
+.alerts-state--error {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  color: var(--danger);
+}

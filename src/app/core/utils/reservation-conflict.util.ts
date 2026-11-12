@@ -1,6 +1,6 @@
 import { parseTimeToMinutes } from './date-time.util';
 
-export interface ExistingReservationItem {
+interface ExistingReservationItem {
   id: string;
   reservationId?: string;
   seriesId?: string;
@@ -18,7 +18,7 @@ export interface ExistingReservationItem {
   status?: string;
 }
 
-export interface ReservationCheckParams {
+interface ReservationCheckParams {
   roomId: string;
   roomName?: string;
   targetDates: string[];
@@ -28,7 +28,7 @@ export interface ReservationCheckParams {
   existingReservations: ExistingReservationItem[];
 }
 
-export interface ReservationOverlapResult {
+interface ReservationOverlapResult {
   hasConflict: boolean;
   conflictingItem?: ExistingReservationItem;
   conflictingDate?: string;

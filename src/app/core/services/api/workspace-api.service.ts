@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable, map, catchError, of } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { BaseApiService } from './base-api.service';
 import { API_ENDPOINTS } from '../../constants/api-endpoints';
 import { ApiResponse, extractData } from '../../models/api-response.model';
@@ -10,6 +10,7 @@ import {
   UpdateWorkspaceDto,
   CheckoutWorkspaceDto
 } from '../../models/workspace-session.model';
+import { ZoneType } from '../../constants/backend-enums';
 import { CateringItemDto, AddCateringItemDto, UpdateCateringItemDto } from '../../models/classroom-session.model';
 
 @Injectable({
@@ -57,9 +58,11 @@ export class WorkspaceApiService extends BaseApiService {
    */
   checkIn(dto: CreateWorkspaceDto | any): Observable<WorkspaceDto> {
     const payload: Record<string, any> = {
-      zone: dto.zone ?? 0,
+      zone: dto.zone ?? ZoneType.Shared,
       timeFrom: dto.timeFrom || new Date().toISOString(),
       timeTo: dto.timeTo || null,
+      // Planned leave time (used for "ending soon" / overdue alerts)
+      expectedEndAt: dto.expectedEndAt || null,
       date: dto.date || new Date().toISOString(),
       wiFi: dto.wiFi ?? 0,
       printing: dto.printing ?? 0,
@@ -134,7 +137,14 @@ export class WorkspaceApiService extends BaseApiService {
       registration: dto.registration ?? 0,
       discount: dto.discount ?? 0,
       discountType: dto.discountType ?? null,
+      discountReason: dto.discountReason ?? null,
       wallet: dto.wallet ?? 0,
+      amountReceived: dto.amountReceived ?? 0,
+      changeDue: dto.changeDue ?? 0,
+      cashChangeReturned: dto.cashChangeReturned ?? 0,
+      walletDeposit: dto.walletDeposit ?? 0,
+      walletUsed: dto.walletUsed ?? 0,
+      remainingAmount: dto.remainingAmount ?? 0,
       payWay: dto.payWay ?? 1,
       paymentMethod: dto.paymentMethod || (dto.payWay === 3 ? 'Wallet' : (dto.payWay === 2 ? 'Visa' : 'Cash')),
       usePackageHours: dto.usePackageHours != null ? dto.usePackageHours : null,
@@ -177,16 +187,10 @@ export class WorkspaceApiService extends BaseApiService {
     );
   }
 
-  /** Remove catering item from a workspace session (Admin only) — DELETE /api/catering/workspace/{id} */
+  /** Remove a catering item from a workspace session — DELETE /api/workspaces/{workspaceId}/catering/{id} */
   removeCateringItem(workspaceId: string, itemId: string): Observable<boolean> {
-    const targetId = itemId || workspaceId;
-    return this.delete<ApiResponse<boolean>>(`/api/catering/workspace/${targetId}`).pipe(
-      map(extractData),
-      catchError(() => {
-        return this.delete<ApiResponse<boolean>>(API_ENDPOINTS.WORKSPACES.CATERING_ITEM(workspaceId, itemId)).pipe(
-          map(extractData)
-        );
-      })
+    return this.delete<ApiResponse<boolean>>(API_ENDPOINTS.WORKSPACES.CATERING_ITEM(workspaceId, itemId)).pipe(
+      map(extractData)
     );
   }
 

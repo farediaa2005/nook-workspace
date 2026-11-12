@@ -1,4 +1,4 @@
-export interface InvoiceLineItem {
+interface InvoiceLineItem {
   description: string;
   quantity: number;
   unitPrice: number;
@@ -23,12 +23,12 @@ export interface InvoiceData {
   actualMinutesSpent?: number; // e.g. 106
   billedDurationFormatted?: string; // e.g. "2 ساعات"
   durationDifferenceText?: string; // e.g. "مغادرة مبكرة بـ 14 دقيقة" or "وقت إضافي: 30 دقيقة"
-  cateringItemsBreakdown?: Array<{
+  cateringItemsBreakdown?: {
     name: string;
     quantity: number;
     unitPrice: number;
     totalPrice: number;
-  }>;
+  }[];
   lineItems: InvoiceLineItem[];
   subtotal: number;
   discountAmount: number;

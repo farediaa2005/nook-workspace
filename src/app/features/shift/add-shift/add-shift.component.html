@@ -4,13 +4,13 @@
   <header class="page-head">
     <div class="header-text">
       <div class="title-row">
-        <h1 class="page-title">{{ t().addShift }}</h1>
+        <app-page-header [spaced]="false" [title]="t().addShift"></app-page-header>
         @if (isAdmin()) {
           <span class="admin-role-badge">
             <svg viewBox="0 0 24 24" fill="none" class="badge-icon">
               <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"/>
             </svg>
-            <span>{{ isArabic() ? 'لوحة تحكم الأدمن' : 'Admin Terminal' }}</span>
+            <span>{{ t().shiftAdminTerminal }}</span>
           </span>
         }
       </div>
@@ -72,7 +72,7 @@
           <div class="info-label-row">
             <span class="info-label">{{ t().shiftStaffName }}</span>
             @if (isAdmin()) {
-              <span class="admin-tag">{{ isArabic() ? 'مسؤول النظام' : 'System Admin' }}</span>
+              <span class="admin-tag">{{ t().shiftSystemAdmin }}</span>
             }
           </div>
           <span class="info-value">{{ currentUser()?.name || t().frontDeskStaff }}</span>
@@ -108,14 +108,14 @@
         <!-- 1. Cash Drawer (Required) -->
         <div class="float-field-card highlight-card">
           <div class="field-header">
-            <label class="field-label">
+            <label for="add-shift-f4" class="field-label">
               <span class="channel-dot channel-dot--gold"></span>
               {{ t().startingCashField }} *
             </label>
             <span class="required-badge">{{ t().requiredText }}</span>
           </div>
           <div class="input-with-currency">
-            <input
+            <input id="add-shift-f4"
               type="number"
               step="any"
               min="0"
@@ -123,7 +123,7 @@
               [ngModel]="initialCash()"
               (ngModelChange)="initialCash.set($event !== null && $event !== undefined ? +$event : 0)"
               class="field-input highlight-input font-num"
-              autofocus
+              appAutofocus
             />
             <span class="currency-badge">{{ currencyText() }}</span>
           </div>
@@ -133,13 +133,13 @@
         <!-- 2. Vodafone Cash Starting Float -->
         <div class="float-field-card">
           <div class="field-header">
-            <label class="field-label">
+            <label for="add-shift-f3" class="field-label">
               <span class="channel-dot channel-dot--red"></span>
               {{ t().startingVodafoneField }}
             </label>
           </div>
           <div class="input-with-currency">
-            <input
+            <input id="add-shift-f3"
               type="number"
               step="any"
               min="0"
@@ -156,13 +156,13 @@
         <!-- 3. InstaPay Starting Float -->
         <div class="float-field-card">
           <div class="field-header">
-            <label class="field-label">
+            <label for="add-shift-f2" class="field-label">
               <span class="channel-dot channel-dot--purple"></span>
               {{ t().startingInstapayField }}
             </label>
           </div>
           <div class="input-with-currency">
-            <input
+            <input id="add-shift-f2"
               type="number"
               step="any"
               min="0"
@@ -179,13 +179,13 @@
         <!-- 4. Fawry Starting Float -->
         <div class="float-field-card">
           <div class="field-header">
-            <label class="field-label">
+            <label for="add-shift-f1" class="field-label">
               <span class="channel-dot channel-dot--blue"></span>
               {{ t().startingFawryField }}
             </label>
           </div>
           <div class="input-with-currency">
-            <input
+            <input id="add-shift-f1"
               type="number"
               step="any"
               min="0"
@@ -232,9 +232,7 @@
 
     <!-- Form Footer Action Buttons -->
     <div class="form-footer">
-      <button type="button" class="btn-secondary" (click)="cancel()">
-        {{ t().cancelBtn }}
-      </button>
+      <app-primary-button variant="secondary" [text]="t().cancelBtn" (clicked)="cancel()"></app-primary-button>
 
       <button
         type="button"
@@ -244,7 +242,7 @@
       >
         @if (isSubmitting()) {
           <div class="btn-spinner"></div>
-          <span>{{ isArabic() ? 'جاري الفتح...' : 'Starting...' }}</span>
+          <span>{{ t().shiftStarting }}</span>
         } @else {
           <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
             <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>

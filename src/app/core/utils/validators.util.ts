@@ -29,7 +29,7 @@ export function normalizeArabicDigits(value: string | null | undefined): string 
  * (letters, illegal punctuation, etc.). Only digits, whitespace, dashes,
  * parentheses, dots, and a single leading plus are permitted.
  */
-export function containsInvalidPhoneCharacters(value: string | null | undefined): boolean {
+function containsInvalidPhoneCharacters(value: string | null | undefined): boolean {
   if (!value) return false;
   const normalized = normalizeArabicDigits(value).trim();
   // Allow leading +, digits, spaces, dashes, dots, parentheses
@@ -124,7 +124,7 @@ export function isValidPersonName(value: string | null | undefined): boolean {
   if (trimmed.length < 2 || trimmed.length > 100) return false;
 
   // Must only contain letters (Arabic, Latin, marks), spaces, hyphens, dots, apostrophes
-  if (!/^[\p{L}\p{M}\s.'\-]+$/u.test(trimmed)) {
+  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(trimmed)) {
     return false;
   }
 
@@ -143,10 +143,16 @@ export function validateNameError(value: string | null | undefined, isArabic = t
       ? (isArabic ? 'يرجى إدخال الاسم (حرفين على الأقل)' : 'Name is required (at least 2 letters)')
       : null;
   }
-  if (!isValidPersonName(trimmed)) {
+  if (trimmed.length > 100) {
+    return isArabic ? 'الاسم طويل جداً (الحد الأقصى 100 حرف)' : 'Name is too long (max 100 characters)';
+  }
+  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(trimmed)) {
     return isArabic
-      ? 'الاسم غير صالح؛ يجب أن يحتوي على حرفين على الأقل ولا يمكن أن يتكون من أرقام أو رموز فقط'
-      : 'Invalid name; must contain at least 2 letters and cannot be only digits or symbols';
+      ? 'الاسم يقبل حروف عربي أو إنجليزي ومسافات و( . - ' + "'" + ' ) بس، من غير أرقام أو أقواس أو رموز تانية'
+      : "Names may only contain letters, spaces and . - ' (no digits, brackets or other symbols)";
+  }
+  if (!isValidPersonName(trimmed)) {
+    return isArabic ? 'الاسم لازم يكون فيه حرفين على الأقل' : 'Name must contain at least 2 letters';
   }
   return null;
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { checkReservationOverlap, isSelfReservation, extractBaseReservationId, getTimeSegments } from './reservation-conflict.util';
+import { checkReservationOverlap, isSelfReservation } from './reservation-conflict.util';
 
 describe('Reservation Conflict & Overlap Util (NOOK-DEV-02, CR-01)', () => {
   const existingList = [

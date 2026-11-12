@@ -3,6 +3,7 @@ import { Observable, map } from 'rxjs';
 import { BaseApiService } from './base-api.service';
 import { API_ENDPOINTS } from '../../constants/api-endpoints';
 import { ApiResponse, extractData } from '../../models/api-response.model';
+import { StudentDiscountEligibilityDto } from '../../models/discount-rule.model';
 
 export interface BackendStudentDto {
   id: string;
@@ -28,7 +29,7 @@ export interface BackendStudentDto {
   notes?: string | null;
 }
 
-export interface CreateStudentPayload {
+interface CreateStudentPayload {
   name: string;
   phoneNumber?: string | null;
   whatsapp?: string | null;
@@ -44,7 +45,7 @@ export interface CreateStudentPayload {
   notes?: string | null;
 }
 
-export interface UpdateStudentPayload {
+interface UpdateStudentPayload {
   name?: string;
   phoneNumber?: string | null;
   whatsapp?: string | null;
@@ -55,25 +56,6 @@ export interface UpdateStudentPayload {
   parentId?: string | null;
   canBook?: boolean;
   notes?: string | null;
-}
-
-export interface StudentCheckoutPayload {
-  studentId: string;
-  checkOutTime?: string;
-  durationHours?: number;
-  totalCost?: number;
-  amountReceived?: number;
-  walletAmount?: number;
-  paymentMethod?: string;
-  shiftId?: string;
-}
-
-export interface StudentCheckoutResponse {
-  id: string;
-  status: string;
-  walletAmount: number;
-  totalCost: number;
-  amountReceived: number;
 }
 
 @Injectable({
@@ -124,16 +106,6 @@ export class StudentApiService extends BaseApiService {
     );
   }
 
-  /** Student checkout with wallet balance & debt persistence — POST /api/Students/{id}/checkout */
-  checkoutStudent(id: string, payload: StudentCheckoutPayload): Observable<StudentCheckoutResponse> {
-    return this.post<ApiResponse<StudentCheckoutResponse>>(
-      API_ENDPOINTS.STUDENTS.CHECKOUT(id),
-      payload
-    ).pipe(
-      map(extractData)
-    );
-  }
-
   /** Update an existing student */
   updateStudent(id: string, payload: UpdateStudentPayload): Observable<BackendStudentDto> {
     return this.put<ApiResponse<BackendStudentDto>>(API_ENDPOINTS.STUDENTS.BY_ID(id), payload).pipe(
@@ -155,11 +127,8 @@ export class StudentApiService extends BaseApiService {
     );
   }
 
-  /** Get student discount eligibility — GET /api/Students/{id}/discount-eligibility */
-  getDiscountEligibility(id: string): Observable<any> {
-    return this.get<ApiResponse<any>>(API_ENDPOINTS.DISCOUNT_RULES.STUDENT_ELIGIBILITY(id)).pipe(
-      map(extractData)
-    );
+  /** GET /api/Students/{id}/discount-eligibility — milestone progress and available automatic discounts */
+  getDiscountEligibility(id: string): Observable<StudentDiscountEligibilityDto> {
+    return this.get<ApiResponse<StudentDiscountEligibilityDto>>(API_ENDPOINTS.DISCOUNT_RULES.STUDENT_ELIGIBILITY(id)).pipe(map(extractData));
   }
 }
-

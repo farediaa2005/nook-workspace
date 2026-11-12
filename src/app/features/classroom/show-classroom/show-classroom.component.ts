@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal, effect, HostListener, OnInit, OnDestroy, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router, ActivatedRoute } from '@angular/router';
+import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LanguageService } from '../../../core/services/language.service';
 import { ClassroomService } from '../../../core/services/classroom.service';
@@ -10,13 +10,7 @@ import { ShiftService } from '../../../core/services/shift.service';
 import { CouponApiService } from '../../../core/services/api/coupon-api.service';
 import { isCouponExhausted, isCouponExpired } from '../../../core/models/coupon.model';
 import { PackageItem, PackageMemberOption } from '../../../core/models/package.model';
-import {
-  ClassroomCard,
-  SelectableRoom,
-  CateringProductItem,
-  PaymentMethod,
-  ClassroomCoupon
-} from '../../../core/models/classroom.model';
+import { ClassroomCard, PaymentMethod, ClassroomCoupon } from '../../../core/models/classroom.model';
 import { PrimaryButtonComponent } from '../../../shared/components/primary-button/primary-button.component';
 import { DateFilterDropdownComponent, DateFilterOption } from '../../../shared/components/date-filter-dropdown/date-filter-dropdown.component';
 import { CustomSelectComponent, SelectOption } from '../../../shared/components/custom-select/custom-select.component';
@@ -28,6 +22,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { InvoiceData } from '../../../core/models/invoice.model';
 import { isSelfReservation } from '../../../core/utils/reservation-conflict.util';
 import { RoomPricingService } from '../../../core/services/room-pricing.service';
+import { extractApiErrorMessage } from '../../../core/utils/api-error.util';
 import {
   normalizeArabicDigits,
   sanitizePhoneInput,
@@ -35,12 +30,17 @@ import {
   isValidEmail,
   isValidPersonName
 } from '../../../core/utils/validators.util';
+import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
+import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
+import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 
+import { AutofocusDirective } from '../../../shared/directives/autofocus.directive';
 @Component({
   selector: 'app-show-classroom',
   standalone: true,
-  imports: [
+  imports: [AutofocusDirective, PageHeaderComponent, StatusBadgeComponent, EmptyStateComponent,
     FormsModule,
+    RouterLink,
     PrimaryButtonComponent,
     DateFilterDropdownComponent,
     CustomSelectComponent,
@@ -68,6 +68,8 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
 
   Math = Math;
   t = this.langService.t;
+  /** "ساعتان" / "3 ساعات" / "2 hours" — one rule for the whole app */
+  hoursText = this.langService.hoursText;
   isArabic = this.langService.isArabic;
   formatTime = (str?: string) => this.langService.formatTimeLocale(str);
   formatDuration = (str?: string) => this.langService.formatDurationLocale(str);
@@ -102,7 +104,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     { label: this.t().statusAll, value: 'all' },
     { label: this.t().statusActiveDropdown, value: 'active' },
     { label: this.t().statusAvailableDropdown, value: 'available' },
-    { label: this.isArabic() ? 'المكتملة اليوم' : 'Completed Today', value: 'completed' }
+    { label: this.t().clsCompletedToday, value: 'completed' }
   ]);
 
   allCards = this.classroomService.cards;
@@ -136,6 +138,8 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       if (card.status !== 'active' && card.status !== 'scheduled') return false;
 
       if (dateOpt === 'today') {
+        // A running session stays on today's board even if it started yesterday (e.g. 11 PM → 1 AM).
+        if (card.status === 'active') return true;
         const isToday = !card.bookingDate ||
                         card.bookingDate === 'Today' ||
                         card.bookingDate === todayISO ||
@@ -151,9 +155,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     const displayCards: ClassroomCard[] = [...activeOrScheduledCards];
 
     // For each room, if it doesn't have an active or currently-reserved session today, append a virtual available card
-    for (const room of rooms) {
-      const roomKey = (room.id || room.name).trim().toLowerCase();
-      const hasActiveSession = displayCards.some(
+    for (const room of rooms) {      const hasActiveSession = displayCards.some(
         card => (card.roomId === room.id || card.name.toLowerCase() === room.name.toLowerCase()) && (card.status === 'active' || card.status === 'scheduled')
       );
       if (!hasActiveSession) {
@@ -581,7 +583,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   // BOOKING MODAL ACTIONS
   // ============================================================
   openBookingModal(roomName?: string): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حجز قاعة' : 'Classroom Booking')) {
+    if (!this.shiftService.guardActiveShift(this.t().clsClassroomBooking)) {
       return;
     }
     this.editingCardId.set(null);
@@ -632,9 +634,6 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     this.isBookingDiscountSectionOpen.set(false);
     this.bookingPaymentMode.set('cash');
     this.isAllDay.set(false);
-    this.repeatOption.set('none');
-    this.isRecurrenceDropdownOpen.set(false);
-    this.repeatOccurrences.set(4);
 
     this.isBookingModalOpen.set(true);
     document.body.style.overflow = 'hidden';
@@ -644,7 +643,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
    * Add 1 extra hour to an active classroom session (Quick Extend)
    */
   addHourToCard(card: ClassroomCard): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تمديد وقت الجلسة' : 'Extend Session')) {
+    if (!this.shiftService.guardActiveShift(this.t().clsExtendSession)) {
       return;
     }
     if (!card || !card.id || card.status !== 'active') return;
@@ -676,9 +675,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     this.classroomService.updateCard(updatedCard).subscribe({
       next: () => {
         this.workspaceService.showToast(
-          this.isArabic()
-            ? `تم تمديد وقت قاعة (${card.name}) ساعة إضافية (حتى ${newEndTime})`
-            : `Added +1 hour to ${card.name} session (until ${newEndTime})`,
+          this.langService.tf('clspAdded1HourToSession', { name: card.name, newEndTime }),
           'success'
         );
         this.classroomService.loadClassrooms().subscribe();
@@ -686,7 +683,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       error: (err: any) => {
         console.error('Failed to extend session hour:', err);
         this.workspaceService.showToast(
-          this.isArabic() ? 'فشل تمديد وقت الجلسة' : 'Failed to extend session',
+          this.t().clsFailedToExtendSession,
           'error'
         );
       }
@@ -713,13 +710,13 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     this.endHour.set(String(h).padStart(2, '0'));
     this.endPeriod.set(period);
     this.workspaceService.showToast(
-      this.isArabic() ? 'تمت إضافة ساعة إضافية للمدة (+1 ساعة)' : 'Added +1 hour to scheduled duration',
+      this.t().clsAdded1HourToScheduled,
       'info'
     );
   }
 
   openEditBookingModal(card: ClassroomCard): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تعديل الحجز' : 'Edit Booking')) {
+    if (!this.shiftService.guardActiveShift(this.t().clsEditBooking)) {
       return;
     }
     this.editingCardId.set(card.id);
@@ -845,7 +842,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   checkInScheduledCard(card: ClassroomCard): void {
     this.classroomService.checkInCard(card.id);
     this.workspaceService.showToast(
-      this.isArabic() ? `تم بدء الجلسة في ${card.name} بنجاح` : `Session started in ${card.name}`,
+      this.langService.tf('clspSessionStartedIn', { name: card.name }),
       'success'
     );
   }
@@ -879,7 +876,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       return (cleanId && cRoomId && cRoomId === cleanId) ||
              (cleanName && cName && (cName === cleanName || cName.includes(cleanName) || cleanName.includes(cName)));
     });
-    return activeCard?.instructor || activeCard?.activity || (this.isArabic() ? 'مشغولة حالياً' : 'Occupied');
+    return activeCard?.instructor || activeCard?.activity || (this.t().clsOccupied2);
   }
 
   selectRoom(roomId: string): void {
@@ -981,12 +978,9 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   }
 
   isInstructorDropdownOpen = signal(false);
-  isRecurrenceDropdownOpen = signal(false);
   isStartTimeDropdownOpen = signal(false);
   isEndTimeDropdownOpen = signal(false);
   isAllDay = signal<boolean>(false);
-  repeatOption = signal<'none' | 'daily' | 'weekly' | 'monthly' | 'weekdays' | 'custom'>('none');
-  repeatOccurrences = signal<number>(4);
 
   // 15-minute standard time slots: 12:00 AM to 11:45 PM
   timeSlotOptions = computed<string[]>(() => {
@@ -1023,16 +1017,16 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       const mStr = String(m).padStart(2, '0');
       const timeStr = `${hStr}:${mStr} ${period}`;
 
-      let durLabel = '';
+      let durLabel: string;
       if (offset < 60) {
-        durLabel = isAr ? `(${offset} دقيقة)` : `(${offset} mins)`;
+        durLabel = this.langService.tf('loctMins', { offset });
       } else {
         const fullH = Math.floor(offset / 60);
         const remM = offset % 60;
         if (remM === 0) {
           durLabel = isAr ? `(${fullH} ساعة)` : `(${fullH} hr${fullH > 1 ? 's' : ''})`;
         } else {
-          durLabel = isAr ? `(${fullH} س و ${remM} د)` : `(${fullH} hr ${remM} m)`;
+          durLabel = this.langService.tf('loctHrM', { fullH, remM });
         }
       }
 
@@ -1094,306 +1088,12 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     if (!target.closest('.instructor-autocomplete-wrap')) {
       this.isInstructorDropdownOpen.set(false);
     }
-    if (!target.closest('.recurrence-dropdown-wrap')) {
-      this.isRecurrenceDropdownOpen.set(false);
-    }
     if (!target.closest('.cal-time-chip--start')) {
       this.isStartTimeDropdownOpen.set(false);
     }
     if (!target.closest('.cal-time-chip--end')) {
       this.isEndTimeDropdownOpen.set(false);
     }
-  }
-
-  isCustomRecurrenceModalOpen = signal(false);
-
-  customRecurrence = signal<{
-    interval: number;
-    unit: 'day' | 'week' | 'month';
-    daysOfWeek: number[];
-    endType: 'never' | 'on_date' | 'after';
-    occurrences: number;
-    endDate: string;
-  }>({
-    interval: 1,
-    unit: 'week',
-    daysOfWeek: [3],
-    endType: 'after',
-    occurrences: 8,
-    endDate: ''
-  });
-
-  weekDaysList = [
-    { value: 6, label: 'س', labelEn: 'S', fullName: 'السبت', fullNameEn: 'Saturday' },
-    { value: 0, label: 'ح', labelEn: 'S', fullName: 'الأحد', fullNameEn: 'Sunday' },
-    { value: 1, label: 'ن', labelEn: 'M', fullName: 'الاثنين', fullNameEn: 'Monday' },
-    { value: 2, label: 'ث', labelEn: 'T', fullName: 'الثلاثاء', fullNameEn: 'Tuesday' },
-    { value: 3, label: 'ر', labelEn: 'W', fullName: 'الأربعاء', fullNameEn: 'Wednesday' },
-    { value: 4, label: 'خ', labelEn: 'T', fullName: 'الخميس', fullNameEn: 'Thursday' },
-    { value: 5, label: 'ج', labelEn: 'F', fullName: 'الجمعة', fullNameEn: 'Friday' },
-  ];
-
-  openCustomRecurrenceModal(): void {
-    this.isRecurrenceDropdownOpen.set(false);
-    const baseDateStr = this.bookingDate() || this.todayDate();
-    const [y, m, d] = baseDateStr.split('-').map(Number);
-    const currDay = new Date(y, m - 1, d).getDay();
-
-    this.customRecurrence.update(c => ({
-      ...c,
-      unit: c.unit || 'week',
-      endType: c.endType || 'after',
-      occurrences: c.occurrences || 8,
-      daysOfWeek: c.daysOfWeek && c.daysOfWeek.length > 0 ? c.daysOfWeek : [currDay]
-    }));
-
-    this.isCustomRecurrenceModalOpen.set(true);
-  }
-
-  closeCustomRecurrenceModal(): void {
-    this.isCustomRecurrenceModalOpen.set(false);
-  }
-
-  saveCustomRecurrence(): void {
-    this.repeatOption.set('custom');
-    this.isCustomRecurrenceModalOpen.set(false);
-  }
-
-  setCustomOccurrencesPreset(count: number): void {
-    this.customRecurrence.update(c => ({
-      ...c,
-      endType: 'after',
-      occurrences: count
-    }));
-  }
-
-  adjustCustomOccurrences(delta: number): void {
-    this.customRecurrence.update(c => ({
-      ...c,
-      endType: 'after',
-      occurrences: Math.max(1, Math.min(60, (c.occurrences || 8) + delta))
-    }));
-  }
-
-  upcomingRecurrenceDatesPreview = computed<{ label: string; index: number }[]>(() => {
-    const dates = this.generatedRecurrenceDates();
-    const isAr = this.isArabic();
-    return dates.slice(0, 5).map((dStr, idx) => {
-      const [y, m, d] = dStr.split('-').map(Number);
-      const dt = new Date(y, m - 1, d);
-      const dayName = dt.toLocaleDateString(isAr ? 'ar-EG' : 'en-US', { weekday: 'short' });
-      const datePart = dt.toLocaleDateString(isAr ? 'ar-EG' : 'en-US', { day: 'numeric', month: 'short' });
-      return {
-        index: idx + 1,
-        label: `${dayName} ${datePart}`
-      };
-    });
-  });
-
-  customTotalCostPreview = computed<number>(() => {
-    const totalSessions = this.generatedRecurrenceDates().length;
-    const durHours = this.bookingDurationHours() || 1;
-    const rate = this.bookingHourlyRate() || 0;
-    return totalSessions * durHours * rate;
-  });
-
-  toggleCustomDay(dayVal: number): void {
-    this.customRecurrence.update(curr => {
-      const exists = curr.daysOfWeek.includes(dayVal);
-      let updated: number[];
-      if (exists) {
-        updated = curr.daysOfWeek.length > 1 ? curr.daysOfWeek.filter(d => d !== dayVal) : curr.daysOfWeek;
-      } else {
-        updated = [...curr.daysOfWeek, dayVal].sort();
-      }
-      return { ...curr, daysOfWeek: updated };
-    });
-  }
-
-  isDaySelected(dayVal: number): boolean {
-    return this.customRecurrence().daysOfWeek.includes(dayVal);
-  }
-
-  updateCustomInterval(val: any): void {
-    const num = Math.max(1, Math.min(99, parseInt(val, 10) || 1));
-    this.customRecurrence.update(c => ({ ...c, interval: num }));
-  }
-
-  updateCustomUnit(unit: 'day' | 'week' | 'month'): void {
-    this.customRecurrence.update(c => ({ ...c, unit }));
-  }
-
-  updateCustomEndType(endType: 'never' | 'on_date' | 'after'): void {
-    this.customRecurrence.update(c => ({ ...c, endType }));
-  }
-
-  updateCustomOccurrences(val: any): void {
-    const num = Math.max(1, Math.min(50, parseInt(val, 10) || 1));
-    this.customRecurrence.update(c => ({ ...c, occurrences: num }));
-  }
-
-  updateCustomEndDate(dateStr: string): void {
-    this.customRecurrence.update(c => ({ ...c, endDate: dateStr }));
-  }
-
-  customRecurrenceSummaryText = computed(() => {
-    const c = this.customRecurrence();
-    const isAr = this.isArabic();
-    let text = '';
-
-    if (c.interval === 1) {
-      if (c.unit === 'day') text = isAr ? 'يومياً' : 'Daily';
-      else if (c.unit === 'week') text = isAr ? 'أسبوعياً' : 'Weekly';
-      else if (c.unit === 'month') text = isAr ? 'شهرياً' : 'Monthly';
-    } else {
-      if (c.unit === 'day') text = isAr ? `كل ${c.interval} أيام` : `Every ${c.interval} days`;
-      else if (c.unit === 'week') text = isAr ? `كل ${c.interval} أسابيع` : `Every ${c.interval} weeks`;
-      else if (c.unit === 'month') text = isAr ? `كل ${c.interval} أشهر` : `Every ${c.interval} months`;
-    }
-
-    if (c.unit === 'week' && c.daysOfWeek.length > 0) {
-      const dayNames = c.daysOfWeek
-        .map(dVal => this.weekDaysList.find(w => w.value === dVal))
-        .filter(Boolean)
-        .map(w => isAr ? w!.fullName : w!.fullNameEn);
-      text += isAr ? ` في أيام ${dayNames.join('، ')}` : ` on ${dayNames.join(', ')}`;
-    }
-
-    if (c.endType === 'after') {
-      text += isAr ? ` (${c.occurrences} مواعيد)` : ` (${c.occurrences} occurrences)`;
-    } else if (c.endType === 'on_date' && c.endDate) {
-      text += isAr ? ` حتى ${c.endDate}` : ` until ${c.endDate}`;
-    }
-
-    return text;
-  });
-
-  dayOfWeekName = computed(() => {
-    const dateStr = this.bookingDate() || this.todayDate();
-    return this.getDayOfWeekName(dateStr, this.isArabic());
-  });
-
-  formattedDateDisplay = computed(() => {
-    const dateStr = this.bookingDate() || this.todayDate();
-    return this.getFormattedDateDisplay(dateStr, this.isArabic());
-  });
-
-  recurrenceLabel = computed(() => {
-    const opt = this.repeatOption();
-    const day = this.dayOfWeekName();
-    const isAr = this.isArabic();
-    if (opt === 'daily') return isAr ? 'يومياً (Daily)' : 'Daily';
-    if (opt === 'weekly') return isAr ? `أسبوعياً كل يوم ${day} (Weekly)` : `Weekly on ${day}`;
-    if (opt === 'monthly') return isAr ? 'شهرياً في نفس اليوم (Monthly)' : 'Monthly';
-    if (opt === 'weekdays') return isAr ? 'كل أيام العمل (أحد - خميس)' : 'Every weekday (Sun - Thu)';
-    if (opt === 'custom') {
-      return this.customRecurrenceSummaryText() || (isAr ? 'تكرار مخصص...' : 'Custom...');
-    }
-    return isAr ? 'لا يتكرر (Does not repeat)' : 'Does not repeat';
-  });
-
-  generatedRecurrenceDates = computed<string[]>(() => {
-    const opt = this.repeatOption();
-    const baseDateStr = this.bookingDate() || this.todayDate();
-    if (opt === 'none') {
-      return [baseDateStr];
-    }
-
-    const [by, bm, bd] = baseDateStr.split('-').map(Number);
-    const baseDate = new Date(by, bm - 1, bd);
-    const dates: string[] = [baseDateStr];
-
-    if (opt === 'daily') {
-      const count = this.repeatOccurrences() || 7;
-      for (let i = 1; i < count; i++) {
-        const next = new Date(baseDate);
-        next.setDate(baseDate.getDate() + i);
-        dates.push(this.formatDateToISO(next));
-      }
-    } else if (opt === 'weekly') {
-      const count = this.repeatOccurrences() || 4;
-      for (let i = 1; i < count; i++) {
-        const next = new Date(baseDate);
-        next.setDate(baseDate.getDate() + (i * 7));
-        dates.push(this.formatDateToISO(next));
-      }
-    } else if (opt === 'monthly') {
-      const count = this.repeatOccurrences() || 3;
-      for (let i = 1; i < count; i++) {
-        const next = new Date(baseDate);
-        next.setMonth(baseDate.getMonth() + i);
-        dates.push(this.formatDateToISO(next));
-      }
-    } else if (opt === 'weekdays') {
-      const count = this.repeatOccurrences() || 5;
-      let added = 1;
-      let dayOffset = 1;
-      while (added < count && dayOffset < 60) {
-        const next = new Date(baseDate);
-        next.setDate(baseDate.getDate() + dayOffset);
-        const dow = next.getDay();
-        if (dow !== 5 && dow !== 6) {
-          dates.push(this.formatDateToISO(next));
-          added++;
-        }
-        dayOffset++;
-      }
-    } else if (opt === 'custom') {
-      const c = this.customRecurrence();
-      const targetCount = c.endType === 'after' ? c.occurrences : (c.endType === 'never' ? 12 : 50);
-      const untilDate = c.endType === 'on_date' && c.endDate ? new Date(c.endDate) : null;
-
-      if (c.unit === 'day') {
-        let i = 1;
-        while (dates.length < targetCount && i < 100) {
-          const next = new Date(baseDate);
-          next.setDate(baseDate.getDate() + (i * c.interval));
-          if (untilDate && next > untilDate) break;
-          dates.push(this.formatDateToISO(next));
-          i++;
-        }
-      } else if (c.unit === 'week') {
-        const days = c.daysOfWeek && c.daysOfWeek.length > 0 ? c.daysOfWeek : [baseDate.getDay()];
-        let dayStep = 1;
-
-        while (dates.length < targetCount && dayStep < 365) {
-          const checkDate = new Date(baseDate);
-          checkDate.setDate(baseDate.getDate() + dayStep);
-
-          if (untilDate && checkDate > untilDate) break;
-
-          if (days.includes(checkDate.getDay())) {
-            dates.push(this.formatDateToISO(checkDate));
-          }
-          dayStep++;
-        }
-      } else if (c.unit === 'month') {
-        let i = 1;
-        while (dates.length < targetCount && i < 36) {
-          const next = new Date(baseDate);
-          next.setMonth(baseDate.getMonth() + (i * c.interval));
-          if (untilDate && next > untilDate) break;
-          dates.push(this.formatDateToISO(next));
-          i++;
-        }
-      }
-    }
-
-    return dates;
-  });
-
-  getDayOfWeekName(dateStr: string, isAr: boolean): string {
-    if (!dateStr) return '';
-    const [y, m, d] = dateStr.split('-').map(Number);
-    const date = new Date(y, m - 1, d);
-    return date.toLocaleDateString(isAr ? 'ar-EG' : 'en-US', { weekday: 'long' });
-  }
-
-  getFormattedDateDisplay(dateStr: string, isAr: boolean): string {
-    if (!dateStr) return '';
-    const [y, m, d] = dateStr.split('-').map(Number);
-    const date = new Date(y, m - 1, d);
-    return date.toLocaleDateString(isAr ? 'ar-EG' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long' });
   }
 
   toggleAllDay(): void {
@@ -1408,29 +1108,9 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     }
   }
 
-  selectRepeatOption(opt: 'none' | 'daily' | 'weekly' | 'monthly' | 'weekdays' | 'custom'): void {
-    if (opt === 'custom') {
-      this.openCustomRecurrenceModal();
-    } else {
-      this.repeatOption.set(opt);
-      this.isRecurrenceDropdownOpen.set(false);
-    }
-  }
-
-  adjustRepeatOccurrences(delta: number): void {
-    this.repeatOccurrences.update(val => Math.max(2, Math.min(20, val + delta)));
-  }
-
   getSelectedRoomDisplayName(): string {
     const r = this.selectableRooms().find(rm => rm.id === this.selectedRoomId());
     return r ? r.name : '';
-  }
-
-  private formatDateToISO(d: Date): string {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
   }
 
   allSearchableMembers = computed<PackageMemberOption[]>(() => {
@@ -1460,13 +1140,11 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     }
 
     // 2. Members holding an instructor package (Classroom Package)
-    for (const pkg of this.packageService.instructorPackages()) {
-      const name = pkg.memberNameAr || pkg.memberNameEn || '';
-      addMember({
+    for (const pkg of this.packageService.instructorPackages()) {      addMember({
         id: pkg.memberId || pkg.id,
         nameAr: pkg.memberNameAr,
         nameEn: pkg.memberNameEn,
-        subAr: pkg.memberSubAr || (this.isArabic() ? 'محاضر معتمد' : 'Certified Instructor'),
+        subAr: pkg.memberSubAr || (this.t().clsCertifiedInstructor),
         subEn: pkg.memberSubEn || 'Certified Instructor',
         phone: pkg.memberPhone || '',
         email: pkg.memberEmail || '',
@@ -1482,7 +1160,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
         id: s.id || (phone ? `STU-${phone.replace(/\D/g, '').slice(-4)}` : undefined) || `STU-${Date.now()}`,
         nameAr: name,
         nameEn: name,
-        subAr: s.faculty || s.college || (this.isArabic() ? 'طالب' : 'Student'),
+        subAr: s.faculty || s.college || (this.t().wsStudent),
         subEn: s.faculty || s.college || 'Student',
         phone: phone,
         email: s.email || '',
@@ -1498,7 +1176,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
         id: s.studentId || s.id,
         nameAr: name,
         nameEn: name,
-        subAr: s.faculty || s.college || (this.isArabic() ? 'طالب' : 'Student'),
+        subAr: s.faculty || s.college || (this.t().wsStudent),
         subEn: s.faculty || s.college || 'Student',
         phone: phone,
         email: s.email || '',
@@ -1544,7 +1222,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       nameEn: name,
       phone: this.bookingPhone().trim(),
       email: this.bookingEmail().trim(),
-      subAr: this.bookingActivity().trim() || (this.isArabic() ? 'محاضر / عميل' : 'Instructor / Client'),
+      subAr: this.bookingActivity().trim() || (this.t().clsInstructorClient),
       subEn: this.bookingActivity().trim() || 'Instructor / Client',
       type: 'instructor'
     });
@@ -1667,11 +1345,11 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
           return;
         }
         if (isCouponExpired(coupon)) {
-          this.couponError.set(this.isArabic() ? 'كود الكوبون منتهي الصلاحية' : 'Coupon code expired');
+          this.couponError.set(this.t().wsCouponCodeExpired);
           return;
         }
         if (isCouponExhausted(coupon)) {
-          this.couponError.set(this.isArabic() ? 'تم استنفاد الحد الأقصى لاستخدام هذا الكود' : 'Coupon usage limit reached');
+          this.couponError.set(this.t().wsCouponUsageLimitReached);
           return;
         }
         this.appliedCoupon.set({
@@ -1742,13 +1420,19 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     this.bookingFormSubmitted.set(true);
     this.bookingFormErrorMessage.set(null);
 
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حجز قاعة' : 'Classroom Booking')) {
+    if (!this.shiftService.guardActiveShift(this.t().clsClassroomBooking)) {
       return;
     }
     if (this.isCurrentInstructorBlacklisted()) {
-      const msg = this.isArabic()
-        ? `لا يمكن إتمام الحجز: العميل "${this.bookingInstructor()}" محظور في القائمة السوداء (Blacklist)!`
-        : `Booking denied: "${this.bookingInstructor()}" is blacklisted!`;
+      const msg = this.langService.tf('clspBookingDeniedIsBlacklisted', { bookingInstructor: this.bookingInstructor() });
+      this.bookingFormErrorMessage.set(msg);
+      this.workspaceService.showToast(msg, 'error');
+      return;
+    }
+    // The room board starts the session right away (the server saves it as started), so a new booking here is for
+    // today only. A booking for another day was saved as started and showed the room as occupied now.
+    if (!this.editingCardId() && this.bookingDate() > this.todayDate()) {
+      const msg = this.t().clsFutureBookingUseReservations;
       this.bookingFormErrorMessage.set(msg);
       this.workspaceService.showToast(msg, 'error');
       return;
@@ -1767,7 +1451,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     };
 
     if (!this.bookingInstructor().trim() || !this.isInstructorValid()) {
-      const msg = this.isArabic() ? 'يرجى كتابة اسم الإنستراكتور / العميل (حرفين على الأقل)' : 'Please enter a valid instructor / client name';
+      const msg = this.t().clsPleaseEnterAValidInstructor;
       this.bookingFormErrorMessage.set(msg);
       this.workspaceService.showToast(msg, 'info');
       scrollToField('bookingInstructorInput');
@@ -1775,7 +1459,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     }
 
     if (!this.bookingActivity().trim() || !this.isActivityValid()) {
-      const msg = this.isArabic() ? 'يرجى كتابة النشاط أو موضوع الورشة' : 'Please enter an activity / workshop subject';
+      const msg = this.t().clsPleaseEnterAnActivityWorkshop;
       this.bookingFormErrorMessage.set(msg);
       this.workspaceService.showToast(msg, 'info');
       scrollToField('bookingActivityInput');
@@ -1783,7 +1467,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     }
 
     if (this.bookingPhone().trim() && !this.isPhoneValid()) {
-      const msg = this.isArabic() ? 'يرجى كتابة رقم هاتف صحيح (11 رقم)' : 'Please enter a valid phone number (11 digits)';
+      const msg = this.t().clsPleaseEnterAValidPhone;
       this.bookingFormErrorMessage.set(msg);
       this.workspaceService.showToast(msg, 'info');
       scrollToField('bookingPhoneInput');
@@ -1791,7 +1475,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     }
 
     if (this.bookingEmail().trim() && !this.isEmailValid()) {
-      const msg = this.isArabic() ? 'يرجى كتابة بريد إلكتروني صحيح' : 'Please enter a valid email address';
+      const msg = this.t().clsPleaseEnterAValidEmail;
       this.bookingFormErrorMessage.set(msg);
       this.workspaceService.showToast(msg, 'info');
       scrollToField('bookingEmailInput');
@@ -1799,7 +1483,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     }
 
     if (!this.bookingDate().trim()) {
-      const msg = this.isArabic() ? 'يرجى اختيار تاريخ الحجز' : 'Please select a booking date';
+      const msg = this.t().clsPleaseSelectABookingDate;
       this.bookingFormErrorMessage.set(msg);
       this.workspaceService.showToast(msg, 'info');
       scrollToField('bookingDateInput');
@@ -1807,7 +1491,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     }
 
     if (!this.bookingStartTime() || !this.bookingEndTime() || !this.isTimeRangeValid() || this.bookingDurationHours() <= 0) {
-      const msg = this.isArabic() ? 'يرجى تحديد وقت بداية ونهاية صحيحين ومختلفين' : 'Please specify valid start and end times';
+      const msg = this.t().clsPleaseSpecifyValidStartAnd;
       this.bookingFormErrorMessage.set(msg);
       this.workspaceService.showToast(msg, 'info');
       scrollToField('bookingTimeSection');
@@ -1815,7 +1499,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     }
 
     if (this.bookingHourlyRate() <= 0) {
-      const msg = this.isArabic() ? 'سعر الساعة غير محدد لهذه القاعة، يرجى ضبط سعر الساعة' : 'Hourly rate is not configured for this room. Please set a price.';
+      const msg = this.t().clsHourlyRateIsNotConfigured;
       this.bookingFormErrorMessage.set(msg);
       this.workspaceService.showToast(msg, 'error');
       scrollToField('bookingRateSummarySection');
@@ -1823,7 +1507,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     }
 
     if (this.hasBookingOverlap()) {
-      const msg = this.isArabic() ? 'يوجد تعارض في التوقيت مع جلسة أخرى في نفس القاعة' : 'Time slot overlaps with another booking in this room';
+      const msg = this.t().clsTimeSlotOverlapsWithAnother;
       this.bookingFormErrorMessage.set(msg);
       this.workspaceService.showToast(msg, 'error');
       scrollToField('bookingTimeSection');
@@ -1901,13 +1585,13 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
             this.isSavingBooking.set(false);
             this.bookingFormSubmitted.set(false);
             this.bookingFormErrorMessage.set(null);
-            this.workspaceService.showToast(this.isArabic() ? 'تم تحديث حجز القاعة بنجاح!' : 'Room booking updated successfully!', 'success');
+            this.workspaceService.showToast(this.t().clsRoomBookingUpdatedSuccessfully, 'success');
             this.classroomService.syncWithBackend();
             this.closeBookingModal();
           },
           error: (err) => {
             this.isSavingBooking.set(false);
-            const errorMsg = err?.error?.message || err?.message || (this.isArabic() ? 'فشل تحديث حجز القاعة' : 'Failed to update classroom booking');
+            const errorMsg = err?.error?.message || err?.message || (this.t().clsFailedToUpdateClassroomBooking);
             this.bookingFormErrorMessage.set(errorMsg);
             this.workspaceService.showToast(errorMsg, 'error');
           }
@@ -1918,9 +1602,9 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
         id: '',
         roomId: selectedRoom?.id,
         instructorId: this.selectedInstructorId() || undefined,
-        name: selectedRoom ? selectedRoom.name : 'Classroom',
-        activity: this.bookingActivity() || 'Workshop',
-        instructor: instructorName || 'Instructor',
+        name: selectedRoom ? selectedRoom.name : this.t().resUnknownRoom,
+        activity: this.bookingActivity().trim(),
+        instructor: instructorName || '',
         phone: this.bookingPhone(),
         email: this.bookingEmail(),
         note: this.bookingNotes().trim() || undefined,
@@ -1944,34 +1628,12 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
         catering: 0
       };
       this.classroomService.addBooking(newCard).subscribe({
-        next: () => {
+        next: (created) => {
           this.isSavingBooking.set(false);
           this.bookingFormSubmitted.set(false);
           this.bookingFormErrorMessage.set(null);
 
-          const opt = this.repeatOption();
-          const allDates = this.generatedRecurrenceDates();
-          const recurrenceDates = allDates.slice(1);
-          if (opt !== 'none' && recurrenceDates.length > 0) {
-            recurrenceDates.forEach(recDate => {
-              this.classroomService.createReservation({
-                roomId: selectedRoom?.id,
-                roomName: selectedRoom ? selectedRoom.name : 'Classroom',
-                instructorId: this.selectedInstructorId() || undefined,
-                instructorName: instructorName,
-                activity: `${this.bookingActivity()} (${this.recurrenceLabel()})`,
-                dateFrom: recDate,
-                dateTo: recDate,
-                timeFrom: this.bookingStartTime(),
-                timeTo: this.bookingEndTime(),
-                reservationCost: rentalAmount
-              }).subscribe();
-            });
-
-            this.workspaceService.showToast(this.isArabic() ? `تم تأكيد الحجز وتكراره بنجاح (${allDates.length} مواعيد)!` : `Booking confirmed and repeated (${allDates.length} sessions)!`, 'success');
-          } else {
-            this.workspaceService.showToast(this.isArabic() ? 'تم تأكيد وحفظ حجز القاعة بنجاح!' : 'Room booking confirmed and saved successfully!', 'success');
-          }
+          this.workspaceService.showToast(this.t().clsRoomBookingConfirmedAndSaved, 'success');
 
           // Deduct actual covered hours from package
           if (isPkg && pkg && coveredHours > 0) {
@@ -1981,7 +1643,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
               sessionAr: `${this.bookingActivity() || 'حجز قاعة'} - ${selectedRoom ? selectedRoom.name : 'قاعة'}`,
               sessionEn: `${this.bookingActivity() || 'Classroom Session'} - ${selectedRoom ? selectedRoom.name : 'Room'}`,
               roomOrDesk: selectedRoom ? selectedRoom.name : 'Classroom'
-            });
+            }, created?.id);
           }
 
           this.classroomService.syncWithBackend();
@@ -1989,7 +1651,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
         },
         error: (err) => {
           this.isSavingBooking.set(false);
-          const errorMsg = err?.error?.message || err?.message || (this.isArabic() ? 'فشل حفظ حجز القاعة في السيرفر' : 'Failed to save classroom booking');
+          const errorMsg = err?.error?.message || err?.message || (this.t().clsFailedToSaveClassroomBooking);
           this.bookingFormErrorMessage.set(errorMsg);
           this.workspaceService.showToast(errorMsg, 'error');
         }
@@ -1997,27 +1659,25 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     }
   }
 
-
   deleteCurrentEditingBooking(): void {
     const id = this.editingCardId();
     if (!id) return;
-    const isAr = this.isArabic();
-    if (confirm(isAr ? 'هل أنت متأكد من حذف هذا الحجز نهائياً؟' : 'Are you sure you want to delete this booking permanently?')) {
+    if (confirm(this.t().locAreYouSureYouWant)) {
       this.classroomService.deleteBooking(id).subscribe({
         next: () => {
           this.closeBookingModal();
-          this.workspaceService.showToast(isAr ? 'تم حذف الحجز بنجاح' : 'Booking deleted successfully', 'success');
+          this.workspaceService.showToast(this.t().locBookingDeletedSuccessfully, 'success');
           this.classroomService.syncWithBackend();
         },
         error: () => {
           this.classroomService.deleteReservation(id).subscribe({
             next: () => {
               this.closeBookingModal();
-              this.workspaceService.showToast(isAr ? 'تم حذف الحجز بنجاح' : 'Booking deleted successfully', 'success');
+              this.workspaceService.showToast(this.t().locBookingDeletedSuccessfully, 'success');
               this.classroomService.syncWithBackend();
             },
             error: () => {
-              this.workspaceService.showToast(isAr ? 'تعذر حذف الحجز' : 'Failed to delete booking', 'error');
+              this.workspaceService.showToast(this.t().locFailedToDeleteBooking, 'error');
             }
           });
         }
@@ -2099,17 +1759,21 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     // OR was booked and package hours were already deducted at booking time
     const hadBookedPkg = (card.packageCoveredHours || 0) > 0 || (card.paymentMode === 'package' && !!card.packageName);
 
-    return hasValidPkg || hadBookedPkg;
+    return hasValidPkg || hadBookedPkg || this.checkoutAlreadyDeductedHours() > 0;
   });
+
+  /** Package hours already deducted for this booking (at booking time), read from the usage history. */
+  checkoutAlreadyDeductedHours = signal(0);
 
   checkoutPackageCoveredHours = computed(() => {
     if (!this.isCheckoutPackage()) return 0;
     const pkg = this.checkoutMatchedPackage();
     const dur = this.checkoutDurationHours();
     const card = this.activeCheckoutCard();
+    const already = this.checkoutAlreadyDeductedHours();
 
-    const remaining = pkg ? (pkg.remainingHours || 0) : (card?.packageCoveredHours || 0);
-    return Math.min(dur, Math.max(0, remaining));
+    const remaining = pkg ? (pkg.remainingHours || 0) : (already > 0 ? 0 : (card?.packageCoveredHours || 0));
+    return Math.min(dur, Math.max(0, already + remaining));
   });
 
   checkoutPackageExtraHours = computed(() => {
@@ -2217,12 +1881,12 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
   });
 
   openCheckoutModal(card: ClassroomCard): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إنهاء جلسة القاعة والدفع' : 'Classroom Checkout')) {
+    if (!this.shiftService.guardActiveShift(this.t().clsClassroomCheckout)) {
       return;
     }
     if (card.status === 'completed' || this.classroomService.isCardCompleted(card.id)) {
       this.workspaceService.showToast(
-        this.isArabic() ? 'هذا الحجز تم تسجيل المغادرة له بالفعل (Checked-Out)' : 'This booking has already been checked out.',
+        this.t().clsThisBookingHasAlreadyBeen,
         'info'
       );
       return;
@@ -2231,12 +1895,9 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
     this.classroomService.setActiveCheckoutCard(card);
 
     let agreedHours = card.durationHours || 2;
-    let startMins = 0;
-    let endMins = 0;
-
     if (card.startTime && card.endTime) {
-      startMins = this.classroomService.parseTimeToMinutes(card.startTime);
-      endMins = this.classroomService.parseTimeToMinutes(card.endTime);
+      const startMins = this.classroomService.parseTimeToMinutes(card.startTime);
+      const endMins = this.classroomService.parseTimeToMinutes(card.endTime);
       const diff = endMins - startMins;
       if (diff > 0) {
         agreedHours = Math.max(1, Math.round(diff / 60));
@@ -2271,6 +1932,14 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
 
     const hasPackage = hasValidPkg || hadBookedPkg;
     this.checkoutBillingMode.set(hasPackage ? 'package' : 'cash');
+
+    // Hours deducted when the booking was made count towards this checkout (no second deduction).
+    this.checkoutAlreadyDeductedHours.set(0);
+    this.packageService.hoursDeductedFor(card.id, card.instructorId, 'instructor').subscribe(hours => {
+      if (this.activeCheckoutCard()?.id !== card.id) return;
+      this.checkoutAlreadyDeductedHours.set(hours);
+      if (hours > 0) this.checkoutBillingMode.set('package');
+    });
 
     this.isCheckoutModalOpen.set(true);
     document.body.style.overflow = 'hidden';
@@ -2359,16 +2028,19 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
       const coveredHours = this.checkoutPackageCoveredHours();
       const matchedPkg = this.checkoutMatchedPackage();
 
-      // 1. Deduct hours from package if applicable
-      if (isPkg && coveredHours > 0 && matchedPkg) {
+      // 1. Package hours still to deduct (hours deducted at booking time are not taken again).
+      //    Deducted only after the server accepted the checkout (see below).
+      const hoursToDeduct = Math.max(0, coveredHours - this.checkoutAlreadyDeductedHours());
+      const deductPackageHours = () => {
+        if (!isPkg || hoursToDeduct <= 0 || !matchedPkg) return;
         this.packageService.recordSessionUsage(matchedPkg.id, {
-          duration: coveredHours,
+          duration: hoursToDeduct,
           date: this.classroomService.getTodayDateISO(),
           sessionAr: `جلسة قاعة ${currentCard.name} (${currentCard.activity || 'ورشة عمل'})`,
           sessionEn: `Classroom session: ${currentCard.name} (${currentCard.activity || 'Workshop'})`,
           roomOrDesk: currentCard.name
-        });
-      }
+        }, currentCard.id);
+      };
 
       // Capture all checkout parameters before closing modal
       const received = this.checkoutAmountReceived() ?? finalAmt;
@@ -2398,14 +2070,17 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
         changeDue: change
       }).subscribe({
         next: () => {
-          this.workspaceService.showToast(this.isArabic() ? 'تم إنهاء وتسوية حجز القاعة بنجاح!' : 'Classroom checked out successfully!', 'success');
+          deductPackageHours();
+          this.workspaceService.showToast(this.t().clsClassroomCheckedOutSuccessfully, 'success');
           // Redeem coupon in backend if applied
           if (this.appliedCoupon()?.code) {
             this.couponApi.redeemCoupon(this.appliedCoupon()!.code, {
               classroomId: currentCard.id
             }).subscribe({
-              next: () => console.log('[ShowClassroom] Coupon redeemed successfully'),
-              error: (err) => console.warn('[ShowClassroom] Coupon redeem notice:', err?.message || err)
+              error: (err) => this.workspaceService.showToast(
+                this.langService.tf('clsCouponNotRecorded', { error: extractApiErrorMessage(err, this.t().serverErrorFallback) }),
+                'error'
+              )
             });
           }
 
@@ -2416,8 +2091,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
           const durationDetails = this.classroomService.calculateSessionDurationDetails(
             checkIn,
             checkOut,
-            dur,
-            this.isArabic()
+            dur
           );
 
           // Get itemized catering breakdown
@@ -2447,7 +2121,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
               minute: '2-digit'
             }),
             clientType: 'Instructor',
-            clientName: currentCard.instructor || (currentCard as any).instructorName || (this.isArabic() ? 'محاضر' : 'Instructor'),
+            clientName: currentCard.instructor || (currentCard as any).instructorName || (this.t().clsInstructor2),
             clientIdentifier: (currentCard as any).instructorPhoneNumber || currentCard.phone || '',
             roomOrDesk: currentCard.name,
             activity: currentCard.activity,
@@ -2461,7 +2135,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
             cateringItemsBreakdown: itemizedCatering,
             lineItems: [
               {
-                description: `${this.isArabic() ? 'إيجار القاعة' : 'Room Rental'} - ${currentCard.name}`,
+                description: `${this.t().roomRentalCost} - ${currentCard.name}`,
                 quantity: dur,
                 unitPrice: rate,
                 totalPrice: roomRental,
@@ -2471,7 +2145,7 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
               ...(printingAmt > 0
                 ? [
                     {
-                      description: this.isArabic() ? 'خدمات الطباعة' : 'Printing Services',
+                      description: this.t().clsPrintingServices,
                       quantity: 1,
                       unitPrice: printingAmt,
                       totalPrice: printingAmt,
@@ -2489,14 +2163,14 @@ export class ShowClassroomComponent implements OnInit, OnDestroy {
             amountReceived: received,
             changeDue: change,
             paymentMethod: paymentMethod,
-            cashierName: this.shiftService.currentShift()?.staffName || this.authService.getUser()?.name || (this.isArabic() ? 'كاشير الوردية' : 'Shift Cashier')
+            cashierName: this.shiftService.currentShift()?.staffName || this.authService.getUser()?.name || (this.t().clsShiftCashier)
           };
 
           this.completedInvoice.set(invoice);
         },
         error: (err) => {
           console.error('Failed to checkout room:', err);
-          this.workspaceService.showToast(this.isArabic() ? 'تعذر إنهاء الحجز في السيرفر' : 'Failed to checkout room in server', 'error');
+          this.workspaceService.showToast(this.t().clsFailedToCheckoutRoomIn, 'error');
         }
       });
     }

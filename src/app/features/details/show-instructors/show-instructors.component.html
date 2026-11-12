@@ -107,7 +107,7 @@
   <!-- Data Table Container Card -->
   <div class="table-container-card">
     <div class="table-responsive">
-      <table class="custom-table">
+      <table class="custom-table sticky-actions">
         <thead>
           <tr>
             <th>{{ t().instructorTh }}</th>
@@ -131,7 +131,7 @@
                     <strong class="student-name">{{ isArabic() ? ins.name : (ins.nameEn || ins.name) }}</strong>
                     <span class="student-phone">{{ ins.phone }}</span>
                     @if (ins.email) {
-                      <span class="student-faculty" style="font-size: 0.78rem;">{{ ins.email }}</span>
+                      <span class="student-faculty" style="font-size: var(--fs-sm);">{{ ins.email }}</span>
                     }
                   </div>
                 </div>
@@ -154,22 +154,16 @@
               <!-- Total Sessions (Dynamic derivation - Ticket O-8) -->
               <td class="cell-center">
                 <span class="sessions-pill">
-                  {{ getInstructorSessionCount(ins) }} {{ isArabic() ? 'ورشة / جلسة' : 'sessions' }}
+                  {{ getInstructorSessionCount(ins) }} {{ t().detSessions }}
                 </span>
               </td>
 
               <!-- Status Badge -->
               <td class="cell-center">
                 @if (ins.status === 'active') {
-                  <span class="badge-status badge-status--active">
-                    <span class="status-dot"></span>
-                    <span>{{ t().active }}</span>
-                  </span>
+                  <app-status-badge tone="success" [text]="t().active"></app-status-badge>
                 } @else {
-                  <span class="badge-status badge-status--expired">
-                    <span class="status-dot"></span>
-                    <span>{{ t().inactive }}</span>
-                  </span>
+                  <app-status-badge tone="neutral" [text]="t().inactive"></app-status-badge>
                 }
               </td>
 
@@ -233,7 +227,7 @@
   <app-modal
     [isOpen]="isModalOpen()"
     [title]="getModalTitle()"
-    (close)="closeModal()"
+    (closed)="closeModal()"
   >
     <form (submit)="saveInstructor(); $event.preventDefault()" class="instructor-modal-form">
       @if (formError(); as err) {
@@ -245,12 +239,12 @@
       <div class="form-grid">
         <!-- Full Name -->
         <div class="field-group">
-          <label class="field-label">{{ t().instructorNameLabel }} *</label>
-          <input
+          <label for="show-instructors-f6" class="field-label">{{ t().instructorNameLabel }} *</label>
+          <input id="show-instructors-f6"
             type="text"
             class="custom-input"
             [class.input-error]="!!nameError()"
-            [placeholder]="isArabic() ? 'مثال: د. محمد طه' : 'e.g. Dr. Mohamed Taha'"
+            [placeholder]="t().detEGDrMohamedTaha"
             [ngModel]="formName()"
             (ngModelChange)="onNameChange($event)"
             name="formName"
@@ -262,8 +256,8 @@
 
         <!-- Phone Number -->
         <div class="field-group">
-          <label class="field-label">{{ t().phone }} *</label>
-          <input
+          <label for="show-instructors-f5" class="field-label">{{ t().phone }} *</label>
+          <input id="show-instructors-f5"
             type="text"
             class="custom-input"
             [class.input-error]="!!phoneError()"
@@ -279,8 +273,8 @@
 
         <!-- Email Address -->
         <div class="field-group">
-          <label class="field-label">{{ t().emailLabel }}</label>
-          <input
+          <label for="show-instructors-f4" class="field-label">{{ t().emailLabel }}</label>
+          <input id="show-instructors-f4"
             type="email"
             dir="ltr"
             class="custom-input"
@@ -297,11 +291,11 @@
 
         <!-- Specialty / Domain -->
         <div class="field-group">
-          <label class="field-label">{{ t().specialtyLabel }}</label>
-          <input
+          <label for="show-instructors-f3" class="field-label">{{ t().specialtyLabel }}</label>
+          <input id="show-instructors-f3"
             type="text"
             class="custom-input"
-            [placeholder]="isArabic() ? 'مثال: الذكاء الاصطناعي، UI/UX' : 'e.g. AI, UI/UX Design'"
+            [placeholder]="t().detEGAiUiUx"
             [ngModel]="formSpecialty()"
             (ngModelChange)="formSpecialty.set($event)"
             name="formSpecialty"
@@ -310,36 +304,20 @@
 
         <!-- Affiliation / Academy -->
         <div class="field-group">
-          <label class="field-label">{{ t().affiliationLabel }}</label>
-          <input
+          <label for="show-instructors-f2" class="field-label">{{ t().affiliationLabel }}</label>
+          <input id="show-instructors-f2"
             type="text"
             class="custom-input"
-            [placeholder]="isArabic() ? 'مثال: جامعة القاهرة، مستقل' : 'e.g. Cairo University, Freelance'"
+            [placeholder]="t().detEGCairoUniversityFreelance"
             [ngModel]="formAffiliation()"
             (ngModelChange)="formAffiliation.set($event)"
             name="formAffiliation"
           />
         </div>
 
-        <!-- Total Sessions (O-8) -->
-        <div class="field-group">
-          <label class="field-label">
-            <span>{{ t().sessionsCountTh }}</span>
-            <span class="optional-hint">({{ isArabic() ? 'محسوبة تلقائياً من الحجوزات مع إمكانية الضبط' : 'Auto-computed from bookings' }})</span>
-          </label>
-          <input
-            type="number"
-            min="0"
-            class="custom-input"
-            [ngModel]="formSessions()"
-            (ngModelChange)="formSessions.set($event)"
-            name="formSessions"
-          />
-        </div>
-
         <!-- Status -->
         <div class="field-group">
-          <label class="field-label">{{ t().status }}</label>
+          <span class="field-label group-label">{{ t().status }}</span>
           <app-custom-select
             [options]="statusOptions()"
             [selectedValue]="formStatus()"
@@ -350,11 +328,11 @@
 
         <!-- Bio / Notes -->
         <div class="field-group full-width">
-          <label class="field-label">{{ t().bioLabel }}</label>
-          <textarea
+          <label for="show-instructors-f1" class="field-label">{{ t().bioLabel }}</label>
+          <textarea id="show-instructors-f1"
             class="custom-textarea"
             rows="3"
-            [placeholder]="isArabic() ? 'اكتب نبذة مختصرة عن الخبرات والمجالات...' : 'Short bio or relevant qualifications...'"
+            [placeholder]="t().detShortBioOrRelevantQualifications"
             [ngModel]="formBio()"
             (ngModelChange)="formBio.set($event)"
             name="formBio"
@@ -363,9 +341,13 @@
       </div>
 
       <div class="modal-footer-actions">
-        <button type="button" class="btn-cancel" (click)="closeModal()">
-          {{ t().cancel }}
-        </button>
+        <app-primary-button variant="secondary" [text]="t().cancel" (clicked)="closeModal()"></app-primary-button>
+
+        @if (formMissing().length > 0) {
+
+          <span class="form-missing-hint" role="status">{{ (t().wsMissing) + formMissing().join(t().listSeparator) }}</span>
+
+        }
 
         <app-primary-button
           [text]="t().saveInstructorBtn"
@@ -377,31 +359,11 @@
   </app-modal>
 
   <!-- Delete Confirmation Modal -->
-  @if (isDeleteModalOpen() && instructorToDelete(); as delIns) {
-    <div class="modal-overlay" (click)="closeDeleteModal()">
-      <div class="delete-card" (click)="$event.stopPropagation()">
-        <div class="delete-icon-wrap">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" style="width: 32px; height: 32px;">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="15" y1="9" x2="9" y2="15"/>
-            <line x1="9" y1="9" x2="15" y2="15"/>
-          </svg>
-        </div>
-
-        <h3 class="delete-title">{{ t().confirmDeleteInstructorTitle }}</h3>
-        <p class="delete-subtitle">
-          {{ t().confirmDeleteInstructorDesc }} ("{{ isArabic() ? delIns.name : (delIns.nameEn || delIns.name) }}")
-        </p>
-
-        <div class="delete-actions-footer">
-          <button type="button" class="btn-cancel" (click)="closeDeleteModal()">
-            {{ t().cancel }}
-          </button>
-          <button type="button" class="btn-confirm-delete" (click)="confirmDelete()">
-            {{ t().delete }}
-          </button>
-        </div>
-      </div>
-    </div>
-  }
+  <app-confirm-dialog
+    [isOpen]="isDeleteModalOpen() && !!instructorToDelete()"
+    [title]="t().confirmDeleteInstructorTitle"
+    [message]="t().confirmDeleteInstructorDesc + ' (&quot;' + (isArabic() ? instructorToDelete()?.name : (instructorToDelete()?.nameEn || instructorToDelete()?.name)) + '&quot;)'"
+    (confirm)="confirmDelete()"
+    (cancelled)="closeDeleteModal()"
+  ></app-confirm-dialog>
 </div>

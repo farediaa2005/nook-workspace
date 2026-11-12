@@ -5,7 +5,7 @@ export interface SpaceUsageStats {
   lastVisit?: string;
 }
 
-export interface BookingHistorySummary {
+interface BookingHistorySummary {
   totalBookings: number;
   completedBookings: number;
   cancelledBookings: number;
@@ -13,7 +13,7 @@ export interface BookingHistorySummary {
   lastBookingDate?: string;
 }
 
-export interface StudentPackageSummary {
+interface StudentPackageSummary {
   hasActivePackage: boolean;
   packageName?: string;
   remainingHours: number;
@@ -21,7 +21,7 @@ export interface StudentPackageSummary {
   expiresAt?: string;
 }
 
-export interface StudentDiscountUsage {
+interface StudentDiscountUsage {
   id: string;
   ruleName: string;
   discountPercentage: number;

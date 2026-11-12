@@ -7,7 +7,6 @@
 
 import { PayWay } from './workspace-session.model';
 
-export { PayWay };
 
 /** Workspace Package response DTO — GET /api/WorkspacePackages */
 export interface WorkspacePackageDto {
@@ -65,23 +64,25 @@ export interface UpdateWorkspacePackageDto {
 }
 
 /** Use package hours DTO (Client helper for hour deduction) */
+/** POST /api/{Workspace,Classroom}Packages/{id}/use-hours — hours must be a whole number */
 export interface UsePackageHoursDto {
   hours: number;
-  notes?: string;
-  sessionTitle?: string;
-  roomOrDesk?: string;
+  sessionOrBookingId?: string | null;
+  note?: string | null;
 }
 
 /** Package Usage History item representation */
+/** GET /api/{Workspace,Classroom}Packages/{id}/usage-history item */
 export interface PackageUsageHistoryDto {
-  id?: string;
-  packageId?: string;
-  date?: string;
+  id: string;
+  date: string;
   usedHours: number;
   remainingHours: number;
-  sessionTitle?: string;
-  userOrStaff?: string;
-  notes?: string;
+  sessionOrBookingId?: string | null;
+  sessionOrBooking?: string | null;
+  note?: string | null;
+  createdByAccountId?: string | null;
+  createdAt?: string;
 }
 
 /** Classroom Package response DTO — GET /api/ClassroomPackages */

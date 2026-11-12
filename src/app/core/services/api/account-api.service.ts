@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable, map, catchError, of } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { BaseApiService } from './base-api.service';
 import { API_ENDPOINTS } from '../../constants/api-endpoints';
 import { ApiResponse, extractData } from '../../models/api-response.model';
@@ -21,13 +21,6 @@ export class AccountApiService extends BaseApiService {
         }
         return (res.data as { items: AccountDto[] })?.items ?? [];
       })
-    );
-  }
-
-  /** Get account by ID */
-  getAccountById(id: string): Observable<AccountDto> {
-    return this.get<ApiResponse<AccountDto>>(API_ENDPOINTS.ACCOUNTS.BY_ID(id)).pipe(
-      map(extractData)
     );
   }
 
@@ -71,56 +64,13 @@ export class AccountApiService extends BaseApiService {
     return this.post<ApiResponse<any>>(API_ENDPOINTS.ACCOUNTS.LINK_STAFF(id), dto).pipe(
       map(extractData)
     );
-  }
-
-  /** Link student profile to account */
-  linkStudentProfile(id: string, dto: { name?: string; existingStudentId?: string; whatsapp?: string; canBook?: boolean; facultyId?: string; parentId?: string }): Observable<any> {
-    return this.post<ApiResponse<any>>(API_ENDPOINTS.ACCOUNTS.LINK_STUDENT(id), dto).pipe(
-      map(extractData)
-    );
-  }
-
-  /** Link instructor profile to account */
-  linkInstructorProfile(id: string, dto: { name?: string; existingInstructorId?: string; colour?: string }): Observable<any> {
-    return this.post<ApiResponse<any>>(API_ENDPOINTS.ACCOUNTS.LINK_INSTRUCTOR(id), dto).pipe(
-      map(extractData)
-    );
-  }
-
-  /** Link parent profile to account */
-  linkParentProfile(id: string, dto: { name: string }): Observable<any> {
-    return this.post<ApiResponse<any>>(API_ENDPOINTS.ACCOUNTS.LINK_PARENT(id), dto).pipe(
-      map(extractData)
-    );
-  }
-
-  /** Unlink account (Admin only) — DELETE /api/Accounts/{id}/unlink */
-  unlinkAccount(id: string): Observable<boolean> {
-    return this.delete<ApiResponse<boolean>>(`/api/Accounts/${id}/unlink`).pipe(
-      map(extractData),
-      catchError(() => this.unlinkRole(id, 'all'))
-    );
-  }
+  }
 
   /** Unlink role from account */
   unlinkRole(id: string, role: string | number): Observable<boolean> {
     return this.delete<ApiResponse<boolean>>(API_ENDPOINTS.ACCOUNTS.UNLINK_ROLE(id, role)).pipe(
       map(extractData)
     );
-  }
-
-  /** Get unlinked students for account creation */
-  getUnlinkedStudents(): Observable<Array<{ id: string; name: string; phone: string }>> {
-    return this.get<ApiResponse<Array<{ id: string; name: string; phone: string }>>>(
-      API_ENDPOINTS.ACCOUNTS.UNLINKED_STUDENTS
-    ).pipe(map(extractData));
-  }
-
-  /** Get unlinked instructors */
-  getUnlinkedInstructors(): Observable<Array<{ id: string; name: string; phone: string }>> {
-    return this.get<ApiResponse<Array<{ id: string; name: string; phone: string }>>>(
-      API_ENDPOINTS.ACCOUNTS.UNLINKED_INSTRUCTORS
-    ).pipe(map(extractData));
   }
 }
 

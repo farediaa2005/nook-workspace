@@ -1,20 +1,3 @@
-/**
- * Student & Session domain models & DTOs for backend API readiness.
- * OpenAPI 3.0.4: GET/POST /api/Students, GET/PUT/DELETE /api/Students/{id}
- */
-
-export interface StudentDto {
-  id: string;
-  name: string;
-  phoneNumber?: string | null;
-  whatsapp?: string | null;
-  canBook?: boolean;
-  facultyName?: string | null;
-  college?: string | null;
-  university?: string | null;
-  parentName?: string | null;
-  notes?: string | null;
-}
 
 export interface CreateStudentDto {
   name: string;
@@ -29,25 +12,6 @@ export interface CreateStudentDto {
   college?: string;
   university?: string;
   sessionPrice?: number;
-  notes?: string;
-}
-
-export interface UpdateStudentDto {
-  id?: string;
-  name?: string;
-  phoneNumber?: string | null;
-  whatsapp?: string | null;
-  canBook?: boolean;
-  facultyId?: string | null;
-  parentId?: string | null;
-  // UI and backward compatibility fields
-  phone?: string;
-  email?: string;
-  faculty?: string;
-  college?: string;
-  university?: string;
-  sessionPrice?: number;
-  status?: 'active' | 'in-session' | 'inactive' | 'blocked' | 'completed';
   notes?: string;
 }
 

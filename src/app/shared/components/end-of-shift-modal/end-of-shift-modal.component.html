@@ -1,5 +1,5 @@
-<div class="modal-overlay" (click)="onCancel()">
-  <div class="modal-card" [class.rtl]="isArabic()" (click)="$event.stopPropagation()">
+<div class="modal-overlay" (click)="onCancel()" role="presentation">
+  <div class="modal-card" [class.rtl]="isArabic()" (click)="$event.stopPropagation()" role="presentation">
     
     <!-- Modal Header -->
     <div class="modal-header">
@@ -36,7 +36,7 @@
           </div>
 
           @if (adminFund() > 0) {
-            <div class="breakdown-item" style="color: #3b82f6;">
+            <div class="breakdown-item" style="color: var(--info);">
               <span class="item-label">🛡️ {{ t().adminFundLabel }}</span>
               <span class="item-value font-num">{{ adminFund().toFixed(2) }} {{ currencyText() }}</span>
             </div>
@@ -63,7 +63,7 @@
               <span class="channel-indicator channel-indicator--red"></span>
               <div style="display: flex; flex-direction: column;">
                 <span class="item-label">{{ t().vodafoneBalanceLabel }}</span>
-                <span style="font-size: 0.72rem; color: var(--text-dim);">
+                <span style="font-size: var(--fs-2xs); color: var(--text-dim);">
                   {{ t().insideFlow }}: +{{ vodafoneInside().toFixed(2) }} | {{ t().outsideFlow }}: -{{ vodafoneOutside().toFixed(2) }}
                 </span>
               </div>
@@ -121,7 +121,7 @@
         <!-- Actual Drawer Cash Input -->
         <div class="form-field">
           <div class="label-row">
-            <label class="form-label">{{ t().actualCashLabel }} *</label>
+            <label for="end-of-shift-modal-f4" class="form-label">{{ t().actualCashLabel }} *</label>
             @if (cashVariance() !== null) {
               <span class="variance-mini-tag" 
                     [class.text-positive]="cashVariance() === 0" 
@@ -132,7 +132,7 @@
             }
           </div>
           <div class="amount-input-box">
-            <input
+            <input id="end-of-shift-modal-f4"
               type="number"
               step="0.01"
               min="0"
@@ -140,7 +140,7 @@
               (ngModelChange)="actualCashInput.set($event)"
               placeholder="0.00"
               class="amount-input"
-              autofocus
+              appAutofocus
             />
             <span class="currency-tag">{{ currencyText() }}</span>
           </div>
@@ -154,12 +154,12 @@
           <div class="digital-inputs-grid">
             <!-- Vodafone Cash Input -->
             <div class="digital-field">
-              <label class="digital-label text-red">
+              <label for="end-of-shift-modal-f3" class="digital-label text-red">
                 <span class="channel-indicator channel-indicator--red"></span>
                 {{ t().vodafoneCashName }}
               </label>
               <div class="digital-input-wrap">
-                <input
+                <input id="end-of-shift-modal-f3"
                   type="number"
                   step="0.01"
                   min="0"
@@ -173,12 +173,12 @@
 
             <!-- InstaPay Input -->
             <div class="digital-field">
-              <label class="digital-label text-purple">
+              <label for="end-of-shift-modal-f2" class="digital-label text-purple">
                 <span class="channel-indicator channel-indicator--purple"></span>
                 {{ t().instapayName }}
               </label>
               <div class="digital-input-wrap">
-                <input
+                <input id="end-of-shift-modal-f2"
                   type="number"
                   step="0.01"
                   min="0"
@@ -192,12 +192,12 @@
 
             <!-- Fawry Input -->
             <div class="digital-field">
-              <label class="digital-label text-blue">
+              <label for="end-of-shift-modal-f1" class="digital-label text-blue">
                 <span class="channel-indicator channel-indicator--blue"></span>
                 {{ t().fawryName }}
               </label>
               <div class="digital-input-wrap">
-                <input
+                <input id="end-of-shift-modal-f1"
                   type="number"
                   step="0.01"
                   min="0"
@@ -261,17 +261,10 @@
 
         <!-- Action Buttons -->
         <div class="modal-actions">
-          <button class="btn-cancel" (click)="onCancel()">{{ t().cancelBtn }}</button>
-          <button
-            class="btn-confirm"
-            [disabled]="actualCash() === null || (actualCash() || 0) < 0 || isSubmitting()"
-            (click)="onConfirm()"
-          >
-            <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
+          <app-primary-button variant="secondary" [text]="t().cancelBtn" (clicked)="onCancel()"></app-primary-button>
+          <app-primary-button [text]="t().confirmCloseShiftBtn" [loading]="isSubmitting()" [disabled]="actualCash() === null || (actualCash() || 0) < 0 || isSubmitting()" (clicked)="onConfirm()"><svg icon viewBox="0 0 24 24" fill="none" width="16" height="16">
               <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>{{ t().confirmCloseShiftBtn }}</span>
-          </button>
+            </svg></app-primary-button>
         </div>
 
         <!-- Kernel Panic IT Team Attribution in Shift Reconciliation -->

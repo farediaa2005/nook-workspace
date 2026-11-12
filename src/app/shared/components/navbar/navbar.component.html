@@ -8,7 +8,7 @@
 
     <!-- Universal Search Bar Container -->
     <div class="search-container" #searchContainer>
-      <div class="search" [class.search--focused]="isDropdownOpen()" (click)="openSearch()">
+      <div class="search" [class.search--focused]="isDropdownOpen()" (click)="openSearch()" role="button" tabindex="0" (keydown.enter)="openSearch()">
         <svg class="search-icon" viewBox="0 0 24 24" fill="none">
           <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
           <path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -39,7 +39,7 @@
 
       <!-- Live Search Floating Glassmorphic Dropdown -->
       @if (isDropdownOpen()) {
-        <div class="search-dropdown" (click)="$event.stopPropagation()">
+        <div class="search-dropdown" (click)="$event.stopPropagation()" role="presentation">
           @if (groupedResults().length > 0) {
             <div class="search-dropdown-scroll">
               @for (group of groupedResults(); track group.key) {
@@ -55,7 +55,7 @@
                         class="search-item"
                         [class.search-item--active]="item.id === flatResults()[selectedIndex()]?.id"
                         (click)="selectItem(item)"
-                        (mouseenter)="onItemHover(item.id)"
+                        (mouseenter)="onItemHover(item.id)" role="button" tabindex="0" (keydown.enter)="selectItem(item)"
                       >
                         <div class="search-item-icon search-item-icon--{{ item.icon }}">
                           @switch (item.icon) {
@@ -141,9 +141,9 @@
 
             <!-- Footer Keyboard Legend -->
             <div class="search-dropdown-footer">
-              <span class="footer-hint"><kbd>↑↓</kbd> {{ isArabic() ? 'للتنقل' : 'Navigate' }}</span>
-              <span class="footer-hint"><kbd>Enter</kbd> {{ isArabic() ? 'للاختيار' : 'Select' }}</span>
-              <span class="footer-hint"><kbd>ESC</kbd> {{ isArabic() ? 'للإغلاق' : 'Close' }}</span>
+              <span class="footer-hint"><kbd>↑↓</kbd> {{ t().uiNavigate }}</span>
+              <span class="footer-hint"><kbd>Enter</kbd> {{ t().uiSelect }}</span>
+              <span class="footer-hint"><kbd>ESC</kbd> {{ t().uiClose }}</span>
             </div>
           } @else {
             <div class="search-empty-state">
@@ -153,9 +153,9 @@
                   <path d="m20 20-3.5-3.5"/>
                 </svg>
               </div>
-              <p class="empty-title">{{ isArabic() ? 'لم يتم العثور على أي نتائج' : 'No results found' }}</p>
+              <p class="empty-title">{{ t().uiNoResultsFound }}</p>
               <p class="empty-desc">
-                {{ isArabic() ? 'جرّب البحث باسم طالب، رقم هاتف، قاعة، منتج أو قسم' : 'Try searching by student name, phone, room, product or section' }}
+                {{ t().uiTrySearchingByStudentName }}
               </p>
             </div>
           }
@@ -184,13 +184,13 @@
       </button>
 
       @if (isNotificationOpen()) {
-        <app-notification-center (close)="isNotificationOpen.set(false)" />
+        <app-notification-center (closed)="isNotificationOpen.set(false)" />
       }
     </div>
 
     <!-- Language Toggle Button -->
     <button class="lang-btn" (click)="toggleLanguage()" aria-label="Toggle language">
-      <span>{{ isArabic() ? 'EN' : 'ع' }}</span>
+      <span>{{ t().uiText }}</span>
     </button>
 
     <!-- Theme Toggle -->

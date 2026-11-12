@@ -4,7 +4,7 @@
 
   <!-- Mobile Backdrop -->
   @if (isSidebarOpen()) {
-    <div class="backdrop show" (click)="closeSidebar()"></div>
+    <div class="backdrop show" (click)="closeSidebar()" role="presentation"></div>
   }
 
   <!-- Header / Navbar -->
@@ -22,8 +22,8 @@
             </svg>
           </div>
           <div class="view-only-text">
-            <strong>{{ isArabic() ? 'وضع المشاهدة والإحصائيات فقط (View-Only)' : 'View-Only Mode' }}:</strong>
-            <span>{{ isArabic() ? 'لا توجد وردية (شيفت) مفتوحة حالياً. يمكنك تصفح الصفحات ومشاهدة الإحصائيات، ولكن لا يمكن إضافة أو تعديل أو حجز أي عمليات حتى يتم فتح شيفت.' : 'No active shift is open. You can browse statistics and pages, but adding, booking, or modifying operations is locked until a shift is opened.' }}</span>
+            <strong>{{ t().uiViewOnlyMode }}:</strong>
+            <span>{{ t().uiNoActiveShiftIsOpen }}</span>
           </div>
         </div>
         <button type="button" class="btn-open-shift-pill" (click)="goToOpenShift()">
@@ -31,7 +31,7 @@
             <circle cx="12" cy="12" r="10"></circle>
             <polyline points="12 6 12 12 16 14"></polyline>
           </svg>
-          <span>{{ isArabic() ? 'فتح شيفت جديد' : 'Open New Shift' }}</span>
+          <span>{{ t().uiOpenNewShift }}</span>
         </button>
       </div>
     }
@@ -50,7 +50,7 @@
               <div class="footer-brand-row">
                 <span class="footer-brand-name">NOOK</span>
                 <span class="footer-brand-dot">•</span>
-                <span class="footer-brand-sub">{{ isArabic() ? 'نظام إدارة مساحات العمل والمراكز التعليمية' : 'Workspace & Coworking Hub' }}</span>
+                <span class="footer-brand-sub">{{ t().uiWorkspaceCoworkingHub }}</span>
               </div>
               <p class="footer-copy-text">© {{ currentYear }} NOOK Coworking Hub. {{ t().allRightsReserved }}</p>
             </div>
@@ -66,7 +66,7 @@
             [class.footer-status-pill--offline]="!isApiOnline()"
             [class.footer-status-pill--checking]="isCheckingApi()"
             (click)="checkApiHealth()"
-            [title]="isApiOnline() ? (isArabic() ? 'الـ API متصل ويعمل بكفاءة - انقر لإعادة الفحص' : 'API Operational & Connected - Click to recheck') : (isArabic() ? 'الـ API غير متصل أو به مشكلة - انقر لإعادة المحاولة' : 'API Disconnected / Unreachable - Click to retry')"
+            [title]="isApiOnline() ? (t().uiApiOperationalConnectedClickTo) : (t().uiApiDisconnectedUnreachableClickTo)"
           >
             <span class="status-ping" aria-hidden="true">
               <span class="status-ping-ring"></span>
@@ -74,8 +74,8 @@
             </span>
             <span class="status-label">
               {{ isApiOnline()
-                ? (isArabic() ? 'النظام متصل • API نشط' : 'System Operational')
-                : (isArabic() ? 'تعذر الاتصال • API غير متصل' : 'System Offline • API Disconnected')
+                ? (t().uiSystemOperational)
+                : (t().uiSystemOfflineApiDisconnected)
               }}
             </span>
           </button>
@@ -187,9 +187,9 @@
       <div class="inputs-group">
         <!-- 1. Cash Drawer Starting Float (الدرج النقدي) -->
         <div class="currency-field">
-          <label class="field-label">{{ t().startingCashField }} *</label>
+          <label for="main-layout-f4" class="field-label">{{ t().startingCashField }} *</label>
           <div class="input-wrapper">
-            <input
+            <input id="main-layout-f4"
               type="number"
               [ngModel]="startCash()"
               (ngModelChange)="startCash.set($event)"
@@ -198,7 +198,7 @@
               (input)="clearError()"
               min="0"
               step="0.01"
-              autofocus
+              appAutofocus
             />
             <span class="currency-symbol">{{ currencyText() }}</span>
           </div>
@@ -206,9 +206,9 @@
 
         <!-- 2. Vodafone Cash Balance -->
         <div class="currency-field">
-          <label class="field-label">{{ t().startingVodafoneField }}</label>
+          <label for="main-layout-f3" class="field-label">{{ t().startingVodafoneField }}</label>
           <div class="input-wrapper">
-            <input
+            <input id="main-layout-f3"
               type="number"
               [ngModel]="startVodafone()"
               (ngModelChange)="startVodafone.set($event)"
@@ -223,9 +223,9 @@
 
         <!-- 3. InstaPay Starting Balance -->
         <div class="currency-field">
-          <label class="field-label">{{ t().startingInstapayField }}</label>
+          <label for="main-layout-f2" class="field-label">{{ t().startingInstapayField }}</label>
           <div class="input-wrapper">
-            <input
+            <input id="main-layout-f2"
               type="number"
               [ngModel]="startInstaPay()"
               (ngModelChange)="startInstaPay.set($event)"
@@ -240,9 +240,9 @@
 
         <!-- 4. Fawry POS Starting Balance -->
         <div class="currency-field">
-          <label class="field-label">{{ t().startingFawryField }}</label>
+          <label for="main-layout-f1" class="field-label">{{ t().startingFawryField }}</label>
           <div class="input-wrapper">
-            <input
+            <input id="main-layout-f1"
               type="number"
               [ngModel]="startFawry()"
               (ngModelChange)="startFawry.set($event)"

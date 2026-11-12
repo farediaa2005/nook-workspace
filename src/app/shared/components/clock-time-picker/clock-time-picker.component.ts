@@ -13,6 +13,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ThemeService } from '../../../core/services/theme.service';
+import { LanguageService } from '../../../core/services/language.service';
 
 export interface ClockTimeSelection {
   startTime: string;
@@ -39,12 +40,15 @@ export class ClockTimePickerComponent {
   isRange = input<boolean>(true);
   hourlyRate = input<number>(0);
   isArabic = input<boolean>(false);
+  /** labels come from the language file (the active app language) */
+  private langService = inject(LanguageService);
+  t = this.langService.t;
 
   // Outputs
   startTimeChange = output<string>();
   endTimeChange = output<string>();
   timeConfirmed = output<ClockTimeSelection>();
-  close = output<void>();
+  closed = output<void>();
 
   // State
   activeTarget = signal<'start' | 'end'>('start');
@@ -154,14 +158,8 @@ export class ClockTimePickerComponent {
   });
 
   durationDisplayText = computed<string>(() => {
-    const d = this.durationHours();
-    if (this.isArabic()) {
-      if (d === 1) return 'ساعة واحدة';
-      if (d === 2) return 'ساعتان';
-      if (d > 2 && d <= 10) return `${d} ساعات`;
-      return `${d} ساعة`;
-    }
-    return `${d} ${d === 1 ? 'hour' : 'hours'}`;
+    // one rule for the whole app: LanguageService.hoursText (Arabic number agreement)
+    return this.langService.hoursText(this.durationHours());
   });
 
   // Angle of clock hand
@@ -176,7 +174,7 @@ export class ClockTimePickerComponent {
   });
 
   // Position numbers along circle
-  getNumberTransform(index: number, total: number = 12): { [key: string]: string } {
+  getNumberTransform(index: number, total = 12): Record<string, string> {
     const angle = (index % total) * (360 / total);
     const rad = (angle - 90) * (Math.PI / 180);
     const radius = 86; // px distance from center of 230px dial
@@ -335,7 +333,7 @@ export class ClockTimePickerComponent {
       }
     } else {
       // Snap to nearest minute or 5 min
-      let m = Math.round(deg / 6) % 60;
+      const m = Math.round(deg / 6) % 60;
       if (this.activeTarget() === 'start') {
         this.startMinute.set(m);
         this.startTimeChange.emit(this.formattedStart());
@@ -355,7 +353,7 @@ export class ClockTimePickerComponent {
   }
 
   cancel(): void {
-    this.close.emit();
+    this.closed.emit();
   }
 
   private parseTimeString(val: string): { hour: number; minute: number; period: 'AM' | 'PM' } | null {
@@ -365,7 +363,7 @@ export class ClockTimePickerComponent {
 
     let h = parseInt(match[1], 10);
     const m = parseInt(match[2], 10);
-    let p: 'AM' | 'PM' = 'AM';
+    let p: 'AM' | 'PM';
 
     if (match[3]) {
       const s = match[3].toUpperCase();
@@ -386,7 +384,7 @@ export class ClockTimePickerComponent {
   }
 
   private fromMinutes(mins: number): { hour: number; minute: number; period: 'AM' | 'PM' } {
-    let totalH = Math.floor(mins / 60) % 24;
+    const totalH = Math.floor(mins / 60) % 24;
     const m = mins % 60;
     const p: 'AM' | 'PM' = totalH >= 12 ? 'PM' : 'AM';
     let h12 = totalH % 12;

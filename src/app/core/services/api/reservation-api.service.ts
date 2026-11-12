@@ -14,9 +14,6 @@ import {
   CreateClassroomFromReservationDto
 } from '../../models/classroom.model';
 
-export type BackendReservationDto = ReservationDto;
-export type CreateReservationPayload = CreateReservationDto;
-
 @Injectable({
   providedIn: 'root'
 })
@@ -46,13 +43,6 @@ export class ReservationApiService extends BaseApiService {
   /** Get reservation by ID */
   getReservationById(id: string): Observable<ReservationDto> {
     return this.get<ApiResponse<ReservationDto>>(API_ENDPOINTS.RESERVATIONS.BY_ID(id)).pipe(
-      map(extractData)
-    );
-  }
-
-  /** Get reservations by instructor ID */
-  getReservationsByInstructor(instructorId: string): Observable<ReservationDto[]> {
-    return this.get<ApiResponse<ReservationDto[]>>(API_ENDPOINTS.RESERVATIONS.BY_INSTRUCTOR(instructorId)).pipe(
       map(extractData)
     );
   }

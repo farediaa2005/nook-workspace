@@ -27,7 +27,7 @@
 
   <!-- Dropdown Menu Popup -->
   @if (isOpen()) {
-    <div class="menu-backdrop" (click)="closeDropdown()"></div>
+    <div class="menu-backdrop" (click)="closeDropdown()" role="presentation"></div>
     <div class="date-menu-card">
       <button
         type="button"
@@ -59,8 +59,8 @@
       <div class="date-menu-divider"></div>
 
       <div class="date-custom-picker">
-        <label class="custom-date-label">{{ t().pickCustomDate }}</label>
-        <input
+        <label for="date-filter-dropdown-f1" class="custom-date-label">{{ t().pickCustomDate }}</label>
+        <input id="date-filter-dropdown-f1"
           type="date"
           class="custom-date-input"
           [value]="customDate()"

@@ -36,24 +36,6 @@ export interface College {
 export type CreateCollegeDto = Omit<College, 'id' | 'createdAt'>;
 export type UpdateCollegeDto = Partial<CreateCollegeDto>;
 
-export interface CollegeAnalyticsItem {
-  no: number;
-  id: string;
-  name: string;
-  nameEn?: string;
-  university?: string;
-  color: string;
-  colorLight: string;
-  studentsCount: number;
-  hours: number;
-  totalRevenue: number;
-  percentage: number;
-  svgPath: string;
-  labelX: number;
-  labelY: number;
-  midAngle: number;
-}
-
 // ==========================================
 // 2. Instructor Domain Models & DTOs
 // ==========================================
@@ -76,7 +58,8 @@ export interface Instructor {
   createdAt: string;
 }
 
-export type CreateInstructorDto = Omit<Instructor, 'id' | 'createdAt'>;
+// totalSessions is computed from bookings, never entered by hand.
+export type CreateInstructorDto = Omit<Instructor, 'id' | 'createdAt' | 'totalSessions'>;
 export type UpdateInstructorDto = Partial<CreateInstructorDto>;
 
 // ==========================================
@@ -99,8 +82,7 @@ export interface BlacklistRecord {
   notes?: string;
 }
 
-export type CreateBlacklistDto = Omit<BlacklistRecord, 'id' | 'blockedDate' | 'status'>;
-export type UpdateBlacklistDto = Partial<CreateBlacklistDto>;
+export type CreateBlacklistDto = Omit<BlacklistRecord, 'id' | 'blockedDate' | 'status'> & { studentId?: string };
 
 // ==========================================
 // 4. Discount Code Domain Models & DTOs

@@ -1,4 +1,5 @@
 import { Component, inject, signal, computed, ChangeDetectorRef, OnInit } from '@angular/core';
+import { AlertSettingsComponent } from './alert-settings/alert-settings.component';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LanguageService } from '../../core/services/language.service';
@@ -13,14 +14,13 @@ import { resolveImageUrl } from '../../core/utils/image-url.util';
 import { RouterLink } from '@angular/router';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { PrimaryButtonComponent } from '../../shared/components/primary-button/primary-button.component';
-import { MetricCardComponent } from '../../shared/components/metric-card/metric-card.component';
 import { ModalComponent } from '../../shared/components/modal/modal.component';
 import { CustomSelectComponent, SelectOption } from '../../shared/components/custom-select/custom-select.component';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [
+  imports: [AlertSettingsComponent, 
     CommonModule,
     FormsModule,
     RouterLink,
@@ -39,11 +39,15 @@ export class SettingsComponent implements OnInit {
   private cdr = inject(ChangeDetectorRef);
 
   t = this.langService.t;
+
+  /** translations with {placeholders} */
+
+  tf = this.langService.tf;
   isArabic = this.langService.isArabic;
   currentUser = this.authService.user;
 
-  // Active Tab State ('pricing' | 'rooms' | 'packages' | 'roles' | 'team')
-  activeTab = signal<'pricing' | 'rooms' | 'packages' | 'roles' | 'team'>('pricing');
+  // Active Tab State ('pricing' | 'rooms' | 'packages' | 'alerts' | 'roles' | 'team')
+  activeTab = signal<'pricing' | 'rooms' | 'packages' | 'alerts' | 'roles' | 'team'>('pricing');
 
   // Signals from SettingsService
   pricingTiers = this.settingsService.pricingTiers;
@@ -248,7 +252,7 @@ export class SettingsComponent implements OnInit {
     this.settingsService.syncPackagePricingPlansFromBackend();
   }
 
-  setTab(tab: 'pricing' | 'rooms' | 'packages' | 'roles' | 'team'): void {
+  setTab(tab: 'pricing' | 'rooms' | 'packages' | 'alerts' | 'roles' | 'team'): void {
     this.activeTab.set(tab);
     if (tab === 'pricing') {
       this.settingsService.syncRoomsFromBackend();
@@ -312,9 +316,7 @@ export class SettingsComponent implements OnInit {
     });
 
     if (hasOverlap) {
-      this.tierFormError.set(this.isArabic()
-        ? 'يوجد تداخل وتعارض بين نطاق هذه الشريحة وشريحة أخرى مسجلة مسبقاً!'
-        : 'This hourly range overlaps with an existing pricing tier!');
+      this.tierFormError.set(this.t().setThisHourlyRangeOverlapsWith);
       return;
     }
 
@@ -417,26 +419,20 @@ export class SettingsComponent implements OnInit {
 
     // BUG-07: Room name max length
     if (name.length > 50) {
-      this.roomFormError.set(this.isArabic()
-        ? 'يجب ألا يتجاوز اسم القاعة 50 حرفاً لضمان تناسق الجداول.'
-        : 'Room name cannot exceed 50 characters to preserve layout.');
+      this.roomFormError.set(this.t().setRoomNameCannotExceed50);
       return;
     }
 
     // Capacity validation (optional, but if provided must be positive integer)
     if (this.formRoomCapacity() && (isNaN(cap) || cap <= 0 || !Number.isInteger(cap))) {
-      this.roomFormError.set(this.isArabic()
-        ? 'يجب أن تكون سعة القاعة عدداً صحيحاً موجباً أكبر من صفر.'
-        : 'Room capacity must be a positive integer greater than zero.');
+      this.roomFormError.set(this.t().setRoomCapacityMustBeA);
       return;
     }
 
     // Hourly price validation only applies to Classrooms
     if (type === 'Classroom' && this.formRoomPrice()) {
       if (isNaN(price) || price < 0) {
-        this.roomFormError.set(this.isArabic()
-          ? 'يجب أن يكون سعر الإيجار صفراً أو قيمة مالية موجبة.'
-          : 'Hourly rental rate must be zero or a positive amount.');
+        this.roomFormError.set(this.t().setHourlyRentalRateMustBe);
         return;
       }
     }
@@ -469,7 +465,7 @@ export class SettingsComponent implements OnInit {
             if (fieldErrors.length > 0) msg = fieldErrors.join(' | ');
           }
           if (!msg) {
-            msg = err?.message || (this.isArabic() ? 'فشل إضافة القاعة. يرجى مراجعة البيانات والمحاولة مرة أخرى.' : 'Failed to add room. Please try again.');
+            msg = err?.message || (this.t().setFailedToAddRoomPlease);
           }
           this.roomFormError.set(msg);
         }
@@ -500,7 +496,7 @@ export class SettingsComponent implements OnInit {
               if (fieldErrors.length > 0) msg = fieldErrors.join(' | ');
             }
             if (!msg) {
-              msg = err?.message || (this.isArabic() ? 'فشل تعديل القاعة. يرجى مراجعة البيانات والمحاولة مرة أخرى.' : 'Failed to update room. Please try again.');
+              msg = err?.message || (this.t().setFailedToUpdateRoomPlease);
             }
             this.roomFormError.set(msg);
           }
@@ -600,7 +596,7 @@ export class SettingsComponent implements OnInit {
     const validityDays = this.formPkgValiditySelection() === 'custom'
       ? Math.max(1, Number(this.customValidityDays()) || 30)
       : Math.max(1, Number(this.formPkgValidity()) || 30);
-    const nameAr = this.formPkgNameAr().trim() || `${this.isArabic() ? 'باقة' : 'Pass'} ${hours} ${this.isArabic() ? 'ساعة' : 'hrs'}`;
+    const nameAr = this.formPkgNameAr().trim() || `${this.t().setPass} ${hours} ${this.t().hrsBadge}`;
 
     if (isNaN(hours) || hours <= 0) {
       this.packageFormError.set(this.t().packageHoursRequired);

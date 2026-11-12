@@ -19,10 +19,10 @@
  */
 
 /** Session status enum values */
-export type SessionStatusType = 'Open' | 'Closed' | 'Cancelled' | 'active' | 'completed' | number;
+type SessionStatusType = 'Open' | 'Closed' | 'Cancelled' | 'active' | 'completed' | number;
 
 /** Shift Item Category values (from API enum: Income, Expense, etc.) */
-export type ShiftItemCategory =
+type ShiftItemCategory =
   | 'Income'
   | 'Expense'
   | 'canteen'
@@ -68,6 +68,8 @@ export interface ShiftDto {
   workspaceRevenue?: number;
   packageRevenue?: number;
   otherIncome?: number;
+  walletTopUps?: number;
+  walletPaidRevenue?: number;
   totalRevenue?: number;
   totalExpenses?: number;
   cashDifference?: number;
@@ -106,6 +108,9 @@ export interface CreateShiftDto {
   userId?: string;              // Staff member Guid
   openingBalance?: number;      // Opening cash balance in drawer (e.g. 500.0)
   notes?: string;               // Optional opening remarks
+  startVodafoneCash?: number;   // Opening Vodafone Cash wallet balance
+  startInstapay?: number;       // Opening InstaPay balance
+  startFawry?: number;          // Opening Fawry balance
   // Compatibility aliases
   previousTotal?: number;
   startCash?: number;
@@ -127,13 +132,18 @@ export interface CloseShiftDto {
   administrative?: number;
   vfCashInside?: number;
   vfCashOutside?: number;
+  instapayInside?: number;
+  instapayOutside?: number;
+  fawryInside?: number;
+  fawryOutside?: number;
+  /** Counted balances at closing, per digital channel */
+  actualVodafone?: number;
+  actualInstapay?: number;
+  actualFawry?: number;
   increase?: number;
   loss?: number;
   status?: number | string;
 }
-
-/** Alias for close shift request */
-export type UpdateShiftDto = CloseShiftDto;
 
 /** Admin update shift request — matches PUT /api/shifts/{id} API specification */
 export interface AdminUpdateShiftDto {
@@ -185,16 +195,3 @@ export interface ShiftFilterParams {
   page?: number;
   pageSize?: number;
 }
-
-// ----- Legacy aliases for backward compatibility with existing code -----
-
-/** @deprecated Use CreateShiftDto */
-export type StartShiftDto = CreateShiftDto;
-
-/** Legacy ShiftTransactionDto — maps to ShiftItemDto */
-export interface ShiftTransactionDto extends ShiftItemDto {
-  createdAt?: string;
-}
-
-/** Legacy BackendShiftDto — maps to ShiftDto */
-export type BackendShiftDto = ShiftDto;

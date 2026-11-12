@@ -1,13 +1,14 @@
 import { Injectable, inject } from '@angular/core';
+import { StudentDiscountEligibilityDto } from '../models/discount-rule.model';
 import { Observable, forkJoin, map, of, catchError } from 'rxjs';
 import { StudentAnalytics, SpaceUsageStats } from '../models/student-analytics.model';
 import { StudentApiService } from './api/student-api.service';
 import { WalletApiService } from './api/wallet-api.service';
 import { WorkspacePackageApiService } from './api/workspace-package-api.service';
 import { ClassroomService } from './classroom.service';
-import { WorkspaceService, parseDurationMinutes } from './workspace.service';
-import { DiscountRuleEngineService } from './discount-rule-engine.service';
-import { parseIsoToLocalDate, getTodayDateISO } from '../utils/date-time.util';
+import { WorkspaceService } from './workspace.service';
+import { parseDurationMinutes, getTodayDateISO } from '../utils/date-time.util';
+import { isSilentZone } from '../constants/backend-enums';
 
 @Injectable({
   providedIn: 'root'
@@ -18,7 +19,6 @@ export class StudentAnalyticsService {
   private workspacePackageApi = inject(WorkspacePackageApiService);
   private classroomService = inject(ClassroomService);
   private workspaceService = inject(WorkspaceService);
-  private discountEngine = inject(DiscountRuleEngineService);
 
   getStudentAnalytics(studentId: string, studentName?: string): Observable<StudentAnalytics> {
     const studentReq$ = this.studentApi.getStudentById(studentId).pipe(
@@ -30,13 +30,25 @@ export class StudentAnalyticsService {
     const packagesReq$ = this.workspacePackageApi.getPackagesByStudent(studentId).pipe(
       catchError(() => of([]))
     );
+    // Milestone progress and automatic discounts are evaluated by the backend.
+    const eligibilityReq$ = this.studentApi.getDiscountEligibility(studentId).pipe(
+      catchError(() => of(null as StudentDiscountEligibilityDto | null))
+    );
+
+    // The backend computes visits, hours, space usage, bookings and package summary
+    // from all sessions; the local calculation below is only a fallback.
+    const backendAnalyticsReq$ = this.studentApi.getStudentAnalytics(studentId).pipe(
+      catchError(() => of(null))
+    );
 
     return forkJoin({
       student: studentReq$,
       wallet: walletReq$,
-      packages: packagesReq$
+      packages: packagesReq$,
+      eligibility: eligibilityReq$,
+      backend: backendAnalyticsReq$
     }).pipe(
-      map(({ student, wallet, packages }) => {
+      map(({ student, wallet, packages, eligibility, backend }) => {
         const studentObj = student as any;
         const name = studentObj?.name || studentName || 'Student';
         const college = studentObj?.faculty || studentObj?.college || '';
@@ -90,7 +102,7 @@ export class StudentAnalyticsService {
           }
 
           // Check room/zone for Silent vs Workspace
-          const isSilent = (s.zone === 1) || (s.roomName && s.roomName.toLowerCase().includes('silent'));
+          const isSilent = isSilentZone(s.zone) || (s.roomName && s.roomName.toLowerCase().includes('silent'));
           if (isSilent) {
             silentVisits += 1;
             silentMinutes += durMins;
@@ -175,10 +187,9 @@ export class StudentAnalyticsService {
           }
         ];
 
-        // 4. Evaluate discount eligibility using DiscountRuleEngine with real hours
-        const milestoneProgress = this.discountEngine.evaluateStudentProgress(studentId, totalHours);
-        const nextMilestone = milestoneProgress.nextMilestone;
-        const hoursToNext = Math.max(0, +(nextMilestone - totalHours).toFixed(1));
+        // 4. Discount eligibility from the backend (null when the request failed)
+        const nextMilestone = eligibility?.nextMilestoneHours ?? 0;
+        const hoursToNext = Math.max(0, +(eligibility?.hoursToNextDiscount ?? 0).toFixed(1));
 
         const activePkg = activePackages.find((p: any) => p.status === 1 || p.remainingHours > 0) || activePackages[0];
 
@@ -213,19 +224,31 @@ export class StudentAnalyticsService {
             totalHours: activePkg?.totalHours || packageTotalHours,
             expiresAt: activePkg?.expireDate || (activePkg as any)?.expiresAt
           },
-          discountsHistory: milestoneProgress.redeemedMilestones.map(m => ({
-            id: `disc-${m}`,
-            ruleName: `مكافأة ${m} ساعة دراسة`,
-            discountPercentage: 20,
-            redeemedAt: new Date().toISOString(),
-            sessionType: 'Workspace'
-          })),
-          qualifyingHoursForDiscount: totalHours,
+          discountsHistory: (eligibility?.availableDiscounts || [])
+            .filter(d => d.isRedeemed)
+            .map(d => ({
+              id: d.id,
+              ruleName: d.name,
+              discountPercentage: d.discountPercentage,
+              redeemedAt: d.redeemedAt || '',
+              sessionType: 'Workspace'
+            })),
+          qualifyingHoursForDiscount: eligibility?.qualifyingHours ?? totalHours,
           nextDiscountMilestone: nextMilestone,
           hoursToNextDiscount: hoursToNext
         };
 
-        return analytics;
+        if (!backend) return analytics;
+        return {
+          ...analytics,
+          visits: backend.visits ?? analytics.visits,
+          hours: backend.hours ?? analytics.hours,
+          spaceUsage: Array.isArray(backend.spaceUsage) && backend.spaceUsage.length ? backend.spaceUsage : analytics.spaceUsage,
+          bookingHistory: backend.bookingHistorySummary ?? analytics.bookingHistory,
+          packageSummary: backend.packageSummary ?? analytics.packageSummary,
+          walletBalance: typeof backend.walletBalance === 'number' ? backend.walletBalance : analytics.walletBalance,
+          isBlacklisted: backend.isBlacklisted ?? analytics.isBlacklisted
+        } as StudentAnalytics;
       })
     );
   }

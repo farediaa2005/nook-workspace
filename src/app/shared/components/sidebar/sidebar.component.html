@@ -183,14 +183,16 @@
 
       @if (isMenuOpen('settings')) {
         <div class="sub-nav">
+          @if (isAdmin()) {
           <a
             routerLink="/settings/general"
             routerLinkActive="sub-item--active"
             (click)="closeSidebar.emit()"
             class="sub-item"
           >
-            {{ isArabic() ? 'إعدادات النظام والأماكن' : 'System Configuration' }}
+            {{ t().navSystemConfiguration }}
           </a>
+          }
           <a
             routerLink="/settings/discounts"
             routerLinkActive="sub-item--active"
@@ -199,7 +201,9 @@
           >
             {{ t().addDiscount }}
           </a>
+          @if (isAdmin()) {
           <a routerLink="/settings/show-user" routerLinkActive="sub-item--active" (click)="closeSidebar.emit()" class="sub-item">{{ t().showUsers }}</a>
+          }
           <a routerLink="/settings/profile" routerLinkActive="sub-item--active" (click)="closeSidebar.emit()" class="sub-item">{{ t().profileSettingsTab }}</a>
         </div>
       }
@@ -249,8 +253,8 @@
 
 <!-- Logout Confirmation Modal -->
 @if (showLogoutConfirm()) {
-  <div class="logout-modal-overlay" (click)="dismissLogoutConfirm()">
-    <div class="logout-modal" (click)="$event.stopPropagation()">
+  <div class="logout-modal-overlay" (click)="dismissLogoutConfirm()" role="presentation">
+    <div class="logout-modal" (click)="$event.stopPropagation()" role="presentation">
       <!-- Warning Icon -->
       <div class="logout-modal__icon">
         <svg viewBox="0 0 24 24" fill="none">

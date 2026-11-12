@@ -76,8 +76,8 @@
 }
 
 .nav__section-title {
-  font-size: .72rem;
-  color: var(--sidebar-group, #ab9468);
+  font-size: var(--fs-2xs);
+  color: var(--sidebar-group, var(--tone-ab9468));
   font-weight: 700;
   padding: 18px 12px 6px;
   letter-spacing: .06em;
@@ -86,7 +86,7 @@
 
 :host-context([data-theme="light"]) .nav__section-title,
 [data-theme="light"] .nav__section-title {
-  color: #ab9468;
+  color: var(--sidebar-group);
 }
 
 /* Base Nav Item */
@@ -97,7 +97,7 @@
   padding: 10px 14px;
   border-radius: var(--radius-sm, 12px);
   color: var(--sidebar-text);
-  font-size: .88rem;
+  font-size: var(--fs-base);
   font-weight: 450;
   text-decoration: none;
   background: transparent;
@@ -123,14 +123,14 @@
 
 /* Active Main Item (golden pill) */
 .nav__item--active {
-  background: linear-gradient(135deg, #f5b921 0%, #e8a80e 100%) !important;
-  color: #16130a !important;
+  background: linear-gradient(135deg, var(--yellow) 0%, var(--tone-e8a80e) 100%) !important;
+  color: var(--on-primary) !important;
   font-weight: 600;
   box-shadow: 0 4px 16px rgba(245, 185, 33, 0.25), 0 1px 3px rgba(245, 185, 33, 0.15);
 }
 
 .nav__item--active .item-icon {
-  stroke: #16130a;
+  stroke: var(--on-primary);
 }
 
 /* Accordion Parent */
@@ -183,9 +183,9 @@
 
 .sub-item {
   padding: 7px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   color: var(--sidebar-text);
-  font-size: .82rem;
+  font-size: var(--fs-sm);
   font-weight: 400;
   text-decoration: none;
   transition: all .15s ease;
@@ -197,8 +197,8 @@
 }
 
 .sub-item--active {
-  background: linear-gradient(135deg, #f5b921 0%, #e8a80e 100%) !important;
-  color: #16130a !important;
+  background: linear-gradient(135deg, var(--yellow) 0%, var(--tone-e8a80e) 100%) !important;
+  color: var(--on-primary) !important;
   font-weight: 600;
   border-radius: var(--radius-sm, 10px);
   box-shadow: 0 4px 14px rgba(245, 185, 33, 0.2), 0 1px 3px rgba(245, 185, 33, 0.12);
@@ -211,12 +211,12 @@
 }
 
 .nav__item--logout {
-  color: #ff9b8f;
+  color: var(--tone-ff9b8f);
 }
 
 .nav__item--logout:hover {
   background: rgba(255, 107, 107, .12);
-  color: #ff7a6b;
+  color: var(--tone-ff7a6b);
 }
 
 /* ============================================================
@@ -224,68 +224,68 @@
    ============================================================ */
 :host-context([data-theme="light"]) .sidebar,
 [data-theme="light"] .sidebar {
-  background: #ffffff;
-  border-color: #e6e0d4;
+  background: var(--surface);
+  border-color: var(--tone-e6e0d4);
 }
 
 :host-context([data-theme="light"]) .sidebar__brand,
 [data-theme="light"] .sidebar__brand,
 :host-context([data-theme="light"]) .sidebar__foot,
 [data-theme="light"] .sidebar__foot {
-  border-color: #e6e0d4;
+  border-color: var(--tone-e6e0d4);
 }
 
 :host-context([data-theme="light"]) .nav__section-title,
 [data-theme="light"] .nav__section-title {
-  color: #91897c;
+  color: var(--tone-91897c);
 }
 
 :host-context([data-theme="light"]) .nav__item,
 [data-theme="light"] .nav__item {
-  color: #6b6458;
+  color: var(--tone-6b6458);
 }
 
 :host-context([data-theme="light"]) .nav__item:hover,
 [data-theme="light"] .nav__item:hover {
-  background: #f7f5f0;
-  color: #1a1815 !important;
+  background: var(--tone-f7f5f0);
+  color: var(--tone-1a1815) !important;
 }
 
 :host-context([data-theme="light"]) .accordion-item.expanded .nav__parent,
 [data-theme="light"] .accordion-item.expanded .nav__parent {
-  color: #1a1815;
-  background: #f7f5f0;
+  color: var(--tone-1a1815);
+  background: var(--tone-f7f5f0);
 }
 
 :host-context([data-theme="light"]) .sub-item,
 [data-theme="light"] .sub-item {
-  color: #6b6458;
+  color: var(--tone-6b6458);
 }
 
 :host-context([data-theme="light"]) .sub-item:hover,
 [data-theme="light"] .sub-item:hover {
-  color: #1a1815 !important;
-  background: #f7f5f0;
+  color: var(--tone-1a1815) !important;
+  background: var(--tone-f7f5f0);
 }
 
 :host-context([data-theme="light"]) .sub-nav,
 [data-theme="light"] .sub-nav {
-  border-left-color: #e6e0d4;
+  border-left-color: var(--tone-e6e0d4);
 }
 
 :host-context([data-theme="light"]) .sub-item--active,
 [data-theme="light"] .sub-item--active {
-  background: #f5b921 !important;
-  color: #16130a !important;
+  background: var(--yellow) !important;
+  color: var(--on-primary) !important;
   font-weight: 600;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   box-shadow: 0 2px 8px rgba(245, 185, 33, 0.2);
 }
 
 :host-context([data-theme="light"]) .nav__item--active,
 [data-theme="light"] .nav__item--active {
-  background: #f5b921 !important;
-  color: #16130a !important;
+  background: var(--yellow) !important;
+  color: var(--on-primary) !important;
 }
 
 :host-context([dir="rtl"]) .sidebar,
@@ -305,7 +305,7 @@
 
 :host-context([data-theme="light"][dir="rtl"]) .sub-nav,
 [data-theme="light"][dir="rtl"] .sub-nav {
-  border-right-color: #e6e0d4;
+  border-right-color: var(--tone-e6e0d4);
 }
 
 @media (max-width: 900px) {
@@ -338,6 +338,13 @@
   [dir="rtl"] .sidebar.open {
     transform: translateX(0);
   }
+
+  /* The off-canvas drawer must not leak its shadow onto the page edge while closed */
+  .sidebar:not(.open),
+  :host-context([dir="rtl"]) .sidebar:not(.open),
+  [dir="rtl"] .sidebar:not(.open) {
+    box-shadow: none;
+  }
 }
 
 /* ============================================================
@@ -363,9 +370,9 @@
 
 .logout-modal {
   position: relative;
-  background: var(--sidebar-bg, #1a1815);
+  background: var(--sidebar-bg, var(--tone-1a1815));
   border: 1px solid var(--border, rgba(171, 148, 104, 0.2));
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   padding: 36px 32px 28px;
   width: 380px;
   max-width: 90vw;
@@ -390,11 +397,11 @@
   height: 56px;
   margin: 0 auto 18px;
   background: rgba(245, 185, 33, 0.12);
-  border-radius: 16px;
+  border-radius: var(--radius);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #f5b921;
+  color: var(--yellow);
 }
 
 .logout-modal__icon svg {
@@ -403,15 +410,15 @@
 }
 
 .logout-modal__title {
-  font-size: 1.15rem;
+  font-size: var(--fs-lg);
   font-weight: 700;
-  color: var(--sidebar-text-hover, #fff);
+  color: var(--sidebar-text-hover, var(--on-color));
   margin: 0 0 8px;
 }
 
 .logout-modal__message {
-  font-size: 0.88rem;
-  color: var(--sidebar-text, #a09585);
+  font-size: var(--fs-base);
+  color: var(--sidebar-text, var(--tone-a09585));
   margin: 0 0 24px;
   line-height: 1.5;
 }
@@ -428,8 +435,8 @@
   justify-content: center;
   gap: 10px;
   padding: 12px 20px;
-  border-radius: 12px;
-  font-size: 0.88rem;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-base);
   font-weight: 600;
   border: none;
   cursor: pointer;
@@ -438,26 +445,26 @@
 }
 
 .logout-modal__btn--primary {
-  background: linear-gradient(135deg, #f5b921, #e6a817);
-  color: #16130a;
+  background: linear-gradient(135deg, var(--yellow), var(--tone-e6a817));
+  color: var(--on-primary);
   box-shadow: 0 4px 16px rgba(245, 185, 33, 0.3);
 }
 
 .logout-modal__btn--primary:hover {
-  background: linear-gradient(135deg, #ffc933, #f5b921);
+  background: linear-gradient(135deg, var(--tone-ffc933), var(--yellow));
   box-shadow: 0 6px 24px rgba(245, 185, 33, 0.4);
   transform: translateY(-1px);
 }
 
 .logout-modal__btn--ghost {
   background: rgba(255, 107, 107, 0.1);
-  color: #ff9b8f;
+  color: var(--tone-ff9b8f);
   border: 1px solid rgba(255, 107, 107, 0.2);
 }
 
 .logout-modal__btn--ghost:hover {
   background: rgba(255, 107, 107, 0.18);
-  color: #ff7a6b;
+  color: var(--tone-ff7a6b);
   border-color: rgba(255, 107, 107, 0.35);
   transform: translateY(-1px);
 }
@@ -473,15 +480,15 @@
   justify-content: center;
   background: transparent;
   border: none;
-  border-radius: 8px;
-  color: var(--sidebar-text, #a09585);
+  border-radius: var(--radius-xs);
+  color: var(--sidebar-text, var(--tone-a09585));
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .logout-modal__close:hover {
   background: var(--sidebar-hover, rgba(171, 148, 104, 0.1));
-  color: var(--sidebar-text-hover, #fff);
+  color: var(--sidebar-text-hover, var(--on-color));
 }
 
 :host-context([dir="rtl"]) .logout-modal__close,
@@ -493,30 +500,30 @@
 /* Light Theme Overrides for Logout Modal */
 :host-context([data-theme="light"]) .logout-modal,
 [data-theme="light"] .logout-modal {
-  background: #ffffff;
-  border-color: #e6e0d4;
+  background: var(--surface);
+  border-color: var(--tone-e6e0d4);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(245, 185, 33, 0.08);
 }
 
 :host-context([data-theme="light"]) .logout-modal__title,
 [data-theme="light"] .logout-modal__title {
-  color: #1a1815;
+  color: var(--tone-1a1815);
 }
 
 :host-context([data-theme="light"]) .logout-modal__message,
 [data-theme="light"] .logout-modal__message {
-  color: #6b6458;
+  color: var(--tone-6b6458);
 }
 
 :host-context([data-theme="light"]) .logout-modal__close,
 [data-theme="light"] .logout-modal__close {
-  color: #6b6458;
+  color: var(--tone-6b6458);
 }
 
 :host-context([data-theme="light"]) .logout-modal__close:hover,
 [data-theme="light"] .logout-modal__close:hover {
-  background: #f7f5f0;
-  color: #1a1815;
+  background: var(--tone-f7f5f0);
+  color: var(--tone-1a1815);
 }
 
 /* ============================================================
@@ -535,7 +542,7 @@
   padding: 8px 10px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   user-select: none;
@@ -557,7 +564,7 @@
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.35);
-  border-radius: 7px;
+  border-radius: var(--radius-xs);
   padding: 3px;
   flex-shrink: 0;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -585,7 +592,7 @@
 .team-badge-tag {
   font-size: 0.62rem;
   font-weight: 600;
-  color: var(--text-dim, #71717a);
+  color: var(--text-dim, var(--zinc-500));
   letter-spacing: 0.03em;
   line-height: 1.1;
   text-transform: uppercase;
@@ -598,9 +605,9 @@
 }
 
 .team-badge-name {
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   font-weight: 800;
-  color: var(--text-1, #f4f4f5);
+  color: var(--text-1, var(--zinc-100));
   letter-spacing: 0.03em;
   white-space: nowrap;
 }
@@ -611,7 +618,7 @@
   padding: 0 4px;
   border-radius: 3px;
   background: rgba(56, 189, 248, 0.15);
-  color: #38bdf8;
+  color: var(--sky-400);
   font-size: 0.58rem;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -623,7 +630,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-dim, #71717a);
+  color: var(--text-dim, var(--zinc-500));
   transition: color 0.2s ease, transform 0.2s ease;
 }
 
@@ -633,54 +640,54 @@
 }
 
 .team-badge-container:hover .team-badge-arrow {
-  color: #38bdf8;
+  color: var(--sky-400);
   transform: translate(2px, -2px);
 }
 
 :host-context([data-theme="light"]) .team-badge-container,
 [data-theme="light"] .team-badge-container {
-  background: #f8fafc;
-  border-color: #e2e8f0;
+  background: var(--surface-2);
+  border-color: var(--border);
 }
 
 :host-context([data-theme="light"]) .team-badge-container:hover,
 [data-theme="light"] .team-badge-container:hover {
-  background: #f0f9ff;
-  border-color: #0284c7;
+  background: var(--sky-50);
+  border-color: var(--sky-600);
   box-shadow: 0 4px 14px rgba(2, 132, 199, 0.12);
 }
 
 :host-context([data-theme="light"]) .team-badge-logo-wrap,
 [data-theme="light"] .team-badge-logo-wrap {
-  background: #ffffff;
-  border-color: #e2e8f0;
+  background: var(--surface);
+  border-color: var(--border);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 :host-context([data-theme="light"]) .team-badge-tag,
 [data-theme="light"] .team-badge-tag {
-  color: #64748b;
+  color: var(--text-dim);
 }
 
 :host-context([data-theme="light"]) .team-badge-name,
 [data-theme="light"] .team-badge-name {
-  color: #0f172a;
+  color: var(--text);
 }
 
 :host-context([data-theme="light"]) .team-badge-sub,
 [data-theme="light"] .team-badge-sub {
   background: rgba(2, 132, 199, 0.1);
-  color: #0284c7;
+  color: var(--sky-600);
 }
 
 :host-context([data-theme="light"]) .team-badge-arrow,
 [data-theme="light"] .team-badge-arrow {
-  color: #94a3b8;
+  color: var(--text-dim);
 }
 
 :host-context([data-theme="light"]) .team-badge-container:hover .team-badge-arrow,
 [data-theme="light"] .team-badge-container:hover .team-badge-arrow {
-  color: #0284c7;
+  color: var(--sky-600);
 }
 
 

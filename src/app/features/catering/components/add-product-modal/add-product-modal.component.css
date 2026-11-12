@@ -42,7 +42,7 @@
 .modal-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   width: 100%;
   max-width: 680px;
   max-height: 90vh;
@@ -63,7 +63,7 @@
 }
 .modal-card::-webkit-scrollbar-thumb {
   background: var(--border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-2xs);
 }
 
 /* ========================================================================= */
@@ -85,7 +85,7 @@
 }
 
 .header-category-tag {
-  font-size: 0.72rem;
+  font-size: var(--fs-2xs);
   font-weight: 800;
   color: var(--yellow);
   text-transform: uppercase;
@@ -139,7 +139,7 @@
 .form-section-card {
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -168,7 +168,7 @@
 }
 
 .section-title-text {
-  font-size: 0.84rem;
+  font-size: var(--fs-ui);
   font-weight: 700;
   color: var(--text);
 }
@@ -200,7 +200,7 @@
 }
 
 .field-label {
-  font-size: 0.80rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-dim);
   display: flex;
@@ -209,7 +209,7 @@
 }
 
 .required-star {
-  color: var(--danger, #ef4444);
+  color: var(--danger, var(--danger-strong));
   font-weight: 700;
 }
 
@@ -221,14 +221,14 @@
 
 /* Character Counter Badge */
 .char-count-badge {
-  font-size: 0.72rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   color: var(--text-dim);
   font-family: monospace;
 }
 
 .char-count-badge--limit {
-  color: var(--danger, #ef4444);
+  color: var(--danger, var(--danger-strong));
 }
 
 /* Inline Add New Category Box */
@@ -246,12 +246,12 @@
 
 .btn-cat-save {
   background: var(--yellow);
-  color: #1a1509;
+  color: var(--tone-1a1509);
   border: none;
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   padding: 4px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-2xs);
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -269,10 +269,10 @@
   background: transparent;
   color: var(--text-dim);
   border: 1px solid var(--border);
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   padding: 3px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-2xs);
   cursor: pointer;
 }
 
@@ -286,10 +286,10 @@
   height: 42px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding: 0 14px;
   color: var(--text);
-  font-size: 0.88rem;
+  font-size: var(--fs-base);
   font-family: inherit;
   outline: none;
   box-sizing: border-box;
@@ -330,7 +330,7 @@
 .input-affix-tag {
   position: absolute;
   right: 12px;
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   color: var(--text-dim);
   pointer-events: none;
@@ -357,7 +357,7 @@
   height: 42px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -413,7 +413,7 @@
 }
 
 .custom-date-text {
-  font-size: 0.88rem;
+  font-size: var(--fs-base);
   font-weight: 700;
   color: var(--text);
   white-space: nowrap;
@@ -433,9 +433,9 @@
 .btn-toggle-na {
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-2xs);
   color: var(--text-dim);
-  font-size: 0.72rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   padding: 2px 8px;
   cursor: pointer;
@@ -450,7 +450,7 @@
 .btn-toggle-na--active {
   background: rgba(245, 185, 33, 0.15);
   border-color: var(--yellow);
-  color: #b45309;
+  color: var(--warning);
 }
 
 :host-context([data-theme=dark]) .btn-toggle-na--active {
@@ -461,9 +461,9 @@
 .btn-toggle-box-calc {
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-2xs);
   color: var(--text-dim);
-  font-size: 0.72rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   padding: 2px 8px;
   cursor: pointer;
@@ -478,7 +478,7 @@
 .btn-toggle-box-calc--active {
   background: rgba(245, 185, 33, 0.15);
   border-color: var(--yellow);
-  color: #b45309;
+  color: var(--warning);
 }
 
 :host-context([data-theme=dark]) .btn-toggle-box-calc--active {
@@ -494,9 +494,9 @@
 .box-total-indicator {
   background: rgba(245, 185, 33, 0.12);
   border: 1px dashed rgba(245, 185, 33, 0.35);
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   padding: 8px 12px;
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -509,7 +509,7 @@
   align-items: center;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   height: 42px;
 }
@@ -527,7 +527,7 @@
   background: var(--surface-2);
   border: none;
   color: var(--text);
-  font-size: 1.1rem;
+  font-size: var(--fs-lg);
   font-weight: 700;
   cursor: pointer;
   display: flex;
@@ -560,7 +560,7 @@
   width: 100%;
   height: 94px;
   border: 1.5px dashed var(--border-strong);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   display: flex;
   align-items: center;
@@ -601,13 +601,13 @@
 }
 
 .upload-text {
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--text);
 }
 
 .upload-subtext {
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   color: var(--text-dim);
 }
 
@@ -615,7 +615,7 @@
   position: relative;
   width: 100%;
   height: 94px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   border: 1px solid var(--border);
 }
@@ -632,10 +632,10 @@
   right: 6px;
   width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: var(--radius-2xs);
   background: rgba(10, 10, 11, 0.75);
   border: none;
-  color: var(--danger, #ef4444);
+  color: var(--danger, var(--danger-strong));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -645,8 +645,8 @@
 }
 
 .btn-delete-img:hover {
-  background: var(--danger, #ef4444);
-  color: #ffffff;
+  background: var(--danger, var(--danger-strong));
+  color: var(--on-color);
 }
 
 .btn-delete-img svg {
@@ -673,9 +673,9 @@
   gap: 8px;
   height: 44px;
   padding: 0 22px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   font-weight: 700;
-  font-size: 0.90rem;
+  font-size: var(--fs-base);
   text-decoration: none;
   cursor: pointer;
   border: 1px solid transparent;
@@ -700,7 +700,7 @@
 
 .btn--primary {
   background: var(--yellow);
-  color: #1a1509;
+  color: var(--tone-1a1509);
   box-shadow: 0 4px 12px rgba(245, 185, 33, 0.28);
 }
 
@@ -747,4 +747,12 @@
   .btn {
     width: 100%;
   }
+}
+
+/* Small explanatory text under a form label */
+.field-hint {
+  display: block;
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  line-height: 1.4;
 }

@@ -6,8 +6,6 @@
 
 import { PayWay, DiscountType, SessionStatus } from './workspace-session.model';
 
-export { PayWay, DiscountType, SessionStatus };
-
 // ==========================================
 // 1. ENUMS
 // ==========================================
@@ -18,27 +16,15 @@ export enum ClassroomTypeEnum {
   InstructorPackage = 3
 }
 
-export enum BookingStatusEnum {
-  Pending = 1,
-  Approved = 2,
-  Rejected = 3,
-  Cancelled = 4
-}
-export { BookingStatusEnum as BookingStatus };
-
-export type RoomColorTheme = 'brown' | 'blue' | 'purple' | 'emerald' | 'orange' | 'rose';
+type RoomColorTheme = 'brown' | 'blue' | 'purple' | 'emerald' | 'orange' | 'rose';
 
 export type ClassroomStatus = 'active' | 'available' | 'scheduled' | 'completed' | 'cancelled';
 
-export type TimeAlertStatus = 'normal' | 'ending_soon' | 'ended_grace' | 'overtime_charged';
+type TimeAlertStatus = 'normal' | 'ending_soon' | 'ended_grace' | 'overtime_charged';
 
 export type PaymentMethod = 'cash' | 'vodafone' | 'fawry' | 'instapay' | 'package';
 
-export type ClassroomSessionStatus = 'Active' | 'CheckedOut' | 'Cancelled' | 'Scheduled';
-
-export type ClassroomPaymentMethod = 'Cash' | 'Vodafone' | 'Fawry' | 'Instapay' | 'Package';
-
-export type ClassroomType = 'Lecture' | 'Workshop' | 'Training' | 'Meeting' | 'Exam';
+type ClassroomPaymentMethod = 'Cash' | 'Vodafone' | 'Fawry' | 'Instapay' | 'Package';
 
 // ==========================================
 // 2. BACKEND DTOs (Matching Backend OpenAPI Specs)
@@ -187,7 +173,7 @@ export interface CheckoutClassroomDto {
   changeDue?: number;
 }
 
-export enum RecurrenceFrequency {
+enum RecurrenceFrequency {
   Daily = 1,
   Weekly = 2,
   Monthly = 3
@@ -248,6 +234,8 @@ export interface CreateReservationDto {
   totalSessions?: number | null;
   isOngoing?: boolean;
   instructorName?: string;
+  /** The server field for the instructor phone (backend change of 2026-11-12). */
+  instructorPhoneNumber?: string | null;
   instructorPhone?: string;
   email?: string | null;
   instructorEmail?: string | null;
@@ -275,7 +263,7 @@ export interface CheckReservationConflictDto {
 }
 
 /** Individual Conflict Details */
-export interface ReservationConflictItemDto {
+interface ReservationConflictItemDto {
   date: string;
   timeFrom: string;
   timeTo: string;
@@ -309,34 +297,6 @@ export interface CreateClassroomFromReservationDto {
   timeTo?: string | null;
   expectedAttendees?: number;
   note?: string;
-}
-
-/** Booking (Admin reservation) DTO from /api/Bookings */
-export interface BookingDto {
-  id: string;
-  roomId?: string | null;
-  roomName?: string | null;
-  instructorId?: string | null;
-  instructorName?: string | null;
-  date?: string | null;
-  timeFrom?: string | null;
-  timeTo?: string | null;
-  status?: BookingStatusEnum | number;
-  note?: string | null;
-  createdAt?: string;
-  activity?: string;
-  bookingDate?: string;
-  startTime?: string;
-  endTime?: string;
-  durationHours?: number;
-  cost?: number;
-  notes?: string;
-}
-
-/** Update booking status — PUT /api/Bookings/{id}/status */
-export interface UpdateBookingStatusDto {
-  status: BookingStatusEnum | number;
-  notes?: string;
 }
 
 /** Catering item response DTO */
@@ -389,18 +349,6 @@ export interface CreateRoomDto {
   imageFile?: File;
   capacity?: number;
   description?: string;
-}
-
-// ==========================================
-// 3. FRONTEND UI MODELS
-// ==========================================
-
-/** Base Classroom entity */
-export interface Classroom {
-  id: string;
-  name: string;
-  capacity: number;
-  status: 'available' | 'occupied';
 }
 
 /** Live Board Classroom Card entity */
@@ -480,22 +428,6 @@ export interface ClassroomCoupon {
   discountName: string;
 }
 
-/** Payload for creating a new classroom booking */
-export interface ClassroomBookingPayload {
-  roomId: string;
-  instructor: string;
-  activitySubject: string;
-  phone?: string;
-  email?: string;
-  bookingDate: string;
-  startTime: string;
-  endTime: string;
-  hourlyRate: number;
-  printingCharges?: number;
-  discountPercent?: number;
-  paymentMode?: 'package' | 'cash';
-}
-
 /** Payload for completing classroom checkout */
 export interface ClassroomCheckoutPayload {
   cardId: string;
@@ -534,6 +466,9 @@ export interface AdminReservation {
   roomName?: string;
   isClassroomSession?: boolean;
   occurrenceDate?: string;
+  /** For a day of a series: the series' first and last day (YYYY-MM-DD), used when editing the whole series */
+  seriesDateFrom?: string;
+  seriesDateTo?: string;
   displayId: string;
   instructor: string;
   instructorId?: string | null;

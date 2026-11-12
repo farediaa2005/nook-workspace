@@ -1,6 +1,6 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 
-export interface RoomPriceEntity {
+interface RoomPriceEntity {
   id?: string;
   name?: string;
   hourlyRate?: number;
@@ -18,8 +18,6 @@ export interface RoomPriceEntity {
 export class RoomPricingService {
   private roomPricesState = signal<Map<string, number>>(new Map());
   private roomNamePricesState = signal<Map<string, number>>(new Map());
-
-  readonly configuredPricesCount = computed(() => this.roomPricesState().size);
 
   /**
    * Synchronize room prices from backend Rooms and PricingPlans.

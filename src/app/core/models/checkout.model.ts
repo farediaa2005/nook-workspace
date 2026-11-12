@@ -5,13 +5,13 @@
 
 export type PaymentMethodType = 'cash' | 'vodafone' | 'fawry' | 'instapay' | 'package';
 
-export interface CateringLineItem {
+interface CateringLineItem {
   id: string;
   name: string;
   price: number;
 }
 
-export interface FinancialBreakdownItem {
+interface FinancialBreakdownItem {
   id?: string;
   icon?: 'clock' | 'canteen' | 'printing' | 'custom';
   title: string;
@@ -24,7 +24,7 @@ export interface FinancialBreakdownItem {
   buttonLabel?: string;
 }
 
-export interface CheckoutSessionData {
+interface CheckoutSessionData {
   activity: string;
   studentName?: string;
   roomName?: string;
@@ -32,9 +32,11 @@ export interface CheckoutSessionData {
   startTime: string;
   endTime?: string;
   duration: string;
+  /** Elapsed minutes of the session; used to warn about sessions left open by mistake. */
+  durationMinutes?: number;
 }
 
-export interface CheckoutFinancialData {
+interface CheckoutFinancialData {
   items: FinancialBreakdownItem[];
   cateringItems?: CateringLineItem[];
   subtotal: number;
@@ -48,7 +50,7 @@ export interface CheckoutFinancialData {
   finalTotal: number;
 }
 
-export interface CheckoutPaymentData {
+interface CheckoutPaymentData {
   selectedMethod: PaymentMethodType;
   amountReceived: number | null;
   changeDue: number;

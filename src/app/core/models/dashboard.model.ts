@@ -16,6 +16,8 @@ export interface DashboardSummaryDto {
   totalStudents: number;
   activeShifts: number;
   pendingBookings: number;
+  /** People who visited today (workspace + classroom), computed by the backend */
+  totalFootfallToday?: number;
   recentWorkspaceSessions?: WorkspaceDto[];
   recentClassroomSessions?: ClassroomDto[];
   // Compatibility fallback getters / aliases
@@ -32,7 +34,7 @@ export interface DashboardSummaryDto {
 }
 
 /** Daily revenue breakdown item within RevenueAnalysisDto */
-export interface DailyRevenueDto {
+interface DailyRevenueDto {
   date?: string;
   revenue: number;
   workspaceRevenue: number;
@@ -62,29 +64,17 @@ export interface OccupancyAnalysisDto {
   totalClassroomSessions: number;
   averageSessionHours: number;
   peakHour: number | string;
+  /** People present per hour of the day (0-23) */
+  hourlyFlow?: { hour: number; count: number }[];
   // Compatibility aliases
   averageOccupancyPercentage?: number;
   totalHoursBooked?: number;
-  roomOccupancy?: Array<{
+  roomOccupancy?: {
     roomId: string;
     roomName: string;
     occupancyPercentage: number;
     hoursBooked: number;
-  }>;
-}
-
-/** Top student DTO from GET /api/Analysis/top-students */
-export interface TopStudentDto {
-  studentId: string;
-  name?: string;
-  totalSessions: number;
-  totalHours: number;
-  totalSpend: number;
-  // Compatibility aliases
-  studentName?: string;
-  studentPhone?: string;
-  totalVisits?: number;
-  totalSpent?: number;
+  }[];
 }
 
 // ==========================================

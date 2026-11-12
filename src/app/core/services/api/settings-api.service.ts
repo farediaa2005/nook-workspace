@@ -28,10 +28,7 @@ export class SettingsApiService extends BaseApiService {
 
   /** Update operational alert thresholds — PUT /api/Settings/operational-alerts */
   updateOperationalAlertSettings(dto: OperationalAlertSettingsDto): Observable<OperationalAlertSettingsDto> {
-    return this.put<ApiResponse<OperationalAlertSettingsDto>>(
-      API_ENDPOINTS.OPERATIONAL_SETTINGS.ALERTS,
-      dto
-    ).pipe(
+    return this.put<ApiResponse<OperationalAlertSettingsDto>>(API_ENDPOINTS.OPERATIONAL_SETTINGS.ALERTS, dto).pipe(
       map(extractData)
     );
   }

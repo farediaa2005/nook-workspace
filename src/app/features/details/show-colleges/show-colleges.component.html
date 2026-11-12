@@ -2,8 +2,7 @@
   <!-- Page Header & Top Controls Row -->
   <div class="show-head">
     <div class="head-title-wrap">
-      <h1 class="page-title">{{ isArabic() ? 'إحصائيات ودليل الكليات' : 'Colleges Directory & Analytics' }}</h1>
-      <p class="page-subtitle">{{ isArabic() ? 'رسم بياني شامل لتوزيع ساعات وطلاب وإيرادات كل كلية مع إدارة بيانات الكليات' : 'Comprehensive graph for college hours, students, revenue distribution and directory' }}</p>
+      <app-page-header [spaced]="false" [title]="t().colCollegesDirectoryAnalytics" [subtitle]="t().colComprehensiveGraphForCollegeHours"></app-page-header>
     </div>
 
     <div class="head-controls-row">
@@ -19,7 +18,7 @@
             <path d="M21.21 15.89A10 10 0 1 1 8 2.83"/>
             <path d="M22 12A10 10 0 0 0 12 2v10z"/>
           </svg>
-          <span>{{ isArabic() ? 'رسم بياني الكليات (College Graph)' : 'College Graph' }}</span>
+          <span>{{ t().colCollegeGraph }}</span>
         </button>
 
         <button
@@ -36,7 +35,7 @@
             <line x1="3" y1="12" x2="3.01" y2="12"/>
             <line x1="3" y1="18" x2="3.01" y2="18"/>
           </svg>
-          <span>{{ isArabic() ? 'دليل الكليات' : 'Colleges Directory' }}</span>
+          <span>{{ t().colCollegesDirectory }}</span>
         </button>
       </div>
     </div>
@@ -56,33 +55,33 @@
             <line x1="8" y1="2" x2="8" y2="6"/>
             <line x1="3" y1="10" x2="21" y2="10"/>
           </svg>
-          <h3 class="filter-heading">{{ isArabic() ? 'تحديد الفترة الزمنية للرسم البياني' : 'College Graph Date Range' }}</h3>
+          <h3 class="filter-heading">{{ t().colCollegeGraphDateRange }}</h3>
         </div>
 
         <!-- Quick Preset Buttons -->
         <div class="preset-pills">
           <button type="button" class="preset-pill" [class.preset-pill--active]="datePreset() === 'all'" (click)="setDatePreset('all')">
-            {{ isArabic() ? 'الكل' : 'All Time' }}
+            {{ t().colAllTime }}
           </button>
           <button type="button" class="preset-pill" [class.preset-pill--active]="datePreset() === 'today'" (click)="setDatePreset('today')">
-            {{ isArabic() ? 'اليوم' : 'Today' }}
+            {{ t().today }}
           </button>
           <button type="button" class="preset-pill" [class.preset-pill--active]="datePreset() === 'week'" (click)="setDatePreset('week')">
-            {{ isArabic() ? 'آخر 7 أيام' : 'This Week' }}
+            {{ t().colThisWeek }}
           </button>
           <button type="button" class="preset-pill" [class.preset-pill--active]="datePreset() === 'month'" (click)="setDatePreset('month')">
-            {{ isArabic() ? 'هذا الشهر' : 'This Month' }}
+            {{ t().colThisMonth }}
           </button>
           <button type="button" class="preset-pill" [class.preset-pill--active]="datePreset() === 'year'" (click)="setDatePreset('year')">
-            {{ isArabic() ? 'هذا العام' : 'This Year' }}
+            {{ t().colThisYear }}
           </button>
         </div>
       </div>
 
       <div class="date-inputs-row">
         <div class="date-input-group">
-          <label class="date-label">Date From: (من تاريخ)</label>
-          <input
+          <label for="show-colleges-f7" class="date-label">{{ t().colDateFrom }}</label>
+          <input id="show-colleges-f7"
             type="date"
             class="custom-date-input"
             [ngModel]="dateFrom()"
@@ -91,8 +90,8 @@
         </div>
 
         <div class="date-input-group">
-          <label class="date-label">To: (إلى تاريخ)</label>
-          <input
+          <label for="show-colleges-f6" class="date-label">{{ t().colDateTo }}</label>
+          <input id="show-colleges-f6"
             type="date"
             class="custom-date-input"
             [ngModel]="dateTo()"
@@ -105,29 +104,29 @@
     <!-- Analytics Top Summary KPI Cards -->
     <div class="analytics-metrics-strip">
       <div class="kpi-mini-card">
-        <span class="kpi-mini-label">{{ isArabic() ? 'أكثر كلية إقبالاً' : 'Top College' }}</span>
-        <strong class="kpi-mini-val" style="color: #f5b921;">
+        <span class="kpi-mini-label">{{ t().colTopCollege }}</span>
+        <strong class="kpi-mini-val" style="color: var(--yellow);">
           {{ topCollegeItem() ? topCollegeItem()?.name : '-' }}
         </strong>
-        <span class="kpi-mini-sub">{{ topCollegeItem() ? (topCollegeItem()?.percentage + '% من الإجمالي') : '' }}</span>
+        <span class="kpi-mini-sub">{{ topCollegeItem() ? tf('colPercentOfTotal', { percent: topCollegeItem()?.percentage }) : '' }}</span>
       </div>
 
       <div class="kpi-mini-card">
-        <span class="kpi-mini-label">{{ isArabic() ? 'إجمالي الساعات' : 'Total Hours' }}</span>
-        <strong class="kpi-mini-val">{{ totalAnalyticsHours() }} {{ isArabic() ? 'ساعة' : 'hrs' }}</strong>
-        <span class="kpi-mini-sub">{{ isArabic() ? 'موزعة على كافة الكليات' : 'Across all colleges' }}</span>
+        <span class="kpi-mini-label">{{ t().totalHours }}</span>
+        <strong class="kpi-mini-val">{{ totalAnalyticsHours() }} {{ t().hrsBadge }}</strong>
+        <span class="kpi-mini-sub">{{ t().colAcrossAllColleges }}</span>
       </div>
 
       <div class="kpi-mini-card">
-        <span class="kpi-mini-label">{{ isArabic() ? 'إجمالي الطلاب' : 'Total Students' }}</span>
-        <strong class="kpi-mini-val" style="color: #3b82f6;">{{ totalAnalyticsStudents() }} {{ isArabic() ? 'طالب' : 'students' }}</strong>
-        <span class="kpi-mini-sub">{{ collegeAnalyticsData().length }} {{ isArabic() ? 'كلية مسجلة' : 'colleges' }}</span>
+        <span class="kpi-mini-label">{{ t().colTotalStudents }}</span>
+        <strong class="kpi-mini-val" style="color: var(--info);">{{ totalAnalyticsStudents() }} {{ t().colStudents }}</strong>
+        <span class="kpi-mini-sub">{{ collegeAnalyticsData().length }} {{ t().colColleges }}</span>
       </div>
 
       <div class="kpi-mini-card">
-        <span class="kpi-mini-label">{{ isArabic() ? 'إجمالي الإيرادات' : 'Total Revenue' }}</span>
-        <strong class="kpi-mini-val" style="color: #10b981;">{{ totalAnalyticsRevenue() }} {{ isArabic() ? 'ج.م' : 'EGP' }}</strong>
-        <span class="kpi-mini-sub">{{ isArabic() ? 'جلسات وباقات' : 'Sessions & Passes' }}</span>
+        <span class="kpi-mini-label">{{ t().totalRevenue }}</span>
+        <strong class="kpi-mini-val" style="color: var(--success-strong);">{{ totalAnalyticsRevenue() }} {{ t().egp }}</strong>
+        <span class="kpi-mini-sub">{{ t().colSessionsPasses }}</span>
       </div>
     </div>
 
@@ -137,8 +136,8 @@
       <div class="college-table-panel">
         <div class="panel-header">
           <div class="panel-title-wrap">
-            <h3 class="panel-title">{{ isArabic() ? 'جدول توزيع الكليات' : 'College Breakdown Table' }}</h3>
-            <span class="count-badge">{{ collegeAnalyticsData().length }} {{ isArabic() ? 'كلية' : 'colleges' }}</span>
+            <h3 class="panel-title">{{ t().colCollegeBreakdownTable }}</h3>
+            <span class="count-badge">{{ collegeAnalyticsData().length }} {{ t().colColleges2 }}</span>
           </div>
         </div>
 
@@ -147,11 +146,11 @@
             <thead>
               <tr>
                 <th style="width: 50px;">No.</th>
-                <th>{{ isArabic() ? 'الكلية (College)' : 'College' }}</th>
-                <th class="th-center">{{ isArabic() ? 'الطلاب (Students)' : 'Students' }}</th>
-                <th class="th-center">{{ isArabic() ? 'الساعات (Hours)' : 'Hours' }}</th>
-                <th class="th-center">{{ isArabic() ? 'الإجمالي (Total)' : 'Total (EGP)' }}</th>
-                <th class="th-center">{{ isArabic() ? 'النسبة (%)' : 'Share (%)' }}</th>
+                <th>{{ t().colCollege }}</th>
+                <th class="th-center">{{ t().colStudents2 }}</th>
+                <th class="th-center">{{ t().colHours }}</th>
+                <th class="th-center">{{ t().colTotalEgp }}</th>
+                <th class="th-center">{{ t().colShare }}</th>
               </tr>
             </thead>
             <tbody>
@@ -202,7 +201,7 @@
             @if (collegeAnalyticsData().length > 0) {
               <tfoot>
                 <tr class="graph-total-row">
-                  <td colspan="2"><strong>{{ isArabic() ? 'الإجمالي العام' : 'Grand Total' }}</strong></td>
+                  <td colspan="2"><strong>{{ t().colGrandTotal }}</strong></td>
                   <td class="cell-center"><strong>{{ totalAnalyticsStudents() }}</strong></td>
                   <td class="cell-center"><strong>{{ totalAnalyticsHours() }}</strong></td>
                   <td class="cell-center"><strong>{{ totalAnalyticsRevenue() }}</strong></td>
@@ -217,7 +216,7 @@
       <!-- Right Column: Interactive Vector Pie Chart -->
       <div class="college-chart-panel">
         <div class="panel-header">
-          <h3 class="panel-title">{{ isArabic() ? 'الرسم البياني الدائري (Pie Chart)' : 'College Graph (Pie Chart)' }}</h3>
+          <h3 class="panel-title">{{ t().colCollegeGraphPieChart }}</h3>
         </div>
 
         <div class="pie-chart-container">
@@ -270,31 +269,31 @@
                 </div>
                 <div class="active-stats-grid">
                   <div class="active-stat">
-                    <span>{{ isArabic() ? 'الطلاب:' : 'Students:' }}</span>
+                    <span>{{ t().colStudents3 }}</span>
                     <strong>{{ hCol.studentsCount }}</strong>
                   </div>
                   <div class="active-stat">
-                    <span>{{ isArabic() ? 'الساعات:' : 'Hours:' }}</span>
+                    <span>{{ t().colHours2 }}</span>
                     <strong>{{ hCol.hours }} h</strong>
                   </div>
                   <div class="active-stat">
-                    <span>{{ isArabic() ? 'الإيراد:' : 'Revenue:' }}</span>
-                    <strong>{{ hCol.totalRevenue }} ج.م</strong>
+                    <span>{{ t().colRevenue }}</span>
+                    <strong>{{ hCol.totalRevenue }} {{ t().currency }}</strong>
                   </div>
                   <div class="active-stat">
-                    <span>{{ isArabic() ? 'النسبة:' : 'Share:' }}</span>
+                    <span>{{ t().colShare2 }}</span>
                     <strong [style.color]="hCol.color">{{ hCol.percentage }}%</strong>
                   </div>
                 </div>
               </div>
             } @else {
               <div class="active-card-placeholder">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 28px; height: 28px; color: #f5b921;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 28px; height: 28px; color: var(--yellow);">
                   <circle cx="12" cy="12" r="10"/>
                   <line x1="12" y1="16" x2="12" y2="12"/>
                   <line x1="12" y1="8" x2="12.01" y2="8"/>
                 </svg>
-                <p>{{ isArabic() ? 'مرر الماوس فوق أي قطاع أو سطر لعرض تفاصيله' : 'Hover over any slice or row to inspect details' }}</p>
+                <p>{{ t().colHoverOverAnySliceOr }}</p>
               </div>
             }
           </div>
@@ -363,7 +362,7 @@
 
       <div class="toolbar-stats">
         <span class="toolbar-badge">
-          🏛️ {{ filteredColleges().length }} {{ isArabic() ? 'كلية مسجلة' : 'Colleges Listed' }}
+          🏛️ {{ filteredColleges().length }} {{ t().colCollegesListed }}
         </span>
       </div>
     </div>
@@ -371,7 +370,7 @@
     <!-- 3. Directory Table Card -->
     <div class="table-container-card">
       <div class="table-responsive">
-        <table class="custom-table">
+        <table class="custom-table sticky-actions">
           <thead>
             <tr>
               <th>{{ t().collegeNameLabel }}</th>
@@ -396,7 +395,7 @@
                     <div class="student-meta">
                       <strong class="student-name">{{ isArabic() ? col.name : (col.nameEn || col.name) }}</strong>
                       @if (col.notes) {
-                        <span class="student-faculty" style="font-size: 0.78rem;">{{ col.notes }}</span>
+                        <span class="student-faculty" style="font-size: var(--fs-sm);">{{ col.notes }}</span>
                       }
                     </div>
                   </div>
@@ -412,7 +411,7 @@
                 <!-- Students Count -->
                 <td class="cell-center">
                   <span class="students-count-pill">
-                    {{ col.studentsCount }} {{ isArabic() ? 'طالب' : 'students' }}
+                    {{ col.studentsCount }} {{ t().colStudents }}
                   </span>
                 </td>
 
@@ -484,7 +483,7 @@
   <app-modal
     [isOpen]="isModalOpen()"
     [title]="getModalTitle()"
-    (close)="closeModal()"
+    (closed)="closeModal()"
   >
     <form (submit)="saveCollege(); $event.preventDefault()" class="college-modal-form">
       @if (formError(); as err) {
@@ -496,11 +495,11 @@
       <div class="form-grid">
         <!-- College Name -->
         <div class="field-group">
-          <label class="field-label">{{ t().collegeNameLabel }} *</label>
-          <input
+          <label for="show-colleges-f5" class="field-label">{{ t().collegeNameLabel }} *</label>
+          <input id="show-colleges-f5"
             type="text"
             class="custom-input"
-            [placeholder]="isArabic() ? 'مثال: كلية الهندسة' : 'e.g. Faculty of Engineering'"
+            [placeholder]="t().colEGFacultyOfEngineering"
             [ngModel]="formName()"
             (ngModelChange)="formName.set($event)"
             name="formName"
@@ -509,11 +508,11 @@
 
         <!-- University Name -->
         <div class="field-group">
-          <label class="field-label">{{ t().universityLabel }} *</label>
-          <input
+          <label for="show-colleges-f4" class="field-label">{{ t().universityLabel }} *</label>
+          <input id="show-colleges-f4"
             type="text"
             class="custom-input"
-            [placeholder]="isArabic() ? 'مثال: جامعة القاهرة، جامعة عين شمس' : 'e.g. Cairo University'"
+            [placeholder]="t().colEGCairoUniversity"
             [ngModel]="formUniversity()"
             (ngModelChange)="formUniversity.set($event)"
             name="formUniversity"
@@ -522,11 +521,11 @@
 
         <!-- Campus / Branch -->
         <div class="field-group">
-          <label class="field-label">{{ t().campusLocation }}</label>
-          <input
+          <label for="show-colleges-f3" class="field-label">{{ t().campusLocation }}</label>
+          <input id="show-colleges-f3"
             type="text"
             class="custom-input"
-            [placeholder]="isArabic() ? 'مثال: مجمع الجيزة، العباسية' : 'e.g. Giza Main Campus'"
+            [placeholder]="t().colEGGizaMainCampus"
             [ngModel]="formCampus()"
             (ngModelChange)="formCampus.set($event)"
             name="formCampus"
@@ -535,12 +534,12 @@
 
         <!-- Registered Students Count / Estimated Capacity -->
         <div class="field-group">
-          <label class="field-label">{{ t().estimatedCollegeCapacity }}</label>
-          <input
+          <label for="show-colleges-f2" class="field-label">{{ t().estimatedCollegeCapacity }}</label>
+          <input id="show-colleges-f2"
             type="number"
             min="0"
             class="custom-input"
-            [placeholder]="isArabic() ? 'مثال: 500 طالب' : 'e.g. 500 students'"
+            [placeholder]="t().colEG500Students"
             [ngModel]="formStudentsCount()"
             (ngModelChange)="formStudentsCount.set($event)"
             name="formStudentsCount"
@@ -549,11 +548,11 @@
 
         <!-- Notes / Description -->
         <div class="field-group full-width">
-          <label class="field-label">{{ t().notes }}</label>
-          <textarea
+          <label for="show-colleges-f1" class="field-label">{{ t().notes }}</label>
+          <textarea id="show-colleges-f1"
             class="custom-textarea"
             rows="3"
-            [placeholder]="isArabic() ? 'ملاحظات عن طلاب الكلية وأوقات ذروة الحضور...' : 'Notes about student attendance patterns...'"
+            [placeholder]="t().colNotesAboutStudentAttendancePatterns"
             [ngModel]="formNotes()"
             (ngModelChange)="formNotes.set($event)"
             name="formNotes"
@@ -562,9 +561,7 @@
       </div>
 
       <div class="modal-footer-actions">
-        <button type="button" class="btn-cancel" (click)="closeModal()">
-          {{ t().cancel }}
-        </button>
+        <app-primary-button variant="secondary" [text]="t().cancel" (clicked)="closeModal()"></app-primary-button>
 
         <app-primary-button
           [text]="t().saveCollegeBtn"
@@ -575,31 +572,11 @@
   </app-modal>
 
   <!-- Delete Confirmation Modal -->
-  @if (isDeleteModalOpen() && collegeToDelete(); as delCol) {
-    <div class="modal-overlay" (click)="closeDeleteModal()">
-      <div class="delete-card" (click)="$event.stopPropagation()">
-        <div class="delete-icon-wrap">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" style="width: 32px; height: 32px;">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="15" y1="9" x2="9" y2="15"/>
-            <line x1="9" y1="9" x2="15" y2="15"/>
-          </svg>
-        </div>
-
-        <h3 class="delete-title">{{ t().confirmDeleteCollegeTitle }}</h3>
-        <p class="delete-subtitle">
-          {{ t().confirmDeleteCollegeDesc }} ("{{ isArabic() ? delCol.name : (delCol.nameEn || delCol.name) }}")
-        </p>
-
-        <div class="delete-actions-footer">
-          <button type="button" class="btn-cancel" (click)="closeDeleteModal()">
-            {{ t().cancel }}
-          </button>
-          <button type="button" class="btn-confirm-delete" (click)="confirmDelete()">
-            {{ t().delete }}
-          </button>
-        </div>
-      </div>
-    </div>
-  }
+  <app-confirm-dialog
+    [isOpen]="isDeleteModalOpen() && !!collegeToDelete()"
+    [title]="t().confirmDeleteCollegeTitle"
+    [message]="t().confirmDeleteCollegeDesc + ' (&quot;' + (isArabic() ? collegeToDelete()?.name : (collegeToDelete()?.nameEn || collegeToDelete()?.name)) + '&quot;)'"
+    (confirm)="confirmDelete()"
+    (cancelled)="closeDeleteModal()"
+  ></app-confirm-dialog>
 </div>

@@ -1,0 +1,127 @@
+.sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sessions-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: var(--fs-ui);
+  color: var(--text-dim);
+}
+
+.sessions-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.sessions-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.session-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  flex-wrap: wrap;
+}
+
+.session-row--inactive {
+  opacity: 0.6;
+}
+
+.session-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.session-text strong {
+  font-size: var(--fs-base);
+  color: var(--text);
+}
+
+.session-text small {
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+}
+
+.session-revoke {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-ui);
+  cursor: pointer;
+}
+
+.session-revoke:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.session-revoke--danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.session-ended {
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+}
+
+.sessions-all {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sessions-confirm-text {
+  font-size: var(--fs-ui);
+  color: var(--text);
+}
+
+.sessions-link {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: var(--fs-base);
+  text-decoration: underline;
+  cursor: pointer;
+  min-height: 40px;
+}
+
+.sessions-state {
+  color: var(--text-dim);
+  font-size: var(--fs-base);
+}
+
+.sessions-state--error {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  color: var(--danger);
+}

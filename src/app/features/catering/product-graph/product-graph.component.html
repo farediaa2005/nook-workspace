@@ -2,10 +2,7 @@
   <!-- Page Header -->
   <div class="analytics-header">
     <div class="header-titles">
-      <h1 class="header-main-title">{{ t().productGraphHeaderTitle }}</h1>
-      <p class="header-sub-desc">
-        {{ t().productGraphHeaderDesc }}
-      </p>
+      <app-page-header [spaced]="false" [title]="t().productGraphHeaderTitle" [subtitle]="t().productGraphHeaderDesc"></app-page-header>
     </div>
 
     <!-- Header Actions (POS Button + Time Filter Tabs) -->
@@ -165,7 +162,7 @@
               <span class="bar-label">{{ isArabic() ? (cat.categoryAr || cat.category) : cat.category }}</span>
             </div>
           } @empty {
-            <div style="display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; color: #94a3b8; font-size: 0.9rem;">
+            <div style="display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; color: var(--slate-400); font-size: var(--fs-base);">
               {{ t().noProductsFound }}
             </div>
           }
@@ -343,7 +340,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="4" style="text-align: center; padding: 2.5rem 1rem; color: #94a3b8; font-size: 0.95rem;">
+              <td colspan="4" style="text-align: center; padding: 2.5rem 1rem; color: var(--slate-400); font-size: var(--fs-md);">
                 {{ t().noProductsFound }}
               </td>
             </tr>
@@ -356,7 +353,7 @@
   <!-- POS Canteen Modal -->
   @if (isPosModalOpen()) {
     <app-catering-pos-modal
-      (close)="closePosModal()"
+      (closed)="closePosModal()"
     ></app-catering-pos-modal>
   }
 </div>

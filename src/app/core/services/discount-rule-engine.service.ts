@@ -1,13 +1,31 @@
-import { Injectable, signal } from '@angular/core';
-import { DiscountRule, StudentMilestoneProgress } from '../models/discount-rule.model';
+import { Injectable, inject, signal } from '@angular/core';
+import { Observable, map, tap } from 'rxjs';
+import {
+  DISCOUNT_RULE_APPLICABILITY_CODES,
+  DISCOUNT_RULE_TYPE_CODES,
+  DiscountRule,
+  DiscountRuleDto,
+  DiscountRuleType,
+  SaveDiscountRuleDto
+} from '../models/discount-rule.model';
+import { DiscountApiService } from './api/discount-api.service';
 
+/**
+ * Automatic (milestone) discount rules, stored on the backend at /api/Discounts/rules.
+ * Eligibility per student comes from GET /api/Students/{id}/discount-eligibility
+ * (see StudentAnalyticsService) — the backend is the only place that evaluates rules.
+ */
 @Injectable({
   providedIn: 'root'
 })
 export class DiscountRuleEngineService {
-  private redeemedMilestonesMem = new Map<string, number[]>();
+  private api = inject(DiscountApiService);
+
+  readonly rules = signal<DiscountRule[]>([]);
+  readonly isLoading = signal(false);
 
   constructor() {
+    // Remove leftovers of the old browser-only redemption tracking.
     if (typeof window !== 'undefined') {
       try {
         Object.keys(localStorage).forEach(key => {
@@ -19,173 +37,74 @@ export class DiscountRuleEngineService {
     }
   }
 
-  // Dynamic In-Memory Rule Builder State (Item 16)
-  readonly rules = signal<DiscountRule[]>([
-    {
-      id: 'rule-visits-20',
-      nameAr: 'مكافأة 20 زيارة (خصم 15%)',
-      nameEn: '20 Visits Milestone (15% Off)',
-      ruleType: 'VisitCountBased',
-      thresholdValue: 20,
-      discountPercentage: 15,
-      maxDiscountAmount: 100,
-      isRecurringMilestone: true,
-      applicableTo: 'All',
-      isActive: true
-    },
-    {
-      id: 'rule-hours-100',
-      nameAr: 'مكافأة 100 ساعة دراسة (خصم 10%)',
-      nameEn: '100 Study Hours Milestone (10% Off)',
-      ruleType: 'HoursBased',
-      thresholdValue: 100,
-      discountPercentage: 10,
-      maxDiscountAmount: 150,
-      isRecurringMilestone: true,
-      applicableTo: 'All',
-      isActive: true
-    },
-    {
-      id: 'rule-hours-200',
-      nameAr: 'مكافأة 200 ساعة دراسة (خصم 20%)',
-      nameEn: '200 Study Hours Milestone (20% Off)',
-      ruleType: 'HoursBased',
-      thresholdValue: 200,
-      discountPercentage: 20,
-      maxDiscountAmount: 200,
-      isRecurringMilestone: true,
-      applicableTo: 'All',
-      isActive: true
-    }
-  ]);
-
-  get defaultRules(): DiscountRule[] {
-    return this.rules();
+  /** Loads the rules from the server. */
+  loadRules(): Observable<DiscountRule[]> {
+    this.isLoading.set(true);
+    return this.api.getDiscountRules().pipe(
+      map(list => list.map(dto => this.fromDto(dto))),
+      tap({
+        next: rules => {
+          this.rules.set(rules);
+          this.isLoading.set(false);
+        },
+        error: () => this.isLoading.set(false)
+      })
+    );
   }
 
-  addRule(rule: Omit<DiscountRule, 'id'>): DiscountRule {
-    const newId = `rule-${rule.ruleType.toLowerCase()}-${Date.now().toString().slice(-4)}`;
-    const created: DiscountRule = { ...rule, id: newId };
-    this.rules.update(list => [created, ...list]);
-    return created;
+  addRule(rule: Omit<DiscountRule, 'id'>): Observable<DiscountRule> {
+    return this.api.createDiscountRule(this.toDto(rule)).pipe(
+      map(dto => this.fromDto(dto)),
+      tap(created => this.rules.update(list => [created, ...list]))
+    );
   }
 
-  updateRule(id: string, updates: Partial<DiscountRule>): void {
-    this.rules.update(list => list.map(r => r.id === id ? { ...r, ...updates } : r));
+  deleteRule(id: string): Observable<boolean> {
+    return this.api.deleteDiscountRule(id).pipe(
+      tap(() => this.rules.update(list => list.filter(r => r.id !== id)))
+    );
   }
 
-  deleteRule(id: string): void {
-    this.rules.update(list => list.filter(r => r.id !== id));
+  toggleRule(id: string): Observable<DiscountRule> {
+    const rule = this.rules().find(r => r.id === id);
+    if (!rule) throw new Error(`Unknown discount rule ${id}`);
+    return this.api.updateDiscountRule(id, this.toDto({ ...rule, isActive: !rule.isActive })).pipe(
+      map(dto => this.fromDto(dto)),
+      tap(updated => this.rules.update(list => list.map(r => (r.id === id ? updated : r))))
+    );
   }
 
-  toggleRule(id: string): void {
-    this.rules.update(list => list.map(r => r.id === id ? { ...r, isActive: !r.isActive } : r));
-  }
-
-  /** Evaluates student automatic discount based on active rules */
-  evaluateAutomaticDiscount(totalVisits: number, totalHours: number): { rule: DiscountRule; discountPercentage: number } | null {
-    const active = this.rules().filter(r => r.isActive);
-    let bestMatch: DiscountRule | null = null;
-    let maxPct = 0;
-
-    for (const r of active) {
-      let qualified = false;
-      if (r.ruleType === 'VisitCountBased' && totalVisits >= r.thresholdValue) {
-        qualified = true;
-      } else if (r.ruleType === 'HoursBased' && totalHours >= r.thresholdValue) {
-        qualified = true;
-      }
-
-      if (qualified && r.discountPercentage > maxPct) {
-        maxPct = r.discountPercentage;
-        bestMatch = r;
-      }
-    }
-
-    return bestMatch ? { rule: bestMatch, discountPercentage: maxPct } : null;
-  }
-
-  /**
-   * Loads list of milestone thresholds that student has already redeemed.
-   */
-  getRedeemedMilestones(studentId: string): number[] {
-    if (!studentId) return [];
-    return this.redeemedMilestonesMem.get(studentId) || [];
-  }
-
-  /**
-   * Evaluates student's current hours against milestones and determines if a discount is available.
-   * Enforces single-use protection: once redeemed, student must reach the NEXT milestone.
-   */
-  evaluateStudentProgress(studentId: string, totalHours: number): StudentMilestoneProgress {
-    const redeemed = this.getRedeemedMilestones(studentId);
-
-    // Calculate current milestone bracket (100, 200, 300, ...)
-    const milestones = [100, 200, 300, 400, 500];
-    let currentAchievedMilestone = 0;
-    let nextMilestone = 100;
-
-    for (const m of milestones) {
-      if (totalHours >= m) {
-        currentAchievedMilestone = m;
-      } else {
-        nextMilestone = m;
-        break;
-      }
-    }
-
-    if (currentAchievedMilestone === 0) {
-      nextMilestone = 100;
-    } else if (currentAchievedMilestone >= 500) {
-      nextMilestone = currentAchievedMilestone + 100;
-    }
-
-    // Has student redeemed this current milestone already?
-    const hasRedeemedCurrent = currentAchievedMilestone > 0 && redeemed.includes(currentAchievedMilestone);
-
-    // If achieved a milestone and not yet redeemed, they are eligible!
-    const isEligible = currentAchievedMilestone > 0 && !hasRedeemedCurrent;
-
-    let matchedRule: DiscountRule | undefined = undefined;
-    if (isEligible) {
-      matchedRule = this.defaultRules.find(r => r.thresholdValue === currentAchievedMilestone) || {
-        id: `rule-hours-${currentAchievedMilestone}`,
-        nameAr: `مكافأة ${currentAchievedMilestone} ساعة دراسة (خصم 25%)`,
-        nameEn: `${currentAchievedMilestone} Study Hours Milestone (25% Off)`,
-        ruleType: 'HoursBased',
-        thresholdValue: currentAchievedMilestone,
-        discountPercentage: 25,
-        maxDiscountAmount: 200,
-        isRecurringMilestone: true,
-        applicableTo: 'All',
-        isActive: true
-      };
-    }
-
+  private toDto(rule: Omit<DiscountRule, 'id'>): SaveDiscountRuleDto {
     return {
-      studentId,
-      qualifyingHours: totalHours,
-      currentMilestone: currentAchievedMilestone,
-      nextMilestone,
-      isEligibleForMilestoneDiscount: isEligible,
-      activeEligibleRule: matchedRule,
-      redeemedMilestones: redeemed
+      // The backend stores one name; keep the Arabic one (the UI language) when both exist.
+      name: rule.nameAr || rule.nameEn,
+      ruleType: DISCOUNT_RULE_TYPE_CODES[rule.ruleType] ?? DISCOUNT_RULE_TYPE_CODES['HoursBased'],
+      thresholdValue: rule.thresholdValue,
+      discountPercentage: rule.discountPercentage,
+      maxDiscountAmount: rule.maxDiscountAmount ?? null,
+      isRecurringMilestone: rule.isRecurringMilestone,
+      applicableTo: DISCOUNT_RULE_APPLICABILITY_CODES[rule.applicableTo] ?? DISCOUNT_RULE_APPLICABILITY_CODES.All,
+      facultyId: null,
+      isActive: rule.isActive
     };
   }
 
-  /**
-   * Marks a milestone discount as redeemed by the student.
-   * Prevents reuse until the student reaches the next threshold.
-   */
-  redeemMilestoneDiscount(studentId: string, milestone: number, sessionId?: string): boolean {
-    if (!studentId || milestone <= 0) return false;
-
-    const redeemed = [...this.getRedeemedMilestones(studentId)];
-    if (!redeemed.includes(milestone)) {
-      redeemed.push(milestone);
-      this.redeemedMilestonesMem.set(studentId, redeemed);
-      return true;
-    }
-    return false;
+  private fromDto(dto: DiscountRuleDto): DiscountRule {
+    const typeName = (Object.keys(DISCOUNT_RULE_TYPE_CODES).find(k => DISCOUNT_RULE_TYPE_CODES[k] === dto.ruleType) || 'HoursBased') as DiscountRuleType;
+    const applicable = (Object.keys(DISCOUNT_RULE_APPLICABILITY_CODES) as DiscountRule['applicableTo'][])
+      .find(k => DISCOUNT_RULE_APPLICABILITY_CODES[k] === dto.applicableTo) || 'All';
+    return {
+      id: dto.id,
+      nameAr: dto.name,
+      nameEn: dto.name,
+      ruleType: typeName,
+      thresholdValue: Number(dto.thresholdValue) || 0,
+      discountPercentage: Number(dto.discountPercentage) || 0,
+      maxDiscountAmount: dto.maxDiscountAmount ?? undefined,
+      isRecurringMilestone: !!dto.isRecurringMilestone,
+      applicableTo: applicable,
+      targetCollege: dto.facultyName ?? undefined,
+      isActive: !!dto.isActive
+    };
   }
 }

@@ -1,34 +1,28 @@
 import { Injectable, signal, computed, inject, Injector } from '@angular/core';
-import { Observable, of, tap, catchError, forkJoin, map } from 'rxjs';
-import {
-  ActiveStudentSession,
-  Student,
-  CreateStudentDto,
-  UpdateStudentDto,
-  SessionCheckInDto,
-  SessionCheckOutDto
-} from '../models/student.model';
+import { Observable, of, catchError, forkJoin, map } from 'rxjs';
+import { ActiveStudentSession, Student, CreateStudentDto, SessionCheckInDto, SessionCheckOutDto } from '../models/student.model';
 import { WorkspaceApiService } from './api/workspace-api.service';
 import { StudentApiService, BackendStudentDto } from './api/student-api.service';
-import { WorkspaceSessionDto, WorkspaceDetailDto } from '../models/workspace-session.model';
+import { WorkspaceSessionDto, WorkspaceDetailDto, DiscountType } from '../models/workspace-session.model';
 import { FacultyApiService } from './api/faculty-api.service';
 import { BlacklistApiService } from './api/blacklist-api.service';
 import { ShiftService } from './shift.service';
 import { AuthService } from './auth.service';
-import { WalletApiService } from './api/wallet-api.service';
 import { CateringService } from './catering.service';
 import { PackageService } from './package.service';
 import { NotificationService } from './notification.service';
 import { LanguageService } from './language.service';
-import { parseIsoToLocalDate, getTodayDateISO, parseIsoToLocal24h } from '../utils/date-time.util';
+import { parseIsoToLocalDate, getTodayDateISO, parseIsoToLocal24h, parseDurationMinutes } from '../utils/date-time.util';
+import { isSilentZone, zoneFor, workspaceTypeFor, billingFromWorkspaceType, payWayFor } from '../constants/backend-enums';
+import { extractApiErrorMessage } from '../utils/api-error.util';
 
-export interface ToastNotification {
+interface ToastNotification {
   id: string;
   message: string;
   type: 'success' | 'info' | 'error';
 }
 
-export interface BlacklistRecord {
+interface BlacklistRecord {
   id: string;
   studentId: string;
   name: string;
@@ -40,7 +34,7 @@ export interface BlacklistRecord {
   blockedDate: string;
 }
 
-export interface StudentProfileRecord {
+interface StudentProfileRecord {
   id?: string;
   name: string;
   phone: string;
@@ -57,8 +51,6 @@ export interface StudentProfileRecord {
   lastVisitTime?: string;
 }
 
-export { getTodayDateISO };
-
 export const isSameDayAsToday = (dateStr?: string): boolean => {
   if (!dateStr) return false;
   const str = String(dateStr).trim();
@@ -69,25 +61,7 @@ export const isSameDayAsToday = (dateStr?: string): boolean => {
   return localDate === todayISO;
 };
 
-export function parseDurationMinutes(durStr?: string): number {
-  if (!durStr) return 0;
-  let total = 0;
-  const dMatch = durStr.match(/(\d+)\s*(?:d|days?|day|يوم|أيام|ي)(?!\w)/i);
-  const hMatch = durStr.match(/(\d+)\s*(?:h|hours?|hour|hrs?|ساعات|ساعة|س)(?!\w)/i);
-  const mMatch = durStr.match(/(\d+)\s*(?:m|mins?|min|دقائق|دقيقة|د)(?!\w)/i);
-  if (dMatch) total += parseInt(dMatch[1], 10) * 1440;
-  if (hMatch) total += parseInt(hMatch[1], 10) * 60;
-  if (mMatch) total += parseInt(mMatch[1], 10);
-  if (!dMatch && !hMatch && !mMatch) {
-    const colonMatch = durStr.match(/^(\d{1,3}):(\d{1,2})$/);
-    if (colonMatch) {
-      total = parseInt(colonMatch[1], 10) * 60 + parseInt(colonMatch[2], 10);
-    }
-  }
-  return total;
-}
-
-export function formatMinutesToDuration(totalMinutes: number): string {
+function formatMinutesToDuration(totalMinutes: number): string {
   if (!totalMinutes || totalMinutes <= 0) return '0h 00m';
   const d = Math.floor(totalMinutes / 1440);
   const remMins = Math.round(totalMinutes % 1440);
@@ -99,7 +73,7 @@ export function formatMinutesToDuration(totalMinutes: number): string {
   return `${h}h ${String(m).padStart(2, '0')}m`;
 }
 
-export function parseIsoOrTimeToDisplay(timeStr?: string | null, dateStr?: string | null): string {
+function parseIsoOrTimeToDisplay(timeStr?: string | null, dateStr?: string | null): string {
   if (!timeStr) {
     if (dateStr && String(dateStr).includes('T')) {
       return parseIsoOrTimeToDisplay(dateStr, null);
@@ -199,6 +173,8 @@ export function calculateSessionDuration(timeFrom?: string, timeTo?: string, dat
   return `${h}h ${String(m).padStart(2, '0')}m`;
 }
 
+const MAX_REALISTIC_SESSION_MINUTES = 24 * 60;
+
 @Injectable({
   providedIn: 'root'
 })
@@ -209,7 +185,6 @@ export class WorkspaceService {
   private blacklistApi = inject(BlacklistApiService);
   private shiftService = inject(ShiftService);
   private authService = inject(AuthService);
-  private walletApi = inject(WalletApiService);
   private cateringService = inject(CateringService);
   private packageService = inject(PackageService);
   private langService = inject(LanguageService);
@@ -279,7 +254,6 @@ export class WorkspaceService {
   private backendStudentsState = signal<StudentProfileRecord[]>(this.loadCachedStudents());
 
   readonly isLoading = signal<boolean>(false);
-  readonly isLoadingDirectory = signal<boolean>(false);
   readonly error = signal<string | null>(null);
 
   readonly activeStudents = this.activeStudentsState.asReadonly();
@@ -303,6 +277,11 @@ export class WorkspaceService {
 
   private removeSessionCateringCache(sessionId: string): void {
     this.sessionCateringMem.delete(sessionId);
+  }
+
+  /** Loads catering items of every open session (used by the catering stats pages). */
+  syncActiveSessionsCatering(): void {
+    this.activeStudentsState().forEach(s => this.syncSessionCatering(s.id));
   }
 
   /** Sync catering items directly from backend API for a workspace session */
@@ -362,6 +341,10 @@ export class WorkspaceService {
   });
 
   // 2. Avg. Session: Dynamically computed from actual durations of all students
+  /**
+   * Average session length (one source for the dashboard and the workspace page).
+   * Sessions longer than a day are forgotten check-outs and would distort the average.
+   */
   readonly avgSession = computed(() => {
     const active = this.activeStudentsState().filter(s => s.status === 'active');
     const history = this.historyStudentsState();
@@ -375,7 +358,7 @@ export class WorkspaceService {
     // History completed sessions
     for (const s of history) {
       const rawMins = parseDurationMinutes(s.duration);
-      if (rawMins > 0 && rawMins <= 30 * 24 * 60) {
+      if (rawMins > 0 && rawMins <= MAX_REALISTIC_SESSION_MINUTES) {
         validDurations.push(rawMins);
       } else if (s.checkInTime && s.checkOutTime) {
         const start = parseSessionTimeToDate(s.checkInTime, s.date);
@@ -383,7 +366,7 @@ export class WorkspaceService {
         let diffMs = end.getTime() - start.getTime();
         if (diffMs < 0) diffMs += 24 * 3600 * 1000;
         const computedMins = Math.floor(diffMs / 60000);
-        if (computedMins > 0 && computedMins <= 30 * 24 * 60) {
+        if (computedMins > 0 && computedMins <= MAX_REALISTIC_SESSION_MINUTES) {
           validDurations.push(computedMins);
         }
       }
@@ -392,7 +375,7 @@ export class WorkspaceService {
     // Active sessions currently seated
     for (const s of active) {
       const rawMins = parseDurationMinutes(s.duration);
-      if (rawMins > 0 && rawMins <= 30 * 24 * 60) {
+      if (rawMins > 0 && rawMins <= MAX_REALISTIC_SESSION_MINUTES) {
         validDurations.push(rawMins);
       }
     }
@@ -425,13 +408,13 @@ export class WorkspaceService {
   // 5. Occupancy Counts for Share and Silent seating
   readonly shareOccupancyCount = computed(() => {
     return this.activeStudentsState().filter(s =>
-      s.status === 'active' && (s.zone === 0 || (s.roomName || '').toLowerCase().includes('share') || (!s.zone && !(s.roomName || '').toLowerCase().includes('silent')))
+      s.status === 'active' && !isSilentZone(s.zone) && !(s.roomName || '').toLowerCase().includes('silent')
     ).length;
   });
 
   readonly silentOccupancyCount = computed(() => {
     return this.activeStudentsState().filter(s =>
-      s.status === 'active' && (s.zone === 1 || (s.roomName || '').toLowerCase().includes('silent'))
+      s.status === 'active' && (isSilentZone(s.zone) || (s.roomName || '').toLowerCase().includes('silent'))
     ).length;
   });
 
@@ -539,7 +522,7 @@ export class WorkspaceService {
 
   /** Compute stable student attendance visits and hours across persisted sessions (NOOK-FEAT-05) */
   public getStudentVisitStats(phoneOrIdOrName?: string | null): { visits: number; hours: number } {
-    if (!phoneOrIdOrName) return { visits: 1, hours: 2 };
+    if (!phoneOrIdOrName) return { visits: 0, hours: 0 };
     const clean = phoneOrIdOrName.trim().toLowerCase();
     const cleanDigits = phoneOrIdOrName.replace(/\D/g, '');
     const all = [...this.activeStudentsState(), ...this.historyStudentsState()];
@@ -557,13 +540,14 @@ export class WorkspaceService {
           ? (s as any).durationHours
           : parseDurationMinutes(s.duration) > 0
             ? +(parseDurationMinutes(s.duration) / 60).toFixed(1)
-            : 2;
+            : 0;
         hours += dur;
       }
     }
     return {
-      visits: Math.max(1, visits),
-      hours: Math.max(1, Math.round(hours || (visits * 2)))
+      // Real numbers only (no minimum of 1 visit / 2 hours)
+      visits,
+      hours: +hours.toFixed(1)
     };
   }
 
@@ -589,8 +573,8 @@ export class WorkspaceService {
         phoneNumber: cleanProfile.phone,
         whatsapp: cleanProfile.whatsapp || cleanProfile.phone,
         email: cleanProfile.email || undefined,
-        college: cleanProfile.college || undefined,
-        university: cleanProfile.faculty || cleanProfile.university || undefined,
+        // The API has university + facultyId (no "college"): the university field holds the university.
+        university: cleanProfile.college || undefined,
         facultyId: facultyId || undefined
       }).subscribe({
         next: (created) => {
@@ -603,15 +587,15 @@ export class WorkspaceService {
           if (created?.id) {
             this.studentMap.set(created.id, created);
           }
-          this.showToast(`تم تسجيل الطالب "${cleanProfile.name}" في النظام بنجاح!`, 'success');
+          this.showToast(this.langService.tf('wsStudentRegistered', { name: cleanProfile.name }), 'success');
         },
         error: (err) => {
-          this.saveStudentProfile(cleanProfile);
-          this.showToast(`تم حفظ بيانات الطالب محلياً: ${err?.message || ''}`, 'info');
+          this.showToast(this.langService.tf('wsStudentRegisterFailed', { error: extractApiErrorMessage(err, this.langService.t().serverErrorFallback) }), 'error');
         }
       });
     };
 
+    const startCreate = () => {
     if (facName && !matchedFacultyId) {
       this.facultyApi.createFaculty({ name: facName }).subscribe({
         next: (createdFac) => {
@@ -627,6 +611,21 @@ export class WorkspaceService {
     } else {
       executeCreate(matchedFacultyId);
     }
+    };
+
+    // The API matches students by phone and overwrites the existing one, so check first.
+    const digits = (v?: string | null) => (v || '').replace(/\D/g, '').slice(-10);
+    this.studentApi.getStudents({ SearchTerm: cleanProfile.phone, PageSize: 20 }).subscribe({
+      next: (found) => {
+        const existing = (found || []).find(st => digits(st.phoneNumber || (st as any).phone) === digits(cleanProfile.phone));
+        if (existing) {
+          this.showToast(this.langService.tf('wsPhoneAlreadyRegistered', { name: existing.name }), 'error');
+          return;
+        }
+        startCreate();
+      },
+      error: () => startCreate()
+    });
   }
 
   /** Delete a student from registered students */
@@ -644,26 +643,27 @@ export class WorkspaceService {
         next: () => {
           this.backendStudentsState.update(list => list.filter(s => s.id !== guid));
           this.studentMap.delete(guid);
-          this.showToast('تم حذف بيانات الطالب من السيرفر بنجاح!', 'info');
+          this.showToast(this.langService.t().wsStudentDeletedServer, 'info');
         },
         error: () => {
           this.backendStudentsState.update(list => list.filter(s => s.id !== guid));
-          this.showToast('تم حذف بيانات الطالب من القائمة!', 'info');
+          this.showToast(this.langService.t().wsStudentDeletedList, 'info');
         }
       });
     } else {
       this.backendStudentsState.update(list => list.filter(s =>
         s.id !== clean && s.phone?.toLowerCase() !== clean && s.name?.toLowerCase() !== clean
       ));
-      this.showToast('تم حذف بيانات الطالب من القائمة!', 'info');
+      this.showToast(this.langService.t().wsStudentDeletedList, 'info');
     }
   }
 
   /** Load live sessions, students, faculties, and blacklist from API */
-  public loadFromBackend(): void {
+  /** @param silent background refresh (LiveRefreshService): no loading spinner */
+  public loadFromBackend(silent = false): void {
     if (!this.authService.isAuthenticated()) return;
 
-    this.isLoading.set(true);
+    if (!silent) this.isLoading.set(true);
     this.error.set(null);
 
     // Concurrently fetch faculties, blacklists, and students first to ensure mapping data is ready
@@ -713,7 +713,7 @@ export class WorkspaceService {
           this.persistCachedStudents(mergedProfiles);
         } else {
           // Keep cached data, do NOT clear list
-          this.error.set(this.langService.isArabic() ? 'تعذر مزامنة قائمة الطلاب مع السيرفر - يتم عرض البيانات المحفوظة محلياً' : 'Could not sync student list from server - showing cached records');
+          this.error.set(this.langService.t().svcCouldNotSyncStudentList);
         }
 
         // 3. Populate blacklist state (deduplicated by studentId/phone/name)
@@ -745,7 +745,7 @@ export class WorkspaceService {
       },
       error: (err) => {
         console.error('[WorkspaceService] Error during bootstrap fetch:', err);
-        this.error.set(this.langService.isArabic() ? 'تعذر الاتصال بالخادم لتحميل البيانات' : 'Failed to connect to server');
+        this.error.set(this.langService.t().svcFailedToConnectToServer);
         this.fetchSessions();
       }
     });
@@ -786,12 +786,8 @@ export class WorkspaceService {
 
           this.triggerLiveAlertsEvaluation();
 
-          // Synchronize catering items from backend API for all active sessions
-          active.forEach(s => {
-            if (s.id && /^[0-9a-fA-F-]{36}$/.test(s.id)) {
-              this.syncSessionCatering(s.id);
-            }
-          });
+          // Catering items are loaded on demand (checkout, catering modal, catering stats);
+          // the session list already carries cateringTotal.
         } else {
           this.activeStudentsState.set([]);
           this.triggerLiveAlertsEvaluation();
@@ -800,22 +796,24 @@ export class WorkspaceService {
       error: (err) => {
         console.warn('[WorkspaceService] Could not fetch sessions from API:', err?.message);
         this.isLoading.set(false);
-        const errMsg = err?.message || (this.langService.isArabic() ? 'فشل تحميل جلسات مساحة العمل من الخادم' : 'Failed to fetch workspace sessions');
+        const errMsg = err?.message || (this.langService.t().svcFailedToFetchWorkspaceSessions);
         this.error.set(errMsg);
         // Do NOT wipe activeStudentsState or historyStudentsState on failure!
         this.showToast(
-          this.langService.isArabic() ? 'فشل تحديث الجلسات من الخادم - يتم عرض البيانات المتوفرة' : 'Failed to update sessions from server - displaying available data',
+          this.langService.t().svcFailedToUpdateSessionsFrom,
           'error'
         );
       }
     });
   }
 
+  /** Shows a message in the app-wide toast container (visible on every page). */
   showToast(message: string, type: 'success' | 'info' | 'error' = 'success'): void {
-    this.toast.set({ id: Date.now().toString(), message, type });
-    setTimeout(() => {
-      this.toast.set(null);
-    }, 4000);
+    // Resolved lazily: NotificationService depends on this service.
+    const notifications = this.injector?.get(NotificationService, null);
+    if (notifications) {
+      notifications.show(message, type, type === 'error' ? 6000 : 4000);
+    }
   }
 
   /** Checks whether a student/member/instructor is currently on the blacklist */
@@ -850,7 +848,7 @@ export class WorkspaceService {
   checkInStudent(newStudent: Omit<ActiveStudentSession, 'id' | 'duration' | 'status' | 'billingType'> & { billingType?: 'new-session' | 'package' | 'coupon'; studentId?: string; zone?: number }): void {
     // 0. Blacklist Enforcement Guard (Requirement 9)
     if (this.isStudentBlacklisted(newStudent.name, newStudent.phone, newStudent.studentId)) {
-      this.showToast('لا يمكن تسجيل دخول طالب محظور (BLOCKED). يرجى فك الحظر أولاً من قائمة الحظر', 'error');
+      this.showToast(this.langService.t().wsBlockedCannotCheckIn, 'error');
       return;
     }
 
@@ -898,57 +896,46 @@ export class WorkspaceService {
 
       this.activeStudentsState.update(list => [realSession, ...list]);
       this.triggerLiveAlertsEvaluation();
-      this.showToast(`تم تسجيل دخول الطالب "${realSession.name}" بنجاح!`, 'success');
+      this.showToast(this.langService.tf('wsCheckedIn', { name: realSession.name }), 'success');
     };
 
     const onCheckInError = (err: any) => {
       console.error('[WorkspaceService] Error during checkin:', err);
-      this.showToast(`تعذر تسجيل الجلسة في السيرفر: ${err?.message || 'خطأ في الاتصال'}`, 'error');
+      this.showToast(this.langService.tf('wsSessionSaveFailed', { error: err?.message || this.langService.t().connectionErrorFallback }), 'error');
     };
 
     const executeCheckIn = (studentGuid?: string) => {
       if (studentGuid && /^[0-9a-fA-F-]{36}$/.test(studentGuid) && newStudent.notes) {
-        this.studentApi.updateStudent(studentGuid, { notes: newStudent.notes }).subscribe({ error: () => {} });
+        this.studentApi.updateStudent(studentGuid, { notes: newStudent.notes }).subscribe({
+          error: (err) => this.reportSyncFailure(this.langService.t().wsActSaveNotes, err)
+        });
       }
 
-      const zone = newStudent.zone ?? (newStudent.roomName?.toLowerCase().includes('silent') ? 1 : 0);
+      const zone = newStudent.zone ?? zoneFor(newStudent.roomName);
       const payload = {
         studentId: studentGuid || null,
         roomId: newStudent.roomId || null,
         zone,
         date: newStudent.date || new Date().toISOString(),
         timeFrom: newStudent.checkInTime ? parseSessionTimeToDate(newStudent.checkInTime, newStudent.date).toISOString() : new Date().toISOString(),
-        timeTo: newStudent.expectedCheckout ? parseSessionTimeToDate(newStudent.expectedCheckout, newStudent.date).toISOString() : null,
+        // timeTo is the real check-out; the planned leave time goes in expectedEndAt
+        timeTo: null,
+        expectedEndAt: newStudent.expectedCheckout ? parseSessionTimeToDate(newStudent.expectedCheckout, newStudent.date).toISOString() : null,
+        type: workspaceTypeFor(newStudent.billingType),
         printing: newStudent.printingCount || 0,
         wallet: newStudent.walletAmount || 0,
-        discount: newStudent.cost || 0,
+        // No discount at check-in; coupons and discounts are applied at checkout.
+        discount: 0,
         note: newStudent.notes || undefined,
         notes: newStudent.notes || undefined
       };
 
-      if (!studentGuid && newStudent.roomId) {
-        this.api.walkIn({
-          studentName: newStudent.name,
-          phoneNumber: newStudent.phone,
-          whatsapp: newStudent.whatsapp || newStudent.phone,
-          facultyId: matchedFacultyId,
-          roomId: newStudent.roomId,
-          notes: newStudent.notes
-        }).subscribe({
-          next: (created) => onCheckInSuccess(created, created?.studentId || undefined),
-          error: () => {
-            this.api.checkIn(payload).subscribe({
-              next: (created) => onCheckInSuccess(created, studentGuid),
-              error: onCheckInError
-            });
-          }
-        });
-      } else {
-        this.api.checkIn(payload).subscribe({
-          next: (created) => onCheckInSuccess(created, studentGuid),
-          error: onCheckInError
-        });
-      }
+      // Every check-in goes through POST /api/Workspaces so zone, billing type and expected end are kept
+      // (new students are created first; the walk-in endpoint dropped those fields).
+      this.api.checkIn(payload).subscribe({
+        next: (created) => onCheckInSuccess(created, studentGuid),
+        error: onCheckInError
+      });
     };
 
     // If student already has GUID, directly check in
@@ -958,9 +945,9 @@ export class WorkspaceService {
     }
 
     // Check if phone or name matches existing student in studentMap
+    // Same phone = same student (names are not unique).
     const existing = Array.from(this.studentMap.values()).find(s =>
-      (newStudent.phone && (s.phoneNumber === newStudent.phone || s.whatsapp === newStudent.phone)) ||
-      (newStudent.name && s.name.toLowerCase() === newStudent.name.toLowerCase().trim())
+      !!newStudent.phone && (s.phoneNumber === newStudent.phone || s.whatsapp === newStudent.phone)
     );
 
     if (existing?.id) {
@@ -968,67 +955,42 @@ export class WorkspaceService {
       return;
     }
 
-    // Otherwise create student first on backend
-    this.studentApi.createStudent({
+    // Otherwise create the student first (and the faculty, if it is new), then check in
+    const createStudentThenCheckIn = (facultyId?: string) => this.studentApi.createStudent({
       name: newStudent.name,
       phoneNumber: newStudent.phone,
       whatsapp: newStudent.whatsapp || newStudent.phone,
-      roomId: newStudent.roomId || null,
-      zone: newStudent.zone ?? (newStudent.roomName?.toLowerCase().includes('silent') ? 1 : 0),
+      // Student only — the session is created by executeCheckIn with zone, type and expected end.
+      university: newStudent.university || undefined,
       addedBy: newStudent.addedBy || this.shiftService.activeStaffName(),
       printingPrice: newStudent.printingPrice || 0,
       notes: newStudent.notes,
-      facultyId: matchedFacultyId
+      facultyId: facultyId || undefined
     }).subscribe({
       next: (createdStudent) => {
         if (createdStudent?.id) {
           this.studentMap.set(createdStudent.id, createdStudent);
           this.saveStudentProfile({ ...newStudent, id: createdStudent.id });
         }
-        if (createdStudent?.status === 'active' || createdStudent?.roomId) {
-          onCheckInSuccess(createdStudent, createdStudent?.id);
-        } else {
-          executeCheckIn(createdStudent?.id);
-        }
+        executeCheckIn(createdStudent?.id);
       },
-      error: () => {
-        executeCheckIn(undefined);
+      error: (err) => {
+        this.showToast(this.langService.tf('wsRegisterFailedNoCheckIn', { error: extractApiErrorMessage(err, this.langService.t().serverErrorFallback) }), 'error');
       }
     });
-  }
 
-  /** Update session details (e.g. from Student Checkout edit modal) */
-  updateSessionDetails(
-    sessionId: string,
-    updatedData: {
-      name?: string;
-      phone?: string;
-      faculty?: string;
-      checkInTime?: string;
-      hourlyRate?: number;
-      depositAmount?: number;
-      printingPages?: number;
+    const facultyName = (newStudent.faculty || newStudent.college || '').trim();
+    if (facultyName && !matchedFacultyId) {
+      this.facultyApi.createFaculty({ name: facultyName }).subscribe({
+        next: (fac) => {
+          if (fac?.id) this.facultiesMap.set(facKey, fac.id);
+          createStudentThenCheckIn(fac?.id);
+        },
+        error: () => createStudentThenCheckIn()
+      });
+    } else {
+      createStudentThenCheckIn(matchedFacultyId);
     }
-  ): Observable<boolean> {
-    const session = this.activeStudentsState().find(s => s.id === sessionId);
-    const pPages = updatedData.printingPages ?? session?.printingPages ?? session?.printingCount ?? 0;
-    if (session) {
-      this.activeStudentsState.update(list =>
-        list.map(s => s.id === sessionId ? {
-          ...s,
-          ...updatedData,
-          printingPages: pPages,
-          printingCount: pPages
-        } : s)
-      );
-    }
-    return this.api.updateSession(sessionId, {
-      ...updatedData,
-      printing: pPages
-    } as any).pipe(
-      map(() => true),
-      catchError(() => of(true))
-    );
   }
 
   /** Check out a student session */
@@ -1050,11 +1012,82 @@ export class WorkspaceService {
       packageHoursAlreadyDeducted?: boolean;
       cateringAmount?: number;
       printingAmount?: number;
+      /** Discount applied at checkout, in EGP */
+      discountAmount?: number;
+      discountReason?: string;
+      /** Cash handed back to the student (not kept in the drawer, not credited to the wallet) */
+      cashChangeReturned?: number;
+      /** Amount the student leaves in the wallet ("deposit the change" / top-up at checkout) */
+      walletDeposit?: number;
+      /** Part of the bill paid from the wallet balance */
+      walletDebit?: number;
     }
-  ): void {
+  ): Observable<boolean> {
     const student = this.activeStudentsState().find(s => s.id === studentId);
-    if (!student) return;
+    if (!student) return of(false);
 
+    // Sessions that only exist locally (no backend GUID) are closed locally.
+    if (!/^[0-9a-fA-F-]{36}$/.test(studentId)) {
+      this.applyCheckoutLocally(studentId, student, checkoutOptions);
+      return of(true);
+    }
+
+    // The backend is the source of truth: local state, shift ledger and package
+    // hours are only updated once the checkout request succeeds.
+    // How the server settles a checkout (backend change of 2026-11-12, measured on the test API):
+    //   drawer += amountReceived − cashChangeReturned;  wallet += walletDeposit − walletUsed − remainingAmount;
+    //   revenue += the bill (walletUsed is reported as walletPaidRevenue, walletDeposit as walletTopUps).
+    // amountReceived is all the cash handed over; changeDue is no longer used (sent as 0).
+    const totalCost = Math.max(0, checkoutOptions?.totalCost ?? student.cost ?? 0);
+    const amountReceived = Math.max(0, +(checkoutOptions?.amountReceived ?? 0).toFixed(2));
+    const cashChangeReturned = Math.max(0, +(checkoutOptions?.cashChangeReturned ?? 0).toFixed(2));
+    const walletDeposit = Math.max(0, +(checkoutOptions?.walletDeposit ?? 0).toFixed(2));
+    const walletUsed = Math.max(0, +(checkoutOptions?.walletDebit ?? 0).toFixed(2));
+    const discount = Math.max(0, checkoutOptions?.discountAmount ?? 0);
+    const paidTowardBill = Math.max(0, amountReceived - cashChangeReturned - walletDeposit);
+    const remainingAmount = checkoutOptions?.outstandingBalance ?? Math.max(0, +(totalCost - walletUsed - paidTowardBill).toFixed(2));
+
+    return this.api.checkOut(studentId, {
+      timeTo: new Date().toISOString(),
+      printing: Math.max(0, checkoutOptions?.printingAmount ?? 0),
+      // Fixed EGP amount actually deducted (the UI never lets it exceed the bill)
+      discount,
+      discountType: discount > 0 ? DiscountType.FixedAmount : null,
+      discountReason: discount > 0 ? (checkoutOptions?.discountReason ?? null) : null,
+      wallet: checkoutOptions?.walletAmount ?? student.walletAmount ?? 0,
+      amountReceived,
+      changeDue: 0,
+      cashChangeReturned,
+      walletDeposit,
+      walletUsed,
+      remainingAmount,
+      payWay: checkoutOptions?.payWay ?? this.mapPaymentMethodToPayWay(checkoutOptions?.paymentMethod),
+      paymentMethod: checkoutOptions?.paymentMethod,
+      usePackageHours: checkoutOptions?.usePackageHours,
+      packageId: checkoutOptions?.packageId,
+      discountId: checkoutOptions?.discountId,
+      couponCode: checkoutOptions?.couponCode
+    }).pipe(
+      map(() => {
+        this.applyCheckoutLocally(studentId, student, checkoutOptions);
+        return true;
+      }),
+      catchError((err) => {
+        this.showToast(
+          this.langService.tf('wsCheckOutFailed', { name: student.name, error: extractApiErrorMessage(err, this.langService.t().serverErrorFallback) }),
+          'error'
+        );
+        return of(false);
+      })
+    );
+  }
+
+  /** Apply a checkout the backend accepted to local state, shift ledger and package hours. */
+  private applyCheckoutLocally(
+    studentId: string,
+    student: ActiveStudentSession,
+    checkoutOptions?: Parameters<WorkspaceService['checkOutStudent']>[1]
+  ): void {
     const remaining = checkoutOptions?.outstandingBalance || 0;
     const isPartial = remaining > 0;
     const today = getTodayDateISO();
@@ -1104,11 +1137,11 @@ export class WorkspaceService {
     this.removeSessionCateringCache(studentId);
     this.triggerLiveAlertsEvaluation();
 
-    const receivedAmt = checkoutOptions?.amountReceived !== undefined ? checkoutOptions.amountReceived : (student.cost || 30);
+    const receivedAmt = checkoutOptions?.amountReceived ?? 0;
     this.showToast(
       isPartial
-        ? `تم إنهاء جلسة الطالب "${student.name}" كدفع جزئي (المتبقي: ${remaining} ج.م)`
-        : `تم إنهاء جلسة الطالب "${student.name}" بنجاح!`,
+        ? this.langService.tf('wsCheckedOutPartial', { name: student.name, remaining })
+        : this.langService.tf('wsCheckedOut', { name: student.name }),
       isPartial ? 'info' : 'success'
     );
 
@@ -1130,6 +1163,7 @@ export class WorkspaceService {
       const wsAmt = workspaceOnlyAmt > 0 ? workspaceOnlyAmt : receivedAmt;
       const validPayMethod = (payMethod === 'vodafone' || payMethod === 'instapay' || payMethod === 'fawry') ? payMethod : 'cash';
       this.shiftService?.addManualShiftItem?.({
+        localOnly: true, // already recorded by the checkout endpoint
         amount: wsAmt,
         type: 'revenue',
         paymentMethod: validPayMethod,
@@ -1145,6 +1179,7 @@ export class WorkspaceService {
         : '';
       const validPayMethod = (payMethod === 'vodafone' || payMethod === 'instapay' || payMethod === 'fawry') ? payMethod : 'cash';
       this.shiftService?.addManualShiftItem?.({
+        localOnly: true, // already recorded by the checkout endpoint
         amount: effectiveCatering,
         type: 'revenue',
         paymentMethod: validPayMethod,
@@ -1157,6 +1192,7 @@ export class WorkspaceService {
     if (effectivePrinting > 0) {
       const validPayMethod = (payMethod === 'vodafone' || payMethod === 'instapay' || payMethod === 'fawry') ? payMethod : 'cash';
       this.shiftService?.addManualShiftItem?.({
+        localOnly: true, // already recorded by the checkout endpoint
         amount: effectivePrinting,
         type: 'revenue',
         paymentMethod: validPayMethod,
@@ -1165,45 +1201,7 @@ export class WorkspaceService {
       })?.subscribe?.();
     }
 
-    // Call Backend Dedicated Student Checkout API (Section 4.1)
-    const targetStudentGuid = student.studentId || (/^[0-9a-fA-F-]{36}$/.test(studentId) ? studentId : undefined);
-    const durationMinutes = parseDurationMinutes(finalDuration);
-    const durationHours = +(Math.max(0.1, durationMinutes / 60)).toFixed(2);
-    const currentShift = this.shiftService.currentShift();
-    const shiftId = currentShift?.id && /^[0-9a-fA-F-]{36}$/.test(currentShift.id) ? currentShift.id : undefined;
-
-    if (targetStudentGuid) {
-      this.studentApi.checkoutStudent(targetStudentGuid, {
-        studentId: targetStudentGuid,
-        checkOutTime: new Date().toISOString(),
-        durationHours,
-        totalCost: checkoutOptions?.totalCost !== undefined ? checkoutOptions.totalCost : (student.cost || 30),
-        amountReceived: receivedAmt,
-        walletAmount: updatedWallet,
-        paymentMethod: checkoutOptions?.paymentMethod || 'cash',
-        shiftId
-      }).subscribe({
-        error: (err) => console.warn('[WorkspaceService] Student Checkout API notice:', err?.message)
-      });
-    }
-
-    // Call Backend Workspace Session Checkout API if session ID is GUID
-    if (/^[0-9a-fA-F-]{36}$/.test(studentId)) {
-      this.api.checkOut(studentId, {
-        timeTo: new Date().toISOString(),
-        paidAmount: receivedAmt,
-        paymentMethod: checkoutOptions?.paymentMethod || (checkoutOptions?.payWay === 3 ? 'Wallet' : (checkoutOptions?.payWay === 2 ? 'Visa' : 'Cash')),
-        payWay: this.mapPaymentMethodToPayWay(checkoutOptions?.paymentMethod),
-        wallet: updatedWallet,
-        usePackageHours: checkoutOptions?.usePackageHours,
-        packageId: checkoutOptions?.packageId,
-        discountId: checkoutOptions?.discountId,
-        couponCode: checkoutOptions?.couponCode,
-        totalCost: checkoutOptions?.totalCost || student.cost || 30
-      }).subscribe({
-        error: (err) => console.warn('[WorkspaceService] Checkout API notice:', err?.message)
-      });
-    }
+    const durationHours = +(Math.max(0.1, parseDurationMinutes(finalDuration) / 60)).toFixed(2);
 
     // Deduct student package hours if not already deducted by calling component
     if (!checkoutOptions?.packageHoursAlreadyDeducted) {
@@ -1215,82 +1213,9 @@ export class WorkspaceService {
       if (isPackage) {
         const hoursToDeduct = checkoutOptions?.usePackageHours || Math.max(1, Math.round(durationHours));
         const targetId = checkoutOptions?.packageId || student.studentId || student.phone || student.id;
-        this.packageService.deductStudentPackageHours(targetId, hoursToDeduct);
+        this.packageService.deductStudentPackageHours(targetId, hoursToDeduct, student.id);
       }
     }
-  }
-
-  // ==========================================
-  // DIGITAL WALLET INTEGRATION (Section 9)
-  // ==========================================
-
-  getStudentWalletBalance(studentId: string): Observable<any> {
-    return this.walletApi.getBalance(studentId);
-  }
-
-  getStudentWalletTransactions(studentId: string): Observable<any[]> {
-    return this.walletApi.getTransactions(studentId);
-  }
-
-  topUpStudentWallet(studentId: string, amount: number, paymentMethod: string = 'Cash', notes?: string): Observable<any> {
-    return this.walletApi.topUpDirect({
-      studentId,
-      amount,
-      note: notes || `Direct Top-up (${paymentMethod})`
-    }).pipe(
-      tap((tx) => {
-        this.activeStudentsState.update(list =>
-          list.map(s => s.studentId === studentId || s.id === studentId ? { ...s, walletAmount: (s.walletAmount || 0) + amount } : s)
-        );
-        this.shiftService.recordTransaction({
-          type: 'workspace',
-          paymentMethod: (paymentMethod.toLowerCase() as any) || 'cash',
-          amount,
-          details: `شحن محفظة الطالب - ${amount} ج.م`
-        });
-        this.showToast(`تم شحن المحفظة بمبلغ ${amount} ج.م بنجاح!`, 'success');
-      })
-    );
-  }
-
-  deductStudentWallet(studentId: string, amount: number, notes?: string): Observable<any> {
-    return this.walletApi.deduct({
-      studentId,
-      amount,
-      note: notes || 'Workspace Session Deduction'
-    }).pipe(
-      tap(() => {
-        this.activeStudentsState.update(list =>
-          list.map(s => s.studentId === studentId || s.id === studentId ? { ...s, walletAmount: (s.walletAmount || 0) - amount } : s)
-        );
-      })
-    );
-  }
-
-  settleOutstandingBalance(studentPhoneOrId: string, amount: number): void {
-    this.historyStudentsState.update(list =>
-      list.map(s => {
-        if (s.id === studentPhoneOrId || s.phone === studentPhoneOrId) {
-          const currentBal = s.outstandingBalance || 0;
-          const newBal = Math.max(0, currentBal - amount);
-          return {
-            ...s,
-            outstandingBalance: newBal,
-            paymentStatus: newBal === 0 ? ('paid' as const) : ('partially_paid' as const)
-          };
-        }
-        return s;
-      })
-    );
-
-    this.shiftService.recordTransaction({
-      type: 'workspace',
-      paymentMethod: 'cash',
-      amount,
-      details: `تحصيل مديونية سابقة للطالب (${studentPhoneOrId})`
-    });
-
-    this.showToast(`تم تحصيل ${amount} ج.م من المديونية السابقة بنجاح!`, 'success');
   }
 
   addCateringToStudent(studentId: string, amount: number, items?: any[]): void {
@@ -1345,13 +1270,13 @@ export class WorkspaceService {
             next: () => {
               this.syncSessionCatering(studentId);
             },
-            error: (err) => console.warn('[WorkspaceService] Add catering item notice:', err?.message)
+            error: (err) => this.reportSyncFailure(this.langService.t().wsActAddCatering, err)
           });
         }
       });
     }
 
-    this.showToast(`تم إضافة كاترنج بقيمة ${amount} ج.م للطالب بنجاح!`, 'success');
+    this.showToast(this.langService.tf('wsCateringAdded', { amount }), 'success');
   }
 
   /** Remove a single catering item from a student session */
@@ -1371,11 +1296,11 @@ export class WorkspaceService {
 
     if (/^[0-9a-fA-F-]{36}$/.test(studentId) && itemToRemove?.id && /^[0-9a-fA-F-]{36}$/.test(itemToRemove.id)) {
       this.api.removeCateringItem(studentId, itemToRemove.id).subscribe({
-        error: (err) => console.warn('[WorkspaceService] Remove catering item notice:', err?.message)
+        error: (err) => this.reportSyncFailure(this.langService.t().wsActRemoveItem, err)
       });
     }
 
-    this.showToast('تم حذف الصنف من الحساب بنجاح', 'info');
+    this.showToast(this.langService.t().wsItemRemoved, 'info');
   }
 
   updateStudent(idOrStudent: string | ActiveStudentSession, updates?: Partial<ActiveStudentSession>): void {
@@ -1453,7 +1378,7 @@ export class WorkspaceService {
               });
             }
           },
-          error: (err) => console.warn('[WorkspaceService] Update student backend notice:', err?.message)
+          error: (err) => this.reportSyncFailure(this.langService.t().wsActUpdateStudent, err)
         });
       };
 
@@ -1474,26 +1399,28 @@ export class WorkspaceService {
       }
     }
 
-    // If workspace session has GUID, update session
-    if (targetId && /^[0-9a-fA-F-]{36}$/.test(targetId)) {
+    // Only a real workspace session is updated here (editing from the student directory passes
+    // a student id, which is not a session), and the session note is not overwritten with the name.
+    const isKnownSession = !!targetId && [...this.activeStudentsState(), ...this.historyStudentsState()].some(s => s.id === targetId);
+    const touchesSession = patch.wifiCode !== undefined || patch.printingCount !== undefined || patch.walletAmount !== undefined;
+    if (isKnownSession && touchesSession && /^[0-9a-fA-F-]{36}$/.test(targetId)) {
       this.api.updateSession(targetId, {
-        note: patch.name || currentStudent?.name || null,
         wiFi: patch.wifiCode ? 1 : undefined,
         printing: patch.printingCount,
         wallet: patch.walletAmount
       }).subscribe({
-        error: (err) => console.warn('[WorkspaceService] Update session notice:', err?.message)
+        error: (err) => this.reportSyncFailure(this.langService.t().wsActUpdateSession, err)
       });
     }
 
-    this.showToast('تم تحديث بيانات الطالب بنجاح!', 'success');
+    this.showToast(this.langService.t().wsStudentUpdated, 'success');
   }
 
   /** Requirement 14: Edit active session time for Share / Silent students */
   public updateSessionTime(sessionId: string, newCheckInTime: string, newExpectedCheckout?: string): void {
     const session = this.activeStudentsState().find(s => s.id === sessionId);
     if (!session) {
-      this.showToast('لم يتم العثور على الجلسة الحالية', 'error');
+      this.showToast(this.langService.t().wsSessionNotFound, 'error');
       return;
     }
 
@@ -1516,7 +1443,7 @@ export class WorkspaceService {
             }
             return s;
           }));
-          this.showToast('تم تعديل وقت الجلسة بنجاح والتحديث على السيرفر!', 'success');
+          this.showToast(this.langService.t().wsSessionTimeUpdated, 'success');
         },
         error: (err) => {
           this.activeStudentsState.update(list => list.map(s => {
@@ -1529,7 +1456,7 @@ export class WorkspaceService {
             }
             return s;
           }));
-          this.showToast(`تم تعديل الوقت: ${err?.message || ''}`, 'info');
+          this.showToast(this.langService.tf('wsTimeUpdatedWithNote', { note: err?.message || '' }), 'info');
         }
       });
     } else {
@@ -1543,7 +1470,7 @@ export class WorkspaceService {
         }
         return s;
       }));
-      this.showToast('تم تعديل وقت الجلسة محلياً!', 'info');
+      this.showToast(this.langService.t().wsSessionTimeUpdatedLocal, 'info');
     }
   }
 
@@ -1556,20 +1483,21 @@ export class WorkspaceService {
     this.triggerLiveAlertsEvaluation();
 
     if (student) {
-      this.showToast(`تم حذف جلسة الطالب "${student.name}" بنجاح!`, 'info');
+      this.showToast(this.langService.tf('wsSessionDeleted', { name: student.name }), 'info');
     }
 
     if (/^[0-9a-fA-F-]{36}$/.test(id)) {
       this.api.deleteSession(id).subscribe({
-        error: (err) => console.warn('[WorkspaceService] Delete session notice:', err?.message)
+        error: (err) => this.reportSyncFailure(this.langService.t().wsActDeleteSession, err)
       });
     }
   }
 
-  blockStudent(student: Student, reason?: string): void {
+  /** @param savedRecordId the blacklist record was already created on the server — only update local state */
+  blockStudent(student: Student, reason?: string, savedRecordId?: string): void {
     // 1. Requirement 7: Forbid blocking if student is currently checked-in
     if (student.status === 'active' || this.activeStudentsState().some(s => s.id === student.id && s.status === 'active')) {
-      this.showToast('لا يمكن حظر الطالب أثناء تواجده في مساحة العمل. يرجى إنهاء الجلسة (Check-out) وتسوية الحساب أولاً', 'error');
+      this.showToast(this.langService.t().wsCannotBlockInside, 'error');
       return;
     }
 
@@ -1586,7 +1514,7 @@ export class WorkspaceService {
     });
 
     if (isAlreadyBlacklisted) {
-      this.showToast(`الطالب "${student.name}" مضاف بالفعل في القائمة السوداء (Blacklist)!`, 'error');
+      this.showToast(this.langService.tf('wsAlreadyBlocked', { name: student.name }), 'error');
       return;
     }
 
@@ -1609,6 +1537,22 @@ export class WorkspaceService {
       return [blockedSession, ...list];
     });
 
+    if (savedRecordId) {
+      this.blacklistState.update(list => [{
+        id: savedRecordId,
+        studentId: targetStudentId,
+        name: student.name,
+        phone: student.phone,
+        email: student.email,
+        faculty: student.faculty,
+        college: student.college,
+        reason: blockReason,
+        blockedDate: getTodayDateISO()
+      } as BlacklistRecord, ...list.filter(r => r.studentId !== targetStudentId)]);
+      this.showToast(this.langService.tf('wsBlockedAdded', { name: student.name }), 'error');
+      return;
+    }
+
     // Call Blacklist API
     this.blacklistApi.addToBlacklist({
       name: student.name,
@@ -1629,7 +1573,7 @@ export class WorkspaceService {
           blockedDate: getTodayDateISO()
         };
         this.blacklistState.update(list => [record, ...list.filter(r => r.studentId !== targetStudentId)]);
-        this.showToast(`تم حظر الطالب "${student.name}" وإضافته للبلاك ليست!`, 'error');
+        this.showToast(this.langService.tf('wsBlockedAdded', { name: student.name }), 'error');
       },
       error: () => {
         const record: BlacklistRecord = {
@@ -1644,12 +1588,16 @@ export class WorkspaceService {
           blockedDate: getTodayDateISO()
         };
         this.blacklistState.update(list => [record, ...list.filter(r => r.studentId !== targetStudentId)]);
-        this.showToast(`تم حظر الطالب "${student.name}"!`, 'error');
+        this.showToast(this.langService.tf('wsStudentWasBlocked', { name: student.name }), 'error');
       }
     });
   }
 
-  unblockStudent(recordOrStudentId: string): void {
+  /**
+   * @param skipApi pass true when the caller has already deleted the blacklist record on the
+   *                backend (avoids a second DELETE that would 404 on the removed record).
+   */
+  unblockStudent(recordOrStudentId: string, skipApi = false): void {
     const record = this.blacklistState().find(
       r => r.id === recordOrStudentId || r.studentId === recordOrStudentId
     );
@@ -1668,13 +1616,13 @@ export class WorkspaceService {
       list.map(s => (s.id === targetStudentId && s.status === 'blocked' ? { ...s, status: 'completed' as const } : s))
     );
 
-    if (blacklistId && /^[0-9a-fA-F-]{36}$/.test(blacklistId)) {
+    if (!skipApi && blacklistId && /^[0-9a-fA-F-]{36}$/.test(blacklistId)) {
       this.blacklistApi.removeFromBlacklist(blacklistId).subscribe({
-        error: (err) => console.warn('[WorkspaceService] Unblock notice:', err?.message)
+        error: (err) => this.reportSyncFailure(this.langService.t().wsActUnblock, err)
       });
     }
 
-    this.showToast(`تم إلغاء حظر الطالب "${record?.name || targetStudentId}" بنجاح!`, 'success');
+    this.showToast(this.langService.tf('wsUnblocked', { name: record?.name || targetStudentId }), 'success');
   }
 
   /** Get single session by ID — checks in-memory signals first, falls back to live API */
@@ -1734,9 +1682,17 @@ export class WorkspaceService {
     return of(this.activeStudentsState()[0]);
   }
 
+  /**
+   * A background write failed after the UI was already updated optimistically:
+   * tell the user and reload sessions so the screen matches the server again.
+   */
+  private reportSyncFailure(actionAr: string, err: unknown): void {
+    this.showToast(this.langService.tf('wsSyncFailed', { action: actionAr, error: extractApiErrorMessage(err, this.langService.t().connectionErrorFallback) }), 'error');
+    this.fetchSessions();
+  }
+
   checkOut(dto: SessionCheckOutDto): Observable<boolean> {
-    this.checkOutStudent(dto.studentId);
-    return of(true);
+    return this.checkOutStudent(dto.studentId);
   }
 
   private mapDtoToSession(dto: WorkspaceSessionDto | WorkspaceDetailDto | any): ActiveStudentSession {
@@ -1755,14 +1711,14 @@ export class WorkspaceService {
 
     const name = profile?.name || student?.name || dto.studentName || (dto.note && dto.note !== '-' ? dto.note : '') || 'طالب';
     const phone = profile?.phone || student?.phoneNumber || dto.studentPhoneNumber || student?.whatsapp || dto.studentPhone || dto.phone || (dto as any).phoneNumber || '';
-    const whatsapp = profile?.whatsapp || student?.whatsapp || phone || '';
+    const whatsapp = dto.studentWhatsapp || profile?.whatsapp || student?.whatsapp || phone || '';
     const email = profile?.email || dto.studentEmail || '';
     const faculty = profile?.faculty || student?.facultyName || dto.faculty || dto.college || '';
     const college = profile?.college || profile?.faculty || student?.facultyName || dto.college || faculty || '';
 
     const formattedTime = parseIsoOrTimeToDisplay(timeStr, dto.date);
 
-    let calculatedDuration = '0h 00m';
+    let calculatedDuration: string;
     if (isAct && (formattedTime || timeStr)) {
       // Active sessions: duration is the actual elapsed time from check-in until now
       calculatedDuration = calculateSessionDuration(formattedTime || timeStr, undefined, dto.date);
@@ -1775,9 +1731,11 @@ export class WorkspaceService {
       calculatedDuration = formatMinutesToDuration(mins);
     } else if (dto.duration && typeof dto.duration === 'string' && dto.duration !== '0h 00m' && dto.duration !== '0 س 00 د') {
       calculatedDuration = dto.duration;
-    } else if (dto.totalCost && dto.totalCost > 0) {
-      const estimatedMins = Math.round((dto.totalCost / 30) * 60);
-      calculatedDuration = formatMinutesToDuration(Math.max(15, estimatedMins));
+    } else if (dto.calculatedDuration) {
+      // Duration computed by the backend, in minutes (e.g. 27)
+      calculatedDuration = typeof dto.calculatedDuration === 'number'
+        ? formatMinutesToDuration(Math.round(dto.calculatedDuration))
+        : String(dto.calculatedDuration);
     } else if (formattedTime || timeStr) {
       calculatedDuration = calculateSessionDuration(formattedTime || timeStr, undefined, dto.date);
     } else {
@@ -1809,10 +1767,13 @@ export class WorkspaceService {
       date: sessionDate,
       checkInTime: formattedTime,
       checkOutTime: !isAct ? checkoutTimeStr : undefined,
-      expectedCheckout: isAct ? checkoutTimeStr : undefined,
+      expectedCheckout: isAct
+        ? (dto.expectedEndAt ? parseIsoOrTimeToDisplay(dto.expectedEndAt, dto.date) : checkoutTimeStr)
+        : undefined,
       duration: calculatedDuration,
+      // calculatedCost is the backend's price for the session so far
       cost: dto.totalCost ?? dto.sessionPrice ?? 0,
-      billingType: (dto.billingType === 'Package' || dto.type === 2 ? 'package' : dto.billingType === 'Coupon' || dto.type === 3 ? 'coupon' : 'new-session'),
+      billingType: dto.billingType === 'Package' ? 'package' : dto.billingType === 'Coupon' ? 'coupon' : billingFromWorkspaceType(dto.type),
       status: isAct ? 'active' : 'completed',
       cateringTotal: resolvedCatering > 0 ? +Number(resolvedCatering).toFixed(2) : undefined,
       cateringItems: resolvedItems.length > 0 ? resolvedItems : undefined,
@@ -1820,24 +1781,14 @@ export class WorkspaceService {
       printingPages: Number(dto.printing ?? dto.printingPages ?? 0),
       walletAmount: dto.wallet || 0,
       roomId: dto.roomId || undefined,
-      roomName: dto.roomName || (dto.zone === 1 ? 'Silent Room' : (dto.roomId ? 'Shared Room' : undefined)),
+      roomName: dto.roomName || (isSilentZone(dto.zone) ? 'Silent Room' : (dto.zone ? 'Shared Room' : undefined)),
+      zone: dto.zone ?? undefined,
       addedBy: dto.addedBy || dto.createdBy || dto.userName || undefined,
       printingPrice: Number(dto.printingPrice ?? 0)
     };
   }
 
   private mapPaymentMethodToPayWay(method?: string): number {
-    switch ((method || '').toLowerCase()) {
-      case 'vodafone':
-      case 'vfcash':
-        return 2;
-      case 'fawry':
-        return 3;
-      case 'instapay':
-        return 4;
-      case 'cash':
-      default:
-        return 1;
-    }
+    return payWayFor(method);
   }
 }

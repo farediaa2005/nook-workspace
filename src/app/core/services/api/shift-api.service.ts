@@ -110,6 +110,9 @@ export class ShiftApiService extends BaseApiService {
       notes: dto.notes || '',
       // Backward compatibility aliases for server binders
       previousTotal: balance,
+      startVodafoneCash: dto.startVodafoneCash ?? 0,
+      startInstapay: dto.startInstapay ?? 0,
+      startFawry: dto.startFawry ?? 0,
       date: dto.date || now,
       timeFrom: dto.timeFrom || now
     };
@@ -145,6 +148,13 @@ export class ShiftApiService extends BaseApiService {
       administrative: dto.administrative ?? 0,
       vfCashInside: dto.vfCashInside ?? 0,
       vfCashOutside: dto.vfCashOutside ?? 0,
+      instapayInside: dto.instapayInside ?? 0,
+      instapayOutside: dto.instapayOutside ?? 0,
+      fawryInside: dto.fawryInside ?? 0,
+      fawryOutside: dto.fawryOutside ?? 0,
+      actualVodafone: dto.actualVodafone ?? 0,
+      actualInstapay: dto.actualInstapay ?? 0,
+      actualFawry: dto.actualFawry ?? 0,
       increase: dto.increase ?? 0,
       loss: dto.loss ?? 0,
       status: dto.status ?? 2
@@ -183,17 +193,18 @@ export class ShiftApiService extends BaseApiService {
   addShiftItem(shiftId: string, item: CreateShiftItemDto): Observable<ShiftItemDto> {
     const rawAmount = item.amount ?? item.cost ?? 0;
     const desc = item.description || item.item || 'Item';
-    const rawCat = String(item.category || item.type || 'Income');
-    const categoryVal = (rawCat.toLowerCase() === 'expense' || rawCat === '2') ? 'Expense' : 'Income';
+    // ShiftItemCategory (backend enum): Canteen=1, Classroom=2, Workspace=3, Package=4, Expense=5
+    const categoryCodes: Record<string, number> = { canteen: 1, classroom: 2, workspace: 3, package: 4, expense: 5 };
+    const rawCat = String(item.category ?? item.type ?? 'expense').toLowerCase();
+    const categoryVal = typeof item.category === 'number' ? item.category : (categoryCodes[rawCat] ?? 5);
 
     const payload: any = {
       description: desc,
       amount: Math.abs(rawAmount),
       category: categoryVal,
-      // Backward compatibility aliases
       cost: Math.abs(rawAmount),
       item: desc,
-      type: categoryVal,
+      type: categoryVal === 5 ? 'Expense' : 'Income',
       payWay: item.payWay ?? 1
     };
     return this.post<ApiResponse<ShiftItemDto>>(API_ENDPOINTS.SHIFTS.ITEMS(shiftId), payload).pipe(
@@ -202,19 +213,13 @@ export class ShiftApiService extends BaseApiService {
   }
 
   /**
-   * DELETE /api/shifts/items/{itemId} (Admin) or fallback to /api/shifts/{id}/items/{itemId}
+   * DELETE /api/Shifts/{id}/items/{itemId}
    * Response: ApiResponse<bool>
    */
   deleteShiftItem(shiftId: string, itemId: string): Observable<boolean> {
-    const targetItemId = itemId || shiftId;
-    return this.delete<ApiResponse<boolean>>(API_ENDPOINTS.SHIFTS.DELETE_ITEM(targetItemId)).pipe(
+    return this.delete<ApiResponse<boolean>>(API_ENDPOINTS.SHIFTS.ITEM_BY_ID(shiftId, itemId)).pipe(
       map(extractData),
-      catchError(() => {
-        return this.delete<ApiResponse<boolean>>(API_ENDPOINTS.SHIFTS.ITEM_BY_ID(shiftId, itemId)).pipe(
-          map(extractData),
-          catchError(() => of(false))
-        );
-      })
+      catchError(() => of(false))
     );
   }
 

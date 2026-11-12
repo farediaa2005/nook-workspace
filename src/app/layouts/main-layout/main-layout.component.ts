@@ -10,11 +10,13 @@ import { ShiftService } from '../../core/services/shift.service';
 import { AuthService } from '../../core/services/auth.service';
 import { LanguageService } from '../../core/services/language.service';
 import { ApiHealthService } from '../../core/services/api-health.service';
+import { LiveRefreshService } from '../../core/services/live-refresh.service';
 import { getSafeAvatar } from '../../core/utils/avatar.util';
 
+import { AutofocusDirective } from '../../shared/directives/autofocus.directive';
 @Component({
   selector: 'app-main-layout',
-  imports: [CommonModule, FormsModule, RouterOutlet, SidebarComponent, NavbarComponent],
+  imports: [AutofocusDirective, CommonModule, FormsModule, RouterOutlet, SidebarComponent, NavbarComponent],
   templateUrl: './main-layout.component.html',
   styleUrl: './main-layout.component.css'
 })
@@ -25,6 +27,7 @@ export class MainLayoutComponent implements OnInit {
   private apiHealthService = inject(ApiHealthService);
   private router = inject(Router);
   private destroyRef = inject(DestroyRef);
+  private liveRefresh = inject(LiveRefreshService);
 
   isSidebarOpen = signal<boolean>(false);
   currentUrl = signal<string>(this.router.url);
@@ -38,7 +41,7 @@ export class MainLayoutComponent implements OnInit {
 
   t = this.langService.t;
   isArabic = this.langService.isArabic;
-  currencyText = computed(() => this.isArabic() ? 'ج.م' : 'EGP');
+  currencyText = computed(() => this.t().egp);
   readonly currentYear = new Date().getFullYear();
 
   // Check if an active shift exists
@@ -66,17 +69,20 @@ export class MainLayoutComponent implements OnInit {
 
   // User identity signals
   readonly user = this.authService.user;
-  readonly staffName = computed(() => this.user()?.name || (this.isArabic() ? 'موظف الاستقبال' : 'Staff Member'));
+  readonly staffName = computed(() => this.user()?.name || (this.t().uiStaffMember));
   readonly staffRole = computed(() => {
     const role = this.user()?.role;
-    if (role === 'admin') return this.isArabic() ? 'مدير النظام' : 'Admin';
-    return this.isArabic() ? 'موظف الاستقبال' : 'Receptionist';
+    if (role === 'admin') return this.t().uiAdmin;
+    return this.t().uiReceptionist;
   });
   readonly staffAvatar = computed(() => 
     getSafeAvatar(this.user()?.avatar, this.staffName())
   );
 
   ngOnInit(): void {
+    // Lists follow changes made by other staff (owner decision 2026-11-11)
+    this.liveRefresh.start();
+    this.destroyRef.onDestroy(() => this.liveRefresh.stop());
     this.shiftService.fetchCurrentShiftFromApi();
     this.router.events.pipe(
       filter((event): event is NavigationEnd => event instanceof NavigationEnd),
@@ -132,9 +138,7 @@ export class MainLayoutComponent implements OnInit {
     const cash = Number(this.startCash());
     if (this.startCash() === '' || isNaN(cash) || cash < 0) {
       this.errorMessage.set(
-        this.isArabic()
-          ? 'يرجى إدخال مبلغ نقدية الخزينة الافتتاحية بشكل صحيح'
-          : 'Starting cash amount must be a valid positive number'
+        this.t().uiStartingCashAmountMustBe
       );
       return;
     }
@@ -153,9 +157,7 @@ export class MainLayoutComponent implements OnInit {
 
     if (vf < 0 || ip < 0 || fw < 0) {
       this.errorMessage.set(
-        this.isArabic()
-          ? 'لا يمكن أن تكون أرصدة المحافظ الرقمية الافتتاحية سالبة'
-          : 'Digital channel opening amounts cannot be negative'
+        this.t().uiDigitalChannelOpeningAmountsCannot
       );
       return;
     }
@@ -173,7 +175,7 @@ export class MainLayoutComponent implements OnInit {
         this.router.navigate(['/dashboard']);
       } else {
         this.errorMessage.set(
-          errorMsg || (this.isArabic() ? 'تعذر بدء الوردية، يرجى المحاولة مرة أخرى' : 'Failed to start shift, please try again')
+          errorMsg || (this.t().uiFailedToStartShiftPlease)
         );
       }
     });

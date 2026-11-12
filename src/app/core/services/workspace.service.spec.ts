@@ -39,7 +39,8 @@ describe('WorkspaceService Resilience & Caching (NOOK-DEV-05)', () => {
       getBlacklists: vi.fn().mockReturnValue(of([]))
     };
     mockAuthService = {
-      isAuthenticated: vi.fn().mockReturnValue(true)
+      isAuthenticated: vi.fn().mockReturnValue(true),
+      isAdmin: vi.fn().mockReturnValue(true)
     };
 
     TestBed.configureTestingModule({
@@ -58,7 +59,7 @@ describe('WorkspaceService Resilience & Caching (NOOK-DEV-05)', () => {
         { provide: WalletApiService, useValue: {} },
         { provide: CateringService, useValue: {} },
         { provide: PackageService, useValue: {} },
-        { provide: LanguageService, useValue: { isArabic: () => true, t: () => ({}) } }
+        { provide: LanguageService, useValue: { isArabic: () => true, t: () => new Proxy({}, { get: (_target, key) => String(key) }), tf: (key: string) => key } }
       ]
     });
 
@@ -156,7 +157,7 @@ describe('WorkspaceService Resilience & Caching (NOOK-DEV-05)', () => {
     service.checkOutStudent('sess-checkout-1', {
       totalCost: 50,
       duration: '2h 00m'
-    });
+    }).subscribe();
 
     expect(service.activeStudents().length).toBe(0);
     expect(service.historyStudents().length).toBe(1);

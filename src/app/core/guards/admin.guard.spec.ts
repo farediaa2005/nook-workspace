@@ -8,6 +8,7 @@ describe('Admin Guard (adminGuard)', () => {
   let authServiceMock: {
     isAuthenticated: ReturnType<typeof vi.fn>;
     getRole: ReturnType<typeof vi.fn>;
+    isAdmin: ReturnType<typeof vi.fn>;
   };
   let routerMock: {
     createUrlTree: ReturnType<typeof vi.fn>;
@@ -20,6 +21,7 @@ describe('Admin Guard (adminGuard)', () => {
     authServiceMock = {
       isAuthenticated: vi.fn(),
       getRole: vi.fn(),
+      isAdmin: vi.fn(() => (authServiceMock.getRole as () => string)() === 'admin'),
     };
 
     routerMock = {
@@ -50,7 +52,7 @@ describe('Admin Guard (adminGuard)', () => {
     authServiceMock.isAuthenticated.mockReturnValue(true);
     authServiceMock.getRole.mockReturnValue('staff');
 
-    const result = TestBed.runInInjectionContext(() => adminGuard(dummyRoute, dummyState));
+    TestBed.runInInjectionContext(() => adminGuard(dummyRoute, dummyState));
 
     expect(authServiceMock.isAuthenticated).toHaveBeenCalled();
     expect(authServiceMock.getRole).toHaveBeenCalled();

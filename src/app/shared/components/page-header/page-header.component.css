@@ -1,13 +1,38 @@
-.page-header {
-  margin-bottom: 1.5rem;
+:host {
+  display: block;
+  min-width: 0;
 }
-.page-header h2 {
-  font-size: 1.5rem;
+
+.page-header--spaced {
+  margin-bottom: var(--space-6);
+}
+
+.page-header__title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.page-header__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
   font-weight: 800;
-  color: var(--text) !important;
+  line-height: 1.25;
   letter-spacing: -0.02em;
+  color: var(--text);
 }
-.page-header p {
-  color: var(--text-dim) !important;
-  font-size: 0.875rem;
+
+.page-header__subtitle {
+  margin: var(--space-1-5) 0 0;
+  font-size: var(--fs-base);
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+@media (max-width: 480px) {
+  .page-header__title {
+    font-size: var(--fs-lg);
+  }
 }

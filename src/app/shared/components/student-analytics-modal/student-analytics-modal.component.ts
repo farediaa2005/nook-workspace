@@ -4,11 +4,12 @@ import { LanguageService } from '../../../core/services/language.service';
 import { StudentAnalyticsService } from '../../../core/services/student-analytics.service';
 import { StudentAnalytics } from '../../../core/models/student-analytics.model';
 import { getUserInitials } from '../../../core/utils/avatar.util';
+import { StatusBadgeComponent } from '../status-badge/status-badge.component';
 
 @Component({
   selector: 'app-student-analytics-modal',
   standalone: true,
-  imports: [CommonModule],
+  imports: [StatusBadgeComponent, CommonModule],
   templateUrl: './student-analytics-modal.component.html',
   styleUrl: './student-analytics-modal.component.css'
 })
@@ -18,9 +19,13 @@ export class StudentAnalyticsModalComponent {
 
   studentId = input.required<string>();
   studentName = input<string>();
-  close = output<void>();
+  closed = output<void>();
 
   t = this.langService.t;
+
+  /** translations with {placeholders} */
+
+  tf = this.langService.tf;
   isArabic = this.langService.isArabic;
   readonly Math = Math;
 

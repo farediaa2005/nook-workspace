@@ -3,7 +3,7 @@
  * Enforces non-stacking rules, breakdown labels, and 2-decimal money rounding.
  */
 
-export interface DiscountCalculationResult {
+interface DiscountCalculationResult {
   subtotal: number;
   discountAmount: number;
   finalTotal: number;

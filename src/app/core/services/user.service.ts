@@ -70,7 +70,7 @@ export class UserService {
               const enriched = mapped.map((u, idx) => {
                 const p = profiles[idx];
                 const rawCreated = p?.createdAt || (p as any)?.createdDate;
-                const staffProfile = (p as any)?.profiles?.find((pr: any) => pr.role === 2 || pr.role === 1);
+                const staffProfile = (p as any)?.profiles?.find((pr: any) => pr?.role === 2 || pr?.role === 1);
                 const profileName = staffProfile?.profileName || ((p as any)?.profiles?.[0] as any)?.profileName;
                 const resolvedName = profileName || u.name;
                 const resolvedPhone = (p?.phoneNumber && p.phoneNumber !== '-' ? p.phoneNumber : (u.phone && u.phone !== '-' ? u.phone : '-'));
@@ -156,25 +156,19 @@ export class UserService {
           });
 
           this.notification.success(
-            this.langService.isArabic()
-              ? `تم إنشاء حساب المستخدم "${user.name}" بنجاح!`
-              : `User "${user.name}" created successfully!`
+            this.langService.tf('usrUserCreatedSuccessfully', { name: user.name })
           );
         } else {
           this.syncUsersFromBackend();
           this.notification.success(
-            this.langService.isArabic()
-              ? `تم إنشاء حساب المستخدم "${user.name}" بنجاح!`
-              : `User "${user.name}" created successfully!`
+            this.langService.tf('usrUserCreatedSuccessfully', { name: user.name })
           );
         }
       },
       error: (err) => {
         console.error('[UserService] Failed to create account:', err);
         const errorMsg = err?.error?.message || err?.message || (
-          this.langService.isArabic()
-            ? 'فشل إنشاء حساب المستخدم. يرجى المحاولة مرة أخرى.'
-            : 'Failed to create user account. Please try again.'
+          this.langService.t().svcFailedToCreateUserAccount
         );
         this.notification.error(errorMsg);
       }
@@ -218,17 +212,13 @@ export class UserService {
 
         this.usersState.update(list => list.map(u => (u.id === user.id ? { ...u, ...user } : u)));
         this.notification.success(
-          this.langService.isArabic()
-            ? `تم تحديث بيانات المستخدم "${user.name}" بنجاح!`
-            : `User "${user.name}" updated successfully!`
+          this.langService.tf('usrUserUpdatedSuccessfully', { name: user.name })
         );
       },
       error: (err) => {
         console.error('[UserService] Failed to update account:', err);
         const errorMsg = err?.error?.message || err?.message || (
-          this.langService.isArabic()
-            ? 'فشل تحديث بيانات المستخدم.'
-            : 'Failed to update user account.'
+          this.langService.t().svcFailedToUpdateUserAccount
         );
         this.notification.error(errorMsg);
       }
@@ -249,17 +239,13 @@ export class UserService {
         this.usersState.update(list => list.filter(u => u.id !== id));
         this.syncUsersFromBackend();
         this.notification.info(
-          this.langService.isArabic()
-            ? 'تم حذف الحساب بنجاح.'
-            : 'User account deleted successfully.'
+          this.langService.t().svcUserAccountDeletedSuccessfully
         );
       },
       error: (err) => {
         console.error('[UserService] Failed to delete account:', err);
         const errorMsg = err?.error?.message || err?.message || (
-          this.langService.isArabic()
-            ? 'فشل حذف الحساب. يرجى المحاولة لاحقاً.'
-            : 'Failed to delete user account.'
+          this.langService.t().svcFailedToDeleteUserAccount
         );
         this.notification.error(errorMsg);
       }
@@ -282,17 +268,13 @@ export class UserService {
         );
         this.syncUsersFromBackend();
         this.notification.success(
-          this.langService.isArabic()
-            ? 'تم تحديث حالة الحساب بنجاح.'
-            : 'Account status updated successfully.'
+          this.langService.t().svcAccountStatusUpdatedSuccessfully
         );
       },
       error: (err) => {
         console.error('[UserService] Failed to toggle account status:', err);
         const errorMsg = err?.error?.message || err?.message || (
-          this.langService.isArabic()
-            ? 'فشل تغيير حالة الحساب.'
-            : 'Failed to update account status.'
+          this.langService.t().svcFailedToUpdateAccountStatus
         );
         this.notification.error(errorMsg);
       }

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { LanguageService } from '../../../core/services/language.service';
 
-export interface MetricBadge {
+interface MetricBadge {
   text: string;
   type?: 'green' | 'blue' | 'purple' | 'yellow' | 'red' | 'default';
 }

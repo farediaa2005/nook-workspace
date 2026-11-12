@@ -1,5 +1,5 @@
-<div class="modal-backdrop" (click)="close.emit()">
-  <div class="analytics-drawer" (click)="$event.stopPropagation()">
+<div class="modal-backdrop" (click)="closed.emit()" role="presentation">
+  <div class="analytics-drawer" (click)="$event.stopPropagation()" role="presentation">
     <!-- Drawer Header -->
     <div class="drawer-header">
       <div class="student-profile-summary">
@@ -8,18 +8,18 @@
         </div>
         <div class="profile-info">
           <div class="name-badge-row">
-            <h2 class="student-name">{{ analytics()?.studentName || studentName() || 'Student' }}</h2>
+            <h2 class="student-name">{{ analytics()?.studentName || studentName() || t().wsStudent }}</h2>
             @if (analytics()?.isBlacklisted) {
-              <span class="status-pill status-pill--danger">{{ isArabic() ? 'محظور (Blacklisted)' : 'Blacklisted' }}</span>
+              <app-status-badge tone="danger" [text]="t().anaBlacklisted" [dot]="false"></app-status-badge>
             } @else {
-              <span class="status-pill status-pill--active">{{ isArabic() ? 'حساب نشط' : 'Active Account' }}</span>
+              <app-status-badge tone="success" [text]="t().anaActiveAccount" [dot]="false"></app-status-badge>
             }
           </div>
-          <span class="college-title">{{ analytics()?.college || (isArabic() ? 'طالب مسجل' : 'Registered Student') }}</span>
+          <span class="college-title">{{ analytics()?.college || (t().anaRegisteredStudent) }}</span>
         </div>
       </div>
 
-      <button class="drawer-close-btn" (click)="close.emit()" title="Close">
+      <button class="drawer-close-btn" (click)="closed.emit()" title="Close">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M18 6 6 18M6 6l12 12" />
         </svg>
@@ -33,28 +33,28 @@
         [class.active]="activeTab() === 'overview'"
         (click)="activeTab.set('overview')"
       >
-        {{ isArabic() ? 'نظرة عامة والزيارات' : 'Overview & Visits' }}
+        {{ t().anaOverviewVisits }}
       </button>
       <button
         class="tab-btn"
         [class.active]="activeTab() === 'spaces'"
         (click)="activeTab.set('spaces')"
       >
-        {{ isArabic() ? 'استخدام المساحات' : 'Space Usage' }}
+        {{ t().anaSpaceUsage }}
       </button>
       <button
         class="tab-btn"
         [class.active]="activeTab() === 'packages'"
         (click)="activeTab.set('packages')"
       >
-        {{ isArabic() ? 'الباقات والحجوزات' : 'Packages & Bookings' }}
+        {{ t().anaPackagesBookings }}
       </button>
       <button
         class="tab-btn"
         [class.active]="activeTab() === 'discounts'"
         (click)="activeTab.set('discounts')"
       >
-        {{ isArabic() ? 'الخصومات والإنجاز' : 'Discounts & Milestones' }}
+        {{ t().anaDiscountsMilestones }}
       </button>
     </div>
 
@@ -69,7 +69,7 @@
         <!-- TAB 1: OVERVIEW & USAGE METRICS -->
         @if (activeTab() === 'overview') {
           <div class="tab-pane">
-            <h3 class="section-title">{{ isArabic() ? 'إحصائيات الحضور والنشاط' : 'Attendance & Activity Statistics' }}</h3>
+            <h3 class="section-title">{{ t().anaAttendanceActivityStatistics }}</h3>
 
             <!-- 6 Key Metric Cards -->
             <div class="metrics-grid">
@@ -126,7 +126,7 @@
                 </div>
                 <div class="metric-info">
                   <span class="metric-label">{{ t().totalHours }}</span>
-                  <span class="metric-val">{{ analytics()!.hours.totalHours }} {{ isArabic() ? 'ساعة' : 'hrs' }}</span>
+                  <span class="metric-val">{{ analytics()!.hours.totalHours }} {{ t().hrsBadge }}</span>
                 </div>
               </div>
 
@@ -140,7 +140,7 @@
                 </div>
                 <div class="metric-info">
                   <span class="metric-label">{{ t().lastMonthHours }}</span>
-                  <span class="metric-val">{{ analytics()!.hours.lastMonthHours }} {{ isArabic() ? 'ساعة' : 'hrs' }}</span>
+                  <span class="metric-val">{{ analytics()!.hours.lastMonthHours }} {{ t().hrsBadge }}</span>
                 </div>
               </div>
 
@@ -154,7 +154,7 @@
                 </div>
                 <div class="metric-info">
                   <span class="metric-label">{{ t().currentMonthHours }}</span>
-                  <span class="metric-val">{{ analytics()!.hours.currentMonthHours }} {{ isArabic() ? 'ساعة' : 'hrs' }}</span>
+                  <span class="metric-val">{{ analytics()!.hours.currentMonthHours }} {{ t().hrsBadge }}</span>
                 </div>
               </div>
             </div>
@@ -162,13 +162,13 @@
             <!-- Financial Wallet Card -->
             <div class="wallet-banner">
               <div class="wallet-left">
-                <span class="wallet-title">{{ isArabic() ? 'رصيد المحفظة المالي' : 'Student Wallet Balance' }}</span>
+                <span class="wallet-title">{{ t().anaStudentWalletBalance }}</span>
                 <span class="wallet-amount" [class.wallet-amount--negative]="analytics()!.walletBalance < 0">
-                  {{ analytics()!.walletBalance.toFixed(2) }} {{ isArabic() ? 'ج.م' : 'EGP' }}
+                  {{ analytics()!.walletBalance.toFixed(2) }} {{ t().egp }}
                 </span>
               </div>
               <span class="wallet-note">
-                {{ analytics()!.walletBalance < 0 ? (isArabic() ? 'يوجد مديونية مستحقة' : 'Outstanding Balance') : (isArabic() ? 'رصيد متاح للاستخدام' : 'Available Balance') }}
+                {{ analytics()!.walletBalance < 0 ? (t().anaOutstandingBalance) : (t().anaAvailableBalance) }}
               </span>
             </div>
           </div>
@@ -185,13 +185,13 @@
                   <div class="space-card-header">
                     <span class="space-name">
                       @switch (space.spaceType) {
-                        @case ('Workspace') { {{ isArabic() ? 'مساحة العمل المشتركة (Workspace)' : 'Workspace' }} }
-                        @case ('Classroom') { {{ isArabic() ? 'القاعات الدراسية (Classroom)' : 'Classroom' }} }
-                        @case ('SilentRoom') { {{ isArabic() ? 'الغرفة الصامتة (Silent Room)' : 'Silent Room' }} }
+                        @case ('Workspace') { {{ t().anaWorkspace }} }
+                        @case ('Classroom') { {{ t().anaClassroom }} }
+                        @case ('SilentRoom') { {{ t().anaSilentRoom }} }
                         @default { {{ space.spaceType }} }
                       }
                     </span>
-                    <span class="space-hours">{{ space.hours }} {{ isArabic() ? 'ساعة' : 'hrs' }} ({{ space.visits }} {{ isArabic() ? 'زيارة' : 'visits' }})</span>
+                    <span class="space-hours">{{ space.hours }} {{ t().hrsBadge }} ({{ space.visits }} {{ t().stuVisits }})</span>
                   </div>
 
                   <!-- Progress Bar -->
@@ -216,42 +216,42 @@
               <div class="package-active-card">
                 <div class="pkg-header">
                   <span class="pkg-name">{{ analytics()!.packageSummary.packageName }}</span>
-                  <span class="pkg-status">{{ isArabic() ? 'باقة سارية' : 'Active Package' }}</span>
+                  <span class="pkg-status">{{ t().anaActivePackage }}</span>
                 </div>
                 <div class="pkg-stats">
                   <div class="pkg-stat">
-                    <span>{{ isArabic() ? 'الساعات المتبقية' : 'Remaining Hours' }}</span>
-                    <strong>{{ analytics()!.packageSummary.remainingHours }} {{ isArabic() ? 'ساعة' : 'hrs' }}</strong>
+                    <span>{{ t().anaRemainingHours }}</span>
+                    <strong>{{ analytics()!.packageSummary.remainingHours }} {{ t().hrsBadge }}</strong>
                   </div>
                   <div class="pkg-stat">
-                    <span>{{ isArabic() ? 'إجمالي ساعات الباقة' : 'Total Package Hours' }}</span>
-                    <strong>{{ analytics()!.packageSummary.totalHours }} {{ isArabic() ? 'ساعة' : 'hrs' }}</strong>
+                    <span>{{ t().anaTotalPackageHours }}</span>
+                    <strong>{{ analytics()!.packageSummary.totalHours }} {{ t().hrsBadge }}</strong>
                   </div>
                 </div>
               </div>
             } @else {
               <div class="empty-mini">
-                <p>{{ isArabic() ? 'لا توجد باقة نشطة حالياً لهذا الطالب' : 'No active package for this student' }}</p>
+                <p>{{ t().anaNoActivePackageForThis }}</p>
               </div>
             }
 
             <h3 class="section-title" style="margin-top: 24px;">{{ t().bookingHistory }}</h3>
             <div class="booking-summary-box">
               <div class="bk-item">
-                <span>{{ isArabic() ? 'إجمالي الحجوزات' : 'Total Bookings' }}</span>
+                <span>{{ t().anaTotalBookings }}</span>
                 <strong>{{ analytics()!.bookingHistory.totalBookings }}</strong>
               </div>
               <div class="bk-item">
-                <span>{{ isArabic() ? 'الحجوزات المكتملة' : 'Completed' }}</span>
-                <strong style="color: #f5b921;">{{ analytics()!.bookingHistory.completedBookings }}</strong>
+                <span>{{ t().anaCompleted }}</span>
+                <strong style="color: var(--yellow);">{{ analytics()!.bookingHistory.completedBookings }}</strong>
               </div>
               <div class="bk-item">
-                <span>{{ isArabic() ? 'الحجوزات الملغاة' : 'Cancelled' }}</span>
-                <strong style="color: #ef4444;">{{ analytics()!.bookingHistory.cancelledBookings }}</strong>
+                <span>{{ t().anaCancelled }}</span>
+                <strong style="color: var(--danger-strong);">{{ analytics()!.bookingHistory.cancelledBookings }}</strong>
               </div>
               <div class="bk-item">
-                <span>{{ isArabic() ? 'القاعة الأكثر استخداماً' : 'Frequent Room' }}</span>
-                <strong>{{ analytics()!.bookingHistory.frequentRoomName || (isArabic() ? 'لا يوجد' : 'None') }}</strong>
+                <span>{{ t().anaFrequentRoom }}</span>
+                <strong>{{ analytics()!.bookingHistory.frequentRoomName || (t().wsNone) }}</strong>
               </div>
             </div>
           </div>
@@ -266,19 +266,17 @@
             <div class="milestone-card">
               <div class="milestone-top">
                 <div>
-                  <h4 class="milestone-title">{{ isArabic() ? 'مسار مكافأة الساعات (Milestone Rewards)' : 'Hours Milestone Path' }}</h4>
+                  <h4 class="milestone-title">{{ t().anaHoursMilestonePath }}</h4>
                   <p class="milestone-desc">
-                    {{ isArabic()
-                      ? 'يحصل الطالب على خصم 20% عند وصوله إلى 100 ساعة دراسة. وبعد استخدام الخصم، يجب الوصول إلى 200 ساعة للتأهل مجدداً.'
-                      : 'Students earn a 20% milestone discount at 100 study hours. Once used, 200 qualifying hours are required for the next milestone.' }}
+                    {{ t().anaStudentsEarnA20Milestone }}
                   </p>
                 </div>
               </div>
 
               <div class="milestone-meter">
                 <div class="milestone-numbers">
-                  <span>{{ analytics()!.hours.totalHours }} {{ isArabic() ? 'ساعة مسجلة' : 'Hours Logged' }}</span>
-                  <span>{{ isArabic() ? 'الهدف القادم:' : 'Next Goal:' }} {{ analytics()!.nextDiscountMilestone }} {{ isArabic() ? 'ساعة' : 'hrs' }}</span>
+                  <span>{{ analytics()!.hours.totalHours }} {{ t().anaHoursLogged }}</span>
+                  <span>{{ t().anaNextGoal }} {{ analytics()!.nextDiscountMilestone }} {{ t().hrsBadge }}</span>
                 </div>
                 <div class="progress-track">
                   <div
@@ -302,7 +300,7 @@
                     <circle cx="12" cy="12" r="10" />
                     <polyline points="12 6 12 12 16 14" />
                   </svg>
-                  <span>{{ isArabic() ? 'متبقي ' + analytics()!.hoursToNextDiscount + ' ساعة للوصول إلى الخصم القادم' : analytics()!.hoursToNextDiscount + ' hours remaining until next discount' }}</span>
+                  <span>{{ tf('anHoursToNextDiscount', { hours: analytics()!.hoursToNextDiscount }) }}</span>
                 </div>
               }
             </div>
@@ -322,7 +320,7 @@
               </div>
             } @else {
               <div class="empty-mini">
-                <p>{{ isArabic() ? 'لم يسبق استخدام خصومات الساعات لهذا الطالب' : 'No milestone discounts used yet' }}</p>
+                <p>{{ t().anaNoMilestoneDiscountsUsedYet }}</p>
               </div>
             }
           </div>

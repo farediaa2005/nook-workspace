@@ -9,11 +9,9 @@
 
 import { DiscountType } from './workspace-session.model';
 
-export { DiscountType };
+type CouponZone = 'Workspace' | 'Classroom' | 'Both';
 
-export type CouponZone = 'Workspace' | 'Classroom' | 'Both';
-
-export enum CouponApplicableTo {
+enum CouponApplicableTo {
   Workspace = 0,
   Classroom = 1
 }
@@ -114,5 +112,4 @@ export function isCouponExpired(coupon?: Partial<CouponDto> | null): boolean {
   if (!exp) return false;
   return new Date(exp) < new Date();
 }
-
 

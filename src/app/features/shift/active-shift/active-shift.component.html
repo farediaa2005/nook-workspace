@@ -34,7 +34,7 @@
     <header class="page-header">
     <div class="header-main">
       <div class="title-row">
-        <h1 class="page-title">{{ t().activeShift }}</h1>
+        <app-page-header [spaced]="false" [title]="t().activeShift"></app-page-header>
         <div class="live-status-pill">
           <span class="live-pulse">
             <span class="live-dot"></span>
@@ -67,23 +67,23 @@
             <span class="meta-label">{{ t().startedAt }}</span>
             <div style="display: flex; align-items: center; gap: 8px;">
               <span class="meta-value">
-                {{ shiftStartTime() }}
+                {{ shiftStartTimeDisplay() }}
                 @if (shiftStartDate() && !isShiftStartedToday()) {
-                  <span style="font-size: 0.78rem; opacity: 0.85; font-weight: 600; margin-inline-start: 4px; color: var(--text-dim);">({{ shiftStartDate() }})</span>
+                  <span style="font-size: var(--fs-sm); opacity: 0.85; font-weight: 600; margin-inline-start: 4px; color: var(--text-dim);">({{ shiftStartDate() }})</span>
                 }
               </span>
               @if (canEditShift()) {
                 <button
                   type="button"
                   (click)="openEditShiftModal()"
-                  [title]="isArabic() ? 'تعديل وقت بداية الشيفت' : 'Edit Shift Start Time'"
-                  style="background: rgba(245, 185, 33, 0.15); border: 1px solid rgba(245, 185, 33, 0.35); border-radius: 6px; padding: 2px 8px; color: #f5b921; cursor: pointer; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; transition: all 0.2s;"
+                  [title]="t().shiftEditShiftStartTime"
+                  style="background: rgba(245, 185, 33, 0.15); border: 1px solid rgba(245, 185, 33, 0.35); border-radius: var(--radius-2xs); padding: 2px 8px; color: var(--yellow); cursor: pointer; font-size: var(--fs-xs); font-weight: 700; display: inline-flex; align-items: center; gap: 4px; transition: all 0.2s;"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 12px; height: 12px;">
                     <path d="M12 20h9"/>
                     <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
                   </svg>
-                  <span>{{ isArabic() ? 'تعديل' : 'Edit' }}</span>
+                  <span>{{ t().resEdit }}</span>
                 </button>
               }
             </div>
@@ -110,12 +110,12 @@
     <!-- Header Actions CTA -->
     <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
 
-      <button type="button" class="btn-add-item" (click)="openAddItemModal()" style="background: rgba(245, 185, 33, 0.15); color: #f5b921; border: 1px solid rgba(245, 185, 33, 0.3); border-radius: 10px; padding: 10px 16px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+      <button type="button" class="btn-add-item" (click)="openAddItemModal()" style="background: rgba(245, 185, 33, 0.15); color: var(--yellow); border: 1px solid rgba(245, 185, 33, 0.3); border-radius: var(--radius-sm); padding: 10px 16px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
           <line x1="12" y1="5" x2="12" y2="19"></line>
           <line x1="5" y1="12" x2="19" y2="12"></line>
         </svg>
-        <span>{{ isArabic() ? 'إضافة مصروف / بند' : 'Add Item / Expense' }}</span>
+        <span>{{ t().shiftAddItemExpense }}</span>
       </button>
 
       <button class="btn-close-shift" (click)="openCloseShiftModal()">
@@ -167,7 +167,7 @@
               <span>{{ t().startingFloatPrefix }}{{ openingCash().toFixed(2) }} {{ currencyText() }}</span>
             </div>
             @if (adminFund() > 0) {
-              <div style="display: flex; align-items: center; gap: 6px; color: #3b82f6; font-size: 0.78rem; font-weight: 600;">
+              <div style="display: flex; align-items: center; gap: 6px; color: var(--info); font-size: var(--fs-sm); font-weight: 600;">
                 <span>🛡️ {{ t().adminFundLabel }} {{ adminFund().toFixed(2) }} {{ currencyText() }}</span>
               </div>
             }
@@ -193,9 +193,9 @@
           <div class="channel-amount">
             {{ vodafoneTotal().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span>
           </div>
-          <div class="channel-footnote" style="display: flex; gap: 8px; justify-content: space-between; width: 100%; font-size: 0.78rem; font-weight: 600;">
-            <span style="color: #10b981;">↓ {{ t().insideFlow }}: +{{ vodafoneInside().toFixed(2) }}</span>
-            <span style="color: #ef4444;">↑ {{ t().outsideFlow }}: -{{ vodafoneOutside().toFixed(2) }}</span>
+          <div class="channel-footnote" style="display: flex; gap: 8px; justify-content: space-between; width: 100%; font-size: var(--fs-sm); font-weight: 600;">
+            <span style="color: var(--success-strong);">↓ {{ t().insideFlow }}: +{{ vodafoneInside().toFixed(2) }}</span>
+            <span style="color: var(--danger-strong);">↑ {{ t().outsideFlow }}: -{{ vodafoneOutside().toFixed(2) }}</span>
           </div>
         </div>
       </div>
@@ -218,9 +218,9 @@
           <div class="channel-amount">
             {{ instapayTotal().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span>
           </div>
-          <div class="channel-footnote" style="display: flex; gap: 8px; justify-content: space-between; width: 100%; font-size: 0.78rem; font-weight: 600;">
-            <span style="color: #10b981;">↓ {{ t().insideFlow }}: +{{ instapayInside().toFixed(2) }}</span>
-            <span style="color: #ef4444;">↑ {{ t().outsideFlow }}: -{{ instapayOutside().toFixed(2) }}</span>
+          <div class="channel-footnote" style="display: flex; gap: 8px; justify-content: space-between; width: 100%; font-size: var(--fs-sm); font-weight: 600;">
+            <span style="color: var(--success-strong);">↓ {{ t().insideFlow }}: +{{ instapayInside().toFixed(2) }}</span>
+            <span style="color: var(--danger-strong);">↑ {{ t().outsideFlow }}: -{{ instapayOutside().toFixed(2) }}</span>
           </div>
         </div>
       </div>
@@ -371,6 +371,27 @@
         </div>
       </div>
 
+      <!-- Card: Wallets (top-ups taken in, revenue paid from wallets) -->
+      <div class="stat-card">
+        <div class="card-top">
+          <span class="stat-category">{{ t().shWalletsCategory }}</span>
+          <div class="icon-wrap icon-wrap--blue">
+            <svg viewBox="0 0 24 24" fill="none">
+              <rect x="2" y="6" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M16 13h2M2 10h20" stroke="currentColor" stroke-width="1.8"/>
+            </svg>
+          </div>
+        </div>
+        <div class="stat-body">
+          <div class="stat-number">
+            {{ walletTopUps().toFixed(2) }} <span class="currency-label">{{ currencyText() }}</span>
+          </div>
+          <div class="stat-footnote">
+            <span>{{ tf('shWalletsCategorySub', { paid: walletPaidRevenue().toFixed(2) }) }}</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Card: Admin Expenses (Petty Cash Outflow) -->
       <div class="stat-card stat-card--danger">
         <div class="card-accent-strip card-accent-strip--red"></div>
@@ -404,7 +425,7 @@
           <span class="tx-count-pill">{{ filteredTransactions().length }} {{ t().recordedTransactionsCount }}</span>
         </div>
         <div class="ledger-filter-wrap" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-          <div class="ledger-search-box" style="display: flex; align-items: center; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 0 10px; gap: 6px; min-width: 200px;">
+          <div class="ledger-search-box" style="display: flex; align-items: center; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 0 10px; gap: 6px; min-width: 200px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 15px; height: 15px; color: var(--text-dim);">
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -414,7 +435,7 @@
               [placeholder]="t().searchTransactionsPlaceholder"
               [ngModel]="searchQuery()"
               (ngModelChange)="searchQuery.set($event)"
-              style="background: transparent; border: none; outline: none; color: var(--text); padding: 7px 0; font-size: 0.84rem; width: 100%;"
+              style="background: transparent; border: none; outline: none; color: var(--text); padding: 7px 0; font-size: var(--fs-ui); width: 100%;"
             />
           </div>
           <div style="min-width: 170px;">
@@ -429,7 +450,7 @@
       </div>
 
       <div class="table-responsive">
-        <table class="ledger-table">
+        <table class="ledger-table sticky-actions">
           <thead>
             <tr>
               <th>{{ t().timeColumn }}</th>
@@ -445,7 +466,8 @@
               <tr>
                 <!-- Time -->
                 <td class="cell-time">
-                  <span class="time-tag">{{ tx.timestamp }}</span>
+                  <!-- shift items from the server carry no time: show a dash instead of an empty cell -->
+                  <span class="time-tag">{{ tx.timestamp || '—' }}</span>
                 </td>
                 
                 <!-- Description -->
@@ -511,11 +533,11 @@
                       }
                     </span>
                     @if (tx.flowDirection === 'inside' || tx.type === 'vodafone_in' || tx.type === 'instapay_in' || tx.type === 'fawry_in' || (!tx.flowDirection && tx.amount > 0 && tx.type !== 'expense')) {
-                      <span class="flow-pill flow-pill--in" style="font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700;">
+                      <span class="flow-pill flow-pill--in" style="font-size: var(--fs-2xs); padding: 2px 6px; border-radius: var(--radius-2xs); background: rgba(16, 185, 129, 0.15); color: var(--success-strong); font-weight: 700;">
                         {{ t().insideFlowFull }}
                       </span>
                     } @else if (tx.flowDirection === 'outside' || tx.type === 'vodafone_out' || tx.type === 'instapay_out' || tx.type === 'fawry_out' || tx.type === 'expense' || tx.amount < 0) {
-                      <span class="flow-pill flow-pill--out" style="font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; background: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 700;">
+                      <span class="flow-pill flow-pill--out" style="font-size: var(--fs-2xs); padding: 2px 6px; border-radius: var(--radius-2xs); background: rgba(239, 68, 68, 0.15); color: var(--danger-strong); font-weight: 700;">
                         {{ t().outsideFlowFull }}
                       </span>
                     }
@@ -534,13 +556,13 @@
                       class="delete-tx-btn"
                       [disabled]="isDeletingItem() === tx.id"
                       (click)="deleteTransaction(tx)"
-                      [title]="isArabic() ? 'حذف هذا البند' : 'Delete this item'"
-                      style="background: none; border: none; cursor: pointer; padding: 4px 6px; border-radius: 6px; color: var(--text-dim); transition: all 0.2s ease;"
+                      [title]="t().shiftDeleteThisItem"
+                      style="background: none; border: none; cursor: pointer; padding: 4px 6px; border-radius: var(--radius-2xs); color: var(--text-dim); transition: all 0.2s ease;"
                       onmouseover="this.style.background='rgba(239,68,68,0.15)'; this.style.color='#ef4444';"
                       onmouseout="this.style.background='none'; this.style.color='var(--text-dim)';"
                     >
                       @if (isDeletingItem() === tx.id) {
-                        <span style="display: inline-block; width: 14px; height: 14px; border: 2px solid #ef4444; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite;"></span>
+                        <span style="display: inline-block; width: 14px; height: 14px; border: 2px solid var(--danger-strong); border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite;"></span>
                       } @else {
                         <svg viewBox="0 0 24 24" fill="none" width="15" height="15">
                           <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -573,18 +595,18 @@
 
   <!-- Delete Confirmation Modal -->
   @if (showDeleteConfirmModal() && deleteTargetTx()) {
-    <div class="add-item-overlay" (click)="cancelDelete()" style="z-index: 1100;">
+    <div class="add-item-overlay" (click)="cancelDelete()" style="z-index: 1100;" role="presentation">
       <div (click)="$event.stopPropagation()" [class.rtl]="isArabic()" style="
-        background: var(--card-bg, #1a1a2e);
+        background: var(--card-bg, var(--tone-1a1a2e));
         border: 1px solid rgba(239, 68, 68, 0.3);
-        border-radius: 16px;
+        border-radius: var(--radius);
         padding: 28px 24px;
         max-width: 420px;
         width: 90%;
         text-align: center;
         box-shadow: 0 20px 60px rgba(0,0,0,0.6);
         animation: slideUp 0.25s ease-out;
-      ">
+      " role="presentation">
         <!-- Warning Icon -->
         <div style="
           width: 56px; height: 56px; border-radius: 50%;
@@ -598,35 +620,35 @@
         </div>
 
         <!-- Title -->
-        <h3 style="color: var(--text-primary, #fff); margin: 0 0 8px; font-size: 1.15rem; font-weight: 700;">
-          {{ isArabic() ? 'تأكيد حذف البند' : 'Confirm Delete Item' }}
+        <h3 style="color: var(--text-primary, var(--on-color)); margin: 0 0 8px; font-size: var(--fs-lg); font-weight: 700;">
+          {{ t().shiftConfirmDeleteItem }}
         </h3>
 
         <!-- Subtitle -->
-        <p style="color: var(--text-dim, #888); margin: 0 0 18px; font-size: 0.88rem; line-height: 1.6;">
-          {{ isArabic() ? 'هل أنت متأكد من حذف هذا البند من سجل الوردية؟ لا يمكن التراجع عن هذا الإجراء.' : 'Are you sure you want to delete this item from the shift ledger? This action cannot be undone.' }}
+        <p style="color: var(--text-dim, var(--tone-888888)); margin: 0 0 18px; font-size: var(--fs-base); line-height: 1.6;">
+          {{ t().shiftAreYouSureYouWant }}
         </p>
 
         <!-- Item Details Card -->
         <div style="
           background: rgba(255,255,255,0.05);
           border: 1px solid rgba(255,255,255,0.08);
-          border-radius: 10px;
+          border-radius: var(--radius-sm);
           padding: 14px 16px;
           margin-bottom: 20px;
           text-align: start;
         ">
-          <div style="color: var(--text-primary, #fff); font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; word-break: break-word;">
+          <div style="color: var(--text-primary, var(--on-color)); font-size: var(--fs-base); font-weight: 600; margin-bottom: 6px; word-break: break-word;">
             {{ deleteTargetTx()!.details }}
           </div>
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="color: var(--text-dim, #888); font-size: 0.78rem;">
+            <span style="color: var(--text-dim, var(--tone-888888)); font-size: var(--fs-sm);">
               ID: {{ deleteTargetTx()!.id | slice:0:12 }}
             </span>
             <span
               [style.font-size]="'1rem'"
               [style.font-weight]="'700'"
-              [style.color]="deleteTargetTx()!.amount >= 0 ? '#10b981' : '#ef4444'"
+              [style.color]="deleteTargetTx()!.amount >= 0 ? 'var(--emerald-500)' : 'var(--red-500)'"
             >
               {{ deleteTargetTx()!.amount >= 0 ? '+' : '' }}{{ deleteTargetTx()!.amount.toFixed(2) }} {{ currencyText() }}
             </span>
@@ -636,25 +658,25 @@
         <!-- Action Buttons -->
         <div style="display: flex; gap: 10px; justify-content: center;">
           <button (click)="cancelDelete()" style="
-            flex: 1; padding: 11px 18px; border-radius: 10px;
+            flex: 1; padding: 11px 18px; border-radius: var(--radius-sm);
             border: 1px solid rgba(255,255,255,0.12);
             background: rgba(255,255,255,0.06);
-            color: var(--text-primary, #fff);
-            font-size: 0.9rem; font-weight: 600;
+            color: var(--text-primary, var(--on-color));
+            font-size: var(--fs-base); font-weight: 600;
             cursor: pointer; transition: all 0.2s;
           ">
-            {{ isArabic() ? 'إلغاء' : 'Cancel' }}
+            {{ t().resCancel2 }}
           </button>
           <button (click)="confirmDelete()" style="
-            flex: 1; padding: 11px 18px; border-radius: 10px;
+            flex: 1; padding: 11px 18px; border-radius: var(--radius-sm);
             border: none;
-            background: linear-gradient(135deg, #ef4444, #dc2626);
-            color: #fff;
-            font-size: 0.9rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--danger-strong), var(--red-600));
+            color: var(--on-color);
+            font-size: var(--fs-base); font-weight: 700;
             cursor: pointer; transition: all 0.2s;
             box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
           ">
-            🗑️ {{ isArabic() ? 'حذف البند' : 'Delete Item' }}
+            🗑️ {{ t().shiftDeleteItem }}
           </button>
         </div>
       </div>
@@ -663,8 +685,8 @@
 
   <!-- Add Shift Item / Expense Modal (Issue #15) -->
   @if (showAddItemModal()) {
-    <div class="add-item-overlay" (click)="closeAddItemModal()">
-      <div class="add-item-card" [class.rtl]="isArabic()" (click)="$event.stopPropagation()">
+    <div class="add-item-overlay" (click)="closeAddItemModal()" role="presentation">
+      <div class="add-item-card" [class.rtl]="isArabic()" (click)="$event.stopPropagation()" role="presentation">
         
         <!-- Header -->
         <div class="add-item-header">
@@ -682,15 +704,15 @@
             </div>
             <div class="header-texts">
               <h3 class="dialog-title">
-                {{ isArabic() ? 'إضافة بند جديد إلى الوردية' : 'Add Shift Transaction' }}
+                {{ t().shiftAddShiftTransaction }}
               </h3>
               <p class="dialog-subtitle">
-                {{ isArabic() ? 'تسجيل إيراد إضافي أو مصروفات نثرية ضمن الوردية النشطة' : 'Record petty cash expense or additional shift income' }}
+                {{ t().shiftRecordPettyCashExpenseOr }}
               </p>
             </div>
           </div>
 
-          <button type="button" class="btn-dialog-close" (click)="closeAddItemModal()" [title]="isArabic() ? 'إغلاق' : 'Close'" [disabled]="isSubmittingItem()">
+          <button type="button" class="btn-dialog-close" (click)="closeAddItemModal()" [title]="t().closeBtn" [disabled]="isSubmittingItem()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -701,11 +723,11 @@
         <form (ngSubmit)="submitAddItem()" class="add-item-form">
           <!-- Type Switcher (Expense vs Revenue) -->
           <div class="form-group">
-            <label class="form-label">
-              {{ isArabic() ? 'نوع البند المالي' : 'Transaction Type' }}
+            <label for="active-shift-f6" class="form-label">
+              {{ t().shiftTransactionType }}
             </label>
             <div class="type-segmented-wrap">
-              <button
+              <button id="active-shift-f6"
                 type="button"
                 class="type-pill-btn type-pill-btn--expense"
                 [class.type-pill-btn--active]="newItemType() === 'expense'"
@@ -717,7 +739,7 @@
                     <polyline points="7 7 17 7 17 17"></polyline>
                   </svg>
                 </span>
-                <span class="type-label">{{ isArabic() ? 'مصروفات (خارج)' : 'Expense (Outflow)' }}</span>
+                <span class="type-label">{{ t().shiftExpenseOutflow }}</span>
               </button>
 
               <button
@@ -732,7 +754,7 @@
                     <polyline points="17 17 7 17 7 7"></polyline>
                   </svg>
                 </span>
-                <span class="type-label">{{ isArabic() ? 'إيراد (داخل)' : 'Revenue (Inflow)' }}</span>
+                <span class="type-label">{{ t().shiftRevenueInflow }}</span>
               </button>
             </div>
           </div>
@@ -740,12 +762,12 @@
           <!-- Amount -->
           <div class="form-group">
             <div class="label-row">
-              <label class="form-label">
-                {{ isArabic() ? 'المبلغ المطلوب' : 'Amount' }} <span class="required-star">*</span>
+              <label for="active-shift-f5" class="form-label">
+                {{ t().shiftAmount }} <span class="required-star">*</span>
               </label>
               @if (newItemAmount()) {
-                <button type="button" class="btn-clear-field" (click)="clearAmount()">
-                  {{ isArabic() ? 'تفريغ' : 'Clear' }}
+                <button id="active-shift-f5" type="button" class="btn-clear-field" (click)="clearAmount()">
+                  {{ t().shiftClear }}
                 </button>
               }
             </div>
@@ -779,7 +801,7 @@
 
             <!-- Quick Add Chips -->
             <div class="quick-amounts-strip">
-              <span class="quick-strip-lbl">{{ isArabic() ? 'إضافة سريعة:' : 'Quick Add:' }}</span>
+              <span class="quick-strip-lbl">{{ t().shiftQuickAdd }}</span>
               <div class="quick-chips-list">
                 @for (val of quickAmounts; track val) {
                   <button type="button" class="quick-chip-btn" (click)="applyQuickAmount(val)">
@@ -792,9 +814,9 @@
 
           <!-- Payment Way / Channel -->
           <div class="form-group">
-            <label class="form-label">
-              {{ isArabic() ? 'طريقة / قناة الدفع والتحصيل' : 'Payment Method & Channel' }}
-            </label>
+            <span class="form-label group-label">
+              {{ t().shiftPaymentMethodChannel }}
+            </span>
             <div class="modal-channels-grid">
               @for (ch of paymentChannels; track ch.key) {
                 <button
@@ -819,9 +841,9 @@
 
           <!-- Category Chips -->
           <div class="form-group">
-            <label class="form-label">
-              {{ isArabic() ? 'تصنيف مقترح' : 'Suggested Category' }}
-            </label>
+            <span class="form-label group-label">
+              {{ t().shiftSuggestedCategory }}
+            </span>
             <div class="category-chips-list">
               @if (newItemType() === 'expense') {
                 @for (cat of expenseCategories; track cat.key) {
@@ -853,13 +875,13 @@
 
           <!-- Description / Details -->
           <div class="form-group">
-            <label class="form-label">
-              {{ isArabic() ? 'الوصف وتفاصيل الحركة' : 'Description & Details' }}
+            <label for="active-shift-f2" class="form-label">
+              {{ t().shiftDescriptionDetails }}
             </label>
             <div class="desc-input-wrap">
-              <input
+              <input id="active-shift-f2"
                 type="text"
-                [placeholder]="isArabic() ? 'اكتب تفاصيل البند للمراجعة والتسوية في نهاية الوردية...' : 'Enter transaction details for shift reconciliation...'"
+                [placeholder]="t().shiftEnterTransactionDetailsForShift"
                 [ngModel]="newItemDescription()"
                 (ngModelChange)="newItemDescription.set($event)"
                 name="itemDescription"
@@ -876,7 +898,7 @@
               (click)="closeAddItemModal()"
               [disabled]="isSubmittingItem()"
             >
-              {{ isArabic() ? 'إلغاء' : 'Cancel' }}
+              {{ t().resCancel2 }}
             </button>
 
             <button
@@ -887,12 +909,12 @@
             >
               @if (isSubmittingItem()) {
                 <span class="btn-spinner"></span>
-                <span>{{ isArabic() ? 'جاري التسجيل...' : 'Saving...' }}</span>
+                <span>{{ t().shiftSaving }}</span>
               } @else {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-action-svg">
                   <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
-                <span>{{ isArabic() ? 'حفظ وإضافة للوردية' : 'Save & Record Item' }}</span>
+                <span>{{ t().shiftSaveRecordItem }}</span>
               }
             </button>
           </div>
@@ -903,37 +925,37 @@
 
   <!-- Admin-Only Edit Shift Time Modal (Item 7) -->
   @if (showEditShiftModal()) {
-    <div class="modal-backdrop" (click)="closeEditShiftModal()" style="position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 16px;">
-      <div class="modal-dialog" (click)="$event.stopPropagation()" style="background: var(--surface); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 440px; padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+    <div class="modal-backdrop" (click)="closeEditShiftModal()" style="position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 16px;" role="presentation">
+      <div class="modal-dialog" (click)="$event.stopPropagation()" style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 440px; padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.5);" role="presentation">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
           <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(245, 185, 33, 0.15); display: flex; align-items: center; justify-content: center; color: #f5b921;">
+            <div style="width: 36px; height: 36px; border-radius: var(--radius-xs); background: rgba(245, 185, 33, 0.15); display: flex; align-items: center; justify-content: center; color: var(--yellow);">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
                 <circle cx="12" cy="12" r="10"/>
                 <polyline points="12 6 12 12 16 14"/>
               </svg>
             </div>
             <div>
-              <h3 style="margin: 0; font-size: 1.1rem; font-weight: 800; color: var(--text);">{{ isArabic() ? 'تعديل وقت بداية الشيفت' : 'Edit Shift Start Time' }}</h3>
-              <span style="font-size: 0.78rem; color: #f5b921; font-weight: 600;">{{ isArabic() ? 'صلاحية مسؤول النظام (Admin Only)' : 'Admin Authorization Required' }}</span>
+              <h3 style="margin: 0; font-size: var(--fs-lg); font-weight: 800; color: var(--text);">{{ t().shiftEditShiftStartTime }}</h3>
+              <span style="font-size: var(--fs-sm); color: var(--yellow); font-weight: 600;">{{ t().shiftAdminAuthorizationRequired }}</span>
             </div>
           </div>
           <button type="button" (click)="closeEditShiftModal()" style="background: transparent; border: none; font-size: 1.4rem; color: var(--text-dim); cursor: pointer;">&times;</button>
         </div>
 
         <div style="margin-bottom: 20px;">
-          <label style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text); margin-bottom: 8px;">
-            {{ isArabic() ? 'وقت بدء الشيفت الجديد' : 'New Shift Start Time' }}
+          <label for="active-shift-f1" style="display: block; font-size: var(--fs-ui); font-weight: 700; color: var(--text); margin-bottom: 8px;">
+            {{ t().shiftNewShiftStartTime }}
           </label>
-          <input
+          <input id="active-shift-f1"
             type="text"
             [ngModel]="editStartTimeInput()"
             (ngModelChange)="editStartTimeInput.set($event)"
-            [placeholder]="isArabic() ? 'مثال: 09:00 AM أو 14:30' : 'e.g. 09:00 AM or 14:30'"
-            style="width: 100%; box-sizing: border-box; padding: 12px 14px; background: var(--surface-2); border: 1.5px solid var(--border); border-radius: 10px; color: var(--text); font-size: 0.95rem; font-weight: 600;"
+            [placeholder]="t().shiftEG0900Am"
+            style="width: 100%; box-sizing: border-box; padding: 12px 14px; background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: var(--fs-md); font-weight: 600;"
           />
-          <p style="margin: 8px 0 0 0; font-size: 0.78rem; color: var(--text-dim);">
-            {{ isArabic() ? 'ملاحظة: الموظف العادي لا يمكنه تعديل أوقات الشيفت، والتعديل متاح فقط للمشرف.' : 'Note: Regular staff cannot modify shift timestamps.' }}
+          <p style="margin: 8px 0 0 0; font-size: var(--fs-sm); color: var(--text-dim);">
+            {{ t().shiftNoteRegularStaffCannotModify }}
           </p>
         </div>
 
@@ -941,7 +963,7 @@
           <button
             type="button"
             (click)="closeEditShiftModal()"
-            style="padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-weight: 600; cursor: pointer;"
+            style="padding: 10px 18px; border-radius: var(--radius-xs); border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-weight: 600; cursor: pointer;"
           >
             {{ t().cancel }}
           </button>
@@ -949,11 +971,11 @@
             type="button"
             (click)="saveShiftTime()"
             [disabled]="isSavingShiftTime() || !editStartTimeInput().trim()"
-            style="padding: 10px 22px; border-radius: 8px; border: none; background: #f5b921; color: #16130a; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;"
+            style="padding: 10px 22px; border-radius: var(--radius-xs); border: none; background: var(--yellow); color: var(--on-primary); font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;"
           >
             @if (isSavingShiftTime()) {
-              <span class="btn-spinner" style="width: 14px; height: 14px; border: 2px solid #16130a; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite;"></span>
-              <span>{{ isArabic() ? 'جاري الحفظ...' : 'Saving...' }}</span>
+              <span class="btn-spinner" style="width: 14px; height: 14px; border: 2px solid var(--on-primary); border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite;"></span>
+              <span>{{ t().resSaving }}</span>
             } @else {
               <span>{{ t().save }}</span>
             }

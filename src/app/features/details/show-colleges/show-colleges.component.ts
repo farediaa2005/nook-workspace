@@ -1,4 +1,5 @@
 import { Component, inject, signal, computed, ChangeDetectorRef, OnInit } from '@angular/core';
+import { NotificationService } from '../../../core/services/notification.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LanguageService } from '../../../core/services/language.service';
@@ -9,14 +10,16 @@ import { PaginationComponent } from '../../../shared/components/pagination/pagin
 import { ModalComponent } from '../../../shared/components/modal/modal.component';
 
 import { DetailsService } from '../../../core/services/details.service';
-import { WorkspaceService, parseDurationMinutes } from '../../../core/services/workspace.service';
+import { parseDurationMinutes, getTodayDateISO, parseIsoToLocalDate } from '../../../core/utils/date-time.util';
+import { WorkspaceService } from '../../../core/services/workspace.service';
 import { PackageService } from '../../../core/services/package.service';
 import { College } from '../../../core/models/details.model';
-import { getTodayDateISO, parseIsoToLocalDate } from '../../../core/utils/date-time.util';
+import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
+import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 
 export type { College };
 
-export interface CollegeAnalyticsItem {
+interface CollegeAnalyticsItem {
   no: number;
   id: string;
   name: string;
@@ -39,7 +42,7 @@ export interface CollegeAnalyticsItem {
  * Uses the Golden Ratio Angle (137.507764°) to maximize chromatic distance across the spectrum,
  * combined with alternating lightness and saturation tiers for guaranteed visual distinctness.
  */
-export function getDistinctCollegeColor(index: number): { solid: string; light: string } {
+function getDistinctCollegeColor(index: number): { solid: string; light: string } {
   // Golden ratio conjugate hue step (137.50776405°), ensures consecutive colors are spread out evenly
   const hue = (index * 137.50776405003785) % 360;
   
@@ -82,7 +85,7 @@ function describeArc(x: number, y: number, radius: number, startAngle: number, e
 @Component({
   selector: 'app-show-colleges',
   standalone: true,
-  imports: [
+  imports: [PageHeaderComponent, ConfirmDialogComponent, 
     CommonModule,
     FormsModule,
     SearchBoxComponent,
@@ -95,6 +98,7 @@ function describeArc(x: number, y: number, radius: number, startAngle: number, e
   styleUrl: './show-colleges.component.css'
 })
 export class ShowCollegesComponent implements OnInit {
+  private notificationService = inject(NotificationService);
   private langService = inject(LanguageService);
   private detailsService = inject(DetailsService);
   private workspaceService = inject(WorkspaceService);
@@ -102,6 +106,10 @@ export class ShowCollegesComponent implements OnInit {
   private cdr = inject(ChangeDetectorRef);
 
   t = this.langService.t;
+
+  /** translations with {placeholders} */
+
+  tf = this.langService.tf;
   isArabic = this.langService.isArabic;
 
   // Active View Tab ('analytics' | 'directory')
@@ -584,7 +592,12 @@ export class ShowCollegesComponent implements OnInit {
     const target = this.collegeToDelete();
     if (target) {
       this.detailsService.deleteCollege(target.id).subscribe({
-        next: () => {
+        next: (ok) => {
+          if (!ok) {
+            this.closeDeleteModal();
+            this.notificationService.error(this.t().colCouldNotDeleteTheCollege);
+            return;
+          }
           const updated = this.colleges().filter(c => c.id !== target.id);
           this.colleges.set(updated);
           this.closeDeleteModal();
@@ -602,8 +615,8 @@ export class ShowCollegesComponent implements OnInit {
 
   getModalTitle(): string {
     if (this.modalMode() === 'add') {
-      return this.isArabic() ? 'إضافة كلية / جامعة جديدة' : 'Add New College';
+      return this.t().colAddNewCollege;
     }
-    return this.isArabic() ? 'تعديل بيانات الكلية' : 'Edit College Details';
+    return this.t().colEditCollegeDetails;
   }
 }

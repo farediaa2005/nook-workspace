@@ -1,20 +1,23 @@
 import { Component, computed, inject, signal, OnInit } from '@angular/core';
+import { WorkspaceService } from '../../../core/services/workspace.service';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { LanguageService } from '../../../core/services/language.service';
 import { CateringService } from '../../../core/services/catering.service';
 import { CateringPosModalComponent } from '../components/catering-pos-modal/catering-pos-modal.component';
+import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 
-export type TimeFilterPeriod = 'today' | 'week' | 'month';
+type TimeFilterPeriod = 'today' | 'week' | 'month';
 
 @Component({
   selector: 'app-product-graph',
   standalone: true,
-  imports: [CommonModule, RouterLink, CateringPosModalComponent],
+  imports: [PageHeaderComponent, CommonModule, RouterLink, CateringPosModalComponent],
   templateUrl: './product-graph.component.html',
   styleUrl: './product-graph.component.css'
 })
 export class ProductGraphComponent implements OnInit {
+  private workspaceForCatering = inject(WorkspaceService);
   private router = inject(Router);
   private langService = inject(LanguageService);
   private cateringService = inject(CateringService);
@@ -28,6 +31,8 @@ export class ProductGraphComponent implements OnInit {
   isPosModalOpen = signal<boolean>(false);
 
   ngOnInit(): void {
+    // Product sales include items ordered in open sessions
+    this.workspaceForCatering.syncActiveSessionsCatering();
     this.cateringService.getProducts().subscribe();
   }
 

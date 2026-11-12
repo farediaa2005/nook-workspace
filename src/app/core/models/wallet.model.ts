@@ -10,16 +10,10 @@
  *            PUT /api/Wallet/topup/requests/{id}/review
  */
 
-export enum WalletTransactionType {
+enum WalletTransactionType {
   TopUp = 1,
   Deduct = 2,
   Refund = 3
-}
-
-export enum WalletTopUpRequestStatus {
-  Pending = 1,
-  Approved = 2,
-  Rejected = 3
 }
 
 export interface WalletBalanceDto {
@@ -42,35 +36,12 @@ export interface CreateDirectTopUpDto {
   studentId: string;
   amount: number;
   note?: string | null;
+  /** How the money came in (1 Cash, 2 Vodafone, 3 InstaPay, 4 Fawry); counted in that shift channel. */
+  payWay?: number;
 }
 
 export interface CreateWalletDeductionDto {
   studentId: string;
   amount: number;
   note?: string | null;
-}
-
-export interface CreateWalletTopUpRequestDto {
-  studentId: string;
-  amount: number;
-  proofImageUrl?: string | null;
-  note?: string | null;
-}
-
-export interface WalletTopUpRequestDto {
-  id: string;
-  studentId: string;
-  amount: number;
-  proofImageUrl?: string | null;
-  status: WalletTopUpRequestStatus;
-  reviewedByAccountId?: string | null;
-  reviewedAt?: string | null;
-  rejectionReason?: string | null;
-  note?: string | null;
-  createdAt: string;
-}
-
-export interface ReviewWalletTopUpRequestDto {
-  approve: boolean;
-  rejectionReason?: string | null;
 }

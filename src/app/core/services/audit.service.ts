@@ -1,5 +1,5 @@
 import { Injectable, signal, inject } from '@angular/core';
-import { AuditLogEntry, AuditAction, AuditEntityType, AuditFilterOptions } from '../models/audit.model';
+import { AuditLogEntry, AuditAction, AuditEntityType } from '../models/audit.model';
 import { AuthService } from './auth.service';
 import { AuditApiService } from './api/audit-api.service';
 
@@ -24,14 +24,15 @@ export class AuditService {
   }
 
   public syncWithBackend(): void {
-    if (!this.authService.isAuthenticated()) return;
+    // Audit logs are admin-only on the server (403 for staff)
+    if (!this.authService.isAuthenticated() || !this.authService.isAdmin()) return;
     this.auditApi.getAuditLogs({ pageSize: 100 }).subscribe({
       next: (res) => {
         if (res.items && res.items.length > 0) {
           this._logs.set(res.items);
         }
       },
-      error: () => {}
+      error: () => { /* best effort: a failure here is ignored on purpose */ }
     });
   }
 
@@ -41,7 +42,7 @@ export class AuditService {
     entityId: string,
     summary: string,
     metadata?: {
-      oldValues?: Record<string, any> | string;
+      oldValues?: Record<string, unknown> | string;
       newValues?: Record<string, any> | string;
       extra?: Record<string, any>;
     }
@@ -79,34 +80,10 @@ export class AuditService {
             this._logs.update(list => list.map(l => l.id === entry.id ? { ...l, id: saved.id } : l));
           }
         },
-        error: () => {}
+        error: () => { /* best effort: a failure here is ignored on purpose */ }
       });
     }
 
     return entry;
-  }
-
-  getFilteredLogs(filter: AuditFilterOptions): AuditLogEntry[] {
-    return this._logs().filter(log => {
-      if (filter.entityType && filter.entityType !== 'All' && log.entityType !== filter.entityType) {
-        return false;
-      }
-      if (filter.action && filter.action !== 'All' && log.action !== filter.action) {
-        return false;
-      }
-      if (filter.entityId && log.entityId !== filter.entityId) {
-        return false;
-      }
-      if (filter.actorId && log.actorId !== filter.actorId) {
-        return false;
-      }
-      if (filter.startDate && new Date(log.timestamp) < new Date(filter.startDate)) {
-        return false;
-      }
-      if (filter.endDate && new Date(log.timestamp) > new Date(filter.endDate)) {
-        return false;
-      }
-      return true;
-    });
   }
 }

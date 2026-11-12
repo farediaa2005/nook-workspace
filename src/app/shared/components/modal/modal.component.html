@@ -1,9 +1,9 @@
 @if (isOpen()) {
-      <div class="modal-backdrop" (click)="close.emit()">
-        <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-backdrop" (click)="closed.emit()" role="presentation">
+        <div class="modal-content" (click)="$event.stopPropagation()" role="presentation">
           <header class="modal-header">
             <h3>{{ title() }}</h3>
-            <button class="close-btn" (click)="close.emit()">&times;</button>
+            <button class="close-btn" (click)="closed.emit()">&times;</button>
           </header>
           <div class="modal-body">
             <ng-content></ng-content>

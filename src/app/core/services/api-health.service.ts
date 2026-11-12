@@ -1,6 +1,5 @@
 import { Injectable, inject, signal, DestroyRef } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { timeout, catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { API_BASE_URL } from '../constants/api-endpoints';

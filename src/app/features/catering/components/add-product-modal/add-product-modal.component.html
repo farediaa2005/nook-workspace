@@ -1,12 +1,12 @@
-<div class="modal-backdrop" (click)="close.emit()" [class.modal-backdrop--rtl]="isArabic()">
-  <div class="modal-card" (click)="$event.stopPropagation()">
+<div class="modal-backdrop" (click)="closed.emit()" [class.modal-backdrop--rtl]="isArabic()" role="presentation">
+  <div class="modal-card" (click)="$event.stopPropagation()" role="presentation">
     <!-- Header -->
     <div class="modal-header">
       <div class="header-titles-box">
         <span class="header-category-tag">{{ t().nookCanteen }}</span>
         <h2 class="modal-title">{{ t().addNewProduct }}</h2>
       </div>
-      <button type="button" class="btn-close-circle" (click)="close.emit()" aria-label="Close" [title]="t().cancel">
+      <button type="button" class="btn-close-circle" (click)="closed.emit()" aria-label="Close" [title]="t().cancel">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -17,7 +17,7 @@
     <!-- Form Content -->
     <form (submit)="submitProduct(); $event.preventDefault()" class="modal-form">
       @if (errorMessage()) {
-        <div class="error-alert" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 0.9rem;">
+        <div class="error-alert" style="background: rgba(239, 68, 68, 0.1); color: var(--danger-strong); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: var(--radius-xs); padding: 12px 16px; margin-bottom: 16px; font-size: var(--fs-base);">
           {{ errorMessage() }}
         </div>
       }
@@ -38,7 +38,7 @@
           <!-- Product Name with 25 char limit & char counter -->
           <div class="field-group">
             <div class="label-with-action">
-              <label class="field-label">
+              <label for="add-product-modal-f9" class="field-label">
                 {{ t().productName }}
                 <span class="required-star">*</span>
               </label>
@@ -47,7 +47,7 @@
               </span>
             </div>
             <div class="input-with-icon">
-              <input
+              <input id="add-product-modal-f9"
                 type="text"
                 class="input-control"
                 maxlength="25"
@@ -56,7 +56,7 @@
                 (ngModelChange)="productName.set($event)"
                 name="productName"
                 required
-                autofocus
+                appAutofocus
               />
             </div>
           </div>
@@ -65,10 +65,10 @@
           <div class="two-cols-row">
             <!-- Category with dynamic Add New Category -->
             <div class="field-group">
-              <label class="field-label">
+              <span class="field-label group-label">
                 {{ t().productCategory }}
                 <span class="required-star">*</span>
-              </label>
+              </span>
 
               @if (!isAddingNewCategory()) {
                 <app-custom-select
@@ -87,7 +87,7 @@
                     [ngModel]="newCategoryName()"
                     (ngModelChange)="newCategoryName.set($event)"
                     name="newCategoryName"
-                    autofocus
+                    appAutofocus
                   />
                   <div class="new-cat-actions">
                     <button type="button" class="btn-cat-save" (click)="saveNewCategory()" [disabled]="!newCategoryName().trim()">
@@ -103,11 +103,11 @@
 
             <!-- Optional Barcode / Serial Number (Manual, no default fake value) -->
             <div class="field-group">
-              <label class="field-label">
+              <label for="add-product-modal-f8" class="field-label">
                 {{ t().barcodeOptional }}
               </label>
               <div class="input-with-icon">
-                <input
+                <input id="add-product-modal-f8"
                   type="text"
                   class="input-control font-mono"
                   [placeholder]="t().barcodeLeaveEmpty"
@@ -139,12 +139,12 @@
           <div class="fields-stack">
             <div class="two-cols-row">
               <div class="field-group">
-                <label class="field-label">
+                <label for="add-product-modal-f7" class="field-label">
                   {{ t().sellingPriceLabel }}
                   <span class="required-star">*</span>
                 </label>
                 <div class="input-affix-wrap">
-                  <input
+                  <input id="add-product-modal-f7"
                     type="number"
                     min="0"
                     step="0.5"
@@ -160,12 +160,12 @@
               </div>
 
               <div class="field-group">
-                <label class="field-label">
+                <label for="add-product-modal-f6" class="field-label">
                   {{ t().costPriceLabel }}
                   <span class="required-star">*</span>
                 </label>
                 <div class="input-affix-wrap">
-                  <input
+                  <input id="add-product-modal-f6"
                     type="number"
                     min="0"
                     step="0.5"
@@ -183,7 +183,7 @@
 
             <!-- Financial Margin Loss Warning Banner -->
             @if (isSellingPriceBelowCost()) {
-              <div class="cost-warning-banner" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; font-size: 0.78rem; font-weight: 700; color: #ef4444; margin-top: 4px;">
+              <div class="cost-warning-banner" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: var(--radius-xs); padding: 8px 12px; display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); font-weight: 700; color: var(--danger-strong); margin-top: 4px;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; flex-shrink: 0;">
                   <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
                   <line x1="12" y1="9" x2="12" y2="13"></line>
@@ -196,8 +196,8 @@
             <!-- Expiration Date with localized date picker and N/A toggle -->
             <div class="field-group">
               <div class="label-with-action">
-                <label class="field-label">{{ t().expirationDateLabel }}</label>
-                <button
+                <label for="add-product-modal-f5" class="field-label">{{ t().expirationDateLabel }}</label>
+                <button id="add-product-modal-f5"
                   type="button"
                   class="btn-toggle-na"
                   [class.btn-toggle-na--active]="hasNoExpiration()"
@@ -210,7 +210,7 @@
               <div
                 class="custom-date-box"
                 [class.custom-date-box--disabled]="hasNoExpiration()"
-                (click)="openDatePicker(nativeDateInput)"
+                (click)="openDatePicker(nativeDateInput)" role="button" tabindex="0" (keydown.enter)="openDatePicker(nativeDateInput)"
               >
                 <input
                   #nativeDateInput
@@ -269,8 +269,8 @@
               <div class="box-calc-panel">
                 <div class="two-cols-row">
                   <div class="field-group">
-                    <label class="field-label">{{ t().numberOfBoxes }}</label>
-                    <input
+                    <label for="add-product-modal-f4" class="field-label">{{ t().numberOfBoxes }}</label>
+                    <input id="add-product-modal-f4"
                       type="number"
                       min="1"
                       class="input-control text-center font-bold"
@@ -281,8 +281,8 @@
                     />
                   </div>
                   <div class="field-group">
-                    <label class="field-label">{{ t().unitsPerBox }}</label>
-                    <input
+                    <label for="add-product-modal-f3" class="field-label">{{ t().unitsPerBox }}</label>
+                    <input id="add-product-modal-f3"
                       type="number"
                       min="1"
                       class="input-control text-center font-bold"
@@ -303,20 +303,8 @@
 
                 <!-- Reorder Level under Box Calculator -->
                 <div class="field-group">
-                  <label class="field-label">{{ t().reorderThreshold }}</label>
-                  <div class="stepper-input-wrap">
-                    <button type="button" class="btn-step-control" (click)="adjustReorder(-5)" [disabled]="!reorderLevel() || reorderLevel()! <= 1">&minus;</button>
-                    <input
-                      type="number"
-                      min="1"
-                      class="input-control text-center font-bold"
-                      placeholder="10"
-                      [ngModel]="reorderLevel()"
-                      (ngModelChange)="reorderLevel.set(+$event)"
-                      name="reorderLevel"
-                    />
-                    <button type="button" class="btn-step-control" (click)="adjustReorder(5)">&plus;</button>
-                  </div>
+                  <span class="field-label group-label">{{ t().catLowStockAlert }}</span>
+                  <small class="field-hint">{{ t().catSetForAllProductsIn }}</small>
                 </div>
               </div>
             } @else {
@@ -324,9 +312,9 @@
               <div class="two-cols-row">
                 <!-- Initial Stock -->
                 <div class="field-group">
-                  <label class="field-label">{{ t().initialStock }}</label>
+                  <label for="add-product-modal-f2" class="field-label">{{ t().initialStock }}</label>
                   <div class="stepper-input-wrap">
-                    <button type="button" class="btn-step-control" (click)="adjustStock(-5)" [disabled]="!initialStock() || initialStock()! <= 0">&minus;</button>
+                    <button id="add-product-modal-f2" type="button" class="btn-step-control" (click)="adjustStock(-5)" [disabled]="!initialStock() || initialStock()! <= 0">&minus;</button>
                     <input
                       type="number"
                       min="0"
@@ -342,32 +330,20 @@
 
                 <!-- Reorder Level -->
                 <div class="field-group">
-                  <label class="field-label">{{ t().reorderLevel }}</label>
-                  <div class="stepper-input-wrap">
-                    <button type="button" class="btn-step-control" (click)="adjustReorder(-5)" [disabled]="!reorderLevel() || reorderLevel()! <= 1">&minus;</button>
-                    <input
-                      type="number"
-                      min="1"
-                      class="input-control text-center font-bold"
-                      placeholder="10"
-                      [ngModel]="reorderLevel()"
-                      (ngModelChange)="reorderLevel.set(+$event)"
-                      name="reorderLevel"
-                    />
-                    <button type="button" class="btn-step-control" (click)="adjustReorder(5)">&plus;</button>
-                  </div>
+                  <span class="field-label group-label">{{ t().catLowStockAlert }}</span>
+                  <small class="field-hint">{{ t().catSetForAllProductsIn }}</small>
                 </div>
               </div>
             }
 
             <!-- Product Image Dropzone -->
             <div class="field-group">
-              <label class="field-label">{{ t().productImageOptional }}</label>
+              <label for="add-product-modal-f1" class="field-label">{{ t().productImageOptional }}</label>
               <div class="upload-container">
                 @if (imagePreview()) {
                   <div class="image-preview-card">
                     <img [src]="imagePreview()" alt="Product preview" class="preview-img" />
-                    <button type="button" class="btn-delete-img" (click)="removeImage()" [title]="t().removeImage">
+                    <button id="add-product-modal-f1" type="button" class="btn-delete-img" (click)="removeImage()" [title]="t().removeImage">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="3 6 5 6 21 6"></polyline>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -402,7 +378,7 @@
 
       <!-- Footer Actions -->
       <div class="modal-footer">
-        <button type="button" class="btn btn--secondary" (click)="close.emit()">
+        <button type="button" class="btn btn--secondary" (click)="closed.emit()">
           {{ t().cancel }}
         </button>
         <button type="submit" class="btn btn--primary" [disabled]="!isFormValid() || isSubmitting()">

@@ -1,39 +1,14 @@
 import { Injectable, signal, computed, inject, Injector } from '@angular/core';
-import { Observable, of, map, catchError, tap, switchMap, forkJoin } from 'rxjs';
-import {
-  ClassroomCard,
-  ClassroomStatus,
-  SelectableRoom,
-  CateringProductItem,
-  ClassroomCoupon,
-  ClassroomOvertimeResult,
-  ClassroomCheckoutPayload,
-  AdminReservation,
-  ClassroomDto,
-  ClassroomDetailDto,
-  CreateClassroomDto,
-  UpdateClassroomDto,
-  CheckoutClassroomDto,
-  ReservationDto,
-  CreateReservationDto,
-  UpdateReservationDto,
-  CheckReservationConflictDto,
-  ReservationConflictCheckResultDto,
-  CancelReservationDayDto,
-  CreateClassroomFromReservationDto,
-  RoomDto,
-  ClassroomTypeEnum
-} from '../models/classroom.model';
+import { Observable, of, map, catchError, tap, forkJoin } from 'rxjs';
+import { ClassroomCard, ClassroomStatus, SelectableRoom, CateringProductItem, ClassroomOvertimeResult, ClassroomCheckoutPayload, AdminReservation, ClassroomDto, ClassroomDetailDto, CreateClassroomDto, UpdateClassroomDto, CheckoutClassroomDto, ReservationDto, CreateReservationDto, UpdateReservationDto, CheckReservationConflictDto, ReservationConflictCheckResultDto, CancelReservationDayDto, CreateClassroomFromReservationDto, ClassroomTypeEnum } from '../models/classroom.model';
 import { ClassroomApiService } from './api/classroom-api.service';
 import { ReservationApiService } from './api/reservation-api.service';
 import { RoomApiService } from './api/room-api.service';
 import { InstructorApiService } from './api/instructor-api.service';
 import { CouponApiService } from './api/coupon-api.service';
 import { PricingPlanApiService } from './api/pricing-plan-api.service';
-import { isCouponExhausted, isCouponExpired } from '../models/coupon.model';
 import { resolveImageUrl } from '../utils/image-url.util';
 import { ShiftService } from './shift.service';
-import { ShiftPaymentMethod } from '../models/shift.model';
 import { AuthService } from './auth.service';
 import { LanguageService } from './language.service';
 import { CateringService } from './catering.service';
@@ -47,9 +22,10 @@ import {
   getTodayDateISO,
   convertMinutesTo12h,
   convertMinutesTo24h,
-  parseTimeToMinutes
-} from '../utils/date-time.util';
+  parseTimeToMinutes,
+  addDaysToDateISO, formatLocalDateToISO } from '../utils/date-time.util';
 import { calculateSessionDurationAndOvertime } from '../utils/session-lifecycle.util';
+import { extractApiErrorMessage } from '../utils/api-error.util';
 
 /**
  * Clean Architecture Layer 4: Feature Service
@@ -109,7 +85,6 @@ export class ClassroomService {
 
   /** Computed Room Status Counts */
   readonly totalRooms = computed(() => this.roomsState().length);
-  readonly activeRoomsCount = computed(() => this.cardsState().filter(c => c.status === 'active').length);
   readonly availableRoomsCount = computed(() => {
     const total = this.roomsState().length;
     const active = this.cardsState().filter(c => c.status === 'active').length;
@@ -264,7 +239,7 @@ export class ClassroomService {
           );
         }
       },
-      error: () => { }
+      error: () => { /* best effort: a failure here is ignored on purpose */ }
     });
   }
 
@@ -287,22 +262,32 @@ export class ClassroomService {
   // BACKEND SYNCHRONIZATION & DATA FETCHING
   // ============================================================
 
+  /** Background refresh of bookings and reservations (LiveRefreshService): no loading spinner. */
+  public refreshSilently(): void {
+    if (!this.authService.isAuthenticated()) return;
+    forkJoin([
+      this.loadClassrooms({ DateFrom: addDaysToDateISO(-1) }, true),
+      this.loadReservations()
+    ]).subscribe({ error: () => { /* best effort: a failure here is ignored on purpose */ } });
+  }
+
   /** Complete backend data synchronization */
   public syncWithBackend(): void {
     if (!this.authService.isAuthenticated()) return;
-    const todayIso = getTodayDateISO();
+    // From yesterday, so a session that started before midnight and is still running is loaded.
+    const fromIso = addDaysToDateISO(-1);
     forkJoin([
       this.loadInstructors(),
       this.loadRooms()
     ]).subscribe({
       next: () => {
         forkJoin([
-          this.loadClassrooms({ DateFrom: todayIso }),
+          this.loadClassrooms({ DateFrom: fromIso }),
           this.loadReservations()
         ]).subscribe();
       },
       error: () => {
-        this.loadClassrooms({ DateFrom: todayIso }).subscribe();
+        this.loadClassrooms({ DateFrom: fromIso }).subscribe();
         this.loadReservations().subscribe();
       }
     });
@@ -365,11 +350,11 @@ export class ClassroomService {
   private completedCardIds = new Set<string>();
 
   /** Load classroom sessions from GET /api/Classrooms */
-  public loadClassrooms(params?: any): Observable<ClassroomCard[]> {
-    this.loadingState.set(true);
+  public loadClassrooms(params?: any, silent = false): Observable<ClassroomCard[]> {
+    if (!silent) this.loadingState.set(true);
     this.errorState.set(null);
 
-    const effectiveParams = params !== undefined ? params : { DateFrom: getTodayDateISO() };
+    const effectiveParams = params !== undefined ? params : { DateFrom: addDaysToDateISO(-1) };
     return this.classroomApi.getClassrooms(effectiveParams).pipe(
       map(classrooms => {
         const themes = ['brown', 'blue', 'purple', 'emerald', 'orange', 'rose'] as const;
@@ -404,7 +389,7 @@ export class ClassroomService {
             }
           }
 
-          let computedStatus: ClassroomStatus = 'available';
+          let computedStatus: ClassroomStatus;
           if (isExplicitlyCompleted) {
             computedStatus = 'completed';
           } else if (isCancelled) {
@@ -538,7 +523,7 @@ export class ClassroomService {
             reservationId: c.reservationId || (c as any).sourceReservationId || undefined,
             roomId: c.roomId || roomMatch?.id,
             instructorId: insId || undefined,
-            name: c.roomName || roomMatch?.name || 'Classroom',
+            name: c.roomName || roomMatch?.name || this.langService.t().resUnknownRoom,
             activity: resolvedActivity,
             instructor: resolvedInstructor,
             phone: phoneVal,
@@ -612,7 +597,7 @@ export class ClassroomService {
       }),
       catchError(err => {
         console.error('[ClassroomService] Failed to load classrooms from API:', err);
-        this.errorState.set(err?.message || 'Failed to load classroom sessions');
+        this.errorState.set(err?.message || this.langService.t().resLoadSessionsFailed);
         this.loadingState.set(false);
         return of([]);
       })
@@ -642,10 +627,14 @@ export class ClassroomService {
           const durHours = diffMinutes > 0 ? +(diffMinutes / 60).toFixed(1) : 2;
 
           const baseDateStr = this.parseIsoToLocalDate(r.dateFrom) || todayISO;
-          const isRecurring = !!(r.recurrenceFrequency || (r.upcomingSessions && r.upcomingSessions.length > 0));
+          // The server stores a recurrenceFrequency even for one-off reservations, so a reservation is
+          // recurring only when it spans more than one day (or is open-ended).
+          const endDateStr = this.parseIsoToLocalDate(r.dateTo);
+          const isRecurring = !!r.isOngoing || (!!endDateStr && endDateStr !== baseDateStr) ||
+            (Array.isArray(r.upcomingSessions) && r.upcomingSessions.length > 1);
 
           if (isRecurring) {
-            let sessionDates: string[] = [];
+            let sessionDates: string[];
             if (Array.isArray(r.upcomingSessions) && r.upcomingSessions.length > 0) {
               sessionDates = r.upcomingSessions.map(s => this.parseIsoToLocalDate(s)).filter((d): d is string => !!d);
               if (baseDateStr && !sessionDates.includes(baseDateStr)) {
@@ -668,8 +657,10 @@ export class ClassroomService {
                 id: `${r.id}_${dStr}`,
                 reservationId: r.id,
                 occurrenceDate: dStr,
+                seriesDateFrom: baseDateStr,
+                seriesDateTo: endDateStr || undefined,
                 displayId: `RES-${r.id.substring(0, 4).toUpperCase()}`,
-                instructor: r.instructorName || (r.instructorId ? this.instructorMap.get(r.instructorId)?.name : '') || 'Instructor',
+                instructor: r.instructorName || (r.instructorId ? this.instructorMap.get(r.instructorId)?.name : '') || this.langService.t().resNoInstructor,
                 instructorId: r.instructorId || null,
                 instructorPhone: r.instructorPhoneNumber || r.instructorPhone || (r as any).phone || (r as any).phoneNumber || null,
                 phoneNumber: r.instructorPhoneNumber || r.instructorPhone || (r as any).phone || (r as any).phoneNumber || null,
@@ -678,8 +669,8 @@ export class ClassroomService {
                 instructorEmail: (r as any).email || (r as any).instructorEmail || null,
                 notes: r.note || r.notes || null,
                 note: r.note || r.notes || null,
-                activity: r.activity || 'Classroom Reservation',
-                classroom: r.roomName || roomMatch?.name || 'Hall',
+                activity: r.activity || this.langService.t().resUntitledBooking,
+                classroom: r.roomName || roomMatch?.name || this.langService.t().resUnknownRoom,
                 capacity: roomMatch?.maxCapacity || 20,
                 date: isToday ? 'Today' : dStr,
                 fullDate: dStr,
@@ -715,7 +706,7 @@ export class ClassroomService {
               reservationId: r.id,
               occurrenceDate: baseDateStr,
               displayId: `RES-${r.id.substring(0, 4).toUpperCase()}`,
-              instructor: r.instructorName || (r.instructorId ? this.instructorMap.get(r.instructorId)?.name : '') || 'Instructor',
+              instructor: r.instructorName || (r.instructorId ? this.instructorMap.get(r.instructorId)?.name : '') || this.langService.t().resNoInstructor,
               instructorId: r.instructorId || null,
               instructorPhone: r.instructorPhoneNumber || r.instructorPhone || (r as any).phone || (r as any).phoneNumber || null,
               phoneNumber: r.instructorPhoneNumber || r.instructorPhone || (r as any).phone || (r as any).phoneNumber || null,
@@ -724,8 +715,8 @@ export class ClassroomService {
               instructorEmail: (r as any).email || (r as any).instructorEmail || null,
               notes: r.note || r.notes || null,
               note: r.note || r.notes || null,
-              activity: r.activity || 'Classroom Reservation',
-              classroom: r.roomName || roomMatch?.name || 'Hall',
+              activity: r.activity || this.langService.t().resUntitledBooking,
+              classroom: r.roomName || roomMatch?.name || this.langService.t().resUnknownRoom,
               capacity: roomMatch?.maxCapacity || 20,
               date: isToday ? 'Today' : baseDateStr,
               fullDate: baseDateStr,
@@ -785,7 +776,7 @@ export class ClassroomService {
     if (freq === 1) {
       // Daily
       for (let i = 0; i < maxOccurrences; i++) {
-        dates.push(this.formatDateToYMD(curr));
+        dates.push(formatLocalDateToISO(curr));
         curr.setDate(curr.getDate() + interval);
       }
     } else if (freq === 2) {
@@ -794,7 +785,7 @@ export class ClassroomService {
       let safety = 0;
       while (count < maxOccurrences && safety < 365) {
         if (days.includes(curr.getDay())) {
-          dates.push(this.formatDateToYMD(curr));
+          dates.push(formatLocalDateToISO(curr));
           count++;
         }
         curr.setDate(curr.getDate() + 1);
@@ -803,18 +794,11 @@ export class ClassroomService {
     } else if (freq === 3) {
       // Monthly
       for (let i = 0; i < maxOccurrences; i++) {
-        dates.push(this.formatDateToYMD(curr));
+        dates.push(formatLocalDateToISO(curr));
         curr.setMonth(curr.getMonth() + interval);
       }
     }
     return dates;
-  }
-
-  private formatDateToYMD(d: Date): string {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
   }
 
   // ============================================================
@@ -928,9 +912,9 @@ export class ClassroomService {
       activity: newCard.activity,
       bookingDate: newCard.bookingDate || this.getTodayDateISO(),
       startTime: this.convertTimeToISO(startTime12, newCard.bookingDate),
-      endTime: this.convertTimeToISO(endTime12, newCard.bookingDate),
+      endTime: this.endIsoFor(startTime12, endTime12, newCard.bookingDate),
       timeFrom: this.convertTimeToISO(startTime12, newCard.bookingDate),
-      timeTo: this.convertTimeToISO(endTime12, newCard.bookingDate),
+      timeTo: this.endIsoFor(startTime12, endTime12, newCard.bookingDate),
       date: newCard.bookingDate ? new Date(newCard.bookingDate).toISOString() : new Date().toISOString(),
       reservationCost: newCard.rental || (newCard.hourlyRate ? newCard.hourlyRate * duration : 0),
       hourlyRate: newCard.hourlyRate || 0,
@@ -938,7 +922,7 @@ export class ClassroomService {
       printing: newCard.printingCharges || 0,
       discount: 0,
       payWay: 1,
-      type: ClassroomTypeEnum.New,
+      type: newCard.paymentMode === 'package' ? ClassroomTypeEnum.InstructorPackage : ClassroomTypeEnum.New,
       note: newCard.note || newCard.notes || null
     };
 
@@ -1006,8 +990,10 @@ export class ClassroomService {
       instructorEmail: card.email,
       hourlyRate: card.hourlyRate,
       printingCharges: card.printingCharges,
+      // Without the date the server clears the booking date on every edit.
+      date: card.bookingDate ? new Date(card.bookingDate).toISOString() : undefined,
       timeFrom: this.convertTimeToISO(card.startTime, card.bookingDate),
-      timeTo: this.convertTimeToISO(card.endTime, card.bookingDate),
+      timeTo: this.endIsoFor(card.startTime, card.endTime, card.bookingDate),
       reservationCost: card.rental,
       printing: card.printingCharges
     };
@@ -1082,6 +1068,7 @@ export class ClassroomService {
         if (roomOnlyAmt > 0 || (effectiveCatering === 0 && effectivePrinting === 0)) {
           const roomAmt = roomOnlyAmt > 0 ? roomOnlyAmt : totalPaid;
           this.shiftService.addManualShiftItem({
+            localOnly: true, // already recorded by the checkout endpoint
             amount: roomAmt,
             type: 'revenue',
             paymentMethod: validPayMethod,
@@ -1093,6 +1080,7 @@ export class ClassroomService {
         // 2. Record catering & drinks revenue (الكافيه والمشروبات)
         if (effectiveCatering > 0) {
           this.shiftService.addManualShiftItem({
+            localOnly: true, // already recorded by the checkout endpoint
             amount: effectiveCatering,
             type: 'revenue',
             paymentMethod: validPayMethod,
@@ -1104,6 +1092,7 @@ export class ClassroomService {
         // 3. Record printing & handouts revenue (إيرادات تانية - طباعة وورق)
         if (effectivePrinting > 0) {
           this.shiftService.addManualShiftItem({
+            localOnly: true, // already recorded by the checkout endpoint
             amount: effectivePrinting,
             type: 'revenue',
             paymentMethod: validPayMethod,
@@ -1129,7 +1118,7 @@ export class ClassroomService {
             timeAlertStatus: 'normal' as const
           } as any;
           (completedCardSnapshot as any).checkedOutAt = new Date().toLocaleTimeString(this.langService.isArabic() ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' });
-          (completedCardSnapshot as any).checkedOutByStaffName = currentUser?.name || (currentUser as any)?.fullName || (this.langService.isArabic() ? 'الموظف المناوب' : 'Staff');
+          (completedCardSnapshot as any).checkedOutByStaffName = currentUser?.name || (currentUser as any)?.fullName || (this.langService.t().svcStaff);
           (completedCardSnapshot as any).paidAmount = totalPaid;
           (completedCardSnapshot as any).paymentMethod = validPayMethod;
 
@@ -1239,22 +1228,14 @@ export class ClassroomService {
             unitPrice: item.unitPrice
           }).subscribe({
             next: () => this.syncClassroomCatering(targetId),
-            error: (e) => console.warn('[ClassroomService] Could not persist catering order to API:', e)
+            error: (e) => {
+              this.injector.get<any>(NotificationService as any, null)?.error?.(this.langService.tf('clsCateringSyncFailed', { error: extractApiErrorMessage(e, this.langService.t().connectionErrorFallback) }));
+              this.syncClassroomCatering(targetId);
+            }
           });
         }
       });
     }
-  }
-
-  /** Add printing charges to a card */
-  addPrinting(cardId: string, amount: number = 10): void {
-    this.cardsState.update(cards =>
-      cards.map(c =>
-        c.id === cardId
-          ? { ...c, printingCharges: (c.printingCharges || 0) + amount }
-          : c
-      )
-    );
   }
 
   // ============================================================
@@ -1265,7 +1246,7 @@ export class ClassroomService {
   createReservation(dto: CreateReservationDto): Observable<AdminReservation> {
     const targetDate = dto.dateFrom || this.getTodayDateISO();
     const isoStart = this.convertTimeToISO(dto.timeFrom, targetDate);
-    const isoEnd = this.convertTimeToISO(dto.timeTo, targetDate);
+    const isoEnd = this.endIsoFor(dto.timeFrom, dto.timeTo, targetDate);
 
     const realRoomId = this.getValidRoomId(dto.roomId, dto.roomName);
     const roomMatch = this.roomsState().find(rm => rm.id === realRoomId);
@@ -1277,6 +1258,8 @@ export class ClassroomService {
       instructorId: matchedInsId,
       instructorName: dto.instructorName,
       instructorPhone: dto.instructorPhone || dto.phoneNumber || dto.phone || undefined,
+      // the server's field (backend change of 2026-11-12); the other names are kept for older builds
+      instructorPhoneNumber: dto.instructorPhone || dto.phoneNumber || dto.phone || null,
       phoneNumber: dto.phoneNumber || dto.instructorPhone || dto.phone || null,
       phone: dto.phone || dto.instructorPhone || dto.phoneNumber || null,
       activity: dto.activity,
@@ -1314,7 +1297,7 @@ export class ClassroomService {
           reservationId: created.id,
           occurrenceDate: dateStr,
           displayId: `RES-${created.id.substring(0, 4).toUpperCase()}`,
-          instructor: created.instructorName || dto.instructorName || 'Instructor',
+          instructor: created.instructorName || dto.instructorName || this.langService.t().resNoInstructor,
           instructorId: created.instructorId || dto.instructorId || null,
           phoneNumber: created.phoneNumber || dto.phoneNumber || dto.phone || null,
           instructorPhone: created.instructorPhone || dto.instructorPhone || dto.phoneNumber || null,
@@ -1322,8 +1305,8 @@ export class ClassroomService {
           instructorEmail: (created as any).email || dto.instructorEmail || dto.email || null,
           notes: created.note || (created as any).notes || dto.notes || dto.note || null,
           note: created.note || (created as any).notes || dto.note || dto.notes || null,
-          activity: created.activity || dto.activity || 'Classroom Reservation',
-          classroom: created.roomName || dto.roomName || roomMatch?.name || 'Hall',
+          activity: created.activity || dto.activity || this.langService.t().resUntitledBooking,
+          classroom: created.roomName || dto.roomName || roomMatch?.name || this.langService.t().resUnknownRoom,
           capacity: roomMatch?.maxCapacity || 20,
           date: dateStr === this.getTodayDateISO() ? 'Today' : dateStr,
           fullDate: dateStr,
@@ -1366,13 +1349,15 @@ export class ClassroomService {
   updateReservation(id: string, dto: UpdateReservationDto): Observable<ReservationDto> {
     const targetDate = dto.dateFrom || this.getTodayDateISO();
     const isoStart = dto.timeFrom ? this.convertTimeToISO(dto.timeFrom, targetDate) : undefined;
-    const isoEnd = dto.timeTo ? this.convertTimeToISO(dto.timeTo, targetDate) : undefined;
+    const isoEnd = dto.timeTo ? this.endIsoFor(dto.timeFrom, dto.timeTo, targetDate) : undefined;
     const matchedInsId = dto.instructorId || this.findInstructorIdByName(dto.instructorName || '');
 
     const payload: UpdateReservationDto = {
       ...dto,
       instructorId: matchedInsId || dto.instructorId,
       instructorPhone: dto.instructorPhone || dto.phoneNumber || dto.phone || undefined,
+      // the server's field (backend change of 2026-11-12); the other names are kept for older builds
+      instructorPhoneNumber: dto.instructorPhone || dto.phoneNumber || dto.phone || null,
       phoneNumber: dto.phoneNumber || dto.instructorPhone || dto.phone || null,
       phone: dto.phone || dto.instructorPhone || dto.phoneNumber || null,
       dateFrom: dto.dateFrom ? new Date(dto.dateFrom).toISOString() : undefined,
@@ -1493,29 +1478,6 @@ export class ClassroomService {
   }
 
   // ============================================================
-  // REAL COUPON VALIDATION (API-based)
-  // ============================================================
-
-  /** Validate promo coupon codes via GET /api/Coupons/code/{code} */
-  validateCoupon(code: string): Observable<ClassroomCoupon | null> {
-    const cleanCode = code.trim().toUpperCase();
-    if (!cleanCode) return of(null);
-
-    return this.couponApi.getCouponByCode(cleanCode).pipe(
-      map(coupon => {
-        if (!coupon || !coupon.isActive) return null;
-        if (isCouponExpired(coupon) || isCouponExhausted(coupon)) return null;
-        return {
-          code: coupon.code,
-          discountPercent: coupon.value || 10,
-          discountName: `${coupon.value || 10}% OFF`
-        };
-      }),
-      catchError(() => of(null))
-    );
-  }
-
-  // ============================================================
   // TIME, OVERTIME & SESSION TIMERS LOGIC
   // ============================================================
 
@@ -1549,12 +1511,16 @@ export class ClassroomService {
     return parseTimeToMinutes(timeStr);
   }
 
-  /** Convert 24h string "14:30" to 12h string "02:30 PM" */
-  convert24hTo12h(time24: string): string {
-    return parseIsoToLocal12h(time24, false);
+  /** Convert 12h string "02:30 PM" and date "YYYY-MM-DD" to ISO string */
+  /** End time as ISO; a session that ends at or before its start time ends on the next day (e.g. 11 PM → 1 AM). */
+  endIsoFor(start12: string | null | undefined, end12: string | null | undefined, dateStr?: string | null): string {
+    const endIso = this.convertTimeToISO(end12, dateStr);
+    if (!start12 || !end12) return endIso;
+    const start = Date.parse(this.convertTimeToISO(start12, dateStr));
+    const end = Date.parse(endIso);
+    return Number.isFinite(start) && Number.isFinite(end) && end <= start ? new Date(end + 24 * 60 * 60 * 1000).toISOString() : endIso;
   }
 
-  /** Convert 12h string "02:30 PM" and date "YYYY-MM-DD" to ISO string */
   convertTimeToISO(time12?: string | null, dateStr?: string | null): string {
     const dStr = dateStr || this.getTodayDateISO();
     if (!time12) return new Date(dStr).toISOString();
@@ -1704,12 +1670,12 @@ export class ClassroomService {
   }
 
   /** Refresh cards status (alias for tickSessionTimers) */
-  refreshCardsStatus(isArabic: boolean = false): void {
+  refreshCardsStatus(isArabic = false): void {
     this.tickSessionTimers(isArabic);
   }
 
   /** Periodically check sessions status and overtime */
-  tickSessionTimers(isArabic: boolean = false): void {
+  tickSessionTimers(isArabic = false): void {
     const now = new Date();
     const todayISO = this.getTodayDateISO();
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
@@ -1823,8 +1789,7 @@ export class ClassroomService {
   calculateSessionDurationDetails(
     checkInTime?: string | null,
     checkOutTime?: string | null,
-    billedHours: number = 2,
-    isArabic: boolean = true
+    billedHours = 2
   ): {
     actualMinutes: number;
     actualDurationFormatted: string;
@@ -1835,7 +1800,7 @@ export class ClassroomService {
     status: 'early' | 'exact' | 'overtime';
   } {
     const startMins = this.parseTimeToMinutes(checkInTime || '10:00 AM');
-    let endMins = this.parseTimeToMinutes(checkOutTime || '12:00 PM');
+    const endMins = this.parseTimeToMinutes(checkOutTime || '12:00 PM');
     let actualMinutes = endMins - startMins;
     if (actualMinutes < 0) {
       actualMinutes += 1440; // crosses midnight
@@ -1844,104 +1809,36 @@ export class ClassroomService {
       actualMinutes = Math.max(1, Math.round(billedHours * 60));
     }
 
+    const lang = this.langService;
     const actualDays = Math.floor(actualMinutes / 1440);
     const actualRemAfterDays = actualMinutes % 1440;
     const actualHours = Math.floor(actualRemAfterDays / 60);
     const actualRemMins = actualRemAfterDays % 60;
 
-    let actualDurationFormatted = '';
-    if (actualDays > 0) {
-      if (isArabic) {
-        let text = `${actualDays} يوم`;
-        if (actualHours > 0) text += ` و ${actualHours} ساعة`;
-        if (actualRemMins > 0) text += ` و ${actualRemMins} دقيقة`;
-        actualDurationFormatted = text;
-      } else {
-        actualDurationFormatted = `${actualDays}d ${actualHours}h ${actualRemMins}m`;
-      }
-    } else if (isArabic) {
-      if (actualHours === 0) {
-        actualDurationFormatted = `${actualRemMins} دقيقة`;
-      } else if (actualHours === 1) {
-        actualDurationFormatted = actualRemMins === 0 ? 'ساعة واحدة' : `ساعة و ${actualRemMins} دقيقة`;
-      } else if (actualHours === 2) {
-        actualDurationFormatted = actualRemMins === 0 ? 'ساعتان' : `ساعتان و ${actualRemMins} دقيقة`;
-      } else if (actualHours >= 3 && actualHours <= 10) {
-        actualDurationFormatted = actualRemMins === 0 ? `${actualHours} ساعات` : `${actualHours} ساعات و ${actualRemMins} دقيقة`;
-      } else {
-        actualDurationFormatted = actualRemMins === 0 ? `${actualHours} ساعة` : `${actualHours} ساعة و ${actualRemMins} دقيقة`;
-      }
-    } else {
-      if (actualHours === 0) {
-        actualDurationFormatted = `${actualRemMins} min`;
-      } else if (actualHours === 1) {
-        actualDurationFormatted = actualRemMins === 0 ? '1 hour' : `1 hr ${actualRemMins} min`;
-      } else {
-        actualDurationFormatted = actualRemMins === 0 ? `${actualHours} hours` : `${actualHours} hrs ${actualRemMins} min`;
-      }
-    }
+    const dayAndTime = lang.tf('durDays', { n: actualDays }) + (actualHours || actualRemMins ? lang.t().durAnd + lang.hoursMinutesText(actualHours, actualRemMins) : '');
+    const actualDurationFormatted = actualDays > 0 ? dayAndTime : lang.hoursMinutesText(actualHours, actualRemMins);
 
     const billedMinutes = Math.round(billedHours * 60);
     const billedDays = Math.floor(billedHours / 24);
     const billedRemHours = Math.round(billedHours % 24);
-    let billedDurationFormatted = '';
-    if (billedDays > 0) {
-      if (isArabic) {
-        billedDurationFormatted = `${billedDays} يوم` + (billedRemHours > 0 ? ` و ${billedRemHours} ساعة` : '');
-      } else {
-        billedDurationFormatted = `${billedDays}d` + (billedRemHours > 0 ? ` ${billedRemHours} hrs` : '');
-      }
-    } else if (isArabic) {
-      if (billedHours === 1) {
-        billedDurationFormatted = 'ساعة واحدة';
-      } else if (billedHours === 2) {
-        billedDurationFormatted = '2 ساعات';
-      } else if (billedHours >= 3 && billedHours <= 10) {
-        billedDurationFormatted = `${billedHours} ساعات`;
-      } else {
-        billedDurationFormatted = `${billedHours} ساعة`;
-      }
-    } else {
-      billedDurationFormatted = `${billedHours} ${billedHours === 1 ? 'hour' : 'hours'}`;
-    }
+    const billedDurationFormatted = billedDays > 0
+      ? lang.tf('durDays', { n: billedDays }) + (billedRemHours > 0 ? lang.t().durAnd + lang.hoursText(billedRemHours) : '')
+      : lang.hoursText(billedHours);
 
     const diffMinutes = actualMinutes - billedMinutes;
-    let differenceText = '';
-    let status: 'early' | 'exact' | 'overtime' = 'exact';
+    let differenceText: string;
+    let status: 'early' | 'exact' | 'overtime';
 
     if (diffMinutes < -1) {
       status = 'early';
       const remainingMins = Math.abs(diffMinutes);
-      const remH = Math.floor(remainingMins / 60);
-      const remM = remainingMins % 60;
-      let remStr = '';
-      if (isArabic) {
-        if (remH === 0) remStr = `${remM} دقيقة`;
-        else if (remH === 1) remStr = remM === 0 ? 'ساعة' : `ساعة و ${remM} دقيقة`;
-        else remStr = remM === 0 ? `${remH} ساعات` : `${remH} ساعات و ${remM} دقيقة`;
-        differenceText = `مغادرة مبكرة (متبقي ${remStr} من المحجوز)`;
-      } else {
-        remStr = remH === 0 ? `${remM}m` : `${remH}h ${remM}m`;
-        differenceText = `Early departure (${remStr} remaining)`;
-      }
+      differenceText = lang.tf('durEarlyDeparture', { d: lang.hoursMinutesText(Math.floor(remainingMins / 60), remainingMins % 60) });
     } else if (diffMinutes > 1) {
       status = 'overtime';
-      const extraMins = diffMinutes;
-      const exH = Math.floor(extraMins / 60);
-      const exM = extraMins % 60;
-      let exStr = '';
-      if (isArabic) {
-        if (exH === 0) exStr = `${exM} دقيقة`;
-        else if (exH === 1) exStr = exM === 0 ? 'ساعة' : `ساعة و ${exM} دقيقة`;
-        else exStr = exM === 0 ? `${exH} ساعات` : `${exH} ساعات و ${exM} دقيقة`;
-        differenceText = `وقت إضافي (${exStr} زيادة)`;
-      } else {
-        exStr = exH === 0 ? `${exM}m` : `${exH}h ${exM}m`;
-        differenceText = `Overtime (+${exStr})`;
-      }
+      differenceText = lang.tf('durOvertime', { d: lang.hoursMinutesText(Math.floor(diffMinutes / 60), diffMinutes % 60) });
     } else {
       status = 'exact';
-      differenceText = isArabic ? 'اكتملت المدة المحجوزة بالكامل' : 'Full duration completed';
+      differenceText = lang.t().durFullCompleted;
     }
 
     return {
@@ -1962,9 +1859,9 @@ export class ClassroomService {
   getItemizedCateringList(
     card: ClassroomCard | null,
     stepperProducts?: any[],
-    totalCateringAmount: number = 0,
-    isArabic: boolean = true
-  ): Array<{ name: string; quantity: number; unitPrice: number; totalPrice: number }> {
+    totalCateringAmount = 0,
+    isArabic = true
+  ): { name: string; quantity: number; unitPrice: number; totalPrice: number }[] {
     const rawList: any[] = [];
 
     if (card) {

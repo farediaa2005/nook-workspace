@@ -1,5 +1,5 @@
-<div class="modal-overlay" (click)="close.emit()">
-  <div class="modal-card modal-card--checkout" (click)="$event.stopPropagation()">
+<div class="modal-overlay" (click)="closed.emit()" role="presentation">
+  <div class="modal-card modal-card--checkout" (click)="$event.stopPropagation()" role="presentation">
     <!-- Header -->
     <div class="modal-head">
       <div class="modal-head-text">
@@ -8,7 +8,7 @@
           <p class="modal-subtitle">{{ data().subtitle }}</p>
         }
       </div>
-      <button type="button" class="btn-close-circle" (click)="close.emit()" aria-label="Close">
+      <button type="button" class="btn-close-circle" (click)="closed.emit()" aria-label="Close">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -22,15 +22,15 @@
       <div class="modal-col">
         <!-- 1. Session Details Card -->
         <div class="modal-section-card">
-          <h3 class="section-card-title">{{ isArabic() ? 'تفاصيل الجلسة' : 'SESSION DETAILS' }}</h3>
+          <h3 class="section-card-title">{{ t().chkSessionDetails }}</h3>
 
           <div class="session-box">
             <div class="session-header-row">
               <div class="activity-info">
-                <span class="tiny-label">{{ isArabic() ? 'الاسم' : 'NAME' }}</span>
+                <span class="tiny-label">{{ t().chkName }}</span>
                 <strong class="activity-title">{{ data().session.studentName || data().session.activity }}</strong>
                 @if (data().session.roomName) {
-                  <span class="activity-room-tag" style="font-size: 0.76rem; color: var(--text-dim); display: block; margin-top: 2px;">
+                  <span class="activity-room-tag" style="font-size: var(--fs-xs); color: var(--text-dim); display: block; margin-top: 2px;">
                     {{ data().session.roomName }}
                   </span>
                 }
@@ -42,16 +42,16 @@
               >
                 @if (data().session.status === 'active') {
                   <span class="status-dot"></span>
-                  <span>{{ isArabic() ? 'نشط' : 'Active' }}</span>
+                  <span>{{ t().statusActivePass }}</span>
                 } @else {
-                  <span>{{ isArabic() ? 'مكتمل' : 'Completed' }}</span>
+                  <span>{{ t().resCompleted }}</span>
                 }
               </span>
             </div>
 
             <div class="timing-duration-row">
               <div class="meta-item">
-                <span class="tiny-label">{{ isArabic() ? 'التوقيت' : 'TIMING' }}</span>
+                <span class="tiny-label">{{ t().timing }}</span>
                 <div class="timing-val">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tiny-icon">
                     <circle cx="12" cy="12" r="10"></circle>
@@ -67,8 +67,8 @@
               </div>
 
               <div class="meta-item">
-                <span class="tiny-label">{{ isArabic() ? 'إجمالي المدة' : 'TOTAL DURATION' }}</span>
-                <strong class="duration-val">{{ formatTime(data().session.duration) }}</strong>
+                <span class="tiny-label">{{ t().chkTotalDuration }}</span>
+                <strong class="duration-val">{{ formatDuration(data().session.duration) }}</strong>
               </div>
             </div>
           </div>
@@ -77,7 +77,7 @@
         <!-- 2. Financial Breakdown Card -->
         <div class="modal-section-card">
           <div class="section-card-header-row">
-            <h3 class="section-card-title">{{ isArabic() ? 'تفاصيل الحساب' : 'FINANCIAL BREAKDOWN' }}</h3>
+            <h3 class="section-card-title">{{ t().chkFinancialBreakdown }}</h3>
           </div>
 
           <div class="breakdown-lines">
@@ -164,7 +164,7 @@
 
             <!-- Subtotal Line -->
             <div class="breakdown-line subtotal-row">
-              <strong class="line-title">{{ isArabic() ? 'المجموع الفرعي' : 'Subtotal' }}</strong>
+              <strong class="line-title">{{ t().subtotal }}</strong>
               <div class="line-amount">
                 <span class="amount-number">{{ data().financialBreakdown.subtotal.toFixed(2) }}</span>
                 <span class="currency-symbol">{{ t().currency }}</span>
@@ -173,22 +173,22 @@
 
             <!-- Explicit Discount Breakdown Line (O-1 fix) -->
             @if (appliedDiscountAmount() > 0) {
-              <div class="breakdown-line discount-breakdown-row" style="background: rgba(16, 185, 129, 0.08); padding: 8px 12px; border-radius: 8px; margin: 6px 0; border: 1px dashed rgba(16, 185, 129, 0.35);">
+              <div class="breakdown-line discount-breakdown-row" style="background: rgba(16, 185, 129, 0.08); padding: 8px 12px; border-radius: var(--radius-xs); margin: 6px 0; border: 1px dashed rgba(16, 185, 129, 0.35);">
                 <div class="line-desc" style="display: flex; align-items: center; gap: 8px;">
-                  <span style="color: #10b981; font-weight: 700;">🏷️ {{ discountLineLabel() }}</span>
-                  <button type="button" class="btn-remove-discount" (click)="removeDiscountAndCoupon()" [title]="isArabic() ? 'إلغاء الخصم' : 'Remove discount'" style="background: none; border: none; color: #ef4444; font-size: 0.9rem; font-weight: 700; cursor: pointer; padding: 0 4px; line-height: 1;">
+                  <span style="color: var(--success-strong); font-weight: 700;">🏷️ {{ discountLineLabel() }}</span>
+                  <button type="button" class="btn-remove-discount" (click)="removeDiscountAndCoupon()" [title]="t().chkRemoveDiscount" style="background: none; border: none; color: var(--danger-strong); font-size: var(--fs-base); font-weight: 700; cursor: pointer; padding: 0 4px; line-height: 1;">
                     ✕
                   </button>
                 </div>
                 <div class="line-amount">
-                  <span class="amount-number" style="color: #10b981; font-weight: 800;">-{{ appliedDiscountAmount().toFixed(2) }}</span>
-                  <span class="currency-symbol" style="color: #10b981;">{{ t().currency }}</span>
+                  <span class="amount-number" style="color: var(--success-strong); font-weight: 800;">-{{ appliedDiscountAmount().toFixed(2) }}</span>
+                  <span class="currency-symbol" style="color: var(--success-strong);">{{ t().currency }}</span>
                 </div>
               </div>
 
               <!-- Net Total After Discount -->
               <div class="breakdown-line net-total-row" style="margin-bottom: 6px;">
-                <strong class="line-title" style="font-weight: 700; color: var(--text);">{{ isArabic() ? 'الإجمالي بعد الخصم' : 'Total After Discount' }}</strong>
+                <strong class="line-title" style="font-weight: 700; color: var(--text);">{{ t().chkTotalAfterDiscount }}</strong>
                 <div class="line-amount">
                   <strong class="amount-number" style="font-weight: 800; color: var(--yellow);">{{ (data().financialBreakdown.subtotal - appliedDiscountAmount()).toFixed(2) }}</strong>
                   <span class="currency-symbol">{{ t().currency }}</span>
@@ -199,7 +199,7 @@
             <!-- Discount Presets & Coupon Input -->
             <div class="discount-actions-bar">
               <div class="discount-preset-pills">
-                <span class="pills-label">{{ isArabic() ? 'الخصم:' : 'Discount:' }}</span>
+                <span class="pills-label">{{ t().chkDiscount }}</span>
                 <button
                   type="button"
                   class="btn-pill"
@@ -232,26 +232,26 @@
                   type="number"
                   min="0"
                   class="coupon-dialog-input"
-                  style="max-width: 120px; padding: 4px 8px; font-size: 0.80rem;"
-                  [placeholder]="isArabic() ? 'خصم مخصص' : 'Custom discount'"
+                  style="max-width: 120px; padding: 4px 8px; font-size: var(--fs-sm);"
+                  [placeholder]="t().chkCustomDiscount"
                   [value]="customDiscountInput() !== null ? customDiscountInput() : ''"
                   (input)="customDiscountInput.set(+$any($event.target).value); onCustomDiscountInput($any($event.target).value)"
                 />
-                <div class="unit-selector" style="display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;">
+                <div class="unit-selector" style="display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-2xs); overflow: hidden;">
                   <button
                     type="button"
-                    style="padding: 3px 8px; font-size: 0.75rem; border: none; cursor: pointer; font-weight: 700;"
+                    style="padding: 3px 8px; font-size: var(--fs-xs); border: none; cursor: pointer; font-weight: 700;"
                     [style.background]="customDiscountMode() === 'percentage' ? 'var(--yellow)' : 'var(--surface-2)'"
-                    [style.color]="customDiscountMode() === 'percentage' ? '#111' : 'var(--text)'"
+                    [style.color]="customDiscountMode() === 'percentage' ? 'var(--black-soft)' : 'var(--text)'"
                     (click)="toggleDiscountMode('percentage')"
                   >%</button>
                   <button
                     type="button"
-                    style="padding: 3px 8px; font-size: 0.75rem; border: none; cursor: pointer; font-weight: 700;"
+                    style="padding: 3px 8px; font-size: var(--fs-xs); border: none; cursor: pointer; font-weight: 700;"
                     [style.background]="customDiscountMode() === 'fixed' ? 'var(--yellow)' : 'var(--surface-2)'"
-                    [style.color]="customDiscountMode() === 'fixed' ? '#111' : 'var(--text)'"
+                    [style.color]="customDiscountMode() === 'fixed' ? 'var(--black-soft)' : 'var(--text)'"
                     (click)="toggleDiscountMode('fixed')"
-                  >{{ isArabic() ? 'ج.م' : 'EGP' }}</button>
+                  >{{ t().egp }}</button>
                 </div>
               </div>
 
@@ -259,7 +259,7 @@
                 <input
                   type="text"
                   class="coupon-dialog-input"
-                  [placeholder]="isArabic() ? 'كود الخصم (مثال: NOOK10)' : 'Coupon (e.g. NOOK10)'"
+                  [placeholder]="t().chkCouponEGNook10"
                   [ngModel]="localCouponInput()"
                   (ngModelChange)="localCouponInput.set($event)"
                 />
@@ -268,7 +268,7 @@
                   class="btn-apply-coupon"
                   (click)="onApplyCoupon()"
                 >
-                  {{ isArabic() ? 'تطبيق' : 'Apply' }}
+                  {{ t().chkApply }}
                 </button>
               </div>
             </div>
@@ -285,8 +285,8 @@
             <!-- Final Total Row -->
             <div class="summary-total-banner">
               <div class="banner-desc">
-                <strong class="banner-title">{{ isArabic() ? 'إجمالي الحساب المطلوب' : 'Total Amount Due' }}</strong>
-                <span class="banner-sub">{{ isArabic() ? 'شامل الجلسة والخدمات والخصومات' : 'Includes session, services & discounts' }}</span>
+                <strong class="banner-title">{{ t().chkTotalAmountDue }}</strong>
+                <span class="banner-sub">{{ t().chkIncludesSessionServicesDiscounts }}</span>
               </div>
               <div class="banner-amount">
                 <span class="banner-amount-val">{{ data().financialBreakdown.finalTotal.toFixed(2) }}</span>
@@ -302,9 +302,9 @@
                     <rect x="2" y="4" width="20" height="16" rx="2"></rect>
                     <path d="M7 15h0M2 9.5h20"></path>
                   </svg>
-                  <strong class="banner-title">{{ isArabic() ? 'رصيد المحفظة السابق' : 'Previous Wallet Balance' }}</strong>
+                  <strong class="banner-title">{{ t().chkPreviousWalletBalance }}</strong>
                 </div>
-                <span class="banner-sub">{{ isArabic() ? 'الرصيد المسجل قبل هذه الجلسة' : 'Recorded before this session' }}</span>
+                <span class="banner-sub">{{ t().chkRecordedBeforeThisSession }}</span>
               </div>
               <div class="banner-amount">
                 <span
@@ -320,13 +320,13 @@
           </div>
 
           <!-- 2. Payment Methods Grid -->
-          <h3 class="section-card-title">{{ isArabic() ? 'طريقة الدفع' : 'PAYMENT METHOD' }}</h3>
+          <h3 class="section-card-title">{{ t().paymentMethodLabel }}</h3>
           <div class="payment-methods-grid">
             <!-- Cash -->
             <div
               class="payment-option-card"
               [class.payment-option-card--active]="data().payment.selectedMethod === 'cash'"
-              (click)="selectPaymentMethod('cash')"
+              (click)="selectPaymentMethod('cash')" role="button" tabindex="0" (keydown.enter)="selectPaymentMethod('cash')"
             >
               <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="2" y="6" width="20" height="12" rx="2"></rect>
@@ -340,7 +340,7 @@
             <div
               class="payment-option-card"
               [class.payment-option-card--active]="data().payment.selectedMethod === 'vodafone'"
-              (click)="selectPaymentMethod('vodafone')"
+              (click)="selectPaymentMethod('vodafone')" role="button" tabindex="0" (keydown.enter)="selectPaymentMethod('vodafone')"
             >
               <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
@@ -353,7 +353,7 @@
             <div
               class="payment-option-card"
               [class.payment-option-card--active]="data().payment.selectedMethod === 'fawry'"
-              (click)="selectPaymentMethod('fawry')"
+              (click)="selectPaymentMethod('fawry')" role="button" tabindex="0" (keydown.enter)="selectPaymentMethod('fawry')"
             >
               <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -366,7 +366,7 @@
             <div
               class="payment-option-card"
               [class.payment-option-card--active]="data().payment.selectedMethod === 'instapay'"
-              (click)="selectPaymentMethod('instapay')"
+              (click)="selectPaymentMethod('instapay')" role="button" tabindex="0" (keydown.enter)="selectPaymentMethod('instapay')"
             >
               <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
@@ -379,37 +379,37 @@
           <!-- 3. Amount Received Input -->
           <div class="field-wrap">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <label class="field-label" style="margin: 0;">{{ isArabic() ? 'المبلغ المستلم' : 'AMOUNT RECEIVED' }}</label>
+              <label for="checkout-modal-f1" class="field-label" style="margin: 0;">{{ t().amountReceivedLabel }}</label>
               @if (netCashDue() <= 0) {
                 <span class="cash-covered-hint">
-                  ✓ {{ isArabic() ? 'مغطى بالكامل عبر المحفظة' : 'Covered by Wallet' }}
+                  ✓ {{ t().chkCoveredByWallet }}
                 </span>
               } @else {
                 <span class="cash-due-hint">
-                  {{ isArabic() ? 'المطلوب نقداً: ' : 'Cash Due: ' }}
+                  {{ t().chkCashDue }}
                   <strong>{{ netCashDue().toFixed(2) }} {{ t().currency }}</strong>
                 </span>
               }
             </div>
-            <div class="amount-input-box" [class.amount-input-box--error]="isInsufficient()">
-              <input
+            <div class="amount-input-box" [class.amount-input-box--error]="isInsufficient() && amountTouched()">
+              <input id="checkout-modal-f1"
                 type="number"
                 min="0"
                 step="5"
                 class="amount-received-input"
-                [placeholder]="netCashDue() <= 0 ? (isArabic() ? '0.00 ج.م (اختياري)' : '0.00 EGP (Optional)') : (isArabic() ? netCashDue().toFixed(2) + ' ج.م' : 'EGP ' + netCashDue().toFixed(2))"
+                [placeholder]="netCashDue() <= 0 ? (t().chk000EgpOptional) : tf('chkAmountEgp', { amount: netCashDue().toFixed(2) })"
                 [value]="data().payment.amountReceived !== null ? data().payment.amountReceived : ''"
                 (input)="onAmountInput($any($event.target).value)"
               />
             </div>
-            @if (isInsufficient()) {
+            @if (isInsufficient() && amountTouched()) {
               <span class="insufficient-error-text">
-                {{ isArabic() ? 'يرجى إدخال المبلغ المستلم' : 'Please enter received amount' }}
+                {{ t().chkPleaseEnterReceivedAmount }}
               </span>
             }
             @if (isPartialPayment()) {
-              <div class="partial-notice-badge" style="margin-top: 8px; padding: 8px 12px; background: rgba(245, 185, 33, 0.14); border: 1px solid rgba(245, 185, 33, 0.45); border-radius: 8px; font-size: 0.82rem; color: var(--yellow); display: flex; justify-content: space-between; align-items: center;">
-                <span>⚠️ {{ isArabic() ? 'سداد جزئي: سيتم تسجيل المبلغ المتبقي كمديونية على الطالب' : 'Partial payment: Remaining balance due' }}</span>
+              <div class="partial-notice-badge" style="margin-top: 8px; padding: 8px 12px; background: rgba(245, 185, 33, 0.14); border: 1px solid rgba(245, 185, 33, 0.45); border-radius: var(--radius-xs); font-size: var(--fs-sm); color: var(--yellow); display: flex; justify-content: space-between; align-items: center;">
+                <span>⚠️ {{ t().chkPartialPaymentRemainingBalanceDue }}</span>
                 <strong>{{ remainingBalance().toFixed(2) }} {{ t().currency }}</strong>
               </div>
             }
@@ -418,15 +418,15 @@
           <!-- 4. Change Due Box -->
           <div class="change-due-box">
             <div style="display: flex; align-items: center; gap: 8px;">
-              <span class="change-label">{{ isArabic() ? 'المتبقي للعميل' : 'Change Due' }}</span>
+              <span class="change-label">{{ t().changeDueLabel }}</span>
               @if (effectiveChangeDue() > 0 && walletMode() !== 'credit') {
                 <button
                   type="button"
                   class="btn-deposit-change-mini"
                   (click)="depositChangeToWallet()"
-                  title="إيداع هذا المبلغ في محفظة الطالب"
+                  [title]="t().chkDepositToWalletHint"
                 >
-                  + {{ isArabic() ? 'تحويل للمحفظة' : 'To Wallet' }}
+                  + {{ t().chkToWallet }}
                 </button>
               }
             </div>
@@ -438,7 +438,7 @@
           <!-- 5. Interactive Wallet Adjustment Section (ليه / عليه / بدون) -->
           <div class="wallet-interaction-card">
             <div class="wallet-card-header">
-              <span class="wallet-card-title">{{ isArabic() ? 'حركة المحفظة (الوليت)' : 'WALLET ADJUSTMENT' }}</span>
+              <span class="wallet-card-title">{{ t().chkWalletAdjustment }}</span>
             </div>
 
             <!-- Mode Selector: عليه (خصم/مديونية) | ليه (إضافة رصيد) | بدون حركة -->
@@ -449,7 +449,7 @@
                 [class.wallet-pill--active]="walletMode() === 'debit'"
                 (click)="setWalletMode('debit')"
               >
-                <span>{{ isArabic() ? 'عليه (- خصم)' : 'Debit (-)' }}</span>
+                <span>{{ t().chkDebit }}</span>
               </button>
               <button
                 type="button"
@@ -457,7 +457,7 @@
                 [class.wallet-pill--active]="walletMode() === 'credit'"
                 (click)="setWalletMode('credit')"
               >
-                <span>{{ isArabic() ? 'ليه (+ إضافة)' : 'Credit (+)' }}</span>
+                <span>{{ t().chkCredit }}</span>
               </button>
               <button
                 type="button"
@@ -465,7 +465,7 @@
                 [class.wallet-pill--active]="walletMode() === 'none'"
                 (click)="clearWalletAdjustment()"
               >
-                <span>{{ isArabic() ? 'بدون حركة' : 'None' }}</span>
+                <span>{{ t().chkNone }}</span>
               </button>
             </div>
 
@@ -478,14 +478,14 @@
                     min="0"
                     step="5"
                     class="wallet-number-input"
-                    [placeholder]="isArabic() ? (walletMode() === 'debit' ? 'المبلغ المطلوب خصمه (مثال: 50)' : 'المبلغ المراد إضافته (مثال: 20)') : 'Amount'"
+                    [placeholder]="walletMode() === 'debit' ? t().chkWalletDebitPlaceholder : t().chkWalletCreditPlaceholder"
                     [value]="walletInputAmount() !== null ? walletInputAmount() : ''"
                     (input)="onWalletAmountInput($any($event.target).value)"
                   />
                   <span class="wallet-input-currency">{{ t().currency }}</span>
                 </div>
                 @if (walletInputAmount() !== null && walletInputAmount()! > 0) {
-                  <button type="button" class="btn-clear-wallet" (click)="walletInputAmount.set(0)" title="تصفير">✕</button>
+                  <button type="button" class="btn-clear-wallet" (click)="walletInputAmount.set(0)" [title]="t().chkClearAmount">✕</button>
                 }
               </div>
 
@@ -497,7 +497,7 @@
                     class="btn-wallet-helper btn-wallet-helper--highlight"
                     (click)="applyFullBillToWallet()"
                   >
-                    ⚡ {{ isArabic() ? 'خصم الفاتورة بالكامل (' + data().financialBreakdown.finalTotal + ' ج.م)' : 'Full Bill (' + data().financialBreakdown.finalTotal + ')' }}
+                    ⚡ {{ tf('chkFullBill', { amount: data().financialBreakdown.finalTotal }) }}
                   </button>
                   @if ((data().financialBreakdown.walletBalance || 0) > 0) {
                     <button
@@ -505,7 +505,7 @@
                       class="btn-wallet-helper"
                       (click)="applyAvailableWalletBalance()"
                     >
-                      {{ isArabic() ? 'استخدام الرصيد المتاح (' + data().financialBreakdown.walletBalance + ' ج.م)' : 'Use Available (' + data().financialBreakdown.walletBalance + ')' }}
+                      {{ tf('chkUseAvailable', { amount: data().financialBreakdown.walletBalance }) }}
                     </button>
                   }
                 } @else if (walletMode() === 'credit') {
@@ -515,7 +515,7 @@
                       class="btn-wallet-helper btn-wallet-helper--highlight"
                       (click)="depositChangeToWallet()"
                     >
-                      ⚡ {{ isArabic() ? 'إيداع باقي الحساب (' + effectiveChangeDue() + ' ج.م)' : 'Deposit Change (' + effectiveChangeDue() + ')' }}
+                      ⚡ {{ tf('chkDepositChange', { amount: effectiveChangeDue() }) }}
                     </button>
                   }
                   <button type="button" class="btn-wallet-helper" (click)="quickAddCredit(10)">+10</button>
@@ -533,16 +533,16 @@
               [class.wallet-live-badge--neutral]="walletMode() === 'none' && (!hasReceivedAmountInput() || newWalletBalance() === 0)"
             >
               <div class="badge-text">
-                <span class="badge-title">{{ isArabic() ? 'رصيد المحفظة بعد العملية:' : 'New Wallet Balance:' }}</span>
+                <span class="badge-title">{{ t().chkNewWalletBalance }}</span>
                 <span class="badge-sub">
                   @if (!hasReceivedAmountInput() && walletMode() === 'none') {
-                    {{ isArabic() ? 'الرصيد دون تغيير (أدخل المبلغ المستلم للمحاسبة)' : 'Unchanged (enter received cash to settle)' }}
+                    {{ t().chkUnchangedEnterReceivedCashTo }}
                   } @else if (newWalletBalance() < 0) {
-                    {{ isArabic() ? 'مديونية مستحقة على الطالب (عليه)' : 'Outstanding debt on student' }}
+                    {{ t().chkOutstandingDebtOnStudent }}
                   } @else if (newWalletBalance() > 0) {
-                    {{ isArabic() ? 'رصيد دائن متاح للطالب (ليه)' : 'Credit balance available' }}
+                    {{ t().chkCreditBalanceAvailable }}
                   } @else {
-                    {{ isArabic() ? 'تم تسوية الرصيد بالكامل (0.00)' : 'Account fully settled (0.00)' }}
+                    {{ t().chkAccountFullySettled000 }}
                   }
                 </span>
               </div>
@@ -556,11 +556,41 @@
             </div>
           </div>
 
+          @if (isLongSession()) {
+
+
+            <div class="long-session-warning" role="alert">
+
+
+              <strong>{{ tf('chkSessionOpenFor', { duration: formatDuration(data().session.duration) }) }}</strong>
+
+
+              <span>{{ t().chkTheStudentProbablyForgotTo }}</span>
+
+
+              <label class="long-session-confirm">
+
+
+                <input type="checkbox" [checked]="longSessionConfirmed()" (change)="longSessionConfirmed.set($any($event.target).checked)" />
+
+
+                {{ t().chkIReviewedTheDurationAnd }}
+
+
+              </label>
+
+
+            </div>
+
+
+          }
+
+
           <!-- 6. Process Payment Button -->
           <button
             type="button"
             class="btn-process-checkout"
-            [disabled]="data().payment.isProcessing || isInsufficient()"
+            [disabled]="data().payment.isProcessing || isInsufficient() || (isLongSession() && !longSessionConfirmed())"
             (click)="onProcessPayment()"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-check-icon">
@@ -569,11 +599,11 @@
             </svg>
             <span class="btn-text">
               @if (netCashDue() <= 0 && walletMode() === 'debit') {
-                {{ isArabic() ? 'خصم من المحفظة وإنهاء الجلسة' : 'Charge to Wallet & Finish Session' }}
+                {{ t().chkChargeToWalletFinishSession }}
               } @else if (isPartialPayment()) {
-                {{ isArabic() ? 'تحصيل جزئي وإنهاء الجلسة (' + (data().payment.amountReceived || 0) + ' ' + t().currency + ')' : 'Collect Partial & Free Room' }}
+                {{ tf('chkCollectPartial', { amount: data().payment.amountReceived || 0, currency: t().currency }) }}
               } @else {
-                {{ data().payment.buttonText || (isArabic() ? 'تحصيل وإنهاء الجلسة' : 'Process Payment & Free Room') }}
+                {{ data().payment.buttonText || (t().chkProcessPaymentFreeRoom) }}
               }
             </span>
           </button>

@@ -1,4 +1,5 @@
 import { Component, computed, inject, OnInit } from '@angular/core';
+import { TopActivityComponent } from './top-activity/top-activity.component';
 import { CommonModule } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
 import { LanguageService } from '../../core/services/language.service';
@@ -28,7 +29,7 @@ export type {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, TopActivityComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
@@ -44,6 +45,7 @@ export class DashboardComponent implements OnInit {
 
   // User Profile
   currentUser = this.authService.user;
+  isAdmin = () => this.authService.isAdmin();
   userName = computed(() => this.currentUser()?.name || '');
 
   // Loading & State Signals (Bound to Feature Service)
@@ -86,6 +88,6 @@ export class DashboardComponent implements OnInit {
   }
 
   navigateToAddStudent(): void {
-    this.router.navigate(['/workspace/add-student']);
+    this.router.navigate(['/workspace/show-student'], { queryParams: { openCheckIn: 'true' } });
   }
 }

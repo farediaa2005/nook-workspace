@@ -12,8 +12,6 @@ export interface ProfileDto {
   updatedAt?: string | null; // ISO date-time
 }
 
-export type profileDto = ProfileDto;
-
 export interface UpdateProfileDto {
   username?: string | null;
   firstName?: string | null;
@@ -37,5 +35,3 @@ export interface ChangePasswordDto {
   newPassword: string;
   confirmPassword: string;
 }
-
-export type changePasswordDto = ChangePasswordDto;

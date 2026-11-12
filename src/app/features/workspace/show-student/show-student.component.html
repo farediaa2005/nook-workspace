@@ -1,21 +1,8 @@
 <div class="page-container">
-  <!-- Toast Notification Alert (if present) -->
-  @if (workspaceService.toast(); as toast) {
-  <div class="toast-notification" [class.toast-notification--success]="toast.type === 'success'"
-    [class.toast-notification--info]="toast.type === 'info'" [class.toast-notification--error]="toast.type === 'error'">
-    <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-      <polyline points="22 4 12 14.01 9 11.01" />
-    </svg>
-    <span>{{ toast.message }}</span>
-  </div>
-  }
-
-  <!-- Page Header -->
+    <!-- Page Header -->
   <div class="show-head">
     <div>
-      <h1 class="page-title">{{ activeTab() === 'active' ? t().activeStudentsTitle : t().workspaceHistory }}</h1>
-      <p class="page-subtitle">{{ activeTab() === 'active' ? t().activeStudentsSubtitle : t().workspaceHistory }}</p>
+      <app-page-header [spaced]="false" [title]="activeTab() === 'active' ? t().activeStudentsTitle : t().workspaceHistory" [subtitle]="activeTab() === 'active' ? t().activeStudentsSubtitle : t().workspaceHistory"></app-page-header>
     </div>
 
     <!-- Top Right Controls -->
@@ -43,7 +30,7 @@
   <div class="metrics-grid">
     @if (activeTab() === 'active') {
       <!-- Card 1: Active Students (Total Inside) -->
-      <app-metric-card [title]="isArabic() ? 'إجمالي المتواجدين (Active)' : 'Active Students'" [value]="insideCount()" color="yellow">
+      <app-metric-card [title]="t().wsActiveStudents" [value]="insideCount()" color="yellow">
         <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
           <circle cx="9" cy="7" r="4" />
@@ -53,7 +40,7 @@
       </app-metric-card>
 
       <!-- Card 2: Shared Space Occupancy -->
-      <app-metric-card [title]="isArabic() ? '🟦 شيرد سبيس (Shared)' : '🟦 Shared Space'" [value]="workspaceService.shareOccupancyCount()" color="blue">
+      <app-metric-card [title]="t().wsSharedSpace" [value]="workspaceService.shareOccupancyCount()" color="blue">
         <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
           <line x1="12" y1="3" x2="12" y2="21" stroke="currentColor" stroke-width="2"/>
@@ -61,7 +48,7 @@
       </app-metric-card>
 
       <!-- Card 3: Silent Zone Occupancy -->
-      <app-metric-card [title]="isArabic() ? '🟪 سايلنت زون (Silent)' : '🟪 Silent Zone'" [value]="workspaceService.silentOccupancyCount()" color="purple">
+      <app-metric-card [title]="t().wsSilentZone" [value]="workspaceService.silentOccupancyCount()" color="purple">
         <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
           <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
@@ -96,7 +83,7 @@
       </app-metric-card>
     } @else {
       <!-- History Tab Filtered Metrics (Issue #3) -->
-      <app-metric-card [title]="isArabic() ? 'إجمالي الجلسات المعروضة' : 'Filtered Sessions'" [value]="filteredTotalVisits()" color="blue">
+      <app-metric-card [title]="t().wsFilteredSessions" [value]="filteredTotalVisits()" color="blue">
         <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
           <circle cx="9" cy="7" r="4" />
@@ -110,14 +97,14 @@
         </svg>
       </app-metric-card>
 
-      <app-metric-card [title]="isArabic() ? 'إجمالي الساعات (مفلترة)' : 'Total Hours'" [value]="filteredTotalHours()" color="green">
+      <app-metric-card [title]="t().wsTotalHours" [value]="filteredTotalHours()" color="green">
         <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="10" />
           <polyline points="12 6 12 12" />
         </svg>
       </app-metric-card>
 
-      <app-metric-card [title]="isArabic() ? 'إجمالي الإيراد (مفلتر)' : 'Total Revenue'" [value]="filteredTotalRevenue()" color="purple">
+      <app-metric-card [title]="t().wsTotalRevenue" [value]="filteredTotalRevenue()" color="purple">
         <svg icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="12" y1="1" x2="12" y2="23" />
           <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
@@ -134,18 +121,18 @@
       <div class="table-tabs">
         <button type="button" class="tab-btn" [class.tab-btn--active]="activeTab() === 'active'"
           (click)="setTab('active')">
-          <span>{{ isArabic() ? 'المتواجدين الآن (Active)' : 'Active Now' }}</span>
+          <span>{{ t().wsActiveNow }}</span>
           <span class="tab-badge tab-badge--yellow">{{ insideCount() }}</span>
         </button>
         <button type="button" class="tab-btn" [class.tab-btn--active]="activeTab() === 'history'"
           (click)="setTab('history')">
-          <span>{{ isArabic() ? 'سجل الجلسات (History)' : 'Session History' }}</span>
+          <span>{{ t().wsSessionHistory }}</span>
           <span class="tab-badge tab-badge--gray">{{ workspaceService.historyStudents().length }}</span>
         </button>
         <button type="button" class="tab-btn" [class.tab-btn--active]="activeTab() === 'all'"
           (click)="setTab('all')">
-          <span>{{ isArabic() ? 'كل العملاء والسجل (All Directory)' : 'All Students Directory' }}</span>
-          <span class="tab-badge tab-badge--blue" style="background: rgba(59, 130, 246, 0.16); color: #3b82f6;">{{ totalRegisteredStudentsCount() }}</span>
+          <span>{{ t().wsAllStudentsDirectory }}</span>
+          <span class="tab-badge tab-badge--blue" style="background: rgba(59, 130, 246, 0.16); color: var(--info);">{{ totalRegisteredStudentsCount() }}</span>
         </button>
       </div>
 
@@ -156,9 +143,9 @@
           (optionChange)="setDateOption($event)"
           (customDateChange)="onCustomDateSelect($event)"></app-date-filter-dropdown>
         @if (selectedDateOption() !== 'all') {
-        <div class="active-filter-chip" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: rgba(245, 185, 33, 0.15); border: 1px solid rgba(245, 185, 33, 0.35); border-radius: 9999px; font-size: 0.82rem; font-weight: 600; color: #b48008;">
-          <span>{{ isArabic() ? 'تصفية: ' + getSelectedDateLabel() : 'Filter: ' + getSelectedDateLabel() }}</span>
-          <button type="button" (click)="setDateOption('all')" [title]="isArabic() ? 'عرض كل التواريخ' : 'Show all dates'" style="background: none; border: none; cursor: pointer; color: inherit; font-size: 0.95rem; line-height: 1; padding: 0 2px;">
+        <div class="active-filter-chip" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: rgba(245, 185, 33, 0.15); border: 1px solid rgba(245, 185, 33, 0.35); border-radius: var(--radius-pill); font-size: var(--fs-sm); font-weight: 600; color: var(--tone-b48008);">
+          <span>{{ tf('wsFilterLabel', { label: getSelectedDateLabel() }) }}</span>
+          <button type="button" (click)="setDateOption('all')" [title]="t().wsShowAllDates" style="background: none; border: none; cursor: pointer; color: inherit; font-size: var(--fs-md); line-height: 1; padding: 0 2px;">
             ✕
           </button>
         </div>
@@ -173,17 +160,17 @@
     </div>
 
     @if (workspaceService.error()) {
-    <div class="network-error-banner" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 18px; margin: 12px 16px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 10px; color: #dc2626;">
+    <div class="network-error-banner" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 18px; margin: 12px 16px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: var(--radius-sm); color: var(--danger-strong);">
       <div style="display: flex; align-items: center; gap: 8px;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; flex-shrink: 0;">
           <circle cx="12" cy="12" r="10" />
           <line x1="12" y1="8" x2="12" y2="12" />
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
-        <span style="font-size: 0.88rem; font-weight: 500;">{{ workspaceService.error() }}</span>
+        <span style="font-size: var(--fs-base); font-weight: 500;">{{ workspaceService.error() }}</span>
       </div>
-      <button type="button" class="btn btn-secondary btn-sm" (click)="retryLoadSessions()" style="white-space: nowrap; font-size: 0.82rem; padding: 4px 12px; border-color: rgba(239, 68, 68, 0.4); color: #dc2626;">
-        {{ isArabic() ? 'إعادة المحاولة ↻' : 'Retry ↻' }}
+      <button type="button" class="btn btn-secondary btn-sm" (click)="retryLoadSessions()" style="white-space: nowrap; font-size: var(--fs-sm); padding: 4px 12px; border-color: rgba(239, 68, 68, 0.4); color: var(--danger-strong);">
+        {{ t().wsRetry }}
       </button>
     </div>
     }
@@ -191,14 +178,14 @@
     @if (activeTab() === 'all') {
     <!-- 1. ALL REGISTERED STUDENTS DIRECTORY TABLE -->
     <div class="table-responsive">
-      <table class="students-table directory-table">
+      <table class="students-table directory-table sticky-actions">
         <thead>
           <tr>
             <th class="th-student">{{ t().studentName }}</th>
-            <th class="th-contact">{{ t().contactInfo || 'بيانات التواصل' }}</th>
-            <th class="th-faculty">{{ isArabic() ? 'الكلية والجامعة' : (t().college + ' & ' + t().faculty) }}</th>
-            <th class="th-package">{{ t().packageAndPlan || 'الاشتراك والباقة' }}</th>
-            <th class="th-visits">{{ t().visitsAndActivity || 'النشاط والزيارات' }}</th>
+            <th class="th-contact">{{ t().contactInfo }}</th>
+            <th class="th-faculty">{{ t().wsvCollege }}</th>
+            <th class="th-package">{{ t().packageAndPlan }}</th>
+            <th class="th-visits">{{ t().visitsAndActivity }}</th>
             <th class="th-status">{{ t().status }}</th>
             <th class="th-actions">{{ t().actionsColumn }}</th>
           </tr>
@@ -210,7 +197,7 @@
               style="text-align: center; padding: 48px 16px; color: var(--text-dim);">
               <div style="display: flex; align-items: center; justify-content: center; gap: 12px;">
                 <div class="loading-spinner"></div>
-                <span style="font-size: 0.95rem; font-weight: 500;">{{ t().loadingStudentDirectory }}</span>
+                <span style="font-size: var(--fs-md); font-weight: 500;">{{ t().loadingStudentDirectory }}</span>
               </div>
             </td>
           </tr>
@@ -265,7 +252,7 @@
                     <path
                       d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
                   </svg>
-                  <span>{{ isArabic() ? 'واتساب' : 'WhatsApp' }}</span>
+                  <span>{{ t().wsWhatsapp }}</span>
                 </a>
                 }
                 @if (student.email) {
@@ -288,7 +275,7 @@
                     <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
                     <path d="M6 12v5c3 3 9 3 12 0v-5" />
                   </svg>
-                  <span>{{ student.faculty || student.college || (isArabic() ? 'عام' : 'General') }}</span>
+                  <span>{{ student.faculty || student.college || (t().general) }}</span>
                 </span>
                 @if (student.college && student.college !== student.faculty && student.college !== 'عام' && student.college !== 'General') {
                 <span class="college-subname">{{ student.college }}</span>
@@ -309,12 +296,12 @@
                     (student.packageInfo?.packageNameEn || student.packageInfo?.packageName) }}</span>
                 </span>
                 <span class="package-hours-remaining">
-                  {{ student.packageInfo?.remainingHours }} {{ t().hrsBadge }} {{ isArabic() ? 'متبقية' : 'left' }}
+                  {{ student.packageInfo?.remainingHours }} {{ t().hrsBadge }} {{ t().wsLeft }}
                 </span>
               </div>
               } @else {
               <span class="badge-pay-as-you-go">
-                {{ isArabic() ? 'دفع بالساعة' : 'Pay As You Go' }}
+                {{ t().wsPayAsYouGo }}
               </span>
               }
             </td>
@@ -322,10 +309,10 @@
             <!-- Visits & Activity -->
             <td class="cell-visits">
               <div class="visits-info-box">
-                <strong class="visits-count">{{ student.totalVisits || 0 }} {{ isArabic() ? 'زيارات' : 'visits'
+                <strong class="visits-count">{{ student.totalVisits || 0 }} {{ t().wsVisits
                   }}</strong>
                 @if (student.lastVisitDate) {
-                <span class="last-visit-date">{{ isArabic() ? 'آخر زيارة: ' : 'Last: ' }}{{ student.lastVisitDate
+                <span class="last-visit-date">{{ t().wsLast }}{{ student.lastVisitDate
                   }}</span>
                 }
               </div>
@@ -345,27 +332,18 @@
                       <span class="overdue-sub-label">{{ timeStatus.subText }}</span>
                     }
                   } @else {
-                    <span class="badge-status badge-status--active">
-                      <span class="status-dot"></span>
-                      <span>{{ t().statusActive }}</span>
-                    </span>
+                    <app-status-badge tone="success" [text]="t().statusActive"></app-status-badge>
                   }
                   @if (getStudentSeatingType(student); as seating) {
                     <span class="badge-seating" [class.badge-seating--silent]="seating === 'Silent'" [class.badge-seating--share]="seating !== 'Silent'">
-                      {{ seating === 'Silent' ? (isArabic() ? 'سيلنت' : 'Silent') : (isArabic() ? 'شير' : 'Shared') }}
+                      {{ seating === 'Silent' ? (t().wsSilent) : (t().wsShared) }}
                     </span>
                   }
                 </div>
               } @else if (student.currentStatus === 'blocked') {
-              <span class="badge-status badge-status--blocked">
-                <span class="status-dot"></span>
-                <span>{{ t().statusBlocked }}</span>
-              </span>
+              <app-status-badge tone="danger" [text]="t().statusBlocked"></app-status-badge>
               } @else {
-              <span class="badge-status badge-status--left">
-                <span class="status-dot"></span>
-                <span>{{ t().statusOffline || 'غير متواجد' }}</span>
-              </span>
+              <app-status-badge tone="neutral" [text]="t().statusOffline"></app-status-badge>
               }
             </td>
 
@@ -383,12 +361,12 @@
                 </button>
                 } @else if (student.currentStatus !== 'blocked') {
                 <button type="button" class="btn-quick-checkin" (click)="quickCheckInFromDirectory(student)"
-                  [title]="t().quickCheckIn || 'تسجيل دخول'">
+                  [title]="t().quickCheckIn">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <line x1="12" y1="5" x2="12" y2="19"></line>
                     <line x1="5" y1="12" x2="19" y2="12"></line>
                   </svg>
-                  <span>{{ t().quickCheckIn || 'تشيك إن' }}</span>
+                  <span>{{ t().quickCheckIn }}</span>
                 </button>
                 }
 
@@ -406,7 +384,7 @@
                   </button>
 
                   @if (activeActionMenuId() === student.id) {
-                  <div class="menu-backdrop" (click)="closeActionMenu()"></div>
+                  <div class="menu-backdrop" (click)="closeActionMenu()" role="presentation"></div>
                   <div class="action-dropdown-card">
                     <button type="button" class="action-menu-btn" (click)="openEditDirectoryStudent(student)">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -422,7 +400,7 @@
                         <polyline points="3 6 5 6 21 6" />
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                       </svg>
-                      <span style="color: #ef4444;">{{ t().deleteText }}</span>
+                      <span style="color: var(--danger-strong);">{{ t().deleteText }}</span>
                     </button>
                   </div>
                   }
@@ -435,15 +413,15 @@
             <td colspan="7" class="cell-empty" style="text-align: center; padding: 32px 16px;">
               @if (workspaceService.error()) {
                 <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
-                  <p style="font-size: 0.95rem; color: #dc2626; font-weight: 600; margin: 0;">
-                    {{ isArabic() ? 'تعذر مزامنة بيانات الطلاب من السيرفر' : 'Failed to sync students from server' }}
+                  <p style="font-size: var(--fs-md); color: var(--danger-strong); font-weight: 600; margin: 0;">
+                    {{ t().wsFailedToSyncStudentsFrom }}
                   </p>
                   <button type="button" class="btn btn-secondary btn-sm" (click)="retryLoadSessions()" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px;">
-                    <span>{{ isArabic() ? 'إعادة المحاولة ↻' : 'Retry ↻' }}</span>
+                    <span>{{ t().wsRetry }}</span>
                   </button>
                 </div>
               } @else {
-                <p style="font-size: 1rem; color: var(--text-dim); margin-bottom: 8px;">{{ t().noStudentsFound }}</p>
+                <p style="font-size: var(--fs-md); color: var(--text-dim); margin-bottom: 8px;">{{ t().noStudentsFound }}</p>
               }
             </td>
           </tr>
@@ -455,7 +433,7 @@
     } @else {
     <!-- 2. ACTIVE & HISTORY SESSIONS TABLE -->
     <div class="table-responsive">
-      <table class="students-table">
+      <table class="students-table sticky-actions">
         <thead>
           <tr>
             <th class="th-student">{{ t().studentName }}</th>
@@ -474,7 +452,7 @@
               style="text-align: center; padding: 48px 16px; color: var(--text-dim);">
               <div style="display: flex; align-items: center; justify-content: center; gap: 12px;">
                 <div class="loading-spinner"></div>
-                <span style="font-size: 0.95rem; font-weight: 500;">{{ t().loadingWorkspaceSessions }}</span>
+                <span style="font-size: var(--fs-md); font-weight: 500;">{{ t().loadingWorkspaceSessions }}</span>
               </div>
             </td>
           </tr>
@@ -499,7 +477,7 @@
                     @if (getStudentSeatingType(student); as seating) {
                       <span class="zone-badge" [class.zone-badge--silent]="seating === 'Silent'" [class.zone-badge--shared]="seating !== 'Silent'">
                         <span class="zone-dot"></span>
-                        <span>{{ seating === 'Silent' ? (isArabic() ? 'سايلنت' : 'Silent') : (isArabic() ? 'شيرد' : 'Shared') }}</span>
+                        <span>{{ seating === 'Silent' ? (t().wsSilent2) : (t().wsShared2) }}</span>
                       </span>
                     }
                   </div>
@@ -522,8 +500,8 @@
                       @if (student.phone || student.faculty || student.college) {
                         <span class="submeta-sep">•</span>
                       }
-                      <span class="submeta-stats" [title]="isArabic() ? 'إجمالي الزيارات والساعات' : 'Total Visits & Hours'">
-                        {{ isArabic() ? stats.visits + ' زيارة' : (stats.visits === 1 ? '1 visit' : stats.visits + ' visits') }} ({{ stats.hours }}h)
+                      <span class="submeta-stats" [title]="t().wsTotalVisitsHours">
+                        {{ stats.visits === 1 ? t().wsOneVisit : tf('wsVisitsCount', { count: stats.visits }) }} ({{ stats.hours }}h)
                       </span>
                     }
                   </div>
@@ -548,7 +526,7 @@
             <td class="cell-time">
               <div style="display: inline-flex; align-items: center; gap: 6px;">
                 <span>{{ formatTime(student.checkInTime) }}</span>
-                <button type="button" class="btn-icon-subtle" (click)="openEditSessionTimeModal(student)" [title]="isArabic() ? 'تعديل وقت الجلسة والدقائق الإضافية' : 'Edit Session Time & Extra Minutes'" style="border: none; background: transparent; cursor: pointer; color: var(--text-dim); padding: 2px;">
+                <button type="button" class="btn-icon-subtle" (click)="openEditSessionTimeModal(student)" [title]="t().wsEditSessionTimeExtraMinutes" style="border: none; background: transparent; cursor: pointer; color: var(--text-dim); padding: 2px;">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
@@ -581,8 +559,8 @@
                 <strong class="cost-number">{{ costInfo.totalCost.toFixed(2) }} {{ t().egp }}</strong>
 
                 @if (costInfo.isPackage) {
-                <span class="cost-badge cost-badge--package" [title]="isArabic() ? 'مغطاة بالباقة' : 'Package Covered'">
-                  <span>{{ isArabic() ? 'باقة' : 'Package' }}</span>
+                <span class="cost-badge cost-badge--package" [title]="t().wsPackageCovered">
+                  <span>{{ t().wsPackage }}</span>
                   @if (costInfo.cateringCost > 0 || costInfo.printingCost > 0) {
                   <span class="cost-badge-extra">+{{ (costInfo.cateringCost + costInfo.printingCost).toFixed(2)
                     }}</span>
@@ -592,14 +570,14 @@
                 <div class="cost-breakdown-hints">
                   @if (costInfo.cateringCost > 0) {
                   <span class="cost-hint-tag cost-hint-tag--catering"
-                    [title]="isArabic() ? 'إجمالي الكاترنج' : 'Catering Orders'">
-                    +{{ costInfo.cateringCost.toFixed(2) }} {{ isArabic() ? 'كاترنج' : 'canteen' }}
+                    [title]="t().wsCateringOrders">
+                    +{{ costInfo.cateringCost.toFixed(2) }} {{ t().wsCanteen }}
                   </span>
                   }
                   @if (costInfo.printingCost > 0) {
                   <span class="cost-hint-tag cost-hint-tag--printing"
-                    [title]="isArabic() ? 'خدمات الطباعة' : 'Printing'">
-                    +{{ costInfo.printingCost.toFixed(2) }} {{ isArabic() ? 'طباعة' : 'print' }}
+                    [title]="t().wsPrinting">
+                    +{{ costInfo.printingCost.toFixed(2) }} {{ t().wsPrint }}
                   </span>
                   }
                 </div>
@@ -663,7 +641,7 @@
 
                   <!-- Popup Action Menu with Edit, Block/Unblock, Delete -->
                   @if (activeActionMenuId() === student.id) {
-                  <div class="menu-backdrop" (click)="closeActionMenu()"></div>
+                  <div class="menu-backdrop" (click)="closeActionMenu()" role="presentation"></div>
                   <div class="action-dropdown-card">
                     <button type="button" class="action-menu-btn" (click)="openEditModal(student)">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -679,7 +657,7 @@
                         <circle cx="12" cy="12" r="10" />
                         <polyline points="12 6 12 12 16 14" />
                       </svg>
-                      <span>{{ isArabic() ? 'تعديل توقيت الجلسة' : 'Edit Session Time' }}</span>
+                      <span>{{ t().wsEditSessionTime }}</span>
                     </button>
                     }
 
@@ -709,7 +687,7 @@
                         <polyline points="3 6 5 6 21 6" />
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                       </svg>
-                      <span style="color: #ef4444;">{{ t().deleteSession }}</span>
+                      <span style="color: var(--danger-strong);">{{ t().deleteSession }}</span>
                     </button>
                   </div>
                   }
@@ -722,32 +700,32 @@
             <td colspan="7" class="cell-empty" style="text-align: center; padding: 32px 16px;">
               @if (workspaceService.error()) {
                 <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
-                  <p style="font-size: 0.95rem; color: #dc2626; font-weight: 600; margin: 0;">
-                    {{ isArabic() ? 'تعذر تحميل الجلسات من الخادم' : 'Failed to load sessions from server' }}
+                  <p style="font-size: var(--fs-md); color: var(--danger-strong); font-weight: 600; margin: 0;">
+                    {{ t().wsFailedToLoadSessionsFrom }}
                   </p>
-                  <p style="font-size: 0.85rem; color: var(--text-dim); margin: 0;">
+                  <p style="font-size: var(--fs-ui); color: var(--text-dim); margin: 0;">
                     {{ workspaceService.error() }}
                   </p>
                   <button type="button" class="btn btn-secondary btn-sm" (click)="retryLoadSessions()" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; margin-top: 4px;">
-                    <span>{{ isArabic() ? 'إعادة المحاولة ↻' : 'Retry ↻' }}</span>
+                    <span>{{ t().wsRetry }}</span>
                   </button>
                 </div>
               } @else {
-                <p style="font-size: 1rem; color: var(--text-dim); margin-bottom: 8px;">{{ t().noStudentsFound }}</p>
+                <p style="font-size: var(--fs-md); color: var(--text-dim); margin-bottom: 8px;">{{ t().noStudentsFound }}</p>
                 @if (selectedDateOption() !== 'all' && activeTab() !== 'all') {
-                  <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 12px;">
-                    {{ isArabic() ? 'لا توجد جلسات لهذا اليوم. هل تريد عرض كل التواريخ؟' : 'No sessions found for this day. Show all dates?' }}
+                  <p style="font-size: var(--fs-ui); color: var(--text-dim); margin-bottom: 12px;">
+                    {{ t().wsNoSessionsFoundForThis }}
                   </p>
-                  <button type="button" class="btn btn-secondary btn-sm" (click)="setDateOption('all')" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 0.85rem; margin-bottom: 8px;">
-                    <span>{{ isArabic() ? '📅 عرض كل التواريخ' : '📅 Show All Dates' }}</span>
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="setDateOption('all')" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: var(--fs-ui); margin-bottom: 8px;">
+                    <span>{{ t().wsShowAllDates2 }}</span>
                   </button>
                 }
                 @if (searchQuery().trim() && activeTab() === 'active') {
-                  <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 12px;">
-                    {{ isArabic() ? 'هل تبحث عن عميل غير متواجد حالياً؟ يمكنك البحث في دليل كل العملاء والسجل.' : 'Looking for a client not currently in session? Try searching All Students Directory.' }}
+                  <p style="font-size: var(--fs-ui); color: var(--text-dim); margin-bottom: 12px;">
+                    {{ t().wsLookingForAClientNot }}
                   </p>
-                  <button type="button" class="btn btn-secondary btn-sm" (click)="setTab('all')" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 0.85rem;">
-                    <span>{{ isArabic() ? '🔍 الانتقال للبحث في دليل كل العملاء' : '🔍 Search All Students Directory' }}</span>
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="setTab('all')" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: var(--fs-ui);">
+                    <span>{{ t().wsSearchAllStudentsDirectory }}</span>
                   </button>
                 }
               }
@@ -765,12 +743,12 @@
       <div class="footer-left-group" style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
         <span class="pagination-info">
           {{ t().showingLabel }} {{ startIndex() }} {{ t().toLabel }} {{ endIndex() }} {{ t().ofLabel }} {{
-          currentListLength() }} {{ activeTab() === 'all' ? (t().allStudentsDirectory || 'طلاب') : (activeTab() ===
+          currentListLength() }} {{ activeTab() === 'all' ? t().allStudentsDirectory : (activeTab() ===
           'active' ? t().activeStudentsCountLabel : t().historyStudentsCountLabel) }}
         </span>
 
         <div class="page-size-selector" style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 0.80rem; color: var(--text-dim); font-weight: 600;">{{ t().perPageLabel }}</span>
+          <span style="font-size: var(--fs-sm); color: var(--text-dim); font-weight: 600;">{{ t().perPageLabel }}</span>
           <div style="min-width: 68px;">
             <app-custom-select [options]="pageSizeOptionsList()" [selectedValue]="pageSizeStr()" size="sm"
               placement="top" (valueChange)="setPageSize($event)"></app-custom-select>
@@ -809,7 +787,7 @@
   <!-- 1. POP-UP CHECKOUT MODAL (SHARED REUSABLE COMPONENT)                      -->
   <!-- ========================================================================= -->
   @if (studentToCheckout() && studentCheckoutData(); as coData) {
-  <app-checkout-modal [data]="coData" (close)="closeCheckoutModal()" (paymentMethodChange)="coPaymentMethod.set($event)"
+  <app-checkout-modal [data]="coData" (closed)="closeCheckoutModal()" (paymentMethodChange)="coPaymentMethod.set($event)"
     (amountReceivedChange)="coAmountReceived.set($event)" (discountChange)="setDiscountPercent($event)"
     (couponSubmit)="applyCouponCode($event)" (removeCoupon)="removeCouponCode()" (editRate)="openEditBaseCostModal()" (editPrinting)="openEditPrintingModal()" (addCatering)="openAddCateringModal()"
     (removeCatering)="removeCateringItem($event)" (processPayment)="finalizeCheckout($event)"></app-checkout-modal>
@@ -817,19 +795,19 @@
 
   <!-- SUBMODAL: Edit Printing Pages inside Checkout -->
   @if (isEditPrintingOpen()) {
-  <div class="modal-overlay modal-overlay--nested" (click)="closeEditPrintingModal()">
-    <div class="modal-card modal-card--sm" (click)="$event.stopPropagation()">
+  <div class="modal-overlay modal-overlay--nested" (click)="closeEditPrintingModal()" role="presentation">
+    <div class="modal-card modal-card--sm" (click)="$event.stopPropagation()" role="presentation">
       <div class="modal-head">
-        <h3 class="modal-title">{{ isArabic() ? 'تعديل عدد صفحات الطباعة' : 'Edit Printing Pages' }}</h3>
+        <h3 class="modal-title">{{ t().wsEditPrintingPages }}</h3>
         <button type="button" class="modal-close-btn" (click)="closeEditPrintingModal()">×</button>
       </div>
       <div class="modal-form-body">
         <div class="modal-field-group">
-          <label class="modal-label">{{ isArabic() ? 'عدد الصفحات المطبوعة' : 'Number of Printed Pages' }}</label>
-          <input type="number" min="0" class="modal-input" [value]="editPrintingPagesInput()"
+          <label for="show-student-f35" class="modal-label">{{ t().wsNumberOfPrintedPages }}</label>
+          <input id="show-student-f35" type="number" min="0" class="modal-input" [value]="editPrintingPagesInput()"
             (input)="editPrintingPagesInput.set(+$any($event.target).value)" />
-          <span class="field-hint" style="font-size: 12px; color: var(--text-muted, #9ca3af); margin-top: 4px; display: block;">
-            {{ isArabic() ? 'سعر الصفحة: 1.50 ج.م' : 'Rate per page: 1.50 EGP' }}
+          <span class="field-hint" style="font-size: var(--fs-xs); color: var(--text-muted, var(--gray-400)); margin-top: 4px; display: block;">
+            {{ t().wsRatePerPage150 }}
           </span>
         </div>
         <div class="modal-actions-footer">
@@ -843,17 +821,17 @@
 
   <!-- SUBMODAL: Edit Base Cost inside Checkout -->
   @if (isEditBaseCostOpen()) {
-  <div class="modal-overlay modal-overlay--nested" (click)="closeEditBaseCostModal()">
-    <div class="modal-card modal-card--sm" (click)="$event.stopPropagation()">
+  <div class="modal-overlay modal-overlay--nested" (click)="closeEditBaseCostModal()" role="presentation">
+    <div class="modal-card modal-card--sm" (click)="$event.stopPropagation()" role="presentation">
       <div class="modal-head">
-        <h3 class="modal-title">{{ isArabic() ? 'تعديل تكلفة الجلسة' : 'Edit Session Cost' }}</h3>
+        <h3 class="modal-title">{{ t().wsEditSessionCost }}</h3>
         <button type="button" class="modal-close-btn" (click)="closeEditBaseCostModal()">×</button>
       </div>
       <div class="modal-form-body">
         <div class="modal-field-group">
-          <label class="modal-label">{{ isArabic() ? 'التكلفة الإجمالية للجلسة (ج.م)' : 'Total Session Cost (EGP)'
+          <label for="show-student-f34" class="modal-label">{{ t().wsTotalSessionCostEgp
             }}</label>
-          <input type="number" min="0" step="5" class="modal-input" [value]="editBaseCostInput()"
+          <input id="show-student-f34" type="number" min="0" step="5" class="modal-input" [value]="editBaseCostInput()"
             (input)="editBaseCostInput.set(+$any($event.target).value)" />
         </div>
         <div class="modal-actions-footer">
@@ -867,21 +845,21 @@
 
   <!-- SUBMODAL: Add Catering Product inside Checkout -->
   @if (isAddCateringOpen()) {
-  <div class="modal-overlay modal-overlay--nested" (click)="closeAddCateringModal()">
-    <div class="modal-card modal-card--sm" (click)="$event.stopPropagation()">
+  <div class="modal-overlay modal-overlay--nested" (click)="closeAddCateringModal()" role="presentation">
+    <div class="modal-card modal-card--sm" (click)="$event.stopPropagation()" role="presentation">
       <div class="modal-head">
         <h3 class="modal-title">{{ t().addItemBtn }}</h3>
         <button type="button" class="modal-close-btn" (click)="closeAddCateringModal()">×</button>
       </div>
       <div class="modal-form-body">
         <div class="modal-field-group">
-          <label class="modal-label">{{ t().productName }}</label>
-          <input type="text" class="modal-input" [placeholder]="t().freshOrangeJuicePlaceholder"
+          <label for="show-student-f33" class="modal-label">{{ t().productName }}</label>
+          <input id="show-student-f33" type="text" class="modal-input" [placeholder]="t().freshOrangeJuicePlaceholder"
             [value]="newCateringName()" (input)="newCateringName.set($any($event.target).value)" />
         </div>
         <div class="modal-field-group">
-          <label class="modal-label">{{ t().price }}</label>
-          <input type="number" min="1" class="modal-input" [value]="newCateringPrice()"
+          <label for="show-student-f32" class="modal-label">{{ t().price }}</label>
+          <input id="show-student-f32" type="number" min="1" class="modal-input" [value]="newCateringPrice()"
             (input)="newCateringPrice.set(+$any($event.target).value)" />
         </div>
         <div class="modal-actions-footer">
@@ -898,7 +876,7 @@
   <!-- ========================================================================= -->
   @if (isCheckInModalOpen()) {
   <div class="modal-overlay">
-    <div class="modal-card modal-card--checkin" (click)="$event.stopPropagation()">
+    <div class="modal-card modal-card--checkin" (click)="$event.stopPropagation()" role="presentation">
       <!-- Modal Head -->
       <div class="modal-head">
         <div class="modal-head-info">
@@ -935,9 +913,9 @@
 
                 <!-- Student Search Field with Dropdown Autocomplete -->
                 <div class="search-field-wrap">
-                  <label class="modal-label">{{ t().quickStudentSearch }}</label>
+                  <label for="show-student-f31" class="modal-label">{{ t().quickStudentSearch }}</label>
                   <div class="search-input-box modal-search-box">
-                    <input type="text" class="modal-input modal-search-input"
+                    <input id="show-student-f31" type="text" class="modal-input modal-search-input"
                       [placeholder]="t().quickStudentSearchPlaceholder" [value]="ciSearchQuery()"
                       (input)="ciOnSearchInput($any($event.target).value)" (focus)="ciIsSearchDropdownOpen.set(true)"
                       (blur)="ciOnSearchBlur()" />
@@ -957,7 +935,7 @@
                   0) {
                   <div class="student-dropdown-menu">
                     @for (item of ciStudentSuggestions(); track item.profile.phone || item.profile.id) {
-                    <div class="student-dropdown-item" (click)="ciSelectStudentItem(item)">
+                    <div class="student-dropdown-item" (click)="ciSelectStudentItem(item)" role="button" tabindex="0" (keydown.enter)="ciSelectStudentItem(item)">
                       <div class="item-avatar-circle">
                         {{ (item.profile.name ? item.profile.name.charAt(0) : 'S').toUpperCase() }}
                       </div>
@@ -968,8 +946,8 @@
                             }}</strong>
                           @if (item.isBlocked) {
                           <span class="pill-blocked-badge"
-                            style="background: rgba(239, 68, 68, 0.16); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; padding: 2px 8px; font-size: 0.72rem; font-weight: 700;">
-                            ⛔ {{ isArabic() ? 'محظور (BLOCKED)' : 'BLOCKED' }}
+                            style="background: rgba(239, 68, 68, 0.16); color: var(--danger-strong); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: var(--radius-2xs); padding: 2px 8px; font-size: var(--fs-2xs); font-weight: 700;">
+                            ⛔ {{ t().wsBlocked }}
                           </span>
                           } @else if (item.hasActivePackage) {
                           <span class="pill-active-pkg">
@@ -984,8 +962,8 @@
                         <span class="dropdown-item-sub">
                           {{ item.profile.faculty || item.profile.college || t().general }} • {{ item.profile.phone }}
                           @if (item.isBlocked && item.blockReason) {
-                          <span style="display: block; color: #ef4444; font-size: 0.75rem; margin-top: 2px;">
-                            {{ isArabic() ? 'سبب الحظر: ' : 'Reason: ' }}{{ item.blockReason }}
+                          <span style="display: block; color: var(--danger-strong); font-size: var(--fs-xs); margin-top: 2px;">
+                            {{ t().wsReason }}{{ item.blockReason }}
                           </span>
                           }
                         </span>
@@ -998,9 +976,9 @@
 
                 <div class="modal-fields-grid">
                   <div class="modal-field-group">
-                    <label class="modal-label" [class.modal-label--error]="ciNameError()">{{ t().studentName }}
+                    <label for="show-student-f30" class="modal-label" [class.modal-label--error]="ciNameError()">{{ t().studentName }}
                       *</label>
-                    <input type="text" class="modal-input" [class.modal-input--error]="ciNameError()"
+                    <input id="show-student-f30" type="text" class="modal-input" [class.modal-input--error]="ciNameError()"
                       [placeholder]="t().namePlaceholderExample" [value]="ciName()"
                       (input)="onNameInput($any($event.target).value)" required />
                     @if (ciNameError(); as err) {
@@ -1009,8 +987,8 @@
                   </div>
 
                   <div class="modal-field-group">
-                    <label class="modal-label" [class.modal-label--error]="ciPhoneError()">{{ t().phone }} *</label>
-                    <input type="tel" class="modal-input" [class.modal-input--error]="ciPhoneError()"
+                    <label for="show-student-f29" class="modal-label" [class.modal-label--error]="ciPhoneError()">{{ t().phone }} *</label>
+                    <input id="show-student-f29" type="tel" class="modal-input" [class.modal-input--error]="ciPhoneError()"
                       placeholder="01XXXXXXXXX" maxlength="11" minlength="11" [value]="ciPhone()"
                       (input)="onPhoneInput($any($event.target).value)" required />
                     @if (ciPhoneError(); as err) {
@@ -1019,8 +997,8 @@
                   </div>
 
                   <div class="modal-field-group">
-                    <label class="modal-label" [class.modal-label--error]="ciEmailError()">{{ t().email }}</label>
-                    <input type="email" dir="ltr" class="modal-input" [class.modal-input--error]="ciEmailError()"
+                    <label for="show-student-f28" class="modal-label" [class.modal-label--error]="ciEmailError()">{{ t().email }}</label>
+                    <input id="show-student-f28" type="email" dir="ltr" class="modal-input" [class.modal-input--error]="ciEmailError()"
                       placeholder="student@example.com" [value]="ciEmail()"
                       (input)="onEmailInput($any($event.target).value)" />
                     @if (ciEmailError(); as err) {
@@ -1029,8 +1007,8 @@
                   </div>
 
                   <div class="modal-field-group">
-                    <label class="modal-label" [class.modal-label--error]="ciWhatsappError()">{{ t().whatsapp }}</label>
-                    <input type="tel" class="modal-input" [class.modal-input--error]="ciWhatsappError()"
+                    <label for="show-student-f27" class="modal-label" [class.modal-label--error]="ciWhatsappError()">{{ t().whatsapp }}</label>
+                    <input id="show-student-f27" type="tel" class="modal-input" [class.modal-input--error]="ciWhatsappError()"
                       [placeholder]="t().whatsapp" [value]="ciWhatsapp()"
                       (input)="onWhatsappInput($any($event.target).value)" />
                     @if (ciWhatsappError(); as err) {
@@ -1039,20 +1017,20 @@
                   </div>
 
                   <div class="modal-field-group">
-                    <label class="modal-label">{{ isArabic() ? 'الجامعة' : 'University' }}</label>
-                    <input type="text" class="modal-input" [placeholder]="isArabic() ? 'الجامعة (مثل: جامعة أسيوط)' : 'University (e.g. Assiut)'" [value]="ciUniversity()"
+                    <label for="show-student-f26" class="modal-label">{{ t().faculty }}</label>
+                    <input id="show-student-f26" type="text" class="modal-input" [placeholder]="t().wsUniversityEGAssiut" [value]="ciUniversity()"
                       (input)="ciUniversity.set($any($event.target).value)" />
                   </div>
 
                   <div class="modal-field-group">
-                    <label class="modal-label">{{ isArabic() ? 'الكلية' : 'College' }}</label>
-                    <input type="text" class="modal-input" [placeholder]="isArabic() ? 'الكلية (مثل: حاسبات ومعلومات / هندسة)' : 'College (e.g. Engineering)'" [value]="ciCollege()"
+                    <label for="show-student-f25" class="modal-label">{{ t().college }}</label>
+                    <input id="show-student-f25" type="text" class="modal-input" [placeholder]="t().wsCollegeEGEngineering" [value]="ciCollege()"
                       (input)="ciCollege.set($any($event.target).value)" />
                   </div>
 
                   <div class="modal-field-group" style="grid-column: 1 / -1;">
-                    <label class="modal-label">{{ isArabic() ? 'ملاحظات الطالب' : 'Student Notes' }}</label>
-                    <textarea class="modal-input" rows="2" [placeholder]="isArabic() ? 'أدخل أي ملاحظات خاصة بالطالب...' : 'Enter student notes...'" [value]="ciNotes()"
+                    <label for="show-student-f24" class="modal-label">{{ t().wsStudentNotes }}</label>
+                    <textarea id="show-student-f24" class="modal-input" rows="2" [placeholder]="t().wsEnterStudentNotes" [value]="ciNotes()"
                       (input)="ciNotes.set($any($event.target).value)"></textarea>
                   </div>
                 </div>
@@ -1066,7 +1044,7 @@
 
                 <!-- Date Row (Full Width) -->
                 <div class="modal-field-group" style="margin-bottom: 12px;">
-                  <label class="modal-label">{{ t().date }}</label>
+                  <label for="show-student-f23" class="modal-label">{{ t().date }}</label>
                   <div class="date-input-wrap">
                     <svg class="date-box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
@@ -1074,7 +1052,7 @@
                       <line x1="8" y1="2" x2="8" y2="6" />
                       <line x1="3" y1="10" x2="21" y2="10" />
                     </svg>
-                    <input #ciDatePickerEl type="date" class="modal-input modal-input--date" [min]="todayDate"
+                    <input id="show-student-f23" #ciDatePickerEl type="date" class="modal-input modal-input--date" [min]="todayDate"
                       [value]="ciDate()" (input)="ciDate.set($any($event.target).value)"
                       (click)="ciDatePickerEl.showPicker()" />
                   </div>
@@ -1084,14 +1062,14 @@
                 <div class="modal-grid-2">
                   <!-- Start Time with Now button underneath -->
                   <div class="modal-field-group">
-                    <label class="modal-label">{{ t().startTimeLabel }}</label>
+                    <label for="show-student-f22" class="modal-label">{{ t().startTimeLabel }}</label>
                     <div class="time-picker-box">
                       <svg class="time-box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="10"></circle>
                         <polyline points="12 6 12 12 16 14"></polyline>
                       </svg>
                       <div class="time-digits">
-                        <input type="text" class="time-num-input" placeholder="02" maxlength="2" [value]="ciStartHour()"
+                        <input id="show-student-f22" type="text" class="time-num-input" placeholder="02" maxlength="2" [value]="ciStartHour()"
                           (input)="onCiStartHourInput($any($event.target).value)" />
                         <span class="time-colon">:</span>
                         <input type="text" class="time-num-input" placeholder="38" maxlength="2"
@@ -1099,11 +1077,11 @@
                       </div>
                       <div class="period-toggle-pill">
                         <button type="button" class="period-opt" [class.period-opt--active]="ciStartPeriod() === 'AM'"
-                          (click)="ciStartPeriod.set('AM'); syncCiTime();">
+                          (click)="ciStartPeriod.set('AM');">
                           {{ t().amMarker }}
                         </button>
                         <button type="button" class="period-opt" [class.period-opt--active]="ciStartPeriod() === 'PM'"
-                          (click)="ciStartPeriod.set('PM'); syncCiTime();">
+                          (click)="ciStartPeriod.set('PM');">
                           {{ t().pmMarker }}
                         </button>
                       </div>
@@ -1119,7 +1097,7 @@
 
                   <!-- End Time with OPEN button underneath -->
                   <div class="modal-field-group">
-                    <label class="modal-label">{{ t().expectedCheckout }}</label>
+                    <label for="show-student-f21" class="modal-label">{{ t().expectedCheckout }}</label>
                     <div class="time-picker-box" [class.time-picker-box--disabled]="isOpenSession()"
                       [class.time-picker-box--invalid]="!isOpenSession() && !isTimeRangeValid() && ciTime() && ciExpectedCheckout()">
                       <svg class="time-box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1132,7 +1110,7 @@
                       </div>
                       } @else {
                       <div class="time-digits">
-                        <input type="text" class="time-num-input" placeholder="05" maxlength="2" [value]="ciEndHour()"
+                        <input id="show-student-f21" type="text" class="time-num-input" placeholder="05" maxlength="2" [value]="ciEndHour()"
                           (input)="onCiEndHourInput($any($event.target).value)" />
                         <span class="time-colon">:</span>
                         <input type="text" class="time-num-input" placeholder="38" maxlength="2" [value]="ciEndMinute()"
@@ -1140,11 +1118,11 @@
                       </div>
                       <div class="period-toggle-pill">
                         <button type="button" class="period-opt" [class.period-opt--active]="ciEndPeriod() === 'AM'"
-                          (click)="ciEndPeriod.set('AM'); syncCiExpectedCheckout();">
+                          (click)="ciEndPeriod.set('AM');">
                           {{ t().amMarker }}
                         </button>
                         <button type="button" class="period-opt" [class.period-opt--active]="ciEndPeriod() === 'PM'"
-                          (click)="ciEndPeriod.set('PM'); syncCiExpectedCheckout();">
+                          (click)="ciEndPeriod.set('PM');">
                           {{ t().pmMarker }}
                         </button>
                       </div>
@@ -1221,7 +1199,7 @@
                         </div>
                         <strong class="mode-title">{{ t().payCashDirect }}</strong>
                       </div>
-                      <span class="mode-cost-standard">{{ (ciPrice() * (ciDurationHours() || 1)).toFixed(2) }} {{
+                      <span class="mode-cost-standard">{{ ciBaseEstimate().toFixed(2) }} {{
                         t().currency }}</span>
                     </button>
                   </div>
@@ -1237,7 +1215,7 @@
                     </svg>
                     <span>{{ t().noActivePackageForStudent }}</span>
                   </div>
-                  <span class="badge-standard-rate">{{ (ciPrice() * (ciDurationHours() || 1)).toFixed(2) }} {{
+                  <span class="badge-standard-rate">{{ ciBaseEstimate().toFixed(2) }} {{
                     t().currency }}</span>
                 </div>
                 }
@@ -1249,7 +1227,7 @@
               <!-- Card 4: SELECT ROOM AREA (Top Right) -->
               <div class="modal-section-card">
                 <div class="room-selector-header">
-                  <span class="modal-label" style="margin: 0; font-size: 0.82rem; font-weight: 800;">
+                  <span class="modal-label" style="margin: 0; font-size: var(--fs-sm); font-weight: 800;">
                     {{ t().selectRoomArea }}
                   </span>
                   <!-- Category Switcher Tabs (Shared & Silent Only) -->
@@ -1257,12 +1235,12 @@
                     <button type="button" class="room-type-tab"
                       [class.room-type-tab--active]="selectedRoomCategory() === 'shared'"
                       (click)="selectRoomCategory('shared')">
-                      {{ isArabic() ? 'شيرد سبيس' : 'Shared Space' }}
+                      {{ t().wsSharedSpace2 }}
                     </button>
                     <button type="button" class="room-type-tab"
                       [class.room-type-tab--active]="selectedRoomCategory() === 'silent'"
                       (click)="selectRoomCategory('silent')">
-                      {{ isArabic() ? 'سايلنت زون' : 'Silent Zone' }}
+                      {{ t().wsSilentZone2 }}
                     </button>
                   </div>
                 </div>
@@ -1271,7 +1249,7 @@
                 <div class="room-select-grid">
                   @for (r of availableRooms(); track r.id) {
                   <div class="room-thumb-card" [class.room-thumb-card--active]="selectedRoomId() === r.id"
-                    (click)="selectRoom(r.id)">
+                    (click)="selectRoom(r.id)" role="button" tabindex="0" (keydown.enter)="selectRoom(r.id)">
                     <div class="room-thumb-media">
                       <img [src]="r.imageUrl || '/images/rooms/room-workshop.jpg'"
                         (error)="$any($event.target).src = '/images/rooms/room-workshop.jpg'" [alt]="r.name"
@@ -1281,21 +1259,21 @@
                       <strong class="room-thumb-name">{{ isArabic() ? r.name : (r.nameEn || r.name) }}</strong>
                       <span class="room-thumb-capacity">
                         @if (r.capacity) { MAX {{ r.capacity }} • }
-                        {{ isArabic() ? (r.type === 'Silent Zone' ? 'منطقة سايلنت' : 'شيرد سبيس') : r.type }}
+                        {{ r.type === 'Silent Zone' ? t().wsZoneSilent : t().wsZoneShared }}
                       </span>
                     </div>
                   </div>
                   } @empty {
                   <div
-                    style="padding: 16px; text-align: center; color: var(--text-dim); font-size: 0.82rem; grid-column: 1 / -1;">
-                    {{ isArabic() ? 'مساحة العمل العامة (التسعير موحد)' : 'General Workspace (Unified Pricing)' }}
+                    style="padding: 16px; text-align: center; color: var(--text-dim); font-size: var(--fs-sm); grid-column: 1 / -1;">
+                    {{ t().wsGeneralWorkspaceUnifiedPricing }}
                   </div>
                   }
                 </div>
 
                 @if (ciRoomError(); as rErr) {
                 <div class="field-error-msg"
-                  style="color: var(--danger); font-size: 0.85rem; margin-top: 8px; font-weight: 600;">
+                  style="color: var(--danger); font-size: var(--fs-ui); margin-top: 8px; font-weight: 600;">
                   ⚠️ {{ rErr }}
                 </div>
                 }
@@ -1311,15 +1289,15 @@
                   @if (selectedRoom(); as sRoom) {
                   <div class="summary-item-row">
                     <span class="summary-item-label">{{ t().selectedRoomLabel }}</span>
-                    <strong class="summary-item-val" style="color: #f5b921;">
+                    <strong class="summary-item-val" style="color: var(--yellow);">
                       {{ isArabic() ? sRoom.name : (sRoom.nameEn || sRoom.name) }}
                     </strong>
                   </div>
                   }
 
                   <div class="summary-item-row">
-                    <span class="summary-item-label">{{ t().hourlyRateLabel }}</span>
-                    <strong class="summary-item-val">{{ ciPrice() }} {{ t().egpPerHourRate }}</strong>
+                    <span class="summary-item-label">{{ t().wsEstimatedSessionCost }}</span>
+                    <strong class="summary-item-val">{{ ciBaseEstimate().toFixed(2) }} {{ t().currency }}</strong>
                   </div>
 
                   <div class="summary-item-row">
@@ -1342,7 +1320,7 @@
                   <div class="summary-item-row">
                     <span class="summary-item-label">{{ t().estimatedDurationLabel }}</span>
                     @if (isOpenSession()) {
-                    <strong class="summary-item-val" style="color: #f5b921;">{{ t().openEndedSessionLabel }}</strong>
+                    <strong class="summary-item-val" style="color: var(--yellow);">{{ t().openEndedSessionLabel }}</strong>
                     } @else {
                     <strong class="summary-item-val">{{ ciDurationHours() }} {{ t().hoursUnit }}</strong>
                     }
@@ -1377,11 +1355,14 @@
 
         <!-- Modal Actions Footer (Fixed at Bottom) -->
         <div class="modal-actions-footer modal-checkin-fixed-footer">
+          @if (ciMissing().length > 0) {
+            <span class="form-missing-hint" role="status">{{ (t().wsMissing) + ciMissing().join(t().listSeparator) }}</span>
+          }
           <button type="button" class="modal-btn-cancel" (click)="closeCheckInModal()">
             {{ t().cancel }}
           </button>
           <button type="submit" class="modal-btn-save"
-            [disabled]="!ciName().trim() || !ciPhone().trim() || ciPhone().trim().length < 11 || (!isOpenSession() && !isTimeRangeValid()) || !selectedRoomId() || !selectedRoom()">
+            [disabled]="ciMissing().length > 0">
             @if (ciIsEditMode()) {
             {{ t().saveChanges }}
             } @else {
@@ -1398,8 +1379,8 @@
   <!-- 3. BLOCK / BLACKLIST CONFIRMATION MODAL                                   -->
   <!-- ========================================================================= -->
   @if (studentToBlock(); as blockTarget) {
-  <div class="modal-backdrop" (click)="closeBlockModal()">
-    <div class="modal-dialog modal-dialog--sm modal-dialog--block" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop" (click)="closeBlockModal()" role="presentation">
+    <div class="modal-dialog modal-dialog--sm modal-dialog--block" (click)="$event.stopPropagation()" role="presentation">
       <div class="modal-header">
         <div class="modal-header-info">
           <h2 class="modal-title" style="color: var(--yellow);">{{ t().blockConfirmTitle }}</h2>
@@ -1415,8 +1396,8 @@
 
       <div class="modal-single-body">
         <div class="field-wrap">
-          <label class="field-label">{{ t().blockReasonLabel }}</label>
-          <textarea class="modal-textarea" rows="3" [placeholder]="t().blockReasonPlaceholder" [value]="blockReason()"
+          <label for="show-student-f20" class="field-label">{{ t().blockReasonLabel }}</label>
+          <textarea id="show-student-f20" class="modal-textarea" rows="3" [placeholder]="t().blockReasonPlaceholder" [value]="blockReason()"
             (input)="blockReason.set($any($event.target).value)"></textarea>
         </div>
       </div>
@@ -1438,14 +1419,14 @@
   <!-- 5. EDIT STUDENT MODAL                                                     -->
   <!-- ========================================================================= -->
   @if (studentToEdit(); as editTarget) {
-  <div class="modal-backdrop" (click)="closeEditModal()">
-    <div class="modal-dialog modal-dialog--wide" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop" (click)="closeEditModal()" role="presentation">
+    <div class="modal-dialog modal-dialog--wide" (click)="$event.stopPropagation()" role="presentation">
       <!-- Modal Head -->
       <div class="modal-header">
         <div class="modal-header-info">
           <h2 class="modal-title">{{ t().editStudent }}</h2>
-          <p class="modal-subtitle">{{ editTarget.name }} • {{ isArabic() ? 'أضيف بواسطة: ' : 'Added by: ' }}{{
-            editTarget.addedBy || 'Staff' }}</p>
+          <p class="modal-subtitle">{{ editTarget.name }} • {{ t().wsAddedBy }}{{
+            editTarget.addedBy || t().fbStaff }}</p>
         </div>
         <button type="button" class="btn-close-circle" (click)="closeEditModal()" title="Close">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1466,14 +1447,14 @@
 
               <!-- Student Name -->
               <div class="field-wrap">
-                <label class="field-label">{{ t().studentName }}</label>
+                <label for="show-student-f19" class="field-label">{{ t().studentName }}</label>
                 <div class="input-container">
                   <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="2">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                     <circle cx="12" cy="7" r="4" />
                   </svg>
-                  <input type="text" class="custom-input" [value]="editName()"
+                  <input id="show-student-f19" type="text" class="custom-input" [value]="editName()"
                     (input)="editName.set($any($event.target).value)" required />
                 </div>
               </div>
@@ -1481,27 +1462,27 @@
               <!-- Phone & WhatsApp -->
               <div class="row-grid-2">
                 <div class="field-wrap">
-                  <label class="field-label">{{ t().phone }}</label>
+                  <label for="show-student-f18" class="field-label">{{ t().phone }}</label>
                   <div class="input-container">
                     <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                       stroke-width="2">
                       <path
                         d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                     </svg>
-                    <input type="tel" class="custom-input" [value]="editPhone()"
+                    <input id="show-student-f18" type="tel" class="custom-input" [value]="editPhone()"
                       (input)="editPhone.set($any($event.target).value)" />
                   </div>
                 </div>
 
                 <div class="field-wrap">
-                  <label class="field-label">{{ t().whatsapp }}</label>
+                  <label for="show-student-f17" class="field-label">{{ t().whatsapp }}</label>
                   <div class="input-container">
                     <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                       stroke-width="2">
                       <path
                         d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
                     </svg>
-                    <input type="tel" class="custom-input" [value]="editWhatsapp()"
+                    <input id="show-student-f17" type="tel" class="custom-input" [value]="editWhatsapp()"
                       (input)="editWhatsapp.set($any($event.target).value)" />
                   </div>
                 </div>
@@ -1509,14 +1490,14 @@
 
               <!-- Email (Full Width) -->
               <div class="field-wrap">
-                <label class="field-label">{{ t().email }}</label>
+                <label for="show-student-f16" class="field-label">{{ t().email }}</label>
                 <div class="input-container">
                   <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="2">
                     <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
                     <polyline points="22,6 12,13 2,6" />
                   </svg>
-                  <input type="email" dir="ltr" class="custom-input" placeholder="student@example.com" [value]="editEmail()"
+                  <input id="show-student-f16" type="email" dir="ltr" class="custom-input" placeholder="student@example.com" [value]="editEmail()"
                     (input)="editEmail.set($any($event.target).value)" />
                 </div>
               </div>
@@ -1524,38 +1505,38 @@
               <!-- University & College (Item 4: Assiut University / Faculty of Computers) -->
               <div class="row-grid-2">
                 <div class="field-wrap">
-                  <label class="field-label">{{ isArabic() ? 'الجامعة' : t().faculty }}</label>
+                  <label for="show-student-f15" class="field-label">{{ t().faculty}}</label>
                   <div class="input-container">
                     <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                       stroke-width="2">
                       <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
                       <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
                     </svg>
-                    <input type="text" class="custom-input" [value]="editUniversity()"
-                      (input)="editUniversity.set($any($event.target).value)" [placeholder]="isArabic() ? 'الجامعة (مثل: جامعة أسيوط)' : 'University (e.g. Assiut)'" />
+                    <input id="show-student-f15" type="text" class="custom-input" [value]="editUniversity()"
+                      (input)="editUniversity.set($any($event.target).value)" [placeholder]="t().wsUniversityEGAssiut" />
                   </div>
                 </div>
 
                 <div class="field-wrap">
-                  <label class="field-label">{{ isArabic() ? 'الكلية' : t().college }}</label>
+                  <label for="show-student-f14" class="field-label">{{ t().college}}</label>
                   <div class="input-container">
                     <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                       stroke-width="2">
                       <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
                       <path d="M6 12v5c3 3 9 3 12 0v-5" />
                     </svg>
-                    <input type="text" class="custom-input" [value]="editCollege()"
-                      (input)="editCollege.set($any($event.target).value)" [placeholder]="isArabic() ? 'الكلية (مثل: حاسبات ومعلومات / هندسة)' : 'College (e.g. Engineering)'" />
+                    <input id="show-student-f14" type="text" class="custom-input" [value]="editCollege()"
+                      (input)="editCollege.set($any($event.target).value)" [placeholder]="t().wsCollegeEGEngineering" />
                   </div>
                 </div>
               </div>
 
               <!-- Notes -->
               <div class="field-wrap" style="margin-top: 12px;">
-                <label class="field-label">{{ isArabic() ? 'ملاحظات الطالب' : 'Student Notes' }}</label>
+                <label for="show-student-f13" class="field-label">{{ t().wsStudentNotes }}</label>
                 <div class="input-container">
-                  <textarea class="custom-input" rows="2" [value]="editNotes()"
-                    (input)="editNotes.set($any($event.target).value)" [placeholder]="isArabic() ? 'أدخل أي ملاحظات خاصة بالطالب...' : 'Notes...'"></textarea>
+                  <textarea id="show-student-f13" class="custom-input" rows="2" [value]="editNotes()"
+                    (input)="editNotes.set($any($event.target).value)" [placeholder]="t().wsNotes"></textarea>
                 </div>
               </div>
             </div>
@@ -1564,14 +1545,14 @@
           <div class="modal-col">
             <div class="modal-section-card">
               <div class="form-section-head">
-                <h4 class="section-card-title">{{ isArabic() ? 'الخدمات الإضافية والمحفظة' : 'Services & Wallet' }}</h4>
+                <h4 class="section-card-title">{{ t().wsServicesWallet }}</h4>
               </div>
 
               <div class="row-grid-2">
                 <div class="field-wrap">
-                  <label class="field-label">{{ isArabic() ? 'طباعة مستندات (عدد الأوراق)' : t().printing }}</label>
+                  <label for="show-student-f12" class="field-label">{{ t().printing}}</label>
                   <div class="counter-input-wrap">
-                    <button type="button" class="btn-counter"
+                    <button id="show-student-f12" type="button" class="btn-counter"
                       (click)="editPrinting.set(editPrinting() > 0 ? editPrinting() - 1 : 0)">-</button>
                     <input type="number" min="0" class="counter-val-input" [value]="editPrinting()"
                       (input)="editPrinting.set(+$any($event.target).value)" />
@@ -1580,9 +1561,9 @@
                 </div>
 
                 <div class="field-wrap">
-                  <label class="field-label">{{ t().wallet }} ({{ t().egp }})</label>
+                  <label for="show-student-f11" class="field-label">{{ t().wallet }} ({{ t().egp }})</label>
                   <div class="counter-input-wrap">
-                    <button type="button" class="btn-counter"
+                    <button id="show-student-f11" type="button" class="btn-counter"
                       (click)="editWallet.set(editWallet() > 0 ? editWallet() - 1 : 0)">-</button>
                     <input type="number" min="0" step="10" class="counter-val-input" [value]="editWallet()"
                       (input)="editWallet.set(+$any($event.target).value)" />
@@ -1610,12 +1591,12 @@
 
   <!-- DIRECT NEW STUDENT REGISTRATION MODAL -->
   @if (isRegisterModalOpen()) {
-  <div class="modal-backdrop" (click)="closeRegisterModal()">
-    <div class="modal-dialog modal-dialog--sm" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop" (click)="closeRegisterModal()" role="presentation">
+    <div class="modal-dialog modal-dialog--sm" (click)="$event.stopPropagation()" role="presentation">
       <div class="modal-header">
         <div class="modal-header__text">
-          <h2 class="modal-title">{{ t().registerStudentTitle || 'تسجيل طالب جديد في الدليل' }}</h2>
-          <p class="modal-subtitle">{{ t().registerStudentSubtitle || 'إضافة بيانات الطالب للدليل العام' }}</p>
+          <h2 class="modal-title">{{ t().registerStudentTitle }}</h2>
+          <p class="modal-subtitle">{{ t().registerStudentSubtitle }}</p>
         </div>
         <button type="button" class="btn-close-circle" (click)="closeRegisterModal()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1628,45 +1609,45 @@
       <div class="modal-body-pad">
         <div class="form-grid-2col">
           <div class="modal-field-group">
-            <label class="modal-label">{{ t().studentName }} *</label>
-            <input type="text" class="modal-input" [ngModel]="regName()" (ngModelChange)="regName.set($event)"
-              [placeholder]="t().studentName || 'اسم الطالب'" />
+            <label for="show-student-f10" class="modal-label">{{ t().studentName }} *</label>
+            <input id="show-student-f10" type="text" class="modal-input" [ngModel]="regName()" (ngModelChange)="regName.set($event)"
+              [placeholder]="t().studentName" />
           </div>
 
           <div class="modal-field-group">
-            <label class="modal-label">{{ t().phone }} *</label>
-            <input type="tel" class="modal-input" [ngModel]="regPhone()" (ngModelChange)="regPhone.set($event)"
+            <label for="show-student-f9" class="modal-label">{{ t().phone }} *</label>
+            <input id="show-student-f9" type="tel" class="modal-input" [ngModel]="regPhone()" (ngModelChange)="regPhone.set($event)"
               [placeholder]="t().phone || '01xxxxxxxxx'" />
           </div>
 
           <div class="modal-field-group">
-            <label class="modal-label">{{ t().whatsapp }}</label>
-            <input type="tel" class="modal-input" [ngModel]="regWhatsapp()" (ngModelChange)="regWhatsapp.set($event)"
-              [placeholder]="t().whatsapp || 'رقم الواتساب'" />
+            <label for="show-student-f8" class="modal-label">{{ t().whatsapp }}</label>
+            <input id="show-student-f8" type="tel" class="modal-input" [ngModel]="regWhatsapp()" (ngModelChange)="regWhatsapp.set($event)"
+              [placeholder]="t().whatsapp" />
           </div>
 
           <div class="modal-field-group">
-            <label class="modal-label">{{ t().email }}</label>
-            <input type="email" dir="ltr" class="modal-input" [ngModel]="regEmail()" (ngModelChange)="regEmail.set($event)"
+            <label for="show-student-f7" class="modal-label">{{ t().email }}</label>
+            <input id="show-student-f7" type="email" dir="ltr" class="modal-input" [ngModel]="regEmail()" (ngModelChange)="regEmail.set($event)"
               placeholder="student@example.com" />
           </div>
 
           <div class="modal-field-group">
-            <label class="modal-label">{{ isArabic() ? 'الكلية' : t().college }}</label>
-            <input type="text" class="modal-input" [ngModel]="regCollege()" (ngModelChange)="regCollege.set($event)"
-              [placeholder]="isArabic() ? 'الكلية (مثل: هندسة)' : 'College'" />
+            <label for="show-student-f6" class="modal-label">{{ t().college}}</label>
+            <input id="show-student-f6" type="text" class="modal-input" [ngModel]="regCollege()" (ngModelChange)="regCollege.set($event)"
+              [placeholder]="t().wsCollege" />
           </div>
 
           <div class="modal-field-group">
-            <label class="modal-label">{{ isArabic() ? 'الجامعة' : t().faculty }}</label>
-            <input type="text" class="modal-input" [ngModel]="regFaculty()" (ngModelChange)="regFaculty.set($event)"
-              [placeholder]="isArabic() ? 'الجامعة (مثل: جامعة القاهرة)' : 'University'" />
+            <label for="show-student-f5" class="modal-label">{{ t().faculty}}</label>
+            <input id="show-student-f5" type="text" class="modal-input" [ngModel]="regFaculty()" (ngModelChange)="regFaculty.set($event)"
+              [placeholder]="t().wsUniversity" />
           </div>
 
           <div class="modal-field-group" style="grid-column: 1 / -1;">
-            <label class="modal-label">{{ isArabic() ? 'ملاحظات الطالب' : 'Student Notes' }}</label>
-            <textarea class="modal-input" rows="2" [ngModel]="regNotes()" (ngModelChange)="regNotes.set($event)"
-              [placeholder]="isArabic() ? 'أدخل أي ملاحظات خاصة بالطالب...' : 'Enter student notes...'"></textarea>
+            <label for="show-student-f4" class="modal-label">{{ t().wsStudentNotes }}</label>
+            <textarea id="show-student-f4" class="modal-input" rows="2" [ngModel]="regNotes()" (ngModelChange)="regNotes.set($event)"
+              [placeholder]="t().wsEnterStudentNotes"></textarea>
           </div>
         </div>
       </div>
@@ -1688,22 +1669,22 @@
   <!-- CATERING POS MODAL FOR STUDENT SESSIONS (Strict Requirement 1) -->
   @if (isStudentCateringModalOpen()) {
   <app-catering-pos-modal [targetRoom]="cateringTargetStudent()"
-    (close)="isStudentCateringModalOpen.set(false); activeStudentForCatering.set(null)"
+    (closed)="isStudentCateringModalOpen.set(false); activeStudentForCatering.set(null)"
     (addToRoomSession)="onAddCateringToStudent($event)"
     (saleCompleted)="isStudentCateringModalOpen.set(false); activeStudentForCatering.set(null)"></app-catering-pos-modal>
   }
 
   <!-- EDIT SESSION TIME MODAL FOR SHARE / SILENT (Item 12 Upgrade) -->
   @if (isEditSessionTimeModalOpen()) {
-  <div class="modal-backdrop" (click)="closeEditSessionTimeModal()">
-    <div class="modal-dialog modal-dialog--sm edit-time-dialog" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop" (click)="closeEditSessionTimeModal()" role="presentation">
+    <div class="modal-dialog modal-dialog--sm edit-time-dialog" (click)="$event.stopPropagation()" role="presentation">
       <div class="modal-header">
         <div class="modal-header__text">
-          <h2 class="modal-title">{{ isArabic() ? 'تعديل وقت الجلسة وحساب السعر' : 'Edit Session Time & Live Price' }}</h2>
+          <h2 class="modal-title">{{ t().wsEditSessionTimeLivePrice }}</h2>
           <div class="edit-session-student-chip">
             <span class="chip-name">{{ sessionTimeToEdit()?.name }}</span>
             <span class="chip-zone" [class.chip-zone--silent]="sessionTimeToEdit()?.roomName?.toLowerCase()?.includes('silent')">
-              {{ sessionTimeToEdit()?.roomName || (isArabic() ? 'شيرد سبيس' : 'Shared Space') }}
+              {{ sessionTimeToEdit()?.roomName || (t().wsSharedSpace2) }}
             </span>
           </div>
         </div>
@@ -1719,24 +1700,24 @@
         <!-- 2-Column Time Inputs -->
         <div class="form-grid-2col">
           <div class="modal-field-group">
-            <label class="modal-label">{{ isArabic() ? 'وقت الدخول (Check-in)' : 'Check-in Time' }} *</label>
+            <label for="show-student-f3" class="modal-label">{{ t().wsCheckInTime }} *</label>
             <div class="time-field-wrap">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="time-field-icon">
                 <circle cx="12" cy="12" r="10"></circle>
                 <polyline points="12 6 12 12 16 14"></polyline>
               </svg>
-              <input type="text" class="modal-input time-styled-input" [ngModel]="editCheckInTimeInput()" (ngModelChange)="editCheckInTimeInput.set($event)" placeholder="10:00 AM / 14:30" />
+              <input id="show-student-f3" type="text" class="modal-input time-styled-input" [ngModel]="editCheckInTimeInput()" (ngModelChange)="editCheckInTimeInput.set($event)" placeholder="10:00 AM / 14:30" />
             </div>
           </div>
 
           <div class="modal-field-group">
-            <label class="modal-label">{{ isArabic() ? 'الوقت المتوقع للخروج' : 'Expected Checkout' }}</label>
+            <label for="show-student-f2" class="modal-label">{{ t().wsExpectedCheckout }}</label>
             <div class="time-field-wrap">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="time-field-icon">
                 <circle cx="12" cy="12" r="10"></circle>
                 <polyline points="12 6 12 12 16 14"></polyline>
               </svg>
-              <input type="text" class="modal-input time-styled-input" [ngModel]="editExpectedCheckoutInput()" (ngModelChange)="editExpectedCheckoutInput.set($event)" placeholder="12:30 PM / 16:00" />
+              <input id="show-student-f2" type="text" class="modal-input time-styled-input" [ngModel]="editExpectedCheckoutInput()" (ngModelChange)="editExpectedCheckoutInput.set($event)" placeholder="12:30 PM / 16:00" />
             </div>
           </div>
         </div>
@@ -1744,36 +1725,36 @@
         <!-- Extra Minutes Section: Dedicated 4-Pill Row + Custom Input -->
         <div class="extra-minutes-section">
           <div class="section-label-row">
-            <label class="modal-label">{{ isArabic() ? 'إضافة دقائق إضافية للجلسة' : 'Add Extra Minutes' }}</label>
+            <label for="show-student-f1" class="modal-label">{{ t().wsAddExtraMinutes }}</label>
             <span class="current-extra-badge" [class.has-extra]="editExtraMinutesInput() > 0">
-              {{ isArabic() ? 'الإجمالي المضاف:' : 'Total Added:' }} +{{ editExtraMinutesInput() }} {{ isArabic() ? 'دقيقة' : 'min' }}
+              {{ t().wsTotalAdded }} +{{ editExtraMinutesInput() }} {{ t().wsMin }}
             </span>
           </div>
 
           <!-- 4 Fixed Buttons (Never Wraps awkwardly) -->
           <div class="quick-minutes-bar">
-            <button type="button" class="btn-extra-pill" (click)="addExtraMinutes(15)">
-              +15 {{ isArabic() ? 'د' : 'm' }}
+            <button id="show-student-f1" type="button" class="btn-extra-pill" (click)="addExtraMinutes(15)">
+              +15 {{ t().wsM }}
             </button>
             <button type="button" class="btn-extra-pill" (click)="addExtraMinutes(30)">
-              +30 {{ isArabic() ? 'د' : 'm' }}
+              +30 {{ t().wsM }}
             </button>
             <button type="button" class="btn-extra-pill" (click)="addExtraMinutes(45)">
-              +45 {{ isArabic() ? 'د' : 'm' }}
+              +45 {{ t().wsM }}
             </button>
             <button type="button" class="btn-extra-pill" (click)="addExtraMinutes(60)">
-              +60 {{ isArabic() ? 'د' : 'm' }}
+              +60 {{ t().wsM }}
             </button>
           </div>
 
           <!-- Custom Number Input + Reset Button -->
           <div class="custom-minutes-row">
-            <span class="custom-minutes-label">{{ isArabic() ? 'أو كتابة دقائق مخصصة:' : 'Or custom minutes:' }}</span>
+            <span class="custom-minutes-label">{{ t().wsOrCustomMinutes }}</span>
             <div class="stepper-input-group">
               <input type="number" class="modal-input extra-num-input" [ngModel]="editExtraMinutesInput()" (ngModelChange)="editExtraMinutesInput.set($event)" min="0" step="5" />
               @if (editExtraMinutesInput() > 0) {
                 <button type="button" class="btn-reset-extra" (click)="editExtraMinutesInput.set(0)">
-                  <span>{{ isArabic() ? 'إعادة ضبط (0)' : 'Reset (0)' }}</span>
+                  <span>{{ t().wsReset0 }}</span>
                 </button>
               }
             </div>
@@ -1783,8 +1764,8 @@
         <!-- Live Recalculated Cost Card -->
         <div class="recalculated-cost-card">
           <div class="cost-card-info">
-            <span class="cost-card-title">{{ isArabic() ? 'السعر المحسوب لحظياً' : 'Live Recalculated Cost' }}</span>
-            <span class="cost-card-subtitle">{{ isArabic() ? 'يتم احتساب التكلفة تلقائياً بدقة بناءً على الوقت والدقائق المضافة' : 'Auto-computed from actual elapsed time + extra minutes' }}</span>
+            <span class="cost-card-title">{{ t().wsLiveRecalculatedCost }}</span>
+            <span class="cost-card-subtitle">{{ t().wsAutoComputedFromActualElapsed }}</span>
           </div>
           <div class="cost-price-badge">
             <span class="cost-amount">{{ editRecalculatedPrice() }}</span>
@@ -1803,7 +1784,7 @@
             <polyline points="17 21 17 13 7 13 7 21"></polyline>
             <polyline points="7 3 7 8 15 8"></polyline>
           </svg>
-          <span>{{ isArabic() ? 'حفظ وتحديث السعر' : 'Save & Update Cost' }}</span>
+          <span>{{ t().wsSaveUpdateCost }}</span>
         </button>
       </div>
     </div>
@@ -1812,12 +1793,12 @@
 
   <!-- CONFIRM DELETE MODAL (Item 15: Without Password requirement) -->
   @if (studentToDelete()) {
-  <div class="modal-backdrop" (click)="closeDeleteModal()">
-    <div class="modal-dialog modal-dialog--sm" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop" (click)="closeDeleteModal()" role="presentation">
+    <div class="modal-dialog modal-dialog--sm" (click)="$event.stopPropagation()" role="presentation">
       <div class="modal-header">
         <div class="modal-header__text">
-          <h2 class="modal-title">{{ isArabic() ? 'تأكيد حذف جلسة الطالب' : 'Confirm Delete Session' }}</h2>
-          <p class="modal-subtitle">{{ isArabic() ? 'حذف مباشر بدون طلب كلمة مرور' : 'Direct deletion without password' }}</p>
+          <h2 class="modal-title">{{ t().wsConfirmDeleteSession }}</h2>
+          <p class="modal-subtitle">{{ t().wsDirectDeletionWithoutPassword }}</p>
         </div>
         <button type="button" class="btn-close-circle" (click)="closeDeleteModal()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1827,15 +1808,15 @@
         </button>
       </div>
       <div class="modal-body-pad">
-        <p style="font-size: 0.95rem; color: var(--text-main); margin-bottom: 0;">
-          {{ isArabic() ? 'هل أنت متأكد من حذف جلسة الطالب ' : 'Are you sure you want to delete session for ' }}
+        <p style="font-size: var(--fs-md); color: var(--text-main); margin-bottom: 0;">
+          {{ t().wsAreYouSureYouWant }}
           <strong>{{ studentToDelete()?.name }}</strong>؟
         </p>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" (click)="closeDeleteModal()">{{ t().cancel }}</button>
-        <button type="button" class="btn btn-danger" (click)="confirmDelete()" style="background: #ef4444; color: #fff;">
-          <span>{{ isArabic() ? 'تأكيد الحذف' : 'Confirm Delete' }}</span>
+        <button type="button" class="btn btn-danger" (click)="confirmDelete()" style="background: var(--danger-strong); color: var(--on-color);">
+          <span>{{ t().wsConfirmDelete }}</span>
         </button>
       </div>
     </div>
@@ -1844,12 +1825,12 @@
 
   <!-- CONFIRM DELETE DIRECTORY STUDENT MODAL (NOOK-SEC-01 & O-10) -->
   @if (isDeleteDirectoryStudentModalOpen() && directoryStudentToDelete(); as dirTarget) {
-  <div class="modal-backdrop" (click)="closeDeleteDirectoryStudentModal()">
-    <div class="modal-dialog modal-dialog--sm" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop" (click)="closeDeleteDirectoryStudentModal()" role="presentation">
+    <div class="modal-dialog modal-dialog--sm" (click)="$event.stopPropagation()" role="presentation">
       <div class="modal-header">
         <div class="modal-header__text">
-          <h2 class="modal-title">{{ isArabic() ? 'تأكيد حذف الطالب من الدليل' : 'Confirm Delete Student Profile' }}</h2>
-          <p class="modal-subtitle">{{ isArabic() ? 'حذف مباشر بدون طلب كلمة مرور' : 'Direct deletion without password' }}</p>
+          <h2 class="modal-title">{{ t().wsConfirmDeleteStudentProfile }}</h2>
+          <p class="modal-subtitle">{{ t().wsDirectDeletionWithoutPassword }}</p>
         </div>
         <button type="button" class="btn-close-circle" (click)="closeDeleteDirectoryStudentModal()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1859,16 +1840,16 @@
         </button>
       </div>
       <div class="modal-body-pad">
-        <p style="font-size: 0.95rem; color: var(--text-main); margin-bottom: 0;">
-          {{ isArabic() ? 'هل أنت متأكد من رغبتك في حذف بيانات الطالب ' : 'Are you sure you want to permanently delete profile for ' }}
+        <p style="font-size: var(--fs-md); color: var(--text-main); margin-bottom: 0;">
+          {{ t().wsAreYouSureYouWant2 }}
           <strong>{{ dirTarget.name }}</strong>
-          {{ isArabic() ? 'نهائياً من سجلات الدليل؟' : 'from directory records?' }}
+          {{ t().wsFromDirectoryRecords }}
         </p>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" (click)="closeDeleteDirectoryStudentModal()">{{ t().cancel }}</button>
-        <button type="button" class="btn btn-danger" (click)="confirmDeleteDirectoryStudent()" style="background: #ef4444; color: #fff;">
-          <span>{{ isArabic() ? 'تأكيد الحذف' : 'Confirm Delete' }}</span>
+        <button type="button" class="btn btn-danger" (click)="confirmDeleteDirectoryStudent()" style="background: var(--danger-strong); color: var(--on-color);">
+          <span>{{ t().wsConfirmDelete }}</span>
         </button>
       </div>
     </div>

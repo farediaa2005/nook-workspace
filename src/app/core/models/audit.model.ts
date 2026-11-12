@@ -33,16 +33,7 @@ export interface AuditLogEntry {
   timestamp: string; // ISO string
   summary: string;
   ipAddress?: string;
-  oldValues?: Record<string, any> | string;
+  oldValues?: Record<string, unknown> | string;
   newValues?: Record<string, any> | string;
   metadata?: Record<string, any>;
-}
-
-export interface AuditFilterOptions {
-  entityType?: AuditEntityType | 'All';
-  entityId?: string;
-  action?: AuditAction | 'All';
-  actorId?: string;
-  startDate?: string;
-  endDate?: string;
 }

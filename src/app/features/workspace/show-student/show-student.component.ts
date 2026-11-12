@@ -3,7 +3,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { LanguageService } from '../../../core/services/language.service';
-import { WorkspaceService, isSameDayAsToday, parseDurationMinutes } from '../../../core/services/workspace.service';
+import { parseDurationMinutes, getTodayDateISO, parseIsoToLocal12h, parseIsoToLocalDate } from '../../../core/utils/date-time.util';
+import { WorkspaceService, isSameDayAsToday } from '../../../core/services/workspace.service';
 import { ShiftService } from '../../../core/services/shift.service';
 import { CateringService } from '../../../core/services/catering.service';
 import { Student, ActiveStudentSession } from '../../../core/models/student.model';
@@ -22,28 +23,21 @@ import { StudentApiService, BackendStudentDto } from '../../../core/services/api
 import { generateAvatarSvg, getSafeAvatar } from '../../../core/utils/avatar.util';
 import { exportToCsv } from '../../../core/utils/csv.util';
 import { CouponApiService } from '../../../core/services/api/coupon-api.service';
-import { getTodayDateISO, parseIsoToLocal12h, parseIsoToLocalDate } from '../../../core/utils/date-time.util';
-import {
-  normalizeArabicDigits,
-  sanitizePhoneInput,
-  toEgyptianLocalPhone,
-  isValidEgyptianPhone,
-  isValidEmail,
-  isValidPersonName,
-  validateNameError,
-  validatePhoneError,
-  validateEmailError
-} from '../../../core/utils/validators.util';
+import { extractApiErrorMessage } from '../../../core/utils/api-error.util';
+import { normalizeArabicDigits, sanitizePhoneInput, toEgyptianLocalPhone, validateNameError, validatePhoneError, validateEmailError } from '../../../core/utils/validators.util';
+import { isSilentZone, zoneFor } from '../../../core/constants/backend-enums';
 
 import { CustomSelectComponent, SelectOption } from '../../../shared/components/custom-select/custom-select.component';
+import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
+import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 
-export interface CateringLineItem {
+interface CateringLineItem {
   id: string;
   name: string;
   price: number;
 }
 
-export interface StudentDirectoryItem {
+interface StudentDirectoryItem {
   id: string;
   studentId?: string;
   name: string;
@@ -77,7 +71,7 @@ export interface StudentDirectoryItem {
 @Component({
   selector: 'app-show-student',
   standalone: true,
-  imports: [
+  imports: [PageHeaderComponent, StatusBadgeComponent, 
     FormsModule,
     MetricCardComponent,
     DateFilterDropdownComponent,
@@ -131,6 +125,10 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   }
 
   t = this.langService.t;
+
+  /** translations with {placeholders} */
+
+  tf = this.langService.tf;
   isArabic = this.langService.isArabic;
   formatTime = (str?: string) => this.langService.formatTimeLocale(str);
   formatDuration = (str?: string) => this.langService.formatDurationLocale(str);
@@ -139,7 +137,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   getStudentSeatingType(student?: { seatingType?: string; zone?: number; roomName?: string; activeSession?: any; currentStatus?: string; status?: string } | null): 'Shared' | 'Silent' | null {
     if (!student) return null;
     if (student.activeSession) {
-      const isSilent = student.activeSession.zone === 1 ||
+      const isSilent = isSilentZone(student.activeSession.zone) ||
         student.activeSession.seatingType === 'Silent' ||
         (student.activeSession.roomName && student.activeSession.roomName.toLowerCase().includes('silent'));
       return isSilent ? 'Silent' : 'Shared';
@@ -147,7 +145,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     // Seating is strictly for active sessions in workspace
     const isActive = student.currentStatus === 'active' || student.status === 'active' || (student as any).inWorkspace;
     if (isActive) {
-      if (student.seatingType === 'Silent' || student.zone === 1 || (student.roomName && student.roomName.toLowerCase().includes('silent'))) {
+      if (student.seatingType === 'Silent' || isSilentZone(student.zone) || (student.roomName && student.roomName.toLowerCase().includes('silent'))) {
         return 'Silent';
       }
       return 'Shared';
@@ -283,7 +281,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   getLiveElapsedMinutes(timeStr?: string, dateStr?: string): number {
     const start = this.parseTimeAndDateToDate(timeStr, dateStr);
     const now = this.currentLiveTime();
-    let diffMs = now.getTime() - start.getTime();
+    const diffMs = now.getTime() - start.getTime();
 
     // If start is slightly in the future due to clock skew or just checked in
     if (diffMs <= 0) return 1;
@@ -358,7 +356,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       return {
         status: 'left',
         badgeClass: 'badge-status--left',
-        badgeLabel: this.t().statusOffline || 'غير متواجد'
+        badgeLabel: this.t().statusOffline
       };
     }
 
@@ -392,16 +390,16 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
           return {
             status: 'ending_soon',
             badgeClass: 'badge-status--warning',
-            badgeLabel: isAr ? `متبقي ${remMins} د` : `${remMins}m left`,
-            subText: isAr ? 'اقترب الانتهاء' : 'Ending soon'
+            badgeLabel: this.langService.tf('loctMLeft', { remMins }),
+            subText: this.t().locEndingSoon
           };
         }
         if (remMins <= 15) {
           return {
             status: 'ending_soon',
             badgeClass: 'badge-status--info',
-            badgeLabel: isAr ? `متبقي ${remMins} د` : `${remMins}m left`,
-            subText: isAr ? 'اقترب الموعد' : 'Ending soon'
+            badgeLabel: this.langService.tf('loctMLeft', { remMins }),
+            subText: this.t().locEndingSoon2
           };
         }
         return {
@@ -417,26 +415,26 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
           return {
             status: 'ended_grace',
             badgeClass: 'badge-status--warning',
-            badgeLabel: isAr ? `سماح: ${graceLeft} د` : `Grace: ${graceLeft}m`,
-            subText: isAr ? `انتهى الوقت (فترة سماح ${graceLeft} د)` : `Ended (Grace ${graceLeft}m)`
+            badgeLabel: this.langService.tf('loctGraceM', { graceLeft }),
+            subText: this.langService.tf('loctEndedGraceM', { graceLeft })
           };
         } else {
-          let durationStr = '';
+          let durationStr: string;
           if (overdueMins < 60) {
-            durationStr = isAr ? `${overdueMins} دقيقة` : `${overdueMins}m`;
+            durationStr = this.langService.tf('loctM2', { overdueMins });
           } else {
             const h = Math.floor(overdueMins / 60);
             const m = overdueMins % 60;
             durationStr = m === 0
-              ? (isAr ? `${h} ساعة` : `${h}h`)
-              : (isAr ? `${h} س و ${m} د` : `${h}h ${m}m`);
+              ? (this.langService.tf('loctH', { h }))
+              : (this.langService.tf('loctHM2', { h, m }));
           }
 
           return {
             status: 'overtime',
             badgeClass: 'badge-status--overdue',
-            badgeLabel: isAr ? `متأخر (${durationStr})` : `Overdue (${durationStr})`,
-            subText: isAr ? `تجاوز الوقت بـ ${durationStr}` : `Overdue by ${durationStr}`
+            badgeLabel: this.langService.tf('loctOverdue', { durationStr }),
+            subText: this.langService.tf('loctOverdueBy', { durationStr })
           };
         }
       }
@@ -450,8 +448,8 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
         const totalHours = Math.floor(elapsedHours);
         const d = Math.floor(totalHours / 24);
         const remH = totalHours % 24;
-        let badgeLabel = '';
-        let subText = '';
+        let badgeLabel: string;
+        let subText: string;
         if (d > 0) {
           if (isAr) {
             badgeLabel = remH > 0 ? `إقامة طويلة (${d} يوم ${remH} س)` : `إقامة طويلة (${d} يوم)`;
@@ -461,8 +459,8 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
             subText = remH > 0 ? `In workspace for ${d}d ${remH}h` : `In workspace for ${d}d`;
           }
         } else {
-          badgeLabel = isAr ? `إقامة طويلة (${totalHours} س)` : `Long stay (${totalHours}h)`;
-          subText = isAr ? `متواجد منذ أكثر من ${totalHours} ساعات` : `In workspace for ${totalHours}+ hours`;
+          badgeLabel = this.langService.tf('loctLongStayH', { totalHours });
+          subText = this.langService.tf('loctInWorkspaceForHours', { totalHours });
         }
         return {
           status: 'active',
@@ -714,7 +712,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       if (activeMatch) {
         student.currentStatus = 'active';
         student.activeSession = activeMatch;
-        const isSilent = activeMatch.zone === 1 || activeMatch.seatingType === 'Silent' || (activeMatch.roomName && activeMatch.roomName.toLowerCase().includes('silent'));
+        const isSilent = isSilentZone(activeMatch.zone) || activeMatch.seatingType === 'Silent' || (activeMatch.roomName && activeMatch.roomName.toLowerCase().includes('silent'));
         student.seatingType = isSilent ? 'Silent' : 'Share';
       }
 
@@ -839,26 +837,13 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   ciEndMinute = signal('07');
   ciEndPeriod = signal<'AM' | 'PM'>('PM');
 
-  syncCiTime(): void {
-    let h = parseInt(this.ciStartHour(), 10) || 12;
-    if (this.ciStartPeriod() === 'PM' && h < 12) h += 12;
-    if (this.ciStartPeriod() === 'AM' && h === 12) h = 0;
-    const m = (this.ciStartMinute() || '00').padStart(2, '0');
-  }
 
-  syncCiExpectedCheckout(): void {
-    let h = parseInt(this.ciEndHour(), 10) || 12;
-    if (this.ciEndPeriod() === 'PM' && h < 12) h += 12;
-    if (this.ciEndPeriod() === 'AM' && h === 12) h = 0;
-    const m = (this.ciEndMinute() || '00').padStart(2, '0');
-  }
 
   onCiStartHourInput(val: string): void {
     let num = val.replace(/\D/g, '');
     if (num.length > 2) num = num.slice(0, 2);
     if (num && parseInt(num, 10) > 12) num = '12';
     this.ciStartHour.set(num);
-    this.syncCiTime();
   }
 
   onCiStartMinuteInput(val: string): void {
@@ -866,7 +851,6 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     if (num.length > 2) num = num.slice(0, 2);
     if (num && parseInt(num, 10) > 59) num = '59';
     this.ciStartMinute.set(num);
-    this.syncCiTime();
   }
 
   onCiEndHourInput(val: string): void {
@@ -874,7 +858,6 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     if (num.length > 2) num = num.slice(0, 2);
     if (num && parseInt(num, 10) > 12) num = '12';
     this.ciEndHour.set(num);
-    this.syncCiExpectedCheckout();
   }
 
   onCiEndMinuteInput(val: string): void {
@@ -882,7 +865,6 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     if (num.length > 2) num = num.slice(0, 2);
     if (num && parseInt(num, 10) > 59) num = '59';
     this.ciEndMinute.set(num);
-    this.syncCiExpectedCheckout();
   }
 
   ciSetNowTime(): void {
@@ -895,7 +877,6 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     this.ciStartHour.set(String(displayHours).padStart(2, '0'));
     this.ciStartMinute.set(String(minutes).padStart(2, '0'));
     this.ciStartPeriod.set(period);
-    this.syncCiTime();
 
     const endTotalH = hours + 3;
     const endH12 = endTotalH % 12 || 12;
@@ -904,7 +885,6 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     this.ciEndHour.set(String(endH12).padStart(2, '0'));
     this.ciEndMinute.set(String(minutes).padStart(2, '0'));
     this.ciEndPeriod.set(endPer);
-    this.syncCiExpectedCheckout();
   }
 
   ciStudentSuggestions = computed<any[]>(() => {
@@ -1000,7 +980,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
           status: b.status || existing?.profile?.status
         },
         isBlocked: isBlocked || existing?.isBlocked || false,
-        blockReason: blockReason || (isBlocked ? (this.isArabic() ? 'محظور من النظام' : 'Blocked by system') : undefined),
+        blockReason: blockReason || (isBlocked ? (this.t().wsBlockedBySystem) : undefined),
         hasActivePackage: existing?.hasActivePackage || false
       });
     }
@@ -1015,7 +995,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
         (cleanN && b.name && b.name.toLowerCase().trim() === cleanN)
       );
       const isBlocked = item.isBlocked || !!matchedBlock;
-      const blockReason = item.blockReason || matchedBlock?.reason || (this.isArabic() ? 'محظور من النظام' : 'Blocked by system');
+      const blockReason = item.blockReason || matchedBlock?.reason || (this.t().wsBlockedBySystem);
       return {
         ...item,
         isBlocked,
@@ -1057,9 +1037,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   ciSelectStudentItem(item: any): void {
     if (item.isBlocked) {
       this.workspaceService.showToast(
-        this.isArabic()
-          ? `عفواً، لا يمكن تسجيل دخول هذا الطالب لأنه محظور (${item.blockReason || 'BLOCKED'}). يرجى فك الحظر أولاً.`
-          : `Check-in denied: this student is BLOCKED (${item.blockReason || 'BLOCKED'}). Please unblock first.`,
+        this.langService.tf('wsCheckInBlocked', { reason: item.blockReason || 'BLOCKED' }),
         'error'
       );
       return;
@@ -1131,6 +1109,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   ciCouponCode = signal<string>('');
   ciCouponApplied = signal<boolean>(false);
   ciCouponDiscountPercent = signal<number>(0);
+  ciCouponFixedAmount = signal<number>(0);
 
   toggleOpenSession(): void {
     const nextState = !this.isOpenSession();
@@ -1159,27 +1138,33 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
         if (coupon && coupon.isActive !== false) {
           const isExpired = coupon.expiryDate ? new Date(coupon.expiryDate) < new Date() : false;
           if (isExpired) {
-            this.workspaceService.showToast(this.isArabic() ? 'كود الكوبون منتهي الصلاحية' : 'Coupon code expired', 'error');
+            this.workspaceService.showToast(this.t().wsCouponCodeExpired, 'error');
             return;
           }
           const maxLimit = (coupon as any).usageLimit ?? (coupon as any).UsageLimit ?? (coupon as any).maxUsage ?? (coupon as any).maxUses;
           const currentUses = (coupon as any).usageCount ?? (coupon as any).UsageCount ?? (coupon as any).currentRedemptions ?? 0;
           if (maxLimit !== null && maxLimit !== undefined && maxLimit > 0 && currentUses >= maxLimit) {
             this.workspaceService.showToast(
-              this.isArabic() ? 'تم استنفاد الحد الأقصى لاستخدام هذا الكود' : 'Coupon usage limit reached',
+              this.t().wsCouponUsageLimitReached,
               'error'
             );
             return;
           }
-          const discountPercent = coupon.discountType === 1 ? (coupon.value || 15) : 15;
-          this.ciCouponDiscountPercent.set(discountPercent);
+          // discountType 1 = percentage, 2 = fixed amount (EGP)
+          if (coupon.discountType === 2) {
+            this.ciCouponDiscountPercent.set(0);
+            this.ciCouponFixedAmount.set(Math.max(0, Number(coupon.value) || 0));
+          } else {
+            this.ciCouponFixedAmount.set(0);
+            this.ciCouponDiscountPercent.set(Math.min(100, Math.max(0, Number(coupon.value) || 0)));
+          }
           this.ciCouponApplied.set(true);
         } else {
-          this.workspaceService.showToast(this.isArabic() ? 'كود الكوبون غير صالح' : 'Invalid coupon code', 'error');
+          this.workspaceService.showToast(this.t().wsInvalidCouponCode, 'error');
         }
       },
       error: () => {
-        this.workspaceService.showToast(this.isArabic() ? 'كود الكوبون غير موجود' : 'Coupon code not found', 'error');
+        this.workspaceService.showToast(this.t().wsCouponCodeNotFound, 'error');
       }
     });
   }
@@ -1188,6 +1173,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     this.ciCouponCode.set('');
     this.ciCouponApplied.set(false);
     this.ciCouponDiscountPercent.set(0);
+    this.ciCouponFixedAmount.set(0);
   }
 
   matchedStudentPackage = computed<PackageItem | null>(() => {
@@ -1269,16 +1255,24 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   });
 
   ciPrintingCost = computed(() => Number((this.ciPrinting() * 1.50).toFixed(2)));
-  ciTotalCost = computed(() => {
-    let base = 0;
+  /**
+   * Expected session cost from the student pricing tiers — the same calculation the
+   * checkout uses (tiers are flat prices per hour range, not an hourly rate).
+   */
+  ciBaseEstimate = computed(() => {
     if (this.ciBilling() === 'package') {
       const extra = this.packageExtraHours();
-      base = extra * this.ciPrice();
-    } else {
-      base = this.ciDurationHours() * this.ciPrice();
+      return extra > 0 ? this.settingsService.calculateStudentCost(extra) : 0;
+    }
+    return this.settingsService.calculateStudentCost(this.ciDurationHours() || 1);
+  });
+
+  ciTotalCost = computed(() => {
+    let base = this.ciBaseEstimate();
+    if (this.ciBilling() !== 'package') {
       if (this.ciBilling() === 'coupon' && this.ciCouponApplied()) {
-        const discount = (base * this.ciCouponDiscountPercent()) / 100;
-        base = Math.max(0, base - discount);
+        const discount = (base * this.ciCouponDiscountPercent()) / 100 + this.ciCouponFixedAmount();
+        base = Math.max(0, base - Math.min(discount, base));
       }
     }
     return Number((base + this.ciPrintingCost()).toFixed(2));
@@ -1337,7 +1331,6 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
 
   ciBilling = signal<'new-session' | 'package' | 'coupon'>('new-session');
   ciPackage = signal('');
-  ciPrice = signal(20);
   ciCoupon = signal('');
   ciPrinting = signal(0);
   ciWallet = signal(0);
@@ -1375,13 +1368,11 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
 
   coSessionSubtitle = computed(() => {
     if (this.coPaymentMethod() === 'package') {
-      return this.isArabic()
-        ? 'باقة طالب (مغطاة بالكامل من رصيد الساعات)'
-        : 'Student Package (Covered by remaining hours)';
+      return this.t().wsStudentPackageCoveredByRemaining;
     }
 
     if (this.coCustomBaseCost() !== null) {
-      return this.isArabic() ? 'سعر مخصص للجلسة' : 'Custom Base Rate';
+      return this.t().wsCustomBaseRate;
     }
 
     const dur = this.coDurationHours();
@@ -1389,22 +1380,20 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     const matchedTier = tiers.find(t => dur >= t.fromHours && dur <= t.toHours);
 
     if (matchedTier) {
-      const tierName = this.isArabic()
-        ? (matchedTier.labelAr || `شريحة ${matchedTier.fromHours} - ${matchedTier.toHours} ساعة`)
-        : (matchedTier.labelEn || `Tier ${matchedTier.fromHours} - ${matchedTier.toHours} hrs`);
-      return `${tierName} (${dur.toFixed(1)} ${this.isArabic() ? 'ساعة' : 'hrs'})`;
+      const tierName = (this.isArabic() ? matchedTier.labelAr : matchedTier.labelEn)
+        || this.langService.tf('wsTierRange', { from: matchedTier.fromHours, to: matchedTier.toHours });
+      return `${tierName} (${dur.toFixed(1)} ${this.t().hrsBadge})`;
     }
 
     const highest = tiers[tiers.length - 1];
     if (highest && dur > highest.toHours) {
       const extraHours = Math.ceil(dur - highest.toHours);
-      return this.isArabic()
-        ? `${highest.labelAr || highest.toHours + ' ساعة'} + ${extraHours} ساعة إضافية`
-        : `${highest.labelEn || highest.toHours + ' hrs'} + ${extraHours} extra hrs`;
+      const label = (this.isArabic() ? highest.labelAr : highest.labelEn) || this.langService.tf('wsHoursCount', { hours: highest.toHours });
+      return this.langService.tf('wsTierPlusExtra', { label, extra: extraHours });
     }
 
     const rate = this.coHourlyRate() || 20;
-    return `${rate} ${this.isArabic() ? 'ج.م/ساعة' : 'EGP/hr'} × ${dur.toFixed(1)} ${this.isArabic() ? 'ساعة' : 'hrs'}`;
+    return `${rate} ${this.t().wsEgpHr} × ${dur.toFixed(1)} ${this.t().hrsBadge}`;
   });
 
   // Discounts
@@ -1434,9 +1423,11 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     +(this.coBaseCost() + this.coCateringTotal() + this.coPrintingTotal()).toFixed(2)
   );
 
+  // Same rule as the checkout modal: discounts do not stack — the larger of the manual %
+  // and the coupon applies, never more than the bill.
   coTotalDiscounts = computed(() => {
-    const raw = +(this.coDiscountAmount() + this.coCouponDiscount()).toFixed(2);
-    return Math.min(raw, this.coSubtotal());
+    const best = Math.max(this.coDiscountAmount(), this.coCouponDiscount());
+    return Math.min(+best.toFixed(2), this.coSubtotal());
   });
 
   coFinalAmount = computed(() =>
@@ -1469,11 +1460,10 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     const student = this.studentToCheckout();
     if (!student) return null;
 
-
     return {
       type: 'student',
-      title: this.isArabic() ? 'دفع الحساب' : 'Checkout',
-      subtitle: `${this.isArabic() ? 'إنهاء جلسة لـ' : 'Finalizing session for'} ${student.name} (${student.phone || ''})`,
+      title: this.t().wsCheckout,
+      subtitle: `${this.t().wsFinalizingSessionFor} ${student.name} (${student.phone || ''})`,
       session: {
         studentName: student.name,
         roomName: student.roomName || student.faculty || student.college || '',
@@ -1481,30 +1471,31 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
         status: student.status,
         startTime: student.checkInTime || '09:00 AM',
         endTime: this.coCheckoutTime(),
-        duration: this.coDurationDisplay()
+        duration: this.coDurationDisplay(),
+        durationMinutes: Math.round(this.coDurationHours() * 60)
       },
       financialBreakdown: {
         items: [
           {
             icon: 'clock',
-            title: this.isArabic() ? 'تكلفة الجلسة' : 'Workspace Base Cost',
+            title: this.t().wsWorkspaceBaseCost,
             subtitle: this.coSessionSubtitle(),
             amount: this.coBaseCost(),
             canEdit: true
           },
           {
             icon: 'canteen',
-            title: this.isArabic() ? 'الكانتين والمشروبات' : 'CATERING',
-            subtitle: this.isArabic() ? 'مشروبات وسناكس' : 'Snacks & Drinks',
+            title: this.t().wsCatering,
+            subtitle: this.t().wsSnacksDrinks,
             amount: this.coCateringTotal(),
             isCatering: true,
             canAdd: true,
-            buttonLabel: this.isArabic() ? 'إضافة صنف' : 'ADD ITEM'
+            buttonLabel: this.t().wsAddItem
           },
           {
             icon: 'printing',
-            title: this.isArabic() ? 'الطباعة وتصوير الورق' : 'PRINTING (PAGES)',
-            subtitle: this.isArabic() ? 'مطبوعات ورقية' : 'Handouts',
+            title: this.t().wsPrintingPages,
+            subtitle: this.t().handouts,
             amount: this.coPrintingTotal(),
             isPrinting: true
           }
@@ -1521,7 +1512,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
         selectedMethod: this.coPaymentMethod(),
         amountReceived: this.coAmountReceived(),
         changeDue: this.coChangeDue(),
-        buttonText: this.isArabic() ? 'إنهاء ودفع الجلسة' : 'Process Payment & Free Room'
+        buttonText: this.t().wsProcessPaymentFreeRoom
       }
     };
   });
@@ -1571,7 +1562,19 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
 
   // Stats from service
   insideCount = this.workspaceService.insideCount;
-  avgSession = this.workspaceService.avgSession;
+/** What still blocks the check-in submit button, shown next to it so the cashier knows why it is disabled. */
+  ciMissing = computed<string[]>(() => {
+    const missing: string[] = [];
+    if (!this.ciName().trim()) missing.push(this.t().locStudentName);
+    const phone = this.ciPhone().trim();
+    if (!phone) missing.push(this.t().locPhoneNumber);
+    else if (phone.length < 11) missing.push(this.t().loc11DigitPhoneNumber);
+    if (!this.selectedRoomId() || !this.selectedRoom()) missing.push(this.t().locRoom);
+    if (!this.isOpenSession() && !this.isTimeRangeValid()) missing.push(this.t().locCheckOutTimeAfterCheck);
+    return missing;
+  });
+
+    avgSession = computed(() => this.langService.formatDurationLocale(this.workspaceService.avgSession()));
   todayCheckins = this.workspaceService.todayCheckins;
   checkoutsToday = this.workspaceService.checkoutsToday;
   isLoading = this.workspaceService.isLoading;
@@ -1584,7 +1587,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     for (const s of this.filteredStudents()) {
       totalMins += parseDurationMinutes(this.getLiveStudentDuration(s));
     }
-    return `${(totalMins / 60).toFixed(1)} ${this.isArabic() ? 'ساعة' : 'hrs'}`;
+    return `${(totalMins / 60).toFixed(1)} ${this.t().hrsBadge}`;
   });
 
   filteredTotalRevenue = computed(() => {
@@ -1633,10 +1636,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       if (dateOpt === 'all') {
         matchesDate = true;
       } else {
-        const now = new Date();
-        const todayISO = getTodayDateISO();
-        const todayShort = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`;
-        const yest = new Date(now);
+        const now = new Date();        const yest = new Date(now);
         yest.setDate(now.getDate() - 1);
         const yestISO = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
         const yestShort = `${yest.getMonth() + 1}/${yest.getDate()}/${yest.getFullYear()}`;
@@ -1681,7 +1681,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   // CHECK-IN (ADD STUDENT) MODAL HANDLERS
   // ----------------------------------------------------
   openCheckInModal(): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تسجيل دخول طالب' : 'Student Check-in')) {
+    if (!this.shiftService.guardActiveShift(this.t().wsStudentCheckIn)) {
       return;
     }
     this.ciName.set('');
@@ -1699,9 +1699,6 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     this.selectedRoomCategory.set('shared');
     const firstRoom = this.sharedRooms()[0] || this.silentRooms()[0];
     this.selectedRoomId.set(firstRoom ? firstRoom.id : '');
-
-    const hourlyCost = this.settingsService.calculateStudentCost(1);
-    this.ciPrice.set(hourlyCost || 20);
 
     this.ciBilling.set('new-session');
     this.ciPackage.set('');
@@ -1775,7 +1772,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     const clean = sanitizePhoneInput(normalized);
     this.ciWhatsapp.set(clean);
     if (this.ciSubmitted() && clean) {
-      this.ciWhatsappError.set(validatePhoneError(clean, this.isArabic(), false, this.isArabic() ? 'رقم الواتساب' : 'WhatsApp number'));
+      this.ciWhatsappError.set(validatePhoneError(clean, this.isArabic(), false, this.t().wsWhatsappNumber));
     } else {
       this.ciWhatsappError.set(null);
     }
@@ -1804,14 +1801,14 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     if (emailErr) isValid = false;
 
     const whatsappErr = this.ciWhatsapp().trim()
-      ? validatePhoneError(this.ciWhatsapp(), this.isArabic(), false, this.isArabic() ? 'رقم الواتساب' : 'WhatsApp number')
+      ? validatePhoneError(this.ciWhatsapp(), this.isArabic(), false, this.t().wsWhatsappNumber)
       : null;
     this.ciWhatsappError.set(whatsappErr);
     if (whatsappErr) isValid = false;
 
     // Room validation (Strict Requirement 2)
     if (!this.selectedRoomId() || !this.selectedRoom()) {
-      this.ciRoomError.set(this.isArabic() ? 'يرجى اختيار الغرفة قبل تأكيد الدخول' : 'Please select a room before confirming check-in');
+      this.ciRoomError.set(this.t().wsPleaseSelectARoomBefore);
       isValid = false;
     } else {
       this.ciRoomError.set(null);
@@ -1826,7 +1823,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   }
 
   submitCheckIn(): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تسجيل دخول طالب' : 'Student Check-in')) {
+    if (!this.shiftService.guardActiveShift(this.t().wsStudentCheckIn)) {
       return;
     }
     this.ciSubmitted.set(true);
@@ -1839,17 +1836,15 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     const isBlacklisted = this.workspaceService.blacklist().some(b => b.phone && b.phone === studentPhone);
     if (isBlacklisted) {
       this.workspaceService.showToast(
-        this.isArabic()
-          ? 'عفواً، لا يمكن تسجيل الدخول لأن هذا الطالب موجود في قائمة الحظر. يرجى فك الحظر أولاً.'
-          : 'Check-in denied: this student is on the blacklist. Please unblock first.',
+        this.t().wsCheckInDeniedThisStudent,
         'error'
       );
       return;
     }
 
     if (!this.selectedRoomId() || !this.selectedRoom()) {
-      this.ciRoomError.set(this.isArabic() ? 'يرجى اختيار الغرفة قبل تأكيد الدخول' : 'Please select a room before confirming check-in');
-      this.workspaceService.showToast(this.isArabic() ? 'يجب اختيار غرفة لتسجيل الدخول' : 'A room must be selected for check-in', 'error');
+      this.ciRoomError.set(this.t().wsPleaseSelectARoomBefore);
+      this.workspaceService.showToast(this.t().wsARoomMustBeSelected, 'error');
       return;
     }
 
@@ -1875,16 +1870,16 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       date: this.ciDate(),
       checkInTime: this.formatTimeDisplay(this.ciTime()),
       expectedCheckout: this.ciExpectedCheckout() ? this.formatTimeDisplay(this.ciExpectedCheckout()) : undefined,
-      cost: this.ciPrice(),
+      cost: this.ciBaseEstimate(),
       billingType: this.ciBilling(),
       packageOrCoupon: packageOrCouponText,
-      sessionPrice: this.ciPrice(),
+      sessionPrice: this.ciBaseEstimate(),
       printingCount: this.ciPrinting(),
       walletAmount: this.ciWallet(),
       wifiVoucher: this.ciWifi(),
       roomId: this.selectedRoomId() || selRoom?.id,
       roomName: selRoom?.name || (this.selectedRoomCategory() === 'silent' ? 'Silent Room' : 'Shared Room'),
-      zone: this.selectedRoomCategory() === 'silent' ? 1 : 0,
+      zone: zoneFor(this.selectedRoomCategory()),
       addedBy: this.shiftService.currentShift()?.staffName || this.authService.getUser()?.name || 'Staff'
     });
 
@@ -1895,11 +1890,12 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   // CHECKOUT MODAL HANDLERS
   // ----------------------------------------------------
   openCheckoutModal(student: ActiveStudentSession): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'دفع حساب ومغادرة الطالب' : 'Student Checkout')) {
+    if (!this.shiftService.guardActiveShift(this.t().wsStudentCheckout)) {
       return;
     }
     this.closeActionMenu();
     this.studentToCheckout.set(student);
+    this.workspaceService.syncSessionCatering(student.id);
 
     const now = new Date();
     this.coCheckoutTime.set(
@@ -1928,7 +1924,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       .map((it: any, idx: number) => {
         const prodId = it.productId || it.product?.id || it.id;
         const prod = allProducts.find(p => p.id === prodId);
-        const name = it.product?.nameAr || it.product?.name || it.nameAr || it.name || prod?.nameAr || prod?.name || (this.isArabic() ? 'صنف كاترنج' : 'Catering Item');
+        const name = it.product?.nameAr || it.product?.name || it.nameAr || it.name || prod?.nameAr || prod?.name || (this.t().wsCateringItem);
         const unitPrice = Number((it.unitPrice ?? it.price ?? prod?.sellingPrice) || 0);
         const quantity = Number(it.quantity || 1);
         const price = Number(it.totalPrice || it.total || (unitPrice * quantity) || it.price || (prod?.sellingPrice ? prod.sellingPrice * quantity : 0));
@@ -1944,7 +1940,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     if (studentCatering.length === 0 && (student.cateringTotal || 0) > 0) {
       studentCatering = [{
         id: 'catering_total_' + student.id,
-        name: this.isArabic() ? 'طلبات كاترنج' : 'Catering Orders',
+        name: this.t().wsCateringOrders2,
         price: student.cateringTotal!
       }];
     }
@@ -2012,12 +2008,22 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     if (this.activeTab() === 'all') {
       const list = this.filteredDirectoryStudents();
       if (!list || list.length === 0) {
-        this.workspaceService.showToast(this.isArabic() ? 'لا توجد بيانات طلاب للتصدير' : 'No student data to export', 'info');
+        this.workspaceService.showToast(this.t().wsNoStudentDataToExport, 'info');
         return;
       }
-      const headers = this.isArabic()
-        ? ['كود الطالب', 'اسم الطالب', 'رقم الهاتف', 'الواتساب', 'البريد الإلكتروني', 'الجامعة', 'الكلية', 'الباقة / الاشتراك', 'عدد الزيارات', 'تاريخ آخر زيارة', 'الحالة']
-        : ['ID', 'Name', 'Phone', 'WhatsApp', 'Email', 'Faculty', 'College', 'Package', 'Total Visits', 'Last Visit Date', 'Status'];
+      const headers = [
+      this.t().wsCsvDirId,
+      this.t().wsCsvDirName,
+      this.t().wsCsvDirPhone,
+      this.t().wsCsvDirWhatsapp,
+      this.t().wsCsvDirEmail,
+      this.t().wsCsvDirFaculty,
+      this.t().wsCsvDirCollege,
+      this.t().wsCsvDirPackage,
+      this.t().wsCsvDirTotalVisits,
+      this.t().wsCsvDirLastVisitDate,
+      this.t().wsCsvDirStatus
+    ];
       const rows = list.map(s => [
         s.id,
         s.name,
@@ -2026,75 +2032,53 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
         s.email || '',
         s.faculty || '',
         s.college || '',
-        s.packageInfo?.packageName || (this.isArabic() ? 'دفع بالساعة' : 'Pay as you go'),
+        s.packageInfo?.packageName || (this.t().wsPayAsYouGo2),
         s.totalVisits || 0,
         s.lastVisitDate || '',
         s.currentStatus
       ]);
       exportToCsv(`nook_all_registered_students_${getTodayDateISO()}.csv`, headers, rows);
-      this.workspaceService.showToast(this.isArabic() ? 'تم تصدير دليل الطلاب المسجلين بنجاح!' : 'Students directory exported successfully!', 'success');
+      this.workspaceService.showToast(this.t().wsStudentsDirectoryExportedSuccessfully, 'success');
       return;
     }
 
     const students: ActiveStudentSession[] = this.filteredStudents();
     if (!students || students.length === 0) {
-      this.workspaceService.showToast(this.isArabic() ? 'لا توجد بيانات مطابقة للفلتر المعروض للتصدير' : 'No matching filtered data to export', 'info');
+      this.workspaceService.showToast(this.t().wsNoMatchingFilteredDataTo, 'info');
       return;
     }
 
     const currentShiftLabel = this.shiftService.currentShift()?.staffName || 'Shift #' + (this.shiftService.currentShift()?.id || '1');
 
-    const headers = this.isArabic() ? [
-      'اسم الطالب',
-      'كود الطالب',
-      'رقم الهاتف',
-      'الكلية / التخصص',
-      'تاريخ الجلسة',
-      'وقت الدخول',
-      'وقت الخروج',
-      'المدة المقضية',
-      'الغرفة / القاعة',
-      'أضيف بواسطة',
-      'نوع الباقة / الاشتراك',
-      'عدد الورق المطبوع',
-      'تكلفة الطباعة (ج.م)',
-      'طلبات الكانتين',
-      'تكلفة الكانتين (ج.م)',
-      'رصيد المحفظة قبل التسوية (ج.م)',
-      'المبلغ المستلم (ج.م)',
-      'رصيد المحفظة بعد التسوية (ج.م)',
-      'إجمالي تكلفة الجلسة (ج.م)',
-      'الوردية الحالية',
-      'حالة الجلسة'
-    ] : [
-      'Student Name',
-      'Student ID',
-      'Phone Number',
-      'College / Faculty',
-      'Date',
-      'Check-in Time',
-      'Check-out Time',
-      'Duration',
-      'Room',
-      'Added By',
-      'Package / Plan',
-      'Printing Count',
-      'Printing Cost (EGP)',
-      'Catering Items',
-      'Catering Cost (EGP)',
-      'Wallet Before (EGP)',
-      'Amount Received (EGP)',
-      'Wallet After (EGP)',
-      'Total Cost (EGP)',
-      'Current Shift',
-      'Status'
+    const headers = [
+      this.t().wsCsvSessStudentName,
+      this.t().wsCsvSessStudentId,
+      this.t().wsCsvSessPhoneNumber,
+      this.t().wsCsvSessCollegeFaculty,
+      this.t().wsCsvSessDate,
+      this.t().wsCsvSessCheckInTime,
+      this.t().wsCsvSessCheckOutTime,
+      this.t().wsCsvSessDuration,
+      this.t().wsCsvSessRoom,
+      this.t().wsCsvSessAddedBy,
+      this.t().wsCsvSessPackagePlan,
+      this.t().wsCsvSessPrintingCount,
+      this.t().wsCsvSessPrintingCostEgp,
+      this.t().wsCsvSessCateringItems,
+      this.t().wsCsvSessCateringCostEgp,
+      this.t().wsCsvSessWalletBeforeEgp,
+      this.t().wsCsvSessAmountReceivedEgp,
+      this.t().wsCsvSessWalletAfterEgp,
+      this.t().wsCsvSessTotalCostEgp,
+      this.t().wsCsvSessCurrentShift,
+      this.t().wsCsvSessStatus
     ];
 
     const rows = students.map((s: ActiveStudentSession) => {
       const catCost = +(s.cateringTotal || (s.cateringItems || []).reduce((sum, it) => sum + (it.totalPrice || it.total || (it.price * (it.quantity || 1)) || 0), 0)).toFixed(2);
-      const catItemsSummary = (s.cateringItems || []).map((it: any) => `${it.product?.name || it.name || 'Item'} (x${it.quantity || 1})`).join('; ') || (this.isArabic() ? 'لا يوجد' : 'None');
+      const catItemsSummary = (s.cateringItems || []).map((it: any) => `${it.product?.name || it.name || 'Item'} (x${it.quantity || 1})`).join('; ') || (this.t().wsNone);
       const totalCost = +this.getStudentTotalCost(s).toFixed(2);
-      const statusText = s.status === 'active' ? (this.isArabic() ? 'نشط الآن' : 'Active') : s.status === 'blocked' ? (this.isArabic() ? 'محظور' : 'Blocked') : (this.isArabic() ? 'مكتمل' : 'Completed');
+      const statusText = s.status === 'active' ? (this.t().wsActive) : s.status === 'blocked' ? (this.t().wsBlocked2) : (this.t().resCompleted);
 
       return [
         s.name,
@@ -2103,11 +2087,11 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
         s.faculty || s.college || '',
         s.date || '',
         s.checkInTime || '',
-        s.checkOutTime || (s.status === 'active' ? (this.isArabic() ? 'داخل المكان' : 'In House') : ''),
+        s.checkOutTime || (s.status === 'active' ? (this.t().wsInHouse) : ''),
         this.getLiveStudentDuration(s),
-        s.roomName || (s.roomId ? 'Room ' + s.roomId : (this.isArabic() ? 'مساحة عامة' : 'Shared Space')),
+        s.roomName || (s.roomId ? 'Room ' + s.roomId : (this.t().wsSharedSpace3)),
         s.addedBy || 'Staff',
-        s.billingType === 'package' ? (s.packageOrCoupon || 'Package') : (this.isArabic() ? 'دفع بالساعة' : 'Pay as you go'),
+        s.billingType === 'package' ? (s.packageOrCoupon || 'Package') : (this.t().wsPayAsYouGo2),
         s.printingCount || 0,
         catItemsSummary,
         catCost,
@@ -2121,11 +2105,11 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     });
 
     exportToCsv(`nook_students_detailed_${getTodayDateISO()}.csv`, headers, rows);
-    this.workspaceService.showToast(this.isArabic() ? 'تم تصدير التقرير المالي المفصل للطلاب بنجاح!' : 'Detailed students financial report exported successfully!', 'success');
+    this.workspaceService.showToast(this.t().wsDetailedStudentsFinancialReportExported, 'success');
   }
 
   openRegisterModal(): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تسجيل طالب جديد' : 'Register New Student')) {
+    if (!this.shiftService.guardActiveShift(this.t().wsRegisterNewStudent)) {
       return;
     }
     this.regName.set('');
@@ -2143,7 +2127,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   }
 
   submitRegisterStudent(): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تسجيل طالب جديد' : 'Register New Student')) {
+    if (!this.shiftService.guardActiveShift(this.t().wsRegisterNewStudent)) {
       return;
     }
     const name = this.regName().trim();
@@ -2166,7 +2150,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     }
 
     if (rawWhatsapp) {
-      const wErr = validatePhoneError(whatsapp, this.isArabic(), false, this.isArabic() ? 'رقم الواتساب' : 'WhatsApp number');
+      const wErr = validatePhoneError(whatsapp, this.isArabic(), false, this.t().wsWhatsappNumber);
       if (wErr) {
         this.workspaceService.showToast(wErr, 'error');
         return;
@@ -2243,7 +2227,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   isDeleteDirectoryStudentModalOpen = signal<boolean>(false);
 
   openDeleteDirectoryStudentModal(student: StudentDirectoryItem): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حذف الطالب من الدليل' : 'Delete Student from Directory')) {
+    if (!this.shiftService.guardActiveShift(this.t().wsDeleteStudentFromDirectory)) {
       return;
     }
     this.closeActionMenu();
@@ -2301,42 +2285,41 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
         if (coupon && coupon.isActive !== false) {
           const isExpired = coupon.expiryDate ? new Date(coupon.expiryDate) < new Date() : false;
           if (isExpired) {
-            this.workspaceService.showToast(this.isArabic() ? 'كود الكوبون منتهي الصلاحية' : 'Coupon code expired', 'error');
+            this.workspaceService.showToast(this.t().wsCouponCodeExpired, 'error');
             return;
           }
           const maxLimit = (coupon as any).usageLimit ?? (coupon as any).UsageLimit ?? (coupon as any).maxUsage ?? (coupon as any).maxUses;
           const currentUses = (coupon as any).usageCount ?? (coupon as any).UsageCount ?? (coupon as any).currentRedemptions ?? 0;
           if (maxLimit !== null && maxLimit !== undefined && maxLimit > 0 && currentUses >= maxLimit) {
             this.workspaceService.showToast(
-              this.isArabic() ? 'تم استنفاد الحد الأقصى لاستخدام هذا الكود' : 'Coupon usage limit reached',
+              this.t().wsCouponUsageLimitReached,
               'error'
             );
             return;
           }
-          let discountVal = coupon.value || 10;
+          // The coupon is its own discount line; it must not also set the manual % discount
+          // (that counted every coupon twice, and a fixed coupon could wipe out the whole bill).
+          let discountVal = Math.max(0, Number(coupon.value) || 0);
           if (coupon.discountType === 1) {
-            discountVal = +((this.coSubtotal() * discountVal) / 100).toFixed(2);
-            this.coDiscountPercent.set(coupon.value || 0);
-          } else if (this.coSubtotal() > 0) {
-            this.coDiscountPercent.set(Math.round((discountVal / this.coSubtotal()) * 100));
+            discountVal = +((this.coSubtotal() * Math.min(100, discountVal)) / 100).toFixed(2);
           }
           const clampedDiscount = Math.min(discountVal, this.coSubtotal());
           this.coCouponDiscount.set(clampedDiscount);
           this.coCouponApplied.set(true);
           this.workspaceService.showToast(
-            this.isArabic() ? `تم تطبيق الكوبون "${code}": خصم ${clampedDiscount} ج.م` : `Coupon "${code}" applied: ${clampedDiscount} EGP off!`,
+            this.langService.tf('wspCouponAppliedEgpOff', { code, clampedDiscount }),
             'success'
           );
         } else {
           this.workspaceService.showToast(
-            this.isArabic() ? 'كود الكوبون غير صالح أو غير مفعل' : 'Invalid or inactive coupon code',
+            this.t().wsInvalidOrInactiveCouponCode,
             'error'
           );
         }
       },
       error: () => {
         this.workspaceService.showToast(
-          this.isArabic() ? 'كود الكوبون غير موجود' : 'Coupon code not found',
+          this.t().wsCouponCodeNotFound,
           'error'
         );
       }
@@ -2349,20 +2332,21 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     this.coCouponApplied.set(false);
     this.coDiscountPercent.set(0);
     this.workspaceService.showToast(
-      this.isArabic() ? 'تمت إزالة كود الخصم بنجاح' : 'Coupon code removed successfully',
+      this.t().wsCouponCodeRemovedSuccessfully,
       'info'
     );
   }
 
   openStudentCateringModal(student: ActiveStudentSession): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إضافة طلب ضيافة' : 'Add Catering Order')) {
+    this.workspaceService.syncSessionCatering(student.id);
+    if (!this.shiftService.guardActiveShift(this.t().wsAddCateringOrder)) {
       return;
     }
     this.activeStudentForCatering.set(student);
     this.cateringTargetStudent.set({
       id: student.id,
       name: student.name,
-      instructor: student.phone || student.college || student.faculty || (this.isArabic() ? 'طالب' : 'Student'),
+      instructor: student.phone || student.college || student.faculty || (this.t().wsStudent),
       currentCatering: student.cateringTotal || 0,
       items: (student.cateringItems || []).map(i => ({
         name: i.product?.name || i.name || 'منتج كاترنج',
@@ -2370,7 +2354,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
         price: i.unitPrice || i.price || 0,
         quantity: i.quantity || 1,
         total: i.totalPrice || i.total || (i.price * i.quantity),
-        time: i.timestamp || (this.isArabic() ? 'أثناء الجلسة' : 'During session')
+        time: i.timestamp || (this.t().wsDuringSession)
       }))
     });
     this.isStudentCateringModalOpen.set(true);
@@ -2397,7 +2381,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
         const allProducts = this.cateringService.products();
         const newItems: CateringLineItem[] = payload.items.map((i: any) => {
           const prod = allProducts.find(p => p.id === (i.productId || i.product?.id || i.id));
-          const name = i.product?.nameAr || i.product?.name || i.nameAr || i.name || prod?.nameAr || prod?.name || (this.isArabic() ? 'صنف كاترنج' : 'Catering Item');
+          const name = i.product?.nameAr || i.product?.name || i.nameAr || i.name || prod?.nameAr || prod?.name || (this.t().wsCateringItem);
           const unitPrice = Number((i.unitPrice ?? i.price ?? prod?.sellingPrice) || 0);
           const quantity = Number(i.quantity || 1);
           const price = Number(i.totalPrice || i.total || (unitPrice * quantity) || (prod?.sellingPrice ? prod.sellingPrice * quantity : 0));
@@ -2426,7 +2410,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   }
 
   openAddCateringModal(): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إضافة صنف كاترنج' : 'Add Catering Item')) {
+    if (!this.shiftService.guardActiveShift(this.t().wsAddCateringItem)) {
       return;
     }
     const student = this.studentToCheckout();
@@ -2465,8 +2449,13 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       const prevWallet = student.walletAmount || 0;
 
       let received = this.coAmountReceived() !== null && !isNaN(this.coAmountReceived()!) ? this.coAmountReceived()! : 0;
-      let newWallet = +(prevWallet + received - finalTotal).toFixed(2);
       let remaining = Math.max(0, +(finalTotal - received).toFixed(2));
+      // Change handed back in cash, money left in the wallet, and the part paid from the wallet are three
+      // different things for the server (see WorkspaceService.checkOutStudent).
+      let cashChangeReturned = Math.max(0, +(received - finalTotal).toFixed(2));
+      let walletDeposit = 0;
+      let walletDebit = 0;
+      let newWallet = +(prevWallet - remaining).toFixed(2);
 
       if (event && event.newWalletBalance !== undefined) {
         newWallet = event.newWalletBalance;
@@ -2475,6 +2464,9 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
         }
         const netCashDue = event.netCashDue !== undefined ? event.netCashDue : Math.max(0, finalTotal);
         remaining = Math.max(0, +(netCashDue - received).toFixed(2));
+        cashChangeReturned = Math.max(0, event.changeDue || 0);
+        walletDeposit = event.walletMode === 'credit' ? Math.max(0, event.walletAdjustment || 0) : 0;
+        walletDebit = event.walletMode === 'debit' ? Math.max(0, event.walletAdjustment || 0) : 0;
       }
 
       const isPartial = remaining > 0;
@@ -2494,21 +2486,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       );
 
       const isPackageBilling = paymentMethod === 'package' || student.billingType === 'package' || !!matchedPkg;
-
-      if (isPackageBilling) {
-        let durHours = this.coDurationHours();
-        if (!durHours || durHours <= 0) {
-          const elapsedMins = this.getLiveElapsedMinutes(student.checkInTime, student.date);
-          durHours = Math.max(1, Math.round(elapsedMins / 60));
-        }
-        const finalDeductHours = Math.max(1, Math.round(durHours));
-        const targetIdentifier = matchedPkg?.id || student.phone || student.studentId || student.id || student.name;
-        this.packageService.deductStudentPackageHours(targetIdentifier, finalDeductHours);
-        this.workspaceService.showToast(
-          this.isArabic() ? `تم خصم ${finalDeductHours} ساعة من باقة الطالب بنجاح!` : `Deducted ${finalDeductHours} hrs from student package!`,
-          'success'
-        );
-      }
+      const couponCode = this.coCouponApplied() ? this.coCouponInput().trim().toUpperCase() : '';
 
       this.workspaceService.checkOutStudent(student.id, {
         paymentMethod,
@@ -2516,25 +2494,54 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
         amountReceived: received,
         outstandingBalance: remaining,
         walletAmount: newWallet,
+        cashChangeReturned,
+        walletDeposit,
+        walletDebit,
         paymentStatus: isPartial ? 'partially_paid' : 'paid',
         duration: this.coDurationDisplay(),
         packageHoursAlreadyDeducted: isPackageBilling,
+        couponCode: couponCode || undefined,
+        discountAmount: this.coTotalDiscounts(),
+        discountReason: [
+          this.coDiscountPercent() > 0 ? `${this.coDiscountPercent()}%` : '',
+          couponCode ? `coupon ${couponCode}` : ''
+        ].filter(Boolean).join(' + ') || undefined,
         cateringAmount: Number(this.coCateringTotal() || student.cateringTotal || 0),
         printingAmount: Number(this.coPrintingTotal() || 0)
+      }).subscribe((ok) => {
+        // On failure the service already showed the error; keep the modal open.
+        if (!ok) return;
+
+        // Package hours and coupon usage are only recorded after the backend accepted the checkout.
+        if (isPackageBilling) {
+          let durHours = this.coDurationHours();
+          if (!durHours || durHours <= 0) {
+            const elapsedMins = this.getLiveElapsedMinutes(student.checkInTime, student.date);
+            durHours = Math.max(1, Math.round(elapsedMins / 60));
+          }
+          const finalDeductHours = Math.max(1, Math.round(durHours));
+          const targetIdentifier = matchedPkg?.id || student.phone || student.studentId || student.id || student.name;
+          this.packageService.deductStudentPackageHours(targetIdentifier, finalDeductHours, student.id);
+          this.workspaceService.showToast(
+            this.langService.tf('wspDeductedHrsFromStudentPackage', { finalDeductHours }),
+            'success'
+          );
+        }
+
+        if (couponCode) {
+          this.couponApi.redeemCoupon(couponCode, {
+            studentId: student.studentId || student.id,
+            discountApplied: this.coCouponDiscount()
+          }).subscribe({
+            error: (err) => this.workspaceService.showToast(
+              this.langService.tf('wsCouponNotRecorded', { error: extractApiErrorMessage(err, this.t().serverErrorFallback) }),
+              'error'
+            )
+          });
+        }
+
+        this.closeCheckoutModal();
       });
-
-      // Redeem coupon in backend if applied
-      if (this.coCouponApplied() && this.coCouponInput().trim()) {
-        this.couponApi.redeemCoupon(this.coCouponInput().trim().toUpperCase(), {
-          studentId: student.studentId || student.id,
-          discountApplied: this.coCouponDiscount()
-        }).subscribe({
-          next: () => console.log('[ShowStudent] Coupon redeemed successfully'),
-          error: (err) => console.warn('[ShowStudent] Coupon redeem notice:', err?.message || err)
-        });
-      }
-
-      this.closeCheckoutModal();
     }
   }
 
@@ -2555,16 +2562,14 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   }
 
   openBlockModal(student: ActiveStudentSession): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حظر طالب' : 'Block Student')) {
+    if (!this.shiftService.guardActiveShift(this.t().wsBlockStudent)) {
       return;
     }
     this.closeActionMenu();
     // Strict Requirement 7: Cannot block student while checked-in
     if (student.status === 'active') {
       this.workspaceService.showToast(
-        this.isArabic()
-          ? 'لا يمكن حظر الطالب أثناء وجوده في جلسة نشطة (Checked-in). يرجى إنهاء الجلسة وتسجيل الخروج أولاً.'
-          : 'Cannot block student while checked in. Please check-out the student first.',
+        this.t().wsCannotBlockStudentWhileChecked,
         'error'
       );
       return;
@@ -2588,9 +2593,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     if (student) {
       if (student.status === 'active') {
         this.workspaceService.showToast(
-          this.isArabic()
-            ? 'لا يمكن حظر طالب نشط. يجب عمل Check-out أولاً.'
-            : 'Active student cannot be blocked. Check-out first.',
+          this.t().wsActiveStudentCannotBeBlocked,
           'error'
         );
         return;
@@ -2604,7 +2607,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   }
 
   openDeleteModal(student: ActiveStudentSession): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حذف جلسة الطالب' : 'Delete Student Session')) {
+    if (!this.shiftService.guardActiveShift(this.t().wsDeleteStudentSession)) {
       return;
     }
     this.closeActionMenu();
@@ -2627,7 +2630,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   }
 
   openEditModal(student: ActiveStudentSession): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تعديل جلسة الطالب' : 'Edit Student Session')) {
+    if (!this.shiftService.guardActiveShift(this.t().wsEditStudentSession)) {
       return;
     }
     this.closeActionMenu();
@@ -2686,7 +2689,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     }
 
     if (rawWhatsapp) {
-      const wErr = validatePhoneError(whatsapp, this.isArabic(), false, this.isArabic() ? 'رقم الواتساب' : 'WhatsApp number');
+      const wErr = validatePhoneError(whatsapp, this.isArabic(), false, this.t().wsWhatsappNumber);
       if (wErr) {
         this.workspaceService.showToast(wErr, 'error');
         return;
@@ -2731,11 +2734,11 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
   // Edit Session Time Modal Handlers (Item 12)
   // ----------------------------------------------------
   openEditSessionTimeModal(student: ActiveStudentSession): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تعديل وقت الجلسة' : 'Edit Session Time')) {
+    if (!this.shiftService.guardActiveShift(this.t().wsEditSessionTime2)) {
       return;
     }
     if (!this.authService.isAuthenticated()) {
-      this.workspaceService.showToast(this.isArabic() ? 'غير مصرح: يجب تسجيل الدخول أولاً' : 'Unauthorized: Please login', 'error');
+      this.workspaceService.showToast(this.t().wsUnauthorizedPleaseLogin, 'error');
       return;
     }
     this.closeActionMenu();
@@ -2760,19 +2763,19 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     const s = this.sessionTimeToEdit();
     if (!s) return;
 
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تعديل وقت الجلسة' : 'Edit Session Time')) {
+    if (!this.shiftService.guardActiveShift(this.t().wsEditSessionTime2)) {
       return;
     }
 
     if (!this.authService.isAuthenticated()) {
-      this.workspaceService.showToast(this.isArabic() ? 'غير مصرح: يجب تسجيل الدخول أولاً' : 'Unauthorized: Please login', 'error');
+      this.workspaceService.showToast(this.t().wsUnauthorizedPleaseLogin, 'error');
       return;
     }
 
     const rawCheckIn = this.editCheckInTimeInput().trim();
     if (!rawCheckIn) {
       this.workspaceService.showToast(
-        this.isArabic() ? 'يرجى إدخال وقت الدخول' : 'Please provide check-in time',
+        this.t().wsPleaseProvideCheckInTime,
         'error'
       );
       return;
@@ -2782,7 +2785,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     const checkInMatch = cleanCheckIn.match(/^(\d{1,2}):(\d{2})(\s*(AM|PM|ص|م))?$/i);
     if (!checkInMatch) {
       this.workspaceService.showToast(
-        this.isArabic() ? 'صيغة وقت الدخول غير صحيحة (مثال: 10:00 AM أو 14:30)' : 'Invalid check-in time format (e.g. 10:00 AM or 14:30)',
+        this.t().wsInvalidCheckInTimeFormat,
         'error'
       );
       return;
@@ -2793,7 +2796,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
     // Boundary check: Check-in cannot be more than 15 minutes into the future
     if (checkInDate.getTime() > now.getTime() + 15 * 60000) {
       this.workspaceService.showToast(
-        this.isArabic() ? 'لا يمكن تعيين وقت دخول في المستقبل' : 'Check-in time cannot be in the future',
+        this.t().wsCheckInTimeCannotBe,
         'error'
       );
       return;
@@ -2806,7 +2809,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       const checkoutMatch = cleanCheckout.match(/^(\d{1,2}):(\d{2})(\s*(AM|PM|ص|م))?$/i);
       if (!checkoutMatch) {
         this.workspaceService.showToast(
-          this.isArabic() ? 'صيغة وقت الخروج المتوقع غير صحيحة' : 'Invalid expected checkout format',
+          this.t().wsInvalidExpectedCheckoutFormat,
           'error'
         );
         return;
@@ -2814,7 +2817,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
       const checkoutDate = this.parseTimeAndDateToDate(cleanCheckout, s.date);
       if (checkoutDate.getTime() <= checkInDate.getTime()) {
         this.workspaceService.showToast(
-          this.isArabic() ? 'يجب أن يكون وقت الخروج بعد وقت الدخول' : 'Expected checkout must be after check-in time',
+          this.t().wsExpectedCheckoutMustBeAfter,
           'error'
         );
         return;
@@ -2830,7 +2833,7 @@ export class ShowStudentComponent implements OnInit, OnDestroy {
 
     this.workspaceService.updateSessionTime(s.id, s.checkInTime || '', s.expectedCheckout);
     this.workspaceService.showToast(
-      this.isArabic() ? `تم تعديل وقت جلسة "${s.name}" وتحديث السعر إلى ${newPrice.toFixed(2)} ج.م` : `Session time updated for "${s.name}". Recalculated cost: ${newPrice.toFixed(2)} EGP`,
+      this.langService.tf('wspSessionTimeUpdatedForRecalculated', { name: s.name, value: newPrice.toFixed(2) }),
       'success'
     );
     this.closeEditSessionTimeModal();

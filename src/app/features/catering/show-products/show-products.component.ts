@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink, ActivatedRoute } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { LanguageService } from '../../../core/services/language.service';
 import { CateringService } from '../../../core/services/catering.service';
 import { PrimaryButtonComponent } from '../../../shared/components/primary-button/primary-button.component';
@@ -17,13 +17,16 @@ import { CateringProduct } from '../../../core/models/catering.model';
 import { exportToCsv } from '../../../core/utils/csv.util';
 import { getTodayDateISO, parseIsoToLocalDate } from '../../../core/utils/date-time.util';
 import { resolveImageUrl } from '../../../core/utils/image-url.util';
+import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
+import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
+import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 
-export type CategoryFilterTab = 'all' | 'Snacks' | 'Merchandise' | 'Beverages' | 'Coffee' | 'Meals';
+type CategoryFilterTab = 'all' | 'Snacks' | 'Merchandise' | 'Beverages' | 'Coffee' | 'Meals';
 
 @Component({
   selector: 'app-show-products',
   standalone: true,
-  imports: [
+  imports: [PageHeaderComponent, EmptyStateComponent, ConfirmDialogComponent, 
     CommonModule,
     FormsModule,
     PrimaryButtonComponent,
@@ -45,10 +48,16 @@ export class ShowProductsComponent implements OnInit {
   private route = inject(ActivatedRoute);
 
   t = this.langService.t;
+
+  /** translations with {placeholders} */
+
+  tf = this.langService.tf;
   isArabic = this.langService.isArabic;
   formatDate = (str?: string) => this.langService.formatDateLocale(str);
 
   ngOnInit(): void {
+    // Product sales include items ordered in open sessions
+    this.workspaceService.syncActiveSessionsCatering();
     this.cateringService.getProducts().subscribe();
     this.route.queryParams.subscribe(params => {
       if (params['search']) {
@@ -102,10 +111,10 @@ export class ShowProductsComponent implements OnInit {
   }
 
   openAddCategoryPrompt(): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إضافة تصنيف' : 'Add Category')) {
+    if (!this.shiftService.guardActiveShift(this.t().catAddCategory)) {
       return;
     }
-    const catName = prompt(this.isArabic() ? 'أدخل اسم التصنيف الجديد:' : 'Enter new category name:');
+    const catName = prompt(this.t().catEnterNewCategoryName);
     if (!catName || !catName.trim()) return;
 
     const trimmed = catName.trim();
@@ -261,7 +270,7 @@ export class ShowProductsComponent implements OnInit {
   }
 
   openEditModal(product: CateringProduct): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'تعديل منتج' : 'Edit Product')) {
+    if (!this.shiftService.guardActiveShift(this.t().catEditProduct)) {
       return;
     }
     this.productToEdit.set({ ...product });
@@ -359,12 +368,12 @@ export class ShowProductsComponent implements OnInit {
   openDeleteModal(product: CateringProduct): void {
     if (!this.authService.isAdmin()) {
       this.workspaceService.showToast(
-        this.isArabic() ? 'عملية حذف المنتجات متاحة للمدير (Admin) فقط' : 'Product deletion is restricted to Administrators only',
+        this.t().catProductDeletionIsRestrictedTo,
         'error'
       );
       return;
     }
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'حذف منتج' : 'Delete Product')) {
+    if (!this.shiftService.guardActiveShift(this.t().catDeleteProduct)) {
       return;
     }
     this.productToDelete.set(product);
@@ -381,11 +390,11 @@ export class ShowProductsComponent implements OnInit {
     if (!prod) return;
     this.cateringService.deleteProduct(prod.id).subscribe({
       next: () => {
-        this.workspaceService.showToast(this.isArabic() ? 'تم حذف المنتج بنجاح' : 'Product deleted successfully', 'success');
+        this.workspaceService.showToast(this.t().catProductDeletedSuccessfully, 'success');
         this.closeDeleteModal();
       },
       error: (err) => {
-        this.workspaceService.showToast(err?.error?.message || err?.message || (this.isArabic() ? 'فشل حذف المنتج' : 'Failed to delete product'), 'error');
+        this.workspaceService.showToast(err?.error?.message || err?.message || (this.t().catFailedToDeleteProduct), 'error');
         this.closeDeleteModal();
       }
     });
@@ -404,7 +413,7 @@ export class ShowProductsComponent implements OnInit {
 
   // Modal Handlers
   openAddModal(): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إضافة منتج جديد' : 'Add New Product')) {
+    if (!this.shiftService.guardActiveShift(this.t().catAddNewProduct)) {
       return;
     }
     this.isAddModalOpen.set(true);
@@ -431,7 +440,7 @@ export class ShowProductsComponent implements OnInit {
   }
 
   openPosModal(): void {
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'نقطة بيع الكاترنج' : 'Catering POS')) {
+    if (!this.shiftService.guardActiveShift(this.t().catCateringPos)) {
       return;
     }
     this.isPosModalOpen.set(true);

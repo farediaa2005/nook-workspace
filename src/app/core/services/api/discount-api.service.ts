@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable, map, catchError, of } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { BaseApiService } from './base-api.service';
 import { API_ENDPOINTS } from '../../constants/api-endpoints';
 import { ApiResponse, extractData } from '../../models/api-response.model';
@@ -8,6 +8,7 @@ import {
   CreateDiscountDto,
   UpdateDiscountDto
 } from '../../models/discount.model';
+import { DiscountRuleDto, SaveDiscountRuleDto } from '../../models/discount-rule.model';
 
 @Injectable({
   providedIn: 'root'
@@ -17,34 +18,6 @@ export class DiscountApiService extends BaseApiService {
   getDiscounts(): Observable<DiscountDto[]> {
     return this.get<ApiResponse<DiscountDto[] | { items: DiscountDto[] }>>(
       API_ENDPOINTS.DISCOUNTS.LIST
-    ).pipe(
-      map(res => {
-        if (Array.isArray(res.data)) {
-          return res.data;
-        }
-        return (res.data as { items: DiscountDto[] })?.items ?? [];
-      })
-    );
-  }
-
-  /** Get active discounts only — GET /api/Discounts/active */
-  getActiveDiscounts(): Observable<DiscountDto[]> {
-    return this.get<ApiResponse<DiscountDto[]>>(API_ENDPOINTS.DISCOUNTS.ACTIVE).pipe(
-      map(extractData)
-    );
-  }
-
-  /** Get discount by ID — GET /api/Discounts/{id} */
-  getDiscountById(id: string): Observable<DiscountDto> {
-    return this.get<ApiResponse<DiscountDto>>(API_ENDPOINTS.DISCOUNTS.BY_ID(id)).pipe(
-      map(extractData)
-    );
-  }
-
-  /** Get discounts by faculty ID — GET /api/Discounts/faculty/{facultyId} */
-  getDiscountsByFaculty(facultyId: string): Observable<DiscountDto[]> {
-    return this.get<ApiResponse<DiscountDto[] | { items: DiscountDto[] }>>(
-      API_ENDPOINTS.DISCOUNTS.BY_FACULTY(facultyId)
     ).pipe(
       map(res => {
         if (Array.isArray(res.data)) {
@@ -99,38 +72,29 @@ export class DiscountApiService extends BaseApiService {
       map(res => {
         if (!res) return true;
         return (res as any).data !== undefined ? !!(res as any).data : ((res as any).success ?? (res as any).isSuccess ?? true);
-      }),
-      catchError(() => of(true))
+      })
     );
   }
 
-  /** Get milestone discount rules — GET /api/Discounts/rules */
-  getDiscountRules(activeOnly: boolean = false): Observable<any[]> {
-    return this.get<ApiResponse<any[]>>(API_ENDPOINTS.DISCOUNT_RULES.LIST, { activeOnly }).pipe(
-      map(extractData)
-    );
+  // ---- Automatic discount rules ----
+
+  /** GET /api/Discounts/rules */
+  getDiscountRules(): Observable<DiscountRuleDto[]> {
+    return this.get<ApiResponse<DiscountRuleDto[]>>(API_ENDPOINTS.DISCOUNT_RULES.LIST).pipe(map(res => extractData(res) || []));
   }
 
-  /** Create discount rule — POST /api/Discounts/rules */
-  createDiscountRule(rule: any): Observable<any> {
-    return this.post<ApiResponse<any>>(API_ENDPOINTS.DISCOUNT_RULES.LIST, rule).pipe(
-      map(extractData)
-    );
+  /** POST /api/Discounts/rules */
+  createDiscountRule(dto: SaveDiscountRuleDto): Observable<DiscountRuleDto> {
+    return this.post<ApiResponse<DiscountRuleDto>>(API_ENDPOINTS.DISCOUNT_RULES.LIST, dto).pipe(map(extractData));
   }
 
-  /** Delete discount rule — DELETE /api/Discounts/rules/{id} */
+  /** PUT /api/Discounts/rules/{id} */
+  updateDiscountRule(id: string, dto: SaveDiscountRuleDto): Observable<DiscountRuleDto> {
+    return this.put<ApiResponse<DiscountRuleDto>>(API_ENDPOINTS.DISCOUNT_RULES.BY_ID(id), dto).pipe(map(extractData));
+  }
+
+  /** DELETE /api/Discounts/rules/{id} */
   deleteDiscountRule(id: string): Observable<boolean> {
-    return this.delete<ApiResponse<boolean>>(API_ENDPOINTS.DISCOUNT_RULES.BY_ID(id)).pipe(
-      map(extractData)
-    );
-  }
-
-  /** Redeem discount rule for a student — POST /api/Discounts/redeem */
-  redeemDiscountRule(payload: { discountRuleId: string; studentId: string; sessionId?: string; sessionType?: string; discountAmount: number }): Observable<boolean> {
-    return this.post<ApiResponse<boolean>>(API_ENDPOINTS.DISCOUNT_RULES.REDEEM, payload).pipe(
-      map(extractData)
-    );
+    return this.delete<ApiResponse<boolean>>(API_ENDPOINTS.DISCOUNT_RULES.BY_ID(id)).pipe(map(extractData));
   }
 }
-
-

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable, map, switchMap } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { BaseApiService } from './base-api.service';
 import { API_ENDPOINTS } from '../../constants/api-endpoints';
 import { ApiResponse, extractData } from '../../models/api-response.model';
@@ -7,7 +7,7 @@ import {
   ClassroomPackageDto,
   CreateClassroomPackageDto,
   UpdateClassroomPackageDto,
-  UsePackageHoursDto
+  UsePackageHoursDto, PackageUsageHistoryDto
 } from '../../models/package-api.model';
 
 @Injectable({
@@ -32,20 +32,6 @@ export class ClassroomPackageApiService extends BaseApiService {
   getPackageById(id: string): Observable<ClassroomPackageDto> {
     return this.get<ApiResponse<ClassroomPackageDto>>(API_ENDPOINTS.CLASSROOM_PACKAGES.BY_ID(id)).pipe(
       map(extractData)
-    );
-  }
-
-  /** Get packages by instructor ID — GET /api/ClassroomPackages/instructor/{instructorId} */
-  getPackagesByInstructor(instructorId: string): Observable<ClassroomPackageDto[]> {
-    return this.get<ApiResponse<ClassroomPackageDto[] | { items: ClassroomPackageDto[] }>>(
-      API_ENDPOINTS.CLASSROOM_PACKAGES.BY_INSTRUCTOR(instructorId)
-    ).pipe(
-      map(res => {
-        if (Array.isArray(res.data)) {
-          return res.data;
-        }
-        return (res.data as { items: ClassroomPackageDto[] })?.items ?? [];
-      })
     );
   }
 
@@ -85,15 +71,22 @@ export class ClassroomPackageApiService extends BaseApiService {
   }
 
   /** Deduct hours from package (updates package via PUT /api/ClassroomPackages/{id}) */
+  /** Deduct hours — POST /api/ClassroomPackages/{id}/use-hours (records a usage-history entry on the server) */
   useHours(id: string, dto: UsePackageHoursDto): Observable<ClassroomPackageDto> {
-    return this.getPackageById(id).pipe(
-      switchMap(pkg => {
-        const remainingHours = Math.max(0, (pkg.remainingHours != null ? pkg.remainingHours : pkg.hours) - dto.hours);
-        return this.updatePackage(id, {
-          ...pkg,
-          remainingHours
-        });
-      })
+    const payload: UsePackageHoursDto = {
+      hours: Math.max(1, Math.round(dto.hours)),
+      sessionOrBookingId: dto.sessionOrBookingId ?? null,
+      note: dto.note ?? null
+    };
+    return this.post<ApiResponse<ClassroomPackageDto>>(API_ENDPOINTS.CLASSROOM_PACKAGES.USE_HOURS(id), payload).pipe(
+      map(extractData)
+    );
+  }
+
+  /** Usage history — GET /api/ClassroomPackages/{id}/usage-history */
+  getUsageHistory(id: string): Observable<PackageUsageHistoryDto[]> {
+    return this.get<ApiResponse<PackageUsageHistoryDto[]>>(API_ENDPOINTS.CLASSROOM_PACKAGES.USAGE_HISTORY(id)).pipe(
+      map(res => extractData(res) || [])
     );
   }
 

@@ -13,10 +13,10 @@ import { ActiveStudentSession } from '../models/student.model';
 
 describe('DashboardService - Space Distribution (NOOK-DEV-09 & NOOK-FEAT-04)', () => {
   let service: DashboardService;
-  let activeStudentsSignal = signal<ActiveStudentSession[]>([]);
-  let historyStudentsSignal = signal<ActiveStudentSession[]>([]);
-  let classroomCardsSignal = signal<any[]>([]);
-  let classroomRoomsSignal = signal<any[]>([]);
+  const activeStudentsSignal = signal<ActiveStudentSession[]>([]);
+  const historyStudentsSignal = signal<ActiveStudentSession[]>([]);
+  const classroomCardsSignal = signal<unknown[]>([]);
+  const classroomRoomsSignal = signal<unknown[]>([]);
 
   beforeEach(() => {
     activeStudentsSignal.set([]);
@@ -49,8 +49,8 @@ describe('DashboardService - Space Distribution (NOOK-DEV-09 & NOOK-FEAT-04)', (
           provide: LanguageService,
           useValue: {
             isArabic: () => true,
-            t: () => ({}),
-            formatTimeLocale: (x: any) => x,
+            t: () => new Proxy({}, { get: (_target, key) => String(key) }),
+            formatTimeLocale: (x: unknown) => x,
             formatDurationLocale: (x: any) => x,
             formatNameLocale: (x: any) => x
           }

@@ -28,7 +28,7 @@ export function getUserInitials(name?: string): string {
 /**
  * Deterministic modern color palette for avatars
  */
-export function getAvatarColors(name?: string): { bg: string; text: string; border: string } {
+function getAvatarColors(name?: string): { bg: string; text: string; border: string } {
   const cleanName = (name || 'User').trim();
   const colors = [
     { bg: '#2563EB', text: '#FFFFFF', border: '#3B82F6' }, // Blue

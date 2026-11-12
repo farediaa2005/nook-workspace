@@ -54,7 +54,7 @@
 }
 
 .page-subtitle {
-  font-size: 0.88rem;
+  font-size: var(--fs-base);
   color: var(--text-dim) !important;
   margin: 0;
 }
@@ -66,9 +66,9 @@
   background: rgba(245, 185, 33, 0.12);
   border: 1px solid rgba(245, 185, 33, 0.35);
   color: var(--accent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 4px 12px;
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   letter-spacing: 0.02em;
 }
@@ -97,8 +97,8 @@
 }
 
 [data-theme="light"] .active-shift-notice-card {
-  background: #fff9ea;
-  border-color: #f3d489;
+  background: var(--tone-fff9ea);
+  border-color: var(--tone-f3d489);
 }
 
 .notice-icon-box {
@@ -127,21 +127,21 @@
 }
 
 .notice-title {
-  font-size: 1rem;
+  font-size: var(--fs-md);
   font-weight: 700;
   color: var(--text);
   margin: 0 0 0.25rem 0;
 }
 
 .notice-desc {
-  font-size: 0.86rem;
+  font-size: var(--fs-base);
   color: var(--text-dim);
   margin: 0;
 }
 
 .notice-alert {
   margin: 6px 0 0;
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   color: var(--danger);
   font-weight: 700;
 }
@@ -160,10 +160,10 @@
   gap: 6px;
   padding: 8px 16px;
   border-radius: var(--radius-sm);
-  font-size: 0.85rem;
+  font-size: var(--fs-ui);
   font-weight: 700;
-  background: linear-gradient(135deg, var(--yellow) 0%, #e5a812 100%);
-  color: #1a1710;
+  background: linear-gradient(135deg, var(--yellow) 0%, var(--tone-e5a812) 100%);
+  color: var(--tone-1a1710);
   text-decoration: none;
   border: none;
   cursor: pointer;
@@ -182,7 +182,7 @@
   gap: 6px;
   padding: 8px 16px;
   border-radius: var(--radius-sm);
-  font-size: 0.85rem;
+  font-size: var(--fs-ui);
   font-weight: 700;
   background: rgba(239, 68, 68, 0.12);
   color: var(--danger);
@@ -232,7 +232,7 @@
   align-items: center;
   gap: 0.65rem;
   font-family: var(--font-display);
-  font-size: 1.08rem;
+  font-size: var(--fs-lg);
   font-weight: 700;
   color: var(--text);
   margin: 0;
@@ -293,7 +293,7 @@
 }
 
 .info-label {
-  font-size: 0.76rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -301,10 +301,10 @@
 }
 
 .admin-tag {
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-2xs);
   background: rgba(245, 185, 33, 0.2);
   color: var(--accent);
 }
@@ -314,7 +314,7 @@
 }
 
 .info-value {
-  font-size: 1.05rem;
+  font-size: var(--fs-lg);
   font-weight: 700;
   color: var(--text);
 }
@@ -326,13 +326,13 @@
 .staff-select-input {
   width: 100%;
   height: 38px;
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   background: var(--surface);
   border: 1.5px solid var(--border);
   color: var(--text);
   padding: 0 10px;
   font-weight: 600;
-  font-size: 0.88rem;
+  font-size: var(--fs-base);
   font-family: inherit;
   outline: none;
   cursor: pointer;
@@ -390,15 +390,15 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.86rem;
-  font-weight: 700;
-  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-dim);
 }
 
 .required-badge {
-  font-size: 0.7rem;
+  font-size: var(--fs-2xs);
   padding: 0.15rem 0.45rem;
-  border-radius: 6px;
+  border-radius: var(--radius-2xs);
   background: rgba(245, 185, 33, 0.2);
   color: var(--accent);
   font-weight: 700;
@@ -417,9 +417,9 @@
 }
 
 .channel-dot--gold { background: var(--yellow); box-shadow: 0 0 6px rgba(245, 185, 33, 0.4); }
-.channel-dot--red { background: #ef4444; box-shadow: 0 0 6px rgba(239, 68, 68, 0.4); }
-.channel-dot--purple { background: #a855f7; box-shadow: 0 0 6px rgba(168, 85, 247, 0.4); }
-.channel-dot--blue { background: #3b82f6; box-shadow: 0 0 6px rgba(59, 130, 246, 0.4); }
+.channel-dot--red { background: var(--danger-strong); box-shadow: 0 0 6px rgba(239, 68, 68, 0.4); }
+.channel-dot--purple { background: var(--purple-500); box-shadow: 0 0 6px rgba(168, 85, 247, 0.4); }
+.channel-dot--blue { background: var(--info); box-shadow: 0 0 6px rgba(59, 130, 246, 0.4); }
 
 .input-with-currency {
   position: relative;
@@ -435,7 +435,7 @@
   border-radius: var(--radius-sm);
   padding: 0 3.25rem 0 1rem;
   color: var(--text);
-  font-size: 1.05rem;
+  font-size: var(--fs-lg);
   font-weight: 700;
   box-sizing: border-box;
   font-family: inherit;
@@ -460,7 +460,7 @@
 .currency-badge {
   position: absolute;
   right: 0.85rem;
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--text-dim);
   pointer-events: none;
@@ -472,7 +472,7 @@
 }
 
 .field-help {
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   color: var(--text-dim);
   line-height: 1.4;
 }
@@ -492,7 +492,7 @@
 }
 
 .total-float-label {
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
   font-weight: 700;
   color: var(--text);
 }
@@ -517,7 +517,7 @@
   border-radius: var(--radius-sm);
   padding: 0.85rem 1rem;
   color: var(--text);
-  font-size: 0.9rem;
+  font-size: var(--fs-base);
   box-sizing: border-box;
   font-family: inherit;
   outline: none;
@@ -546,11 +546,11 @@
   align-items: center;
   gap: 0.6rem;
   padding: 0.75rem 1.75rem;
-  background: linear-gradient(135deg, var(--yellow) 0%, #e5a812 100%);
-  color: #1a1710;
+  background: linear-gradient(135deg, var(--yellow) 0%, var(--tone-e5a812) 100%);
+  color: var(--tone-1a1710);
   border: none;
   border-radius: var(--radius-sm);
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
   font-weight: 700;
   cursor: pointer;
   text-decoration: none;
@@ -581,7 +581,7 @@
   color: var(--text);
   border: 1.5px solid var(--border);
   border-radius: var(--radius-sm);
-  font-size: 0.92rem;
+  font-size: var(--fs-md);
   font-weight: 700;
   cursor: pointer;
   text-decoration: none;
@@ -599,7 +599,7 @@
   width: 16px;
   height: 16px;
   border: 2px solid rgba(26, 23, 16, 0.25);
-  border-top-color: #1a1710;
+  border-top-color: var(--tone-1a1710);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }

@@ -1,7 +1,7 @@
 /**
  * Utility for resolving server, local, and data image URLs safely across the app.
  */
-export function resolveImageUrl(url?: string | null, defaultFallback: string = ''): string {
+export function resolveImageUrl(url?: string | null, defaultFallback = ''): string {
   if (!url || typeof url !== 'string') return defaultFallback;
   let trimmed = url.trim();
   if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return defaultFallback;
@@ -48,4 +48,3 @@ export function resolveImageUrl(url?: string | null, defaultFallback: string = '
   return `${backendBase}/${cleanPath}`;
 }
 
-export const DEFAULT_ROOM_FALLBACK = '/images/rooms/room-workshop.jpg';

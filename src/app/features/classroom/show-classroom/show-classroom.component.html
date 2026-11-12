@@ -2,8 +2,7 @@
   <!-- Page Header -->
   <div class="page-head">
     <div class="header-text">
-      <h1 class="page-title">{{ t().classroomLiveBoard }}</h1>
-      <p class="page-subtitle">{{ t().classroomLiveBoardDesc }}</p>
+      <app-page-header [spaced]="false" [title]="t().classroomLiveBoard" [subtitle]="t().classroomLiveBoardDesc"></app-page-header>
     </div>
 
     <app-primary-button (clicked)="openBookingModal()">
@@ -38,7 +37,7 @@
 
   @if (classroomService.isLoading()) {
   <div class="loading-state-box"
-    style="display: flex; align-items: center; justify-content: center; padding: 40px; gap: 12px; color: var(--text-secondary, #6b7280);">
+    style="display: flex; align-items: center; justify-content: center; padding: 40px; gap: 12px; color: var(--text-secondary, var(--gray-500));">
     <svg class="animate-spin" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
       stroke-width="2.5">
       <circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-linecap="round" />
@@ -53,7 +52,7 @@
     @if (card.status !== 'available') {
     <!-- Active / Scheduled Room Card with Room Color Accent -->
     <div class="room-card card-active card-theme--{{ card.colorTheme || 'blue' }}"
-      [style.--card-accent]="card.accentColor || '#2563eb'">
+      [style.--card-accent]="card.accentColor || 'var(--blue-600)'">
       <!-- Room Image -->
       <div class="room-card__media">
         <img [src]="getRoomImage(card.image)" (error)="onImageError($event)" [alt]="card.name" class="room-img"
@@ -91,36 +90,18 @@
           <h3 class="room-name">{{ formatRoom(card.name) }}</h3>
           @if (card.status === 'active') {
             @if (card.timeAlertStatus === 'overtime_charged') {
-            <span class="status-pill status-pill--overdue" [title]="card.timeAlertMessage">
-              <span class="dot"></span>
-              {{ isArabic() ? 'تجاوز الوقت' : 'Overtime' }}
-            </span>
+            <app-status-badge tone="danger" [text]="t().clsOvertime" [hint]="card.timeAlertMessage"></app-status-badge>
             } @else if (card.timeAlertStatus === 'ended_grace') {
-            <span class="status-pill status-pill--scheduled" [title]="card.timeAlertMessage">
-              <span class="dot"></span>
-              {{ isArabic() ? 'فترة سماح' : 'Grace Period' }}
-            </span>
+            <app-status-badge tone="warning" [text]="t().clsGracePeriod" [hint]="card.timeAlertMessage"></app-status-badge>
             } @else if (card.timeAlertStatus === 'ending_soon') {
-            <span class="status-pill status-pill--ending" [title]="card.timeAlertMessage">
-              <span class="dot"></span>
-              {{ isArabic() ? 'قرب الانتهاء' : 'Ending Soon' }}
-            </span>
+            <app-status-badge tone="warning" [text]="t().clsEndingSoon" [hint]="card.timeAlertMessage"></app-status-badge>
             } @else {
-            <span class="status-pill status-pill--active">
-              <span class="dot"></span>
-              {{ t().statusInSession }}
-            </span>
+            <app-status-badge tone="success" [text]="t().statusInSession"></app-status-badge>
             }
           } @else if (card.status === 'scheduled') {
-          <span class="status-pill status-pill--scheduled">
-            <span class="dot"></span>
-            {{ t().statusScheduled }}
-          </span>
+          <app-status-badge tone="warning" [text]="t().statusScheduled"></app-status-badge>
           } @else {
-          <span class="status-pill status-pill--completed">
-            <span class="dot"></span>
-            {{ t().statusCompleted }}
-          </span>
+          <app-status-badge tone="neutral" [text]="t().statusCompleted"></app-status-badge>
           }
         </div>
 
@@ -143,7 +124,7 @@
         <div class="room-meta-group">
           <!-- Instructor -->
           <div class="meta-row meta-row--clickable" (click)="openEditBookingModal(card)"
-            [title]="isArabic() ? 'تعديل أو تحديد الإنستراكتور' : 'Edit or assign instructor'">
+            [title]="t().clsEditOrAssignInstructor" role="button" tabindex="0" (keydown.enter)="openEditBookingModal(card)">
             <div class="meta-icon-wrap">
               <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -153,8 +134,7 @@
             <div class="meta-info">
               <span class="meta-label">{{ t().instructor }}</span>
               <span class="meta-value" [class.meta-value--unassigned]="!card.instructor || card.instructor === '-'">
-                {{ (!card.instructor || card.instructor === '-') ? (isArabic() ? 'غير محدد (اضغط للتعيين)' : 'Unassigned
-                (click to set)') : formatName(card.instructor) }}
+                {{ (!card.instructor || card.instructor === '-') ? (t().clsUnassignedClickToSet) : formatName(card.instructor) }}
               </span>
             </div>
           </div>
@@ -180,9 +160,9 @@
             <span class="metric-label">{{ t().rental }}</span>
             @if (isCardPackage(card)) {
             <div style="display: flex; align-items: center; gap: 4px;">
-              <span class="badge-pkg-deducted" style="padding: 2px 6px; font-size: 0.72rem;">{{ t().packageActiveBadge
+              <span class="badge-pkg-deducted" style="padding: 2px 6px; font-size: var(--fs-2xs);">{{ t().packageActiveBadge
                 }}</span>
-              <strong class="metric-val" style="color: var(--success); font-size: 0.88rem;">0.00 {{ t().currency
+              <strong class="metric-val" style="color: var(--success); font-size: var(--fs-base);">0.00 {{ t().currency
                 }}</strong>
             </div>
             } @else {
@@ -201,22 +181,22 @@
         <!-- Action Buttons -->
         <div class="card-actions">
           @if (card.status === 'scheduled') {
-            <button type="button" class="action-btn action-btn--checkout" (click)="checkInScheduledCard(card)" [title]="isArabic() ? 'بدء الجلسة وتفعيل القاعة الآن' : 'Start session now'">
+            <button type="button" class="action-btn action-btn--checkout" (click)="checkInScheduledCard(card)" [title]="t().clsStartSessionNow">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <polygon points="5 3 19 12 5 21 5 3"></polygon>
               </svg>
-              <span>{{ isArabic() ? 'بدء الجلسة' : 'Check In' }}</span>
+              <span>{{ t().clsCheckIn }}</span>
             </button>
             <button type="button" class="action-btn action-btn--ghost" (click)="openEditBookingModal(card)">
               {{ t().edit }}
             </button>
           } @else {
-            <button type="button" class="action-btn action-btn--extend" (click)="addHourToCard(card)" [title]="isArabic() ? 'تمديد الجلسة ساعة إضافية' : 'Add 1 hour'">
+            <button type="button" class="action-btn action-btn--extend" (click)="addHourToCard(card)" [title]="t().clsAdd1Hour">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <circle cx="12" cy="12" r="10"></circle>
                 <polyline points="12 6 12 12 16 14"></polyline>
               </svg>
-              <span>+1 {{ isArabic() ? 'ساعة' : 'hr' }}</span>
+              <span>+1 {{ t().clsHr }}</span>
             </button>
             <button type="button" class="action-btn action-btn--ghost" (click)="openEditBookingModal(card)">
               {{ t().edit }}
@@ -250,9 +230,7 @@
     </div>
     }
     } @empty {
-    <div class="empty-state-box">
-      <p class="empty-text">{{ t().emptyStateNoClassrooms }}</p>
-    </div>
+    <app-empty-state icon="calendar" [title]="t().emptyStateNoClassrooms"></app-empty-state>
     }
   </div>
 
@@ -264,37 +242,37 @@
   <section class="completed-sessions-section" style="margin-top: 36px;">
     <div class="completed-section-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
       <div style="display: flex; align-items: center; gap: 10px;">
-        <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(16, 185, 129, 0.12); color: #10b981; display: flex; align-items: center; justify-content: center;">
+        <div style="width: 32px; height: 32px; border-radius: var(--radius-xs); background: rgba(16, 185, 129, 0.12); color: var(--success-strong); display: flex; align-items: center; justify-content: center;">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>
         </div>
         <div>
-          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text);">
-            {{ isArabic() ? 'الجلسات المنتهية اليوم' : 'Today\'s Completed Sessions' }}
-            <span style="font-size: 0.85rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: rgba(16, 185, 129, 0.15); color: #10b981; margin-inline-start: 8px;">
+          <h3 style="margin: 0; font-size: var(--fs-lg); font-weight: 700; color: var(--text);">
+            {{ t().clsTodaysCompletedSessions }}
+            <span style="font-size: var(--fs-ui); font-weight: 600; padding: 2px 8px; border-radius: var(--radius-pill); background: rgba(16, 185, 129, 0.15); color: var(--success-strong); margin-inline-start: 8px;">
               {{ completedSessions().length }}
             </span>
           </h3>
-          <p style="margin: 2px 0 0; font-size: 0.85rem; color: var(--text-secondary, #64748b);">
-            {{ isArabic() ? 'سجل القاعات والجلسات التي تم إنهاء وقتها وتسجيل مغادرتها خلال اليوم' : 'Log of sessions checked out today across all rooms' }}
+          <p style="margin: 2px 0 0; font-size: var(--fs-ui); color: var(--text-secondary, var(--slate-500));">
+            {{ t().clsLogOfSessionsCheckedOut }}
           </p>
         </div>
       </div>
     </div>
 
-    <div class="completed-table-card" style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);">
+    <div class="completed-table-card" style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);">
       <div style="overflow-x: auto;">
-        <table class="completed-sessions-table" style="width: 100%; border-collapse: collapse; text-align: start; font-size: 0.9rem;">
+        <table class="completed-sessions-table" style="width: 100%; border-collapse: collapse; text-align: start; font-size: var(--fs-base);">
           <thead>
-            <tr style="background: var(--surface-2, rgba(0,0,0,0.03)); border-bottom: 1px solid var(--border); color: var(--text-secondary, #64748b); font-weight: 600; font-size: 0.82rem; text-transform: uppercase;">
-              <th style="padding: 12px 18px; text-align: start;">{{ isArabic() ? 'القاعة' : 'Room' }}</th>
-              <th style="padding: 12px 18px; text-align: start;">{{ isArabic() ? 'المحاضر / النشاط' : 'Instructor / Activity' }}</th>
-              <th style="padding: 12px 18px; text-align: start;">{{ isArabic() ? 'الوقت' : 'Time' }}</th>
-              <th style="padding: 12px 18px; text-align: start;">{{ isArabic() ? 'الحضور' : 'Attendees' }}</th>
-              <th style="padding: 12px 18px; text-align: start;">{{ isArabic() ? 'المسؤول والمغادرة' : 'Staff & Checkout' }}</th>
-              <th style="padding: 12px 18px; text-align: start;">{{ isArabic() ? 'المبلغ المدفوع' : 'Paid Amount' }}</th>
-              <th style="padding: 12px 18px; text-align: center;">{{ isArabic() ? 'الحالة' : 'Status' }}</th>
+            <tr style="background: var(--surface-2, rgba(0,0,0,0.03)); border-bottom: 1px solid var(--border); color: var(--text-dim); font-weight: 700; font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: 0.5px;">
+              <th style="padding: 12px 18px; text-align: start;">{{ t().clsRoom }}</th>
+              <th style="padding: 12px 18px; text-align: start;">{{ t().clsInstructorActivity }}</th>
+              <th style="padding: 12px 18px; text-align: start;">{{ t().time }}</th>
+              <th style="padding: 12px 18px; text-align: start;">{{ t().clsAttendees }}</th>
+              <th style="padding: 12px 18px; text-align: start;">{{ t().clsStaffCheckout }}</th>
+              <th style="padding: 12px 18px; text-align: start;">{{ t().clsPaidAmount }}</th>
+              <th style="padding: 12px 18px; text-align: center;">{{ t().status }}</th>
             </tr>
           </thead>
           <tbody>
@@ -302,43 +280,43 @@
             <tr style="border-bottom: 1px solid var(--border); transition: background 0.15s ease;">
               <td style="padding: 14px 18px; font-weight: 700; color: var(--text);">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--success-strong);"></span>
                   <span>{{ session.name }}</span>
                 </div>
               </td>
               <td style="padding: 14px 18px;">
                 <div style="font-weight: 600; color: var(--text);">{{ session.instructor || '-' }}</div>
-                <div style="font-size: 0.8rem; color: var(--text-secondary, #64748b);">{{ session.activity || '-' }}</div>
+                <div style="font-size: var(--fs-sm); color: var(--text-secondary, var(--slate-500));">{{ session.activity || '-' }}</div>
               </td>
               <td style="padding: 14px 18px; color: var(--text); font-variant-numeric: tabular-nums;">
                 <div>{{ session.startTime }} - {{ session.endTime }}</div>
-                <div style="font-size: 0.78rem; color: var(--text-secondary, #64748b);">{{ session.durationHours || 2 }} {{ isArabic() ? 'ساعات' : 'hrs' }}</div>
+                <div style="font-size: var(--fs-sm); color: var(--text-secondary, var(--slate-500));">{{ hoursText(session.durationHours || 2) }}</div>
               </td>
               <td style="padding: 14px 18px; color: var(--text);">
-                {{ session.actualAttendees || '-' }} {{ isArabic() ? 'حاضر' : 'attended' }}
+                {{ session.actualAttendees || '-' }} {{ t().clsAttended }}
               </td>
               <td style="padding: 14px 18px;">
-                <div style="font-size: 0.85rem; color: var(--text); font-weight: 600;">
+                <div style="font-size: var(--fs-ui); color: var(--text); font-weight: 600;">
                   {{ session.checkedOutByStaffName || session.createdByStaffName || '-' }}
                 </div>
                 @if (session.checkedOutAt) {
-                  <div style="font-size: 0.78rem; color: var(--text-secondary, #64748b);">
-                    {{ isArabic() ? 'مغادرة: ' : 'Out: ' }}{{ session.checkedOutAt }}
+                  <div style="font-size: var(--fs-sm); color: var(--text-secondary, var(--slate-500));">
+                    {{ t().clsOut }}{{ session.checkedOutAt }}
                   </div>
                 }
               </td>
               <td style="padding: 14px 18px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums;">
                 {{ session.paidAmount || session.rental || 0 }} {{ t().currency }}
-                <div style="font-size: 0.78rem; font-weight: 500; color: var(--text-secondary, #64748b);">
+                <div style="font-size: var(--fs-sm); font-weight: 500; color: var(--text-secondary, var(--slate-500));">
                   {{ session.paymentMethod || session.paymentMode || 'cash' }}
                 </div>
               </td>
               <td style="padding: 14px 18px; text-align: center;">
-                <span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.25);">
+                <span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: var(--radius-pill); font-size: var(--fs-sm); font-weight: 700; background: rgba(16, 185, 129, 0.12); color: var(--success-strong); border: 1px solid rgba(16, 185, 129, 0.25);">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                     <polyline points="20 6 9 17 4 12"></polyline>
                   </svg>
-                  {{ isArabic() ? 'مكتمل' : 'Completed' }}
+                  {{ t().resCompleted }}
                 </span>
               </td>
             </tr>
@@ -355,8 +333,8 @@
      MODAL 1: ADD / EDIT BOOKING MODAL
      ============================================================ -->
 @if (isBookingModalOpen()) {
-<div class="modal-backdrop" (click)="closeBookingModal()">
-  <div class="modal-dialog modal-dialog--wide" (click)="$event.stopPropagation()">
+<div class="modal-backdrop" (click)="closeBookingModal()" role="presentation">
+  <div class="modal-dialog modal-dialog--wide" (click)="$event.stopPropagation()" role="presentation">
     <!-- Modal Header -->
     <div class="modal-header">
       <div class="modal-header__text">
@@ -374,7 +352,7 @@
     </div>
 
     @if (bookingFormErrorMessage()) {
-      <div class="modal-form-alert" style="margin: 0 24px 16px; background: rgba(239, 68, 68, 0.12); border: 1.5px solid rgba(239, 68, 68, 0.35); border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 10px; color: #ef4444; font-weight: 700; font-size: 0.88rem;">
+      <div class="modal-form-alert" style="margin: 0 24px 16px; background: rgba(239, 68, 68, 0.12); border: 1.5px solid rgba(239, 68, 68, 0.35); border-radius: var(--radius-md); padding: 12px 16px; display: flex; align-items: center; gap: 10px; color: var(--danger-strong); font-weight: 700; font-size: var(--fs-base);">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; flex-shrink: 0;">
           <circle cx="12" cy="12" r="10"></circle>
           <line x1="12" y1="8" x2="12" y2="12"></line>
@@ -394,7 +372,7 @@
 
           <!-- Instructor with Autocomplete Dropdown -->
           <div class="field-wrap instructor-autocomplete-wrap" style="position: relative;">
-            <label class="field-label">{{ t().instructor }}</label>
+            <label for="bookingInstructorInput" class="field-label">{{ t().instructor }}</label>
             <div class="input-container">
               <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"/>
@@ -422,12 +400,12 @@
             </div>
 
             @if (isCurrentInstructorBlacklisted()) {
-              <div class="field-error-msg" style="color: #ef4444; font-weight: 600; display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 0.85rem; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px; padding: 6px 10px;">
+              <div class="field-error-msg" style="color: var(--danger-strong); font-weight: 600; display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: var(--fs-ui); background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: var(--radius-xs); padding: 6px 10px;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; flex-shrink: 0;">
                   <circle cx="12" cy="12" r="10"></circle>
                   <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
                 </svg>
-                <span>{{ isArabic() ? 'تنبيه: هذا العميل محظور في القائمة السوداء (Blacklist) ولا يمكن حجز قاعة له!' : 'Warning: This client is blacklisted and cannot book a classroom!' }}</span>
+                <span>{{ t().clsWarningThisClientIsBlacklisted }}</span>
               </div>
             }
 
@@ -435,7 +413,7 @@
             @if (isInstructorDropdownOpen() && instructorOptions().length > 0) {
               <div class="instructor-dropdown-list">
                 @for (member of instructorOptions(); track member.id) {
-                  <div class="instructor-dropdown-item" (click)="selectInstructor(member)">
+                  <div class="instructor-dropdown-item" (click)="selectInstructor(member)" role="button" tabindex="0" (keydown.enter)="selectInstructor(member)">
                     <div class="instructor-avatar-pill" [class.student-avatar-pill]="member.type === 'student'">
                       {{ (isArabic() ? member.nameAr : member.nameEn).charAt(0) }}
                     </div>
@@ -444,11 +422,11 @@
                         <strong class="instructor-item-name">{{ isArabic() ? member.nameAr : member.nameEn }}</strong>
                         @if (member.type === 'student') {
                           <span class="badge-role-tag badge-role--student">
-                            {{ isArabic() ? 'طالب' : 'Student' }}
+                            {{ t().wsStudent }}
                           </span>
                         } @else {
                           <span class="badge-role-tag badge-role--instructor">
-                            {{ isArabic() ? 'إنستراكتور' : 'Instructor' }}
+                            {{ t().clsInstructor }}
                           </span>
                         }
                         @if (hasInstructorActivePackage(member)) {
@@ -478,7 +456,7 @@
 
           <!-- Activity / Subject -->
           <div class="field-wrap">
-            <label class="field-label">{{ t().activitySubject }}</label>
+            <label for="bookingActivityInput" class="field-label">{{ t().activitySubject }}</label>
             <div class="input-container">
               <input id="bookingActivityInput" type="text" class="custom-input"
                 [class.input--error]="bookingFormSubmitted() && (!bookingActivity().trim() || !isActivityValid())"
@@ -493,9 +471,9 @@
           <!-- Phone & Email -->
           <div class="row-grid-2">
             <div class="field-wrap">
-              <label class="field-label">{{ t().phoneNumber }}</label>
+              <label for="show-classroom-f14" class="field-label">{{ t().phoneNumber }}</label>
               <div class="input-container">
-                <input type="tel" class="custom-input" [placeholder]="t().phonePlaceholder" [ngModel]="bookingPhone()"
+                <input id="show-classroom-f14" type="tel" class="custom-input" [placeholder]="t().phonePlaceholder" [ngModel]="bookingPhone()"
                   (input)="onPhoneInput($event)" />
               </div>
               @if (bookingPhone() && !isPhoneValid()) {
@@ -503,9 +481,9 @@
               }
             </div>
             <div class="field-wrap">
-              <label class="field-label">{{ t().emailAddress }}</label>
+              <label for="show-classroom-f13" class="field-label">{{ t().emailAddress }}</label>
               <div class="input-container">
-                <input type="email" dir="ltr" class="custom-input" [placeholder]="t().emailPlaceholder" [ngModel]="bookingEmail()"
+                <input id="show-classroom-f13" type="email" dir="ltr" class="custom-input" [placeholder]="t().emailPlaceholder" [ngModel]="bookingEmail()"
                   (input)="onEmailInput($event)" />
               </div>
               @if (bookingEmail() && !isEmailValid()) {
@@ -516,12 +494,12 @@
 
           <!-- Notes / ملاحظات -->
           <div class="field-wrap" style="margin-top: 12px;">
-            <label class="field-label">{{ isArabic() ? 'ملاحظات وتفاصيل إضافية' : 'Notes / Additional Details' }}</label>
+            <label for="show-classroom-f12" class="field-label">{{ t().clsNotesAdditionalDetails }}</label>
             <div class="input-container">
-              <textarea
+              <textarea id="show-classroom-f12"
                 class="custom-input custom-textarea"
                 rows="2"
-                [placeholder]="isArabic() ? 'أدخل أي ملاحظات خاصة بالحجز (تجهيزات، طلبات...)' : 'Enter any special notes...'"
+                [placeholder]="t().clsEnterAnySpecialNotes"
                 [ngModel]="bookingNotes()"
                 (ngModelChange)="bookingNotes.set($event)"
                 style="resize: vertical; min-height: 52px; padding-top: 8px; font-family: inherit;"
@@ -536,8 +514,8 @@
 
           <!-- Booking Date -->
           <div class="field-wrap">
-            <label class="field-label">{{ t().bookingDate }}</label>
-            <div class="input-container date-input-container" (click)="bookingDatePicker.showPicker()">
+            <label for="bookingDateInput" class="field-label">{{ t().bookingDate }}</label>
+            <div class="input-container date-input-container" (click)="bookingDatePicker.showPicker()" role="button" tabindex="0" (keydown.enter)="bookingDatePicker.showPicker()">
               <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                 <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -545,12 +523,17 @@
                 <line x1="3" y1="10" x2="21" y2="10"></line>
               </svg>
               <input #bookingDatePicker id="bookingDateInput" type="date" class="custom-input custom-input--date" [min]="todayDate()"
+                [max]="editingCardId() ? null : todayDate()"
                 [class.input--error]="bookingFormSubmitted() && !bookingDate().trim()"
                 [ngModel]="bookingDate()" (ngModelChange)="bookingDate.set($event)"
                 (click)="bookingDatePicker.showPicker()" />
             </div>
             @if (bookingFormSubmitted() && !bookingDate().trim()) {
-              <span class="field-error-msg">{{ isArabic() ? 'يرجى اختيار تاريخ الحجز' : 'Please select a booking date' }}</span>
+              <span class="field-error-msg">{{ t().clsPleaseSelectABookingDate }}</span>
+            }
+            @if (!editingCardId()) {
+              <!-- the room board starts the session now; other days are booked on the reservations page -->
+              <a routerLink="/classroom/reservation" class="field-hint-link" (click)="closeBookingModal()">{{ t().clsOtherDayUseReservations }}</a>
             }
           </div>
 
@@ -559,7 +542,7 @@
             <!-- Start Time -->
             <div class="field-wrap">
               <div class="time-header-row">
-                <label class="field-label" style="margin-bottom: 0;">{{ t().startTime }}</label>
+                <label for="show-classroom-f10" class="field-label" style="margin-bottom: 0;">{{ t().startTime }}</label>
               </div>
               <div class="time-picker-box"
                 [class.time-picker-box--invalid]="!isTimeRangeValid() && bookingStartTime() && bookingEndTime()">
@@ -568,7 +551,7 @@
                   <polyline points="12 6 12 12 16 14"></polyline>
                 </svg>
                 <div class="time-digits">
-                  <input type="text" class="time-num-input" placeholder="02" maxlength="2" [ngModel]="startHour()"
+                  <input id="show-classroom-f10" type="text" class="time-num-input" placeholder="02" maxlength="2" [ngModel]="startHour()"
                     (ngModelChange)="startHour.set($event)" />
                   <span class="time-colon">:</span>
                   <input type="text" class="time-num-input" placeholder="00" maxlength="2" [ngModel]="startMinute()"
@@ -597,13 +580,13 @@
             <!-- End Time -->
             <div class="field-wrap">
               <div class="time-header-row">
-                <label class="field-label" style="margin-bottom: 0;">{{ t().endTime }}</label>
-                <button type="button" class="btn-extend-hour" (click)="extendBookingModalByOneHour()">
+                <label for="show-classroom-f9" class="field-label" style="margin-bottom: 0;">{{ t().endTime }}</label>
+                <button id="show-classroom-f9" type="button" class="btn-extend-hour" (click)="extendBookingModalByOneHour()">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <line x1="12" y1="5" x2="12" y2="19"></line>
                     <line x1="5" y1="12" x2="19" y2="12"></line>
                   </svg>
-                  <span>+1 {{ isArabic() ? 'ساعة إضافية' : 'Extra Hour' }}</span>
+                  <span>+1 {{ t().clsExtraHour }}</span>
                 </button>
               </div>
               <div class="time-picker-box"
@@ -742,7 +725,7 @@
         <!-- Logistics -->
         <div class="modal-section-card">
           <div class="room-selector-header">
-            <label class="field-label">{{ t().room }}</label>
+            <label for="show-classroom-f8" class="field-label">{{ t().room }}</label>
             <span class="badge-confirmed">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="check-icon">
                 <polyline points="20 6 9 17 4 12"></polyline>
@@ -756,8 +739,8 @@
             <div class="room-thumb-card" 
               [class.room-thumb-card--active]="selectedRoomId() === r.id"
               [class.room-thumb-card--occupied]="isRoomCurrentlyOccupied(r)"
-              [title]="isRoomCurrentlyOccupied(r) ? ((isArabic() ? 'مشغولة حالياً: ' : 'Occupied: ') + getRoomOccupantName(r)) : (isArabic() ? (r.nameAr || r.name) : (r.nameEn || r.name))"
-              (click)="selectRoom(r.id)">
+              [title]="isRoomCurrentlyOccupied(r) ? ((t().clsOccupied) + getRoomOccupantName(r)) : (isArabic() ? (r.nameAr || r.name) : (r.nameEn || r.name))"
+              (click)="selectRoom(r.id)" role="button" tabindex="0" (keydown.enter)="selectRoom(r.id)">
               <div class="room-thumb-media">
                 <img [src]="getRoomImage(r.image)" (error)="onImageError($event)" [alt]="r.name" class="room-thumb-img" loading="lazy" />
                 @if (isRoomCurrentlyOccupied(r)) {
@@ -767,7 +750,7 @@
                       <line x1="12" y1="8" x2="12" y2="12"></line>
                       <line x1="12" y1="16" x2="12.01" y2="16"></line>
                     </svg>
-                    {{ isArabic() ? 'مشغولة حالياً' : 'Occupied' }}
+                    {{ t().clsOccupied2 }}
                   </span>
                 }
                 @if (selectedRoomId() === r.id) {
@@ -804,7 +787,7 @@
               </div>
               <div class="summary-line">
                 <span class="summary-label">{{ t().duration }}</span>
-                <strong class="summary-value">{{ bookingDurationHours() }} {{ t().hrs }}</strong>
+                <strong class="summary-value">{{ hoursText(bookingDurationHours()) }}</strong>
               </div>
             </div>
 
@@ -820,7 +803,7 @@
                 <div class="summary-label-with-action">
                   <span class="summary-label">{{ t().hourlyRate }}</span>
                   @if (!isEditingBookingRate()) {
-                  <button type="button" class="btn-summary-edit" (click)="startEditingBookingRate()"
+                  <button id="show-classroom-f8" type="button" class="btn-summary-edit" (click)="startEditingBookingRate()"
                     [title]="t().editHourlyRateTooltip">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tiny-summary-icon">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -837,7 +820,7 @@
                   <input type="number" min="0" step="5" class="summary-rate-input" [ngModel]="tempBookingRate()"
                     (ngModelChange)="tempBookingRate.set(+$event)"
                     (keydown.enter)="$event.preventDefault(); saveBookingRate()"
-                    (keydown.escape)="isEditingBookingRate.set(false)" (blur)="saveBookingRate()" autofocus />
+                    (keydown.escape)="isEditingBookingRate.set(false)" (blur)="saveBookingRate()" appAutofocus />
                   <button type="button" class="btn-save-mini" (click)="saveBookingRate()" [title]="t().save">✓</button>
                 </div>
                 }
@@ -845,13 +828,13 @@
 
               <div class="summary-line">
                 <span class="summary-label">{{ t().duration }}</span>
-                <strong class="summary-value">{{ bookingDurationHours() }} {{ t().hrs }}</strong>
+                <strong class="summary-value">{{ hoursText(bookingDurationHours()) }}</strong>
               </div>
 
               <div class="summary-line">
                 <div style="display: flex; flex-direction: column; gap: 2px;">
                   <span class="summary-label">{{ t().fullHallRental }}</span>
-                  <span style="font-size: 0.72rem; color: var(--text-dim);">
+                  <span style="font-size: var(--fs-2xs); color: var(--text-dim);">
                     {{ t().fullHallRentalDesc }}
                   </span>
                 </div>
@@ -952,8 +935,8 @@
     <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
       @if (editingCardId()) {
         <button type="button" class="btn btn--danger" (click)="deleteCurrentEditingBooking()"
-          style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer;">
-          {{ isArabic() ? 'حذف الحجز نهائياً' : 'Delete Booking' }}
+          style="background: rgba(239, 68, 68, 0.15); color: var(--danger-strong); border: 1px solid rgba(239, 68, 68, 0.3); padding: 8px 16px; border-radius: var(--radius-xs); font-weight: 600; cursor: pointer;">
+          {{ t().clsDeleteBooking }}
         </button>
       } @else {
         <div></div>
@@ -965,8 +948,8 @@
         <button type="button" class="btn btn--primary btn-modal-confirm"
           [disabled]="isSavingBooking()" (click)="confirmNewBooking()">
           @if (isSavingBooking()) {
-            <span class="btn-spinner" style="display: inline-block; width: 14px; height: 14px; border: 2px solid #16130a; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite;"></span>
-            <span>{{ isArabic() ? 'جاري الحفظ...' : 'Saving...' }}</span>
+            <span class="btn-spinner" style="display: inline-block; width: 14px; height: 14px; border: 2px solid var(--on-primary); border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite;"></span>
+            <span>{{ t().resSaving }}</span>
           } @else {
             <span>{{ editingCardId() ? t().saveChanges : t().confirmBooking }}</span>
           }
@@ -981,8 +964,8 @@
      MODAL 2: CHECKOUT MODAL
      ============================================================ -->
 @if (isCheckoutModalOpen() && activeCheckoutCard()) {
-<div class="modal-backdrop" (click)="closeCheckoutModal()">
-  <div class="modal-dialog modal-dialog--checkout" (click)="$event.stopPropagation()">
+<div class="modal-backdrop" (click)="closeCheckoutModal()" role="presentation">
+  <div class="modal-dialog modal-dialog--checkout" (click)="$event.stopPropagation()" role="presentation">
     <!-- Modal Header -->
     <div class="modal-header">
       <div class="modal-header__text">
@@ -1027,7 +1010,7 @@
 
             <div class="meta-item">
               <span class="tiny-label">{{ t().duration }}</span>
-              <strong class="duration-val">{{ checkoutDurationHours() }} {{ t().hrs }}</strong>
+              <strong class="duration-val">{{ hoursText(checkoutDurationHours()) }}</strong>
             </div>
           </div>
 
@@ -1090,7 +1073,7 @@
                   </button>
                   }
                   } @else {
-                  <span class="badge-pkg-deducted" style="font-size: 0.72rem;">{{ t().deductedFromPackage }}</span>
+                  <span class="badge-pkg-deducted" style="font-size: var(--fs-2xs);">{{ t().deductedFromPackage }}</span>
                   @if (hasPackageAvailableForCheckout()) {
                   <button type="button" class="btn-row-action" (click)="toggleCheckoutBillingMode()"
                     [title]="t().payCashDirect" style="color: var(--text-muted);">
@@ -1103,7 +1086,7 @@
                 <span class="line-sub">{{ checkoutRoomRate() }} {{ t().currency }}/{{ t().hrs }} &times; {{
                   checkoutDurationHours() }} {{ t().hrs }}</span>
                 } @else if (checkoutPackageExtraHours() > 0) {
-                <span class="line-sub" style="color: #d97706;">
+                <span class="line-sub" style="color: var(--warning);">
                   {{ checkoutPackageCoveredHours() }} {{ t().hrs }} {{ t().deductedFromPackage }} + {{
                   checkoutPackageExtraHours() }} {{ t().hrs }} ({{ (checkoutPackageExtraHours() *
                   checkoutRoomRate()).toFixed(2) }} {{ t().currency }})
@@ -1284,15 +1267,15 @@
           @if (isCheckoutPackage() && checkoutFinalAmount() === 0) {
           <!-- Package 0 EGP Mode -->
           <div class="package-checkout-covered-banner"
-            style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 10px; padding: 14px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
+            style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               style="width: 22px; height: 22px; color: var(--success); flex-shrink: 0;">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
               <polyline points="22 4 12 14.01 9 11.01"></polyline>
             </svg>
             <div style="display: flex; flex-direction: column; gap: 2px;">
-              <strong style="color: var(--success); font-size: 0.92rem;">{{ t().sessionFullyCoveredByPackage }}</strong>
-              <span style="color: var(--text-dim); font-size: 0.78rem;">{{ t().noAdditionalPaymentRequired }}</span>
+              <strong style="color: var(--success); font-size: var(--fs-md);">{{ t().sessionFullyCoveredByPackage }}</strong>
+              <span style="color: var(--text-dim); font-size: var(--fs-sm);">{{ t().noAdditionalPaymentRequired }}</span>
             </div>
           </div>
 
@@ -1311,7 +1294,7 @@
           <!-- Payment Methods Grid -->
           <div class="payment-methods-grid">
             <div class="payment-option-card" [class.payment-option-card--active]="checkoutPaymentMethod() === 'cash'"
-              (click)="selectPaymentMethod('cash')">
+              (click)="selectPaymentMethod('cash')" role="button" tabindex="0" (keydown.enter)="selectPaymentMethod('cash')">
               <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="2" y="6" width="20" height="12" rx="2"></rect>
                 <circle cx="12" cy="12" r="3"></circle>
@@ -1322,7 +1305,7 @@
 
             <div class="payment-option-card"
               [class.payment-option-card--active]="checkoutPaymentMethod() === 'vodafone'"
-              (click)="selectPaymentMethod('vodafone')">
+              (click)="selectPaymentMethod('vodafone')" role="button" tabindex="0" (keydown.enter)="selectPaymentMethod('vodafone')">
               <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="2" y="4" width="20" height="16" rx="2"></rect>
                 <path d="M16 12h4m-2-2v4"></path>
@@ -1331,7 +1314,7 @@
             </div>
 
             <div class="payment-option-card" [class.payment-option-card--active]="checkoutPaymentMethod() === 'fawry'"
-              (click)="selectPaymentMethod('fawry')">
+              (click)="selectPaymentMethod('fawry')" role="button" tabindex="0" (keydown.enter)="selectPaymentMethod('fawry')">
               <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"></path>
                 <path d="M8 7h8M8 11h8M8 15h4"></path>
@@ -1341,7 +1324,7 @@
 
             <div class="payment-option-card"
               [class.payment-option-card--active]="checkoutPaymentMethod() === 'instapay'"
-              (click)="selectPaymentMethod('instapay')">
+              (click)="selectPaymentMethod('instapay')" role="button" tabindex="0" (keydown.enter)="selectPaymentMethod('instapay')">
               <svg class="pay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                 <polyline points="9 22 9 12 15 12 15 22"></polyline>
@@ -1352,17 +1335,17 @@
 
           <!-- Amount Received Input -->
           <div class="field-wrap" style="margin-top: 14px;">
-            <label class="field-label">{{ t().amountReceived }}</label>
+            <label for="show-classroom-f7" class="field-label">{{ t().amountReceived }}</label>
             <div class="amount-input-box"
               [class.amount-input-box--invalid]="checkoutAmountReceived() !== null && !isCheckoutPaymentValid()">
               <span class="input-currency">{{ t().currency }}</span>
-              <input type="number" step="0.01" class="amount-received-input" placeholder="0.00"
+              <input id="show-classroom-f7" type="number" step="0.01" class="amount-received-input" placeholder="0.00"
                 [ngModel]="checkoutAmountReceived()"
                 (ngModelChange)="checkoutAmountReceived.set($event !== null && $event !== '' ? +$event : null)" />
             </div>
             @if (checkoutAmountReceived() !== null && !isCheckoutPaymentValid()) {
             <span class="field-error-msg"
-              style="color: var(--danger); font-size: 0.76rem; font-weight: 600; margin-top: 4px; display: block;">
+              style="color: var(--danger); font-size: var(--fs-xs); font-weight: 600; margin-top: 4px; display: block;">
               {{ t().errorAmountReceivedLow }} ({{ checkoutFinalAmount().toFixed(2) }} {{ t().currency }})
             </span>
             }
@@ -1396,8 +1379,8 @@
      SUB-MODAL 1: CATERING PICKER
      ============================================================ -->
 @if (isCateringModalOpen()) {
-<div class="modal-backdrop modal-backdrop--nested" (click)="closeCateringModal()">
-  <div class="modal-dialog modal-dialog--products" (click)="$event.stopPropagation()">
+<div class="modal-backdrop modal-backdrop--nested" (click)="closeCateringModal()" role="presentation">
+  <div class="modal-dialog modal-dialog--products" (click)="$event.stopPropagation()" role="presentation">
     <div class="modal-header">
       <div class="modal-header__text">
         <h2 class="modal-title">{{ t().addCanteenOrders }}</h2>
@@ -1429,9 +1412,9 @@
       }
 
       <div class="field-wrap" style="margin-top: 10px;">
-        <label class="field-label">{{ t().orEnterCustomAmount }}</label>
+        <label for="show-classroom-f6" class="field-label">{{ t().orEnterCustomAmount }}</label>
         <div class="input-container">
-          <input type="number" min="0" step="5" class="custom-input" [placeholder]="'50'"
+          <input id="show-classroom-f6" type="number" min="0" step="5" class="custom-input" [placeholder]="'50'"
             [ngModel]="customCateringInput()"
             (ngModelChange)="customCateringInput.set($event !== null && $event !== '' ? +$event : null)" />
           <button type="button" class="btn-add-products" (click)="saveCustomCateringAmount()">
@@ -1458,8 +1441,8 @@
      SUB-MODAL 2: PRINTING CALCULATOR
      ============================================================ -->
 @if (isPrintingModalOpen()) {
-<div class="modal-backdrop modal-backdrop--nested" (click)="closePrintingModal()">
-  <div class="modal-dialog modal-dialog--products" (click)="$event.stopPropagation()">
+<div class="modal-backdrop modal-backdrop--nested" (click)="closePrintingModal()" role="presentation">
+  <div class="modal-dialog modal-dialog--products" (click)="$event.stopPropagation()" role="presentation">
     <div class="modal-header">
       <div class="modal-header__text">
         <h2 class="modal-title">{{ t().calcPrintingCharges }}</h2>
@@ -1476,25 +1459,25 @@
     <div class="products-list-wrap">
       <div class="row-grid-2">
         <div class="field-wrap">
-          <label class="field-label">{{ t().numberOfPages }}</label>
+          <label for="show-classroom-f5" class="field-label">{{ t().numberOfPages }}</label>
           <div class="input-container">
-            <input type="number" min="0" class="custom-input" [ngModel]="printingNumPages()"
+            <input id="show-classroom-f5" type="number" min="0" class="custom-input" [ngModel]="printingNumPages()"
               (ngModelChange)="printingNumPages.set(+$event)" />
           </div>
         </div>
         <div class="field-wrap">
-          <label class="field-label">{{ t().pricePerPage }}</label>
+          <label for="show-classroom-f4" class="field-label">{{ t().pricePerPage }}</label>
           <div class="input-container">
-            <input type="number" min="0" step="0.25" class="custom-input" [ngModel]="printingPagePrice()"
+            <input id="show-classroom-f4" type="number" min="0" step="0.25" class="custom-input" [ngModel]="printingPagePrice()"
               (ngModelChange)="printingPagePrice.set(+$event)" />
           </div>
         </div>
       </div>
 
       <div class="field-wrap" style="margin-top: 10px;">
-        <label class="field-label">{{ t().orEnterCustomAmount }}</label>
+        <label for="show-classroom-f3" class="field-label">{{ t().orEnterCustomAmount }}</label>
         <div class="input-container">
-          <input type="number" min="0" step="5" class="custom-input" [placeholder]="'25'"
+          <input id="show-classroom-f3" type="number" min="0" step="5" class="custom-input" [placeholder]="'25'"
             [ngModel]="customPrintingInput()"
             (ngModelChange)="customPrintingInput.set($event !== null && $event !== '' ? +$event : null)" />
           <button type="button" class="btn-add-products" (click)="saveCustomPrintingAmount()">
@@ -1523,8 +1506,8 @@
      SUB-MODAL 3: RATE & DURATION EDITOR
      ============================================================ -->
 @if (isRateModalOpen()) {
-<div class="modal-backdrop modal-backdrop--nested" (click)="closeRateModal()">
-  <div class="modal-dialog modal-dialog--products" (click)="$event.stopPropagation()">
+<div class="modal-backdrop modal-backdrop--nested" (click)="closeRateModal()" role="presentation">
+  <div class="modal-dialog modal-dialog--products" (click)="$event.stopPropagation()" role="presentation">
     <div class="modal-header">
       <div class="modal-header__text">
         <h2 class="modal-title">{{ t().editRateAndDuration }}</h2>
@@ -1540,9 +1523,9 @@
 
     <div class="products-list-wrap">
       <div class="field-wrap">
-        <label class="field-label">{{ t().hourlyRateEgp }}</label>
+        <label for="show-classroom-f2" class="field-label">{{ t().hourlyRateEgp }}</label>
         <div class="input-container">
-          <input type="number" min="0" step="5" class="custom-input" [ngModel]="customRateInput()"
+          <input id="show-classroom-f2" type="number" min="0" step="5" class="custom-input" [ngModel]="customRateInput()"
             (ngModelChange)="customRateInput.set(+$event)" />
           <div class="quick-chip-group">
             <button type="button" class="btn-quick-chip" (click)="adjustCustomRate(10)">+10</button>
@@ -1552,9 +1535,9 @@
       </div>
 
       <div class="field-wrap" style="margin-top: 10px;">
-        <label class="field-label">{{ t().durationHoursLabel }}</label>
+        <label for="show-classroom-f1" class="field-label">{{ t().durationHoursLabel }}</label>
         <div class="input-container">
-          <input type="number" min="1" step="1" class="custom-input" [ngModel]="customDurationInput()"
+          <input id="show-classroom-f1" type="number" min="1" step="1" class="custom-input" [ngModel]="customDurationInput()"
             (ngModelChange)="customDurationInput.set(+$event)" />
           <div class="quick-chip-group">
             <button type="button" class="btn-quick-chip" (click)="adjustCustomDuration(1)">+1h</button>
@@ -1580,11 +1563,11 @@
 
 <!-- CATERING POS MODAL (Integrated for Room & Active Shift) -->
 @if (isCateringPosModalOpen()) {
-<app-catering-pos-modal [targetRoom]="cateringTargetRoom()" (close)="isCateringPosModalOpen.set(false)"
+<app-catering-pos-modal [targetRoom]="cateringTargetRoom()" (closed)="isCateringPosModalOpen.set(false)"
   (addToRoomSession)="onAddToRoomSession($event)"></app-catering-pos-modal>
 }
 
 <!-- CHECKOUT SUCCESS & INVOICE MODAL -->
 @if (completedInvoice(); as inv) {
-  <app-checkout-success-modal [invoiceData]="inv" (close)="completedInvoice.set(null)" />
+  <app-checkout-success-modal [invoiceData]="inv" (closed)="completedInvoice.set(null)" />
 }

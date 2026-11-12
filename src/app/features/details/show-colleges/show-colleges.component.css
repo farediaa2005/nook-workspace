@@ -37,16 +37,8 @@
   gap: 4px;
 }
 
-.page-title {
-  font-size: 1.65rem;
-  font-weight: 800;
-  color: var(--text);
-  margin: 0;
-  letter-spacing: -0.02em;
-}
-
 .page-subtitle {
-  font-size: 0.90rem;
+  font-size: var(--fs-base);
   color: var(--text-dim);
   margin: 0;
 }
@@ -64,7 +56,7 @@
   align-items: center;
   background: var(--surface);
   border: 1.5px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius);
   padding: 4px;
   gap: 4px;
   box-shadow: var(--shadow);
@@ -72,7 +64,7 @@
 
 :host-context([data-theme="light"]) .view-tabs-toggle,
 [data-theme="light"] .view-tabs-toggle {
-  background: #ffffff;
+  background: var(--surface);
 }
 
 .tab-btn {
@@ -84,11 +76,11 @@
   text-align: center;
   gap: 8px;
   padding: 8px 18px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   border: none;
   background: transparent;
   color: var(--text-dim);
-  font-size: 0.88rem;
+  font-size: var(--fs-base);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -108,7 +100,7 @@
 
 .tab-btn--active {
   background: var(--yellow) !important;
-  color: #1c1810 !important;
+  color: var(--brand-dark) !important;
   font-weight: 700 !important;
   box-shadow: 0 4px 12px rgba(245, 185, 33, 0.3);
 }
@@ -122,8 +114,8 @@ app-primary-button.colleges-add-btn,
 :host ::ng-deep .colleges-add-btn .btn-primary-action {
   height: 44px;
   padding: 0 20px;
-  border-radius: 12px;
-  font-size: 0.9rem;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-base);
   font-weight: 700;
   display: inline-flex;
   align-items: center;
@@ -139,7 +131,7 @@ app-primary-button.colleges-add-btn,
 .analytics-filter-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius);
   padding: 16px 20px;
   display: flex;
   flex-direction: column;
@@ -149,7 +141,7 @@ app-primary-button.colleges-add-btn,
 
 :host-context([data-theme="light"]) .analytics-filter-card,
 [data-theme="light"] .analytics-filter-card {
-  background: #ffffff;
+  background: var(--surface);
 }
 
 .filter-header-line {
@@ -172,7 +164,7 @@ app-primary-button.colleges-add-btn,
 }
 
 .filter-heading {
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
   font-weight: 700;
   color: var(--text);
   margin: 0;
@@ -187,8 +179,8 @@ app-primary-button.colleges-add-btn,
 
 .preset-pill {
   padding: 5px 12px;
-  border-radius: 20px;
-  font-size: 0.80rem;
+  border-radius: var(--radius-lg);
+  font-size: var(--fs-sm);
   font-weight: 600;
   background: var(--surface-2, rgba(255, 255, 255, 0.05));
   color: var(--text-dim);
@@ -224,7 +216,7 @@ app-primary-button.colleges-add-btn,
 }
 
 .date-label {
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-dim);
   white-space: nowrap;
@@ -236,10 +228,10 @@ app-primary-button.colleges-add-btn,
   padding: 0 14px;
   background: var(--surface-2, rgba(255, 255, 255, 0.04));
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   color: var(--text);
   font-family: inherit;
-  font-size: 0.88rem;
+  font-size: var(--fs-base);
   font-weight: 600;
   outline: none;
   transition: border-color 0.15s ease;
@@ -254,7 +246,7 @@ app-primary-button.colleges-add-btn,
   cursor: pointer;
   filter: var(--calendar-picker-filter, invert(0.9) brightness(1.2));
   opacity: var(--calendar-picker-opacity, 0.85);
-  border-radius: 6px;
+  border-radius: var(--radius-2xs);
   padding: 2px;
   transition: opacity 0.2s ease, transform 0.2s ease, filter 0.2s ease;
 }
@@ -286,7 +278,7 @@ app-primary-button.colleges-add-btn,
 .kpi-mini-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -296,11 +288,11 @@ app-primary-button.colleges-add-btn,
 
 :host-context([data-theme="light"]) .kpi-mini-card,
 [data-theme="light"] .kpi-mini-card {
-  background: #ffffff;
+  background: var(--surface);
 }
 
 .kpi-mini-label {
-  font-size: 0.80rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-dim);
   text-transform: uppercase;
@@ -315,7 +307,7 @@ app-primary-button.colleges-add-btn,
 }
 
 .kpi-mini-sub {
-  font-size: 0.76rem;
+  font-size: var(--fs-xs);
   color: var(--text-dim);
 }
 
@@ -332,7 +324,7 @@ app-primary-button.colleges-add-btn,
 .college-chart-panel {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius);
   padding: 20px;
   box-shadow: var(--shadow);
   display: flex;
@@ -347,7 +339,7 @@ app-primary-button.colleges-add-btn,
 :host-context([data-theme="light"]) .college-chart-panel,
 [data-theme="light"] .college-table-panel,
 [data-theme="light"] .college-chart-panel {
-  background: #ffffff;
+  background: var(--surface);
 }
 
 .panel-header {
@@ -365,7 +357,7 @@ app-primary-button.colleges-add-btn,
 }
 
 .panel-title {
-  font-size: 1.05rem;
+  font-size: var(--fs-lg);
   font-weight: 700;
   color: var(--text);
   margin: 0;
@@ -373,10 +365,10 @@ app-primary-button.colleges-add-btn,
 
 .count-badge {
   padding: 3px 10px;
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   background: rgba(245, 185, 33, 0.15);
   color: var(--yellow);
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
@@ -387,7 +379,7 @@ app-primary-button.colleges-add-btn,
   overflow-y: auto;
   overflow-x: auto;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
 }
 
 .graph-table {
@@ -399,17 +391,18 @@ app-primary-button.colleges-add-btn,
 .graph-table th,
 .graph-table td {
   padding: 10px 14px;
-  font-size: 0.85rem;
+  font-size: var(--fs-ui);
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
 
 .graph-table th {
   background: var(--surface-2, rgba(255, 255, 255, 0.04));
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--text-dim);
   text-transform: uppercase;
+  letter-spacing: 0.5px;
   position: sticky;
   top: 0;
   z-index: 2;
@@ -435,8 +428,8 @@ app-primary-button.colleges-add-btn,
   justify-content: center;
   width: 26px;
   height: 26px;
-  border-radius: 6px;
-  font-size: 0.78rem;
+  border-radius: var(--radius-2xs);
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
@@ -454,14 +447,14 @@ app-primary-button.colleges-add-btn,
 }
 
 .college-name-text {
-  font-size: 0.88rem;
+  font-size: var(--fs-base);
   font-weight: 700;
   color: var(--text);
 }
 
 .val-students {
   font-weight: 700;
-  color: #3b82f6;
+  color: var(--info);
 }
 
 .val-hours {
@@ -471,7 +464,7 @@ app-primary-button.colleges-add-btn,
 
 .val-total {
   font-weight: 700;
-  color: #10b981;
+  color: var(--success-strong);
 }
 
 .percentage-cell {
@@ -501,7 +494,7 @@ app-primary-button.colleges-add-btn,
 }
 
 .pct-text {
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   min-width: 40px;
   text-align: end;
@@ -509,7 +502,7 @@ app-primary-button.colleges-add-btn,
 
 .graph-total-row {
   background: var(--surface-2, rgba(255, 255, 255, 0.05));
-  font-size: 0.88rem;
+  font-size: var(--fs-base);
 }
 
 /* Pie Chart Container */
@@ -555,8 +548,8 @@ app-primary-button.colleges-add-btn,
 }
 
 .slice-pct-label {
-  fill: #ffffff;
-  font-size: 11px;
+  fill: var(--on-color);
+  font-size: var(--fs-2xs);
   font-weight: 800;
   pointer-events: none;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
@@ -570,7 +563,7 @@ app-primary-button.colleges-add-btn,
   overflow: hidden;
   background: var(--surface-2, rgba(255, 255, 255, 0.03));
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius);
   padding: 12px 16px;
   min-height: 80px;
   display: flex;
@@ -594,11 +587,11 @@ app-primary-button.colleges-add-btn,
 .active-color-badge {
   width: 14px;
   height: 14px;
-  border-radius: 4px;
+  border-radius: var(--radius-2xs);
 }
 
 .active-title {
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
   font-weight: 800;
   color: var(--text);
 }
@@ -616,12 +609,12 @@ app-primary-button.colleges-add-btn,
 }
 
 .active-stat span {
-  font-size: 0.74rem;
+  font-size: var(--fs-xs);
   color: var(--text-dim);
 }
 
 .active-stat strong {
-  font-size: 0.86rem;
+  font-size: var(--fs-base);
   font-weight: 700;
   color: var(--text);
 }
@@ -631,7 +624,7 @@ app-primary-button.colleges-add-btn,
   align-items: center;
   gap: 10px;
   color: var(--text-dim);
-  font-size: 0.85rem;
+  font-size: var(--fs-ui);
   text-align: center;
 }
 
@@ -647,14 +640,14 @@ app-primary-button.colleges-add-btn,
   gap: 14px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius);
   padding: 14px 18px;
   box-shadow: var(--shadow);
 }
 
 :host-context([data-theme="light"]) .toolbar-card,
 [data-theme="light"] .toolbar-card {
-  background: #ffffff;
+  background: var(--surface);
   border-color: var(--border);
   box-shadow: 0 1px 3px rgba(42, 37, 25, 0.07);
 }
@@ -675,11 +668,11 @@ app-primary-button.colleges-add-btn,
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   background: var(--surface-2, rgba(255, 255, 255, 0.05));
   border: 1px solid var(--border);
   color: var(--text-dim);
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -692,7 +685,7 @@ app-primary-button.colleges-add-btn,
 .table-container-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius);
   box-shadow: var(--shadow-md);
   overflow: hidden;
   display: flex;
@@ -701,7 +694,7 @@ app-primary-button.colleges-add-btn,
 
 :host-context([data-theme="light"]) .table-container-card,
 [data-theme="light"] .table-container-card {
-  background: #ffffff;
+  background: var(--surface);
   border-color: var(--border);
   box-shadow: 0 10px 30px rgba(42, 37, 25, 0.08);
 }
@@ -725,13 +718,13 @@ app-primary-button.colleges-add-btn,
   white-space: nowrap !important;
   vertical-align: middle;
   padding: 14px 18px;
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   border-bottom: 1px solid var(--border);
 }
 
 .custom-table th {
   background: var(--surface-2, rgba(255, 255, 255, 0.03));
-  font-size: 0.80rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--text-dim);
   text-transform: uppercase;
@@ -747,7 +740,7 @@ app-primary-button.colleges-add-btn,
   text-align: center;
   padding: 40px 20px !important;
   color: var(--text-dim);
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
 }
 
 .student-cell-content {
@@ -759,9 +752,9 @@ app-primary-button.colleges-add-btn,
 .college-icon-box {
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: rgba(34, 197, 94, 0.15);
-  color: #22c55e;
+  color: var(--success-strong);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -781,7 +774,7 @@ app-primary-button.colleges-add-btn,
 }
 
 .student-name {
-  font-size: 0.92rem;
+  font-size: var(--fs-md);
   font-weight: 700;
   color: var(--text);
 }
@@ -789,25 +782,25 @@ app-primary-button.colleges-add-btn,
 .university-badge {
   display: inline-block;
   padding: 4px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   background: rgba(245, 185, 33, 0.15);
-  color: #f5b921;
-  font-size: 0.82rem;
+  color: var(--yellow);
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
 .students-count-pill {
   display: inline-block;
   padding: 4px 12px;
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   background: rgba(59, 130, 246, 0.12);
-  color: #3b82f6;
-  font-size: 0.82rem;
+  color: var(--info);
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
 .campus-text {
-  font-size: 0.88rem;
+  font-size: var(--fs-base);
   color: var(--text);
   font-weight: 500;
 }
@@ -825,8 +818,8 @@ app-primary-button.colleges-add-btn,
   align-items: center;
   gap: 5px;
   padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 0.80rem;
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
   border: 1px solid var(--border);
   background: var(--surface);
@@ -835,23 +828,23 @@ app-primary-button.colleges-add-btn,
 }
 
 .btn-edit-direct {
-  color: #3b82f6;
+  color: var(--info);
   border-color: rgba(59, 130, 246, 0.3);
 }
 
 .btn-edit-direct:hover {
   background: rgba(59, 130, 246, 0.12);
-  border-color: #3b82f6;
+  border-color: var(--info);
 }
 
 .btn-delete-direct {
-  color: #ef4444;
+  color: var(--danger-strong);
   border-color: rgba(239, 68, 68, 0.3);
 }
 
 .btn-delete-direct:hover {
   background: rgba(239, 68, 68, 0.12);
-  border-color: #ef4444;
+  border-color: var(--danger-strong);
 }
 
 .btn-edit-direct svg,
@@ -871,7 +864,7 @@ app-primary-button.colleges-add-btn,
 }
 
 .pagination-info {
-  font-size: 0.85rem;
+  font-size: var(--fs-ui);
   color: var(--text-dim);
 }
 
@@ -886,10 +879,10 @@ app-primary-button.colleges-add-btn,
 .form-error-banner {
   padding: 10px 14px;
   background: rgba(239, 68, 68, 0.12);
-  border: 1px solid #ef4444;
-  color: #ef4444;
-  border-radius: 10px;
-  font-size: 0.85rem;
+  border: 1px solid var(--danger-strong);
+  color: var(--danger-strong);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-ui);
   font-weight: 600;
 }
 
@@ -910,7 +903,7 @@ app-primary-button.colleges-add-btn,
 }
 
 .field-label {
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-dim);
 }
@@ -921,17 +914,17 @@ app-primary-button.colleges-add-btn,
   padding: 10px 14px;
   background: var(--surface-2, rgba(255, 255, 255, 0.04));
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   color: var(--text);
   font-family: inherit;
-  font-size: 0.88rem;
+  font-size: var(--fs-base);
   outline: none;
   transition: border-color 0.15s ease;
 }
 
 .custom-input:focus,
 .custom-textarea:focus {
-  border-color: #f5b921;
+  border-color: var(--yellow);
 }
 
 .modal-footer-actions {
@@ -942,18 +935,6 @@ app-primary-button.colleges-add-btn,
   margin-top: 8px;
   padding-top: 14px;
   border-top: 1px solid var(--border);
-}
-
-.btn-cancel {
-  padding: 9px 18px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text-dim);
-  font-size: 0.88rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
 }
 
 .btn-cancel:hover {
@@ -973,21 +954,6 @@ app-primary-button.colleges-add-btn,
   padding: 20px;
 }
 
-.delete-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 24px;
-  width: 100%;
-  max-width: 440px;
-  text-align: center;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
 .delete-icon-wrap {
   width: 56px;
   height: 56px;
@@ -998,39 +964,11 @@ app-primary-button.colleges-add-btn,
   justify-content: center;
 }
 
-.delete-title {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--text);
-  margin: 0;
-}
-
 .delete-subtitle {
-  font-size: 0.88rem;
+  font-size: var(--fs-base);
   color: var(--text-dim);
   margin: 0;
   line-height: 1.5;
-}
-
-.delete-actions-footer {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  width: 100%;
-  margin-top: 12px;
-}
-
-.btn-confirm-delete {
-  padding: 10px 20px;
-  border-radius: 10px;
-  border: none;
-  background: #ef4444;
-  color: #ffffff;
-  font-size: 0.88rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
 }
 
 .btn-confirm-delete:hover {
@@ -1078,7 +1016,7 @@ app-primary-button.colleges-add-btn,
     flex: 1 1 0px;
     min-width: 0;
     padding: 10px 8px;
-    font-size: 0.82rem;
+    font-size: var(--fs-sm);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1134,7 +1072,7 @@ app-primary-button.colleges-add-btn,
   .graph-table th,
   .graph-table td {
     padding: 8px 10px;
-    font-size: 0.80rem;
+    font-size: var(--fs-sm);
   }
   .pie-chart-container {
     min-height: auto;
@@ -1161,7 +1099,7 @@ app-primary-button.colleges-add-btn,
     padding: 12px 10px;
   }
   .kpi-mini-val {
-    font-size: 1.15rem;
+    font-size: var(--fs-lg);
   }
   .form-grid {
     grid-template-columns: 1fr;
@@ -1180,7 +1118,7 @@ app-primary-button.colleges-add-btn,
   }
   .tab-btn {
     padding: 8px 6px;
-    font-size: 0.78rem;
+    font-size: var(--fs-sm);
     gap: 4px;
     display: inline-flex;
     align-items: center;

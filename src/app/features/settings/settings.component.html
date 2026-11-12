@@ -8,7 +8,7 @@
       <app-primary-button [text]="t().addPricingTierBtn" (click)="openAddTierModal()"></app-primary-button>
       } @else if (activeTab() === 'rooms') {
       <app-primary-button [text]="t().addRoomSpaceBtn" (click)="openAddRoomModal()"></app-primary-button>
-      } @else {
+      } @else if (activeTab() === 'packages') {
       <app-primary-button [text]="t().addPackagePresetBtn" (click)="openAddPackageModal()"></app-primary-button>
       }
     </div>
@@ -42,6 +42,14 @@
       <span>{{ t().quickPackagePresetsTab }}</span>
     </button>
 
+    <button type="button" class="tab-btn" [class.tab-btn--active]="activeTab() === 'alerts'" (click)="setTab('alerts')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      </svg>
+      <span>{{ t().setOperationalAlerts }}</span>
+    </button>
+
     <button type="button" class="tab-btn" [class.tab-btn--active]="activeTab() === 'roles'" (click)="setTab('roles')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -68,11 +76,15 @@
     </a>
   </div>
 
+  @if (activeTab() === 'alerts') {
+  <app-alert-settings></app-alert-settings>
+  }
+
   <!-- TAB 1: Student Tiered Hourly Pricing -->
   @if (activeTab() === 'pricing') {
   <div class="table-container-card">
     <div class="table-responsive">
-      <table class="custom-table">
+      <table class="custom-table sticky-actions">
         <thead>
           <tr>
             <th>{{ t().fromHoursHeader }}</th>
@@ -162,7 +174,7 @@
             <rect x="3" y="3" width="18" height="18" rx="2" />
             <path d="M9 3v18M15 3v18M3 9h18M3 15h18" />
           </svg>
-          <span>{{ isArabic() ? 'بدون صورة' : 'No image' }}</span>
+          <span>{{ t().setNoImage }}</span>
         </div>
         } @else {
         <div class="room-img-placeholder">
@@ -170,7 +182,7 @@
             <rect x="3" y="3" width="18" height="18" rx="2" />
             <path d="M9 3v18M15 3v18M3 9h18M3 15h18" />
           </svg>
-          <span>{{ isArabic() ? 'بدون صورة' : 'No image' }}</span>
+          <span>{{ t().setNoImage }}</span>
         </div>
         }
         <span class="room-type-tag">{{ room.type }}</span>
@@ -191,7 +203,7 @@
             <span class="meta-item meta-item--price">💰 {{ room.hourlyPrice }} {{ t().egpPerHourShort }}</span>
             }
           } @else {
-          <span class="meta-item meta-item--workspace-price">⚡ {{ isArabic() ? 'مساحة عمل طلاب' : 'Student Workspace' }}</span>
+          <span class="meta-item meta-item--workspace-price">⚡ {{ t().setStudentWorkspace }}</span>
           }
         </div>
 
@@ -207,9 +219,9 @@
     </div>
     } @empty {
     <div class="rooms-empty-card"
-      style="grid-column: 1 / -1; text-align: center; padding: 48px 24px; background: var(--surface); border: 1px dashed var(--border); border-radius: 12px;">
-      <p style="color: var(--text-dim); margin-bottom: 16px; font-size: 0.95rem;">
-        {{ isArabic() ? 'لا توجد قاعات أو مساحات مضافة حالياً' : 'No rooms or spaces added yet' }}
+      style="grid-column: 1 / -1; text-align: center; padding: 48px 24px; background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius-md);">
+      <p style="color: var(--text-dim); margin-bottom: 16px; font-size: var(--fs-md);">
+        {{ t().setNoRoomsOrSpacesAdded }}
       </p>
       <app-primary-button [text]="t().addRoomSpaceBtn" (click)="openAddRoomModal()"></app-primary-button>
     </div>
@@ -243,7 +255,7 @@
     </div>
 
     <div class="table-responsive">
-      <table class="custom-table">
+      <table class="custom-table sticky-actions">
         <thead>
           <tr>
             <th>{{ t().packageName }}</th>
@@ -332,23 +344,23 @@
     <!-- Role summary badges (2 Roles: Admin & Receptionist) -->
     <div
       style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px;">
-      <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 16px;">
+      <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px;">
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
           <span
-            style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #f5b921;"></span>
-          <strong style="color: var(--text); font-size: 1rem;">{{ t().adminRoleBadge }}</strong>
+            style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--yellow);"></span>
+          <strong style="color: var(--text); font-size: var(--fs-md);">{{ t().adminRoleBadge }}</strong>
         </div>
-        <span style="font-size: 0.82rem; color: var(--text-dim); line-height: 1.5; display: block;">{{ t().adminRoleDesc
+        <span style="font-size: var(--fs-sm); color: var(--text-dim); line-height: 1.5; display: block;">{{ t().adminRoleDesc
           }}</span>
       </div>
 
-      <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 16px;">
+      <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px;">
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
           <span
-            style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #10b981;"></span>
-          <strong style="color: var(--text); font-size: 1rem;">{{ t().receptionistRoleBadge }}</strong>
+            style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--success-strong);"></span>
+          <strong style="color: var(--text); font-size: var(--fs-md);">{{ t().receptionistRoleBadge }}</strong>
         </div>
-        <span style="font-size: 0.82rem; color: var(--text-dim); line-height: 1.5; display: block;">{{
+        <span style="font-size: var(--fs-sm); color: var(--text-dim); line-height: 1.5; display: block;">{{
           t().receptionistRoleDesc }}</span>
       </div>
     </div>
@@ -367,21 +379,21 @@
           @for (perm of rolesPermissions; track perm.moduleEn) {
           <tr>
             <td>
-              <strong style="color: var(--text); font-size: 0.92rem; display: block;">{{ isArabic() ? perm.moduleAr :
+              <strong style="color: var(--text); font-size: var(--fs-md); display: block;">{{ isArabic() ? perm.moduleAr :
                 perm.moduleEn }}</strong>
-              <span style="font-size: 0.78rem; color: var(--text-dim);">{{ isArabic() ? perm.descAr : perm.descEn
+              <span style="font-size: var(--fs-sm); color: var(--text-dim);">{{ isArabic() ? perm.descAr : perm.descEn
                 }}</span>
             </td>
             <td class="cell-center">
               @if (perm.admin) {
-              <span style="color: #10b981; font-weight: 800; font-size: 1.2rem;">&check;</span>
+              <span style="color: var(--success-strong); font-weight: 800; font-size: 1.2rem;">&check;</span>
               } @else {
               <span style="color: var(--text-dim); opacity: 0.4; font-size: 1.2rem;">&times;</span>
               }
             </td>
             <td class="cell-center">
               @if (perm.receptionist) {
-              <span style="color: #10b981; font-weight: 800; font-size: 1.2rem;">&check;</span>
+              <span style="color: var(--success-strong); font-weight: 800; font-size: 1.2rem;">&check;</span>
               } @else {
               <span style="color: var(--text-dim); opacity: 0.4; font-size: 1.2rem;">&times;</span>
               }
@@ -405,13 +417,11 @@
       <div class="team-hero-details">
         <div class="team-hero-badge-pill">
           <span class="pulse-dot"></span>
-          <span>{{ isArabic() ? 'فريق الهندسة والبرمجيات المعتمد' : 'Official Software Engineering Team' }}</span>
+          <span>{{ t().setOfficialSoftwareEngineeringTeam }}</span>
         </div>
         <h2 class="team-hero-title">KERNEL PANIC IT TEAM</h2>
         <p class="team-hero-subtitle">
-          {{ isArabic() 
-            ? 'تصميم وتطوير وهندسة منصة NOOK Workspace لإدارة مساحات العمل المشتركة والقاعات التعليمية بأعلى معايير الدقة والسرعة والاعتمادية.' 
-            : 'Design, architecture and development of the NOOK Workspace platform. Delivering modern, reactive, high-performance management systems for educational spaces and coworking environments.' }}
+          {{ t().setDesignArchitectureAndDevelopmentOf }}
         </p>
         <div class="team-hero-actions">
           <a
@@ -420,7 +430,7 @@
             rel="noopener noreferrer"
             class="btn-visit-agency"
           >
-            <span>{{ isArabic() ? 'زيارة الموقع الرسمي للفريق (itkernelpanic.com)' : 'Visit Official Website (itkernelpanic.com)' }}</span>
+            <span>{{ t().setVisitOfficialWebsiteItkernelpanicCom }}</span>
             <svg viewBox="0 0 24 24" fill="none" class="btn-arrow-svg">
               <line x1="7" y1="17" x2="17" y2="7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
               <polyline points="7 7 17 7 17 17" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -434,25 +444,25 @@
     <div class="team-highlights-grid">
       <div class="team-highlight-card">
         <div class="highlight-icon-box">⚡</div>
-        <h4 class="highlight-title">{{ isArabic() ? 'بنية معمارية تفاعلية فائقة' : 'High-Performance Reactive Engine' }}</h4>
+        <h4 class="highlight-title">{{ t().setHighPerformanceReactiveEngine }}</h4>
         <p class="highlight-desc">
-          {{ isArabic() ? 'نظام متكامل مبني بأحدث تقنيات Angular الحديثة وإشارات السيجنالز لمعالجة حية وسريعة لكافة العمليات.' : 'State-of-the-art Angular reactive signals architecture for real-time responsiveness and instant updates.' }}
+          {{ t().setStateOfTheArtAngular }}
         </p>
       </div>
 
       <div class="team-highlight-card">
         <div class="highlight-icon-box">🛡️</div>
-        <h4 class="highlight-title">{{ isArabic() ? 'إدارة مالية وتدقيق متقدم' : 'Precision Financial Audit' }}</h4>
+        <h4 class="highlight-title">{{ t().setPrecisionFinancialAudit }}</h4>
         <p class="highlight-desc">
-          {{ isArabic() ? 'تصفية شفتات مجمعة متعددة القنوات (نقدي، فودافون كاش، إنستاباي، فوري) مع تدقيق دقيق للأرصدة والفواتير.' : 'Multi-channel shift reconciliation with zero-discrepancy precision and comprehensive audit trails.' }}
+          {{ t().setMultiChannelShiftReconciliationWith }}
         </p>
       </div>
 
       <div class="team-highlight-card">
         <div class="highlight-icon-box">🎨</div>
-        <h4 class="highlight-title">{{ isArabic() ? 'واجهة مستخدم احترافية' : 'Premium Ergonomic UX' }}</h4>
+        <h4 class="highlight-title">{{ t().setPremiumErgonomicUx }}</h4>
         <p class="highlight-desc">
-          {{ isArabic() ? 'تصميم بصري متطور يدعم الوضعين الليلي والنهاري بشكل ديناميكي مع توافق ثنائي اللغة (عربي / إنجليزي).' : 'Bilingual RTL/LTR interface with curated dark/light palettes, micro-animations, and responsive layout.' }}
+          {{ t().setBilingualRtlLtrInterfaceWith }}
         </p>
       </div>
     </div>
@@ -482,7 +492,7 @@
   <!-- Modal 1: Add / Edit Pricing Tier -->
   <app-modal [isOpen]="isTierModalOpen()"
     [title]="tierModalMode() === 'add' ? t().addNewTierModalTitle : t().editTierModalTitle"
-    (close)="isTierModalOpen.set(false)">
+    (closed)="isTierModalOpen.set(false)">
     <form (submit)="saveTier(); $event.preventDefault()" class="settings-modal-form">
       @if (tierFormError(); as err) {
       <div class="form-error-banner">{{ err }}</div>
@@ -490,33 +500,33 @@
 
       <div class="form-grid">
         <div class="field-group">
-          <label class="field-label">{{ t().fromHoursLabel }} *</label>
-          <input type="number" class="custom-input" [ngModel]="formFromHours()"
+          <label for="settings-f13" class="field-label">{{ t().fromHoursLabel }} *</label>
+          <input id="settings-f13" type="number" class="custom-input" [ngModel]="formFromHours()"
             (ngModelChange)="formFromHours.set($event)" name="formFromHours" />
         </div>
 
         <div class="field-group">
-          <label class="field-label">{{ t().toHoursLabel }} *</label>
-          <input type="number" class="custom-input" [ngModel]="formToHours()" (ngModelChange)="formToHours.set($event)"
+          <label for="settings-f12" class="field-label">{{ t().toHoursLabel }} *</label>
+          <input id="settings-f12" type="number" class="custom-input" [ngModel]="formToHours()" (ngModelChange)="formToHours.set($event)"
             name="formToHours" />
         </div>
 
         <div class="field-group">
-          <label class="field-label">{{ t().priceDueLabel }} *</label>
-          <input type="number" class="custom-input" [ngModel]="formPriceEgp()"
+          <label for="settings-f11" class="field-label">{{ t().priceDueLabel }} *</label>
+          <input id="settings-f11" type="number" class="custom-input" [ngModel]="formPriceEgp()"
             (ngModelChange)="formPriceEgp.set($event)" name="formPriceEgp" />
         </div>
 
         <div class="field-group">
-          <label class="field-label">{{ t().arabicLabelDesc }}</label>
-          <input type="text" class="custom-input" [placeholder]="t().tierLabelPlaceholder" [ngModel]="formTierLabelAr()"
+          <label for="settings-f10" class="field-label">{{ t().arabicLabelDesc }}</label>
+          <input id="settings-f10" type="text" class="custom-input" [placeholder]="t().tierLabelPlaceholder" [ngModel]="formTierLabelAr()"
             (ngModelChange)="formTierLabelAr.set($event)" name="formTierLabelAr" />
         </div>
       </div>
 
       <div class="modal-footer-actions">
-        <button type="button" class="btn-cancel" (click)="isTierModalOpen.set(false)">{{ t().cancel }}</button>
-        <button type="submit" class="btn-save">{{ t().saveTierBtn }}</button>
+        <app-primary-button variant="secondary" [text]="t().cancel" (clicked)="isTierModalOpen.set(false)"></app-primary-button>
+        <app-primary-button type="submit" [text]="t().saveTierBtn"></app-primary-button>
       </div>
     </form>
   </app-modal>
@@ -524,7 +534,7 @@
   <!-- Modal 2: Add / Edit Room -->
   <app-modal [isOpen]="isRoomModalOpen()"
     [title]="roomModalMode() === 'add' ? t().addNewRoomModalTitle : t().editRoomModalTitle"
-    (close)="isRoomModalOpen.set(false)">
+    (closed)="isRoomModalOpen.set(false)">
     <form (submit)="saveRoom(); $event.preventDefault()" class="settings-modal-form">
       @if (roomFormError(); as err) {
       <div class="form-error-banner">{{ err }}</div>
@@ -532,50 +542,49 @@
 
       <div class="form-grid">
         <div class="field-group">
-          <label class="field-label">{{ t().roomName }} *</label>
-          <input type="text" maxlength="50" class="custom-input" [ngModel]="formRoomName()"
+          <label for="settings-f9" class="field-label">{{ t().roomName }} *</label>
+          <input id="settings-f9" type="text" maxlength="50" class="custom-input" [ngModel]="formRoomName()"
             (ngModelChange)="formRoomName.set($event)" name="formRoomName" />
         </div>
 
         <div class="field-group">
-          <label class="field-label">{{ t().spaceTypeLabel }} *</label>
+          <span class="field-label group-label">{{ t().spaceTypeLabel }} *</span>
           <app-custom-select [options]="roomTypeOptions()" [selectedValue]="formRoomType()" [fullWidth]="true"
             (valueChange)="onRoomTypeChange($event)"></app-custom-select>
         </div>
 
         <div class="field-group">
-          <label class="field-label">{{ t().capacityStudentsLabel }}</label>
-          <input type="number" min="1" step="1" class="custom-input" [ngModel]="formRoomCapacity()"
+          <label for="settings-f8" class="field-label">{{ t().capacityStudentsLabel }}</label>
+          <input id="settings-f8" type="number" min="1" step="1" class="custom-input" [ngModel]="formRoomCapacity()"
             (ngModelChange)="formRoomCapacity.set($event)" name="formRoomCapacity" />
         </div>
 
         @if (formRoomType() === 'Classroom') {
         <div class="field-group">
-          <label class="field-label">{{ t().hourlyRateLabel }}</label>
-          <input type="number" min="0" step="1" class="custom-input" [ngModel]="formRoomPrice()"
+          <label for="settings-f7" class="field-label">{{ t().hourlyRateLabel }}</label>
+          <input id="settings-f7" type="number" min="0" step="1" class="custom-input" [ngModel]="formRoomPrice()"
             (ngModelChange)="formRoomPrice.set($event)" name="formRoomPrice" />
         </div>
         } @else {
         <div class="field-group workspace-pricing-callout">
-          <label class="field-label">{{ isArabic() ? 'نظام التسعير' : 'Pricing System' }}</label>
+          <span class="field-label group-label">{{ t().setPricingSystem }}</span>
           <div class="workspace-pricing-info">
             <span class="workspace-pricing-icon">⚡</span>
             <div class="workspace-pricing-text">
-              <strong>{{ isArabic() ? 'تسعير ساعات الستيودنتس' : 'Student Workspace Pricing' }}</strong>
-              <p>{{ isArabic() ? 'يتبع تسعير ساعات الستيودنتس الموحد في الورك سبيس.' : 'Follows the unified Student
-                Workspace pricing tiers.' }}</p>
+              <strong>{{ t().setStudentWorkspacePricing }}</strong>
+              <p>{{ t().setFollowsTheUnifiedStudentWorkspace }}</p>
             </div>
           </div>
         </div>
         }
 
         <div class="field-group full-width">
-          <label class="field-label">{{ t().roomImageUploadLabel }}</label>
+          <label for="settings-f6" class="field-label">{{ t().roomImageUploadLabel }}</label>
           <div class="room-upload-box">
             @if (formRoomImage()) {
             <div class="room-img-preview-card">
               <img [src]="formRoomImage()" alt="Room preview" class="room-preview-thumb" />
-              <button type="button" class="btn-remove-room-img" (click)="removeRoomImage()" [title]="t().removeImage">
+              <button id="settings-f6" type="button" class="btn-remove-room-img" (click)="removeRoomImage()" [title]="t().removeImage">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="3 6 5 6 21 6"></polyline>
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -603,10 +612,8 @@
       </div>
 
       <div class="modal-footer-actions">
-        <button type="button" class="btn-cancel" (click)="isRoomModalOpen.set(false)" [disabled]="isSavingRoom()">{{ t().cancel }}</button>
-        <button type="submit" class="btn-save" [disabled]="isSavingRoom()">
-          {{ isSavingRoom() ? (isArabic() ? 'جاري الحفظ...' : 'Saving...') : t().saveRoomBtn }}
-        </button>
+        <app-primary-button variant="secondary" [text]="t().cancel" [disabled]="isSavingRoom()" (clicked)="isRoomModalOpen.set(false)"></app-primary-button>
+        <app-primary-button type="submit" [text]="t().saveRoomBtn" [disabled]="isSavingRoom()" [loading]="isSavingRoom()"></app-primary-button>
       </div>
     </form>
   </app-modal>
@@ -614,7 +621,7 @@
   <!-- Modal 3: Add / Edit Package Preset -->
   <app-modal [isOpen]="isPackageModalOpen()"
     [title]="packageModalMode() === 'add' ? t().addNewPackagePresetModalTitle : t().editPackagePresetModalTitle"
-    (close)="isPackageModalOpen.set(false)">
+    (closed)="isPackageModalOpen.set(false)">
     <form (submit)="savePackagePreset(); $event.preventDefault()" class="settings-modal-form">
       @if (packageFormError(); as err) {
       <div class="form-error-banner">{{ err }}</div>
@@ -623,15 +630,14 @@
       <div class="pkg-modal-layout">
         <!-- 1. Audience Switcher Cards -->
         <div class="field-group full-width">
-          <label class="field-label">{{ t().packageTargetLabel }} *</label>
+          <label for="settings-f5" class="field-label">{{ t().packageTargetLabel }} *</label>
           <div class="pkg-audience-switcher">
-            <button type="button" class="aud-switch-card" [class.aud-switch-card--active]="formPkgType() === 'student'"
+            <button id="settings-f5" type="button" class="aud-switch-card" [class.aud-switch-card--active]="formPkgType() === 'student'"
               (click)="formPkgType.set('student')">
               <div class="aud-card-icon aud-card-icon--student">🎓</div>
               <div class="aud-card-content">
-                <span class="aud-card-title">{{ isArabic() ? 'طلاب ورك سبيس' : 'Workspace Students' }}</span>
-                <span class="aud-card-desc">{{ isArabic() ? 'مساحات العمل والمذاكرة المشتركة' : 'Desks & Silent/Shared
-                  Spaces' }}</span>
+                <span class="aud-card-title">{{ t().setWorkspaceStudents }}</span>
+                <span class="aud-card-desc">{{ t().setDesksSilentSharedSpaces }}</span>
               </div>
               <div class="aud-card-radio">
                 <div class="aud-radio-dot"></div>
@@ -642,9 +648,8 @@
               [class.aud-switch-card--active]="formPkgType() === 'instructor'" (click)="formPkgType.set('instructor')">
               <div class="aud-card-icon aud-card-icon--instructor">👨‍🏫</div>
               <div class="aud-card-content">
-                <span class="aud-card-title">{{ isArabic() ? 'مدربين كلاس روم' : 'Classroom Instructors' }}</span>
-                <span class="aud-card-desc">{{ isArabic() ? 'قاعات المحاضرات والورش التدريبية' : 'Lecture Rooms &
-                  Training Halls' }}</span>
+                <span class="aud-card-title">{{ t().setClassroomInstructors }}</span>
+                <span class="aud-card-desc">{{ t().setLectureRoomsTrainingHalls }}</span>
               </div>
               <div class="aud-card-radio">
                 <div class="aud-radio-dot"></div>
@@ -658,10 +663,10 @@
           <!-- Col 1: Hours -->
           <div class="pkg-balanced-col">
             <div class="field-label-row">
-              <label class="field-label">{{ t().packageHoursLabel }} *</label>
+              <label for="settings-f4" class="field-label">{{ t().packageHoursLabel }} *</label>
               <span class="field-hint-badge">{{ t().hrs }}</span>
             </div>
-            <input type="number" min="1" class="custom-input" [ngModel]="formPkgHours()"
+            <input id="settings-f4" type="number" min="1" class="custom-input" [ngModel]="formPkgHours()"
               (ngModelChange)="formPkgHours.set(+$event)" name="formPkgHours" />
             <div class="chips-flex-bar">
               @for (h of [10, 20, 30, 50, 100]; track h) {
@@ -676,15 +681,15 @@
           <!-- Col 2: Price & Rate -->
           <div class="pkg-balanced-col">
             <div class="field-label-row">
-              <label class="field-label">{{ t().packagePrice }} *</label>
+              <label for="settings-f3" class="field-label">{{ t().packagePrice }} *</label>
               <span class="field-hint-badge">{{ t().currency }}</span>
             </div>
-            <input type="number" min="0" class="custom-input" [ngModel]="formPkgPrice()"
+            <input id="settings-f3" type="number" min="0" class="custom-input" [ngModel]="formPkgPrice()"
               (ngModelChange)="formPkgPrice.set(+$event)" name="formPkgPrice" />
             <div class="rate-badge-pill">
               <span class="rate-badge-icon">⚡</span>
               <span class="rate-badge-text">
-                {{ isArabic() ? 'معدل الساعة:' : 'Rate:' }}
+                {{ t().setRate }}
                 <strong>{{ modalHourlyRate() }}</strong> {{ t().egpPerHourShort }}
               </span>
             </div>
@@ -693,7 +698,7 @@
 
         <!-- 3. Validity Selection -->
         <div class="field-group full-width">
-          <label class="field-label">{{ t().defaultValidity }} *</label>
+          <span class="field-label group-label">{{ t().defaultValidity }} *</span>
           <div class="validity-chips-bar">
             @for (val of [7, 15, 30, 60, 90, 180]; track val) {
             <button type="button" class="btn-val-chip"
@@ -724,22 +729,22 @@
 
         <!-- 4. Package Label / Description -->
         <div class="field-group full-width">
-          <label class="field-label">{{ t().arabicLabelDesc }}</label>
-          <input type="text" class="custom-input" [placeholder]="t().packagePresetPlaceholder"
+          <label for="settings-f1" class="field-label">{{ t().arabicLabelDesc }}</label>
+          <input id="settings-f1" type="text" class="custom-input" [placeholder]="t().packagePresetPlaceholder"
             [ngModel]="formPkgNameAr()" (ngModelChange)="formPkgNameAr.set($event)" name="formPkgNameAr" />
         </div>
       </div>
 
       <div class="modal-footer-actions">
-        <button type="button" class="btn-cancel" (click)="isPackageModalOpen.set(false)">{{ t().cancel }}</button>
-        <button type="submit" class="btn-save">{{ t().savePackagePresetBtn }}</button>
+        <app-primary-button variant="secondary" [text]="t().cancel" (clicked)="isPackageModalOpen.set(false)"></app-primary-button>
+        <app-primary-button type="submit" [text]="t().savePackagePresetBtn"></app-primary-button>
       </div>
     </form>
   </app-modal>
 
   <!-- Delete Room Confirmation Modal (NOOK-SEC-01 & O-10) -->
   @if (isDeleteRoomModalOpen() && roomToDelete(); as delRoom) {
-  <app-modal [isOpen]="true" (close)="closeDeleteRoomModal()" [title]="isArabic() ? 'تأكيد حذف القاعة' : 'Confirm Room Deletion'">
+  <app-modal [isOpen]="true" (closed)="closeDeleteRoomModal()" [title]="t().setConfirmRoomDeletion">
     <div style="padding: 16px 0; text-align: center;">
       <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(239, 68, 68, 0.12); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
         <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" style="width: 32px; height: 32px;">
@@ -748,12 +753,12 @@
           <line x1="9" y1="9" x2="15" y2="15"/>
         </svg>
       </div>
-      <p style="color: var(--text-dim); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.6;">
-        {{ isArabic() ? 'هل أنت متأكد من رغبتك في حذف القاعة "' + (delRoom.name || delRoom.nameEn) + '" نهائياً؟ سيتم مسح جميع الإعدادات المرتبطة بها.' : 'Are you sure you want to permanently delete room "' + (delRoom.nameEn || delRoom.name) + '"? All related settings will be removed.' }}
+      <p style="color: var(--text-dim); font-size: var(--fs-md); margin-bottom: 24px; line-height: 1.6;">
+        {{ tf('setDeleteRoomMessage', { name: isArabic() ? (delRoom.name || delRoom.nameEn) : (delRoom.nameEn || delRoom.name) }) }}
       </p>
       <div style="display: flex; gap: 12px; justify-content: center;">
-        <button type="button" class="btn-cancel" (click)="closeDeleteRoomModal()">{{ t().cancel }}</button>
-        <button type="button" (click)="confirmDeleteRoom()" style="background: #ef4444; color: #fff; padding: 10px 24px; border-radius: 10px; font-weight: 700; border: none; cursor: pointer; transition: opacity 0.2s ease;">
+        <app-primary-button variant="secondary" [text]="t().cancel" (clicked)="closeDeleteRoomModal()"></app-primary-button>
+        <button type="button" (click)="confirmDeleteRoom()" style="background: var(--danger-strong); color: var(--on-color); padding: 10px 24px; border-radius: var(--radius-sm); font-weight: 700; border: none; cursor: pointer; transition: opacity 0.2s ease;">
           {{ t().delete }}
         </button>
       </div>

@@ -36,9 +36,9 @@
   padding: 0 38px 0 40px;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 9999px;
+  border-radius: var(--radius-pill);
   color: var(--text);
-  font-size: 0.875rem;
+  font-size: var(--fs-base);
   font-family: inherit;
   outline: none;
   box-shadow: none;
@@ -58,13 +58,13 @@
 }
 
 .search-input:focus {
-  border-color: #f5b921;
+  border-color: var(--yellow);
   background: var(--surface);
   box-shadow: 0 0 0 3px rgba(245, 185, 33, 0.12);
 }
 
 .search-input:focus + .search-icon {
-  stroke: #f5b921;
+  stroke: var(--yellow);
 }
 
 .search-input::placeholder {

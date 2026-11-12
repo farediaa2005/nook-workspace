@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core';
+import { LanguageService } from '../language.service';
+import { Injectable, inject } from '@angular/core';
 import { Observable, of, forkJoin, map, switchMap, catchError, throwError } from 'rxjs';
 import { BaseApiService } from './base-api.service';
 import { API_ENDPOINTS } from '../../constants/api-endpoints';
@@ -17,6 +18,7 @@ import {
   providedIn: 'root'
 })
 export class CouponApiService extends BaseApiService {
+  private langService = inject(LanguageService);
   /** Get all coupons — GET /api/Coupons */
   getCoupons(): Observable<CouponDto[]> {
     return this.get<ApiResponse<CouponDto[] | { items: CouponDto[] }> | CouponDto[]>(
@@ -24,7 +26,7 @@ export class CouponApiService extends BaseApiService {
     ).pipe(
       map(res => {
         if (!res) return [];
-        let list: CouponDto[] = [];
+        let list: CouponDto[];
         if (Array.isArray(res)) list = res;
         else if (Array.isArray((res as any).data)) list = (res as any).data;
         else list = (res as any)?.data?.items ?? [];
@@ -38,23 +40,6 @@ export class CouponApiService extends BaseApiService {
             usageCount: Number(rawCount) || 0
           };
         });
-      })
-    );
-  }
-
-  /** Get coupon by ID — GET /api/Coupons/{id} */
-  getCouponById(id: string): Observable<CouponDto> {
-    return this.get<ApiResponse<CouponDto>>(API_ENDPOINTS.COUPONS.BY_ID(id)).pipe(
-      map(extractData),
-      map(c => {
-        if (!c) return c;
-        const rawLimit = (c as any).usageLimit ?? (c as any).UsageLimit ?? (c as any).maxUsage ?? (c as any).MaxUsage ?? (c as any).maxUses ?? (c as any).limit ?? (c as any).maxRedemptions;
-        const rawCount = (c as any).usageCount ?? (c as any).UsageCount ?? (c as any).currentRedemptions ?? 0;
-        return {
-          ...c,
-          usageLimit: rawLimit !== undefined && rawLimit !== null ? Number(rawLimit) : null,
-          usageCount: Number(rawCount) || 0
-        };
       })
     );
   }
@@ -130,23 +115,23 @@ export class CouponApiService extends BaseApiService {
           return throwError(() => new Error('Coupon not found'));
         }
         if (coupon.isActive === false) {
-          return throwError(() => new Error('الكوبون غير مفعّل'));
+          return throwError(() => new Error(this.langService.t().cpnInactive));
         }
         if (isCouponExpired(coupon)) {
-          return throwError(() => new Error('كود الكوبون منتهي الصلاحية'));
+          return throwError(() => new Error(this.langService.t().cpnExpired));
         }
         if (isCouponExhausted(coupon)) {
-          return throwError(() => new Error('تم استنفاد الحد الأقصى لاستخدام هذا الكود'));
+          return throwError(() => new Error(this.langService.t().cpnExhausted));
         }
 
         // Strict separation check: 0 = Workspace, 1 = Classroom
         const applicableTo = coupon.applicableTo !== undefined ? coupon.applicableTo : (coupon.zone === 'Classroom' ? 1 : 0);
         const isClassroomRequest = !!dto?.classroomId || dto?.sessionType === 'Classroom';
         if (applicableTo === 0 && isClassroomRequest) {
-          return throwError(() => new Error('كوبون مخصص لمساحة العمل (Workspace) فقط ولا يمكن استخدامه لحجوزات القاعات'));
+          return throwError(() => new Error(this.langService.t().cpnWorkspaceOnly));
         }
         if (applicableTo === 1 && !isClassroomRequest) {
-          return throwError(() => new Error('كوبون مخصص لحجوزات القاعات (Classroom) فقط ولا يمكن استخدامه لمساحة العمل'));
+          return throwError(() => new Error(this.langService.t().cpnClassroomOnly));
         }
 
         const rawStudentId = dto?.studentId;
@@ -181,7 +166,7 @@ export class CouponApiService extends BaseApiService {
           return throwError(() => new Error('Coupon not found'));
         }
         if (isCouponExhausted(coupon)) {
-          return throwError(() => new Error('تم استنفاد الحد الأقصى لاستخدام هذا الكود'));
+          return throwError(() => new Error(this.langService.t().cpnExhausted));
         }
         return forkJoin({
           coupon: of(coupon),
@@ -196,7 +181,7 @@ export class CouponApiService extends BaseApiService {
           )
         });
       }),
-      switchMap(({ coupon, redemptions, students }) => {
+      switchMap(({ redemptions, students }) => {
         const usedIds = new Set((redemptions || []).map((r: any) => r.studentId));
         const eligible = (students || []).find((s: any) => s.id && !usedIds.has(s.id));
 

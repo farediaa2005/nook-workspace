@@ -9,7 +9,7 @@
  * - strictly sanitizes negative zero (-0.00 -> 0.00)
  */
 
-export interface ChannelFinancialFlow {
+interface ChannelFinancialFlow {
   opening: number;
   inflows: number;
   outflows: number;
@@ -29,7 +29,7 @@ export interface ChannelBalanceReport {
   isBalanced: boolean;
 }
 
-export interface ShiftFinancialReport {
+interface ShiftFinancialReport {
   cash: ChannelBalanceReport;
   vodafone: ChannelBalanceReport;
   instapay: ChannelBalanceReport;

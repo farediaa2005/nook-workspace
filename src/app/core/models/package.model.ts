@@ -3,7 +3,7 @@
  * Used for both Student Packages and Instructor / Corporate Packages.
  */
 
-export type PackageType = 'student' | 'instructor';
+type PackageType = 'student' | 'instructor';
 export type PackageStatus = 'active' | 'near_expiry' | 'expired' | 'exhausted';
 export type PaymentMethod = 'cash' | 'vodafone' | 'fawry' | 'instapay';
 
@@ -56,13 +56,6 @@ export interface PackageItem {
 
 export type CreatePackageDto = Omit<PackageItem, 'id' | 'remainingHours' | 'createdAt'>;
 export type UpdatePackageDto = Partial<Omit<PackageItem, 'id' | 'createdAt'>>;
-export interface PackageUsageDto {
-  packageId: string;
-  duration: number;
-  sessionAr?: string;
-  sessionEn?: string;
-  roomOrDesk?: string;
-}
 
 export interface ValidityPresetOption {
   id: string;

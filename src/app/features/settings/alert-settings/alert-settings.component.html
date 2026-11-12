@@ -1,0 +1,57 @@
+<section class="alerts-card" [attr.dir]="isArabic() ? 'rtl' : 'ltr'">
+  <header class="alerts-head">
+    <h3>{{ t().setOperationalAlerts }}</h3>
+    <p>{{ t().set2ThresholdsThatTriggerStockSession }}</p>
+  </header>
+
+  @if (isLoading()) {
+    <p class="alerts-state">{{ t().set2Loading }}</p>
+  } @else if (loadError()) {
+    <div class="alerts-state alerts-state--error" role="alert">
+      <span>{{ loadError() }}</span>
+      <button type="button" class="alerts-link" (click)="load()">{{ t().set2Retry }}</button>
+    </div>
+  } @else if (values(); as v) {
+    <form class="alerts-grid" (ngSubmit)="save()">
+      @for (f of fields; track f.key) {
+        <div class="alerts-field">
+          <label class="alerts-label" [for]="'alert-' + f.key">{{ isArabic() ? f.labelAr : f.labelEn }}</label>
+          <div class="alerts-input-row">
+            <input
+              class="alerts-input"
+              type="number"
+              inputmode="numeric"
+              [id]="'alert-' + f.key"
+              [name]="f.key"
+              [min]="f.min"
+              step="1"
+              [ngModel]="v[f.key]"
+              (ngModelChange)="setValue(f.key, $event)"
+            />
+            <span class="alerts-unit">{{ isArabic() ? f.unitAr : f.unitEn }}</span>
+          </div>
+          <small class="alerts-hint">{{ isArabic() ? f.hintAr : f.hintEn }}</small>
+        </div>
+      }
+
+      @if (errors().length) {
+        <ul class="alerts-errors" role="alert">
+          @for (e of errors(); track e) {
+            <li>{{ e }}</li>
+          }
+        </ul>
+      }
+
+      <div class="alerts-actions">
+        <button type="button" class="alerts-link" (click)="reset()" [disabled]="!isDirty() || isSaving()">
+          {{ t().set2Revert }}
+        </button>
+        <app-primary-button
+          type="submit"
+          [text]="isSaving() ? (t().set2Saving) : (t().set2SaveSettings)"
+          [disabled]="!isDirty() || errors().length > 0 || isSaving()"
+        ></app-primary-button>
+      </div>
+    </form>
+  }
+</section>

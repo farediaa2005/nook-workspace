@@ -4,7 +4,7 @@
  */
 
 /** PricingScope enum — matches backend (1=Workspace, 2=Classroom) */
-export enum PricingScope {
+enum PricingScope {
   Workspace = 1,
   Classroom = 2
 }
@@ -14,9 +14,6 @@ export enum PackageType {
   Workspace = 1,
   Classroom = 2
 }
-
-/** @deprecated Use PackageType instead */
-export const BackendPackageType = PackageType;
 
 /** Pricing plan DTO from /api/PricingPlans */
 export interface PricingPlanDto {
@@ -51,19 +48,6 @@ export interface UpdatePricingPlanDto {
   overageHourlyRate?: number;
   isActive?: boolean;
   note?: string | null;
-}
-
-/** Pricing suggestion from /api/PricingPlans/suggestion */
-export interface PricingSuggestionDto {
-  roomId: string;
-  scope: number;
-  hours: number;
-  baseHours: number;
-  baseCost: number;
-  overageHours: number;
-  overageRate: number;
-  overageCost: number;
-  suggestedTotal: number;
 }
 
 /** Package pricing plan DTO from /api/PackagePricingPlans */

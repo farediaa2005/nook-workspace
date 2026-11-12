@@ -98,4 +98,56 @@ describe('authInterceptor', () => {
     expect(authServiceMock.clearAuthState).toHaveBeenCalled();
     expect(routerMock.navigate).toHaveBeenCalledWith(['/auth/login']);
   });
+
+  describe('token refresh', () => {
+    beforeEach(() => {
+      authServiceMock.getToken.mockReturnValue('expired-token');
+      authServiceMock.getRefreshToken.mockReturnValue('refresh-token');
+    });
+
+    it('should refresh the token on 401 and replay the original request with the new token', () => {
+      let result: unknown;
+      http.get('/api/Students/1').subscribe((r) => (result = r));
+
+      httpTesting.expectOne('/api/Students/1').flush('x', { status: 401, statusText: 'Unauthorized' });
+      httpTesting
+        .expectOne('/api/Auth/refresh-token')
+        .flush({ data: { accessToken: 'new-token', refreshToken: 'new-refresh' } });
+
+      const replay = httpTesting.expectOne('/api/Students/1');
+      expect(replay.request.headers.get('Authorization')).toBe('Bearer new-token');
+      replay.flush({ ok: true });
+
+      expect(result).toEqual({ ok: true });
+      expect(authServiceMock.updateTokens).toHaveBeenCalledWith('new-token', 'new-refresh');
+      expect(authServiceMock.clearAuthState).not.toHaveBeenCalled();
+    });
+
+    it('should NOT log the user out when the replayed request fails with a non-auth error', () => {
+      let status = 0;
+      http.get('/api/Students/2').subscribe({ error: (e) => (status = e.status) });
+
+      httpTesting.expectOne('/api/Students/2').flush('x', { status: 401, statusText: 'Unauthorized' });
+      httpTesting.expectOne('/api/Auth/refresh-token').flush({ data: { accessToken: 'new-token' } });
+      httpTesting.expectOne('/api/Students/2').flush('boom', { status: 500, statusText: 'Server Error' });
+
+      expect(status).toBe(500);
+      expect(authServiceMock.clearAuthState).not.toHaveBeenCalled();
+      expect(routerMock.navigate).not.toHaveBeenCalled();
+    });
+
+    it('should fail every concurrent request (no hanging) when the refresh itself fails', () => {
+      const statuses: number[] = [];
+      http.get('/api/A').subscribe({ error: (e) => statuses.push(e.status) });
+      http.get('/api/B').subscribe({ error: (e) => statuses.push(e.status) });
+
+      httpTesting.expectOne('/api/A').flush('x', { status: 401, statusText: 'Unauthorized' });
+      httpTesting.expectOne('/api/B').flush('x', { status: 401, statusText: 'Unauthorized' });
+      httpTesting.expectOne('/api/Auth/refresh-token').flush('nope', { status: 401, statusText: 'Unauthorized' });
+
+      expect(statuses.length).toBe(2);
+      expect(authServiceMock.clearAuthState).toHaveBeenCalled();
+      expect(routerMock.navigate).toHaveBeenCalledWith(['/auth/login']);
+    });
+  });
 });

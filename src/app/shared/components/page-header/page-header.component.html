@@ -1,4 +1,9 @@
-<div class="page-header">
-      <h2>{{ title() }}</h2>
-      <p>{{ subtitle() }}</p>
-    </div>
+<div class="page-header" [class.page-header--spaced]="spaced()">
+  <div class="page-header__title-row">
+    <h1 class="page-header__title">{{ title() }}</h1>
+    <ng-content select="[titleExtra]"></ng-content>
+  </div>
+  @if (subtitle()) {
+    <p class="page-header__subtitle">{{ subtitle() }}</p>
+  }
+</div>

@@ -52,14 +52,3 @@ export interface UpdateInstructorDto {
   isActive?: boolean;
 }
 
-/** Instructor activity for analytics — GET /api/Analysis/instructor-activity */
-export interface InstructorActivityDto {
-  instructorId: string;
-  instructorName: string;
-  totalSessions: number;
-  totalHours: number;
-  totalRevenue: number;
-  // UI compatibility aliases
-  sessionsCount?: number;
-}
-

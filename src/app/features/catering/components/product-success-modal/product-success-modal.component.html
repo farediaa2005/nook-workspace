@@ -1,5 +1,5 @@
-<div class="modal-backdrop" (click)="viewInventory.emit()" [class.modal-backdrop--rtl]="isArabic()">
-  <div class="modal-card" (click)="$event.stopPropagation()">
+<div class="modal-backdrop" (click)="viewInventory.emit()" [class.modal-backdrop--rtl]="isArabic()" role="presentation">
+  <div class="modal-card" (click)="$event.stopPropagation()" role="presentation">
     <!-- Top Success Icon -->
     <div class="success-icon-wrapper">
       <div class="success-icon-circle">

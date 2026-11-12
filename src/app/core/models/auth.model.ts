@@ -7,10 +7,10 @@
  */
 
 /** Roles used for frontend authentication and route guard checks */
-export type AuthRole = 'admin' | 'user';
+type AuthRole = 'admin' | 'user';
 
 /** Backend UserRole enum values (OpenAPI) */
-export enum UserRole {
+enum UserRole {
   Admin = 1,
   Staff = 2,
   Student = 3,
@@ -58,7 +58,7 @@ export interface AuthResponseDto {
 }
 
 /** Account DTO nested in AuthResponseDto */
-export interface AuthAccountDto {
+interface AuthAccountDto {
   id: string;
   username: string;
   email?: string;
@@ -71,7 +71,7 @@ export interface AuthAccountDto {
 }
 
 /** Profile info within MeResponseDto */
-export interface ProfileInfoDto {
+interface ProfileInfoDto {
   role: UserRole | number;
   profileId: string;
   profileName?: string;
@@ -115,47 +115,4 @@ export interface LoginRequestDto {
   identifier: string;
   password: string;
   email?: string; // Fallback helper
-}
-
-/** Register request DTO — matches POST /api/Auth/register */
-export interface RegisterRequestDto {
-  username: string;
-  password: string;
-  email?: string;
-  phoneNumber?: string;
-  name: string;
-  whatsapp?: string;
-  facultyId?: string;
-  parentId?: string;
-}
-
-/** Refresh token request DTO — matches POST /api/Auth/refresh-token */
-export interface RefreshTokenRequestDto {
-  accessToken: string;
-  refreshToken: string;
-}
-
-/** Change password request DTO — matches POST /api/Auth/change-password */
-export interface ChangePasswordDto {
-  currentPassword: string;
-  newPassword: string;
-}
-
-/** Forgot password request DTO — matches POST /api/Auth/forgot-password */
-export interface ForgotPasswordDto {
-  identifier: string;
-  email?: string;
-}
-
-/** Reset password request DTO — matches POST /api/Auth/reset-password */
-export interface ResetPasswordDto {
-  identifier: string;
-  email?: string;
-  token: string;
-  newPassword: string;
-}
-
-/** Google login request DTO — matches POST /api/Auth/google */
-export interface GoogleAuthRequestDto {
-  idToken: string;
 }

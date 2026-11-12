@@ -14,17 +14,20 @@ import { CustomSelectComponent, SelectOption } from '../../../shared/components/
 
 import { DetailsService } from '../../../core/services/details.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { AuthService } from '../../../core/services/auth.service';
+import { extractApiErrorMessage } from '../../../core/utils/api-error.util';
 import { DiscountRuleEngineService } from '../../../core/services/discount-rule-engine.service';
 import { DiscountRule } from '../../../core/models/discount-rule.model';
 import { DiscountCode } from '../../../core/models/details.model';
 import { getTodayDateISO, addDaysToDateISO } from '../../../core/utils/date-time.util';
+import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 
 export type { DiscountCode, DiscountRule };
 
 @Component({
   selector: 'app-add-discount',
   standalone: true,
-  imports: [
+  imports: [ConfirmDialogComponent, 
     CommonModule,
     FormsModule,
     PageHeaderComponent,
@@ -46,6 +49,9 @@ export class AddDiscountComponent implements OnInit {
   private cdr = inject(ChangeDetectorRef);
   private route = inject(ActivatedRoute);
   private destroyRef = inject(DestroyRef);
+  private authService = inject(AuthService);
+  /** Only admins manage discount codes and rules; other staff see them read-only (owner decision 2026-11-11). */
+  canManage = () => this.authService.isAdmin();
 
   t = this.langService.t;
   isArabic = this.langService.isArabic;
@@ -87,8 +93,8 @@ export class AddDiscountComponent implements OnInit {
   formError = signal<string | null>(null);
 
   applicableToOptions = computed<SelectOption[]>(() => [
-    { label: this.isArabic() ? 'مساحة العمل (Workspace)' : 'Workspace (Seats & Students)', value: '0' },
-    { label: this.isArabic() ? 'القاعات التدريبية (Classroom)' : 'Classrooms (Hall Bookings)', value: '1' }
+    { label: this.t().discWorkspaceSeatsStudents, value: '0' },
+    { label: this.t().discClassroomsHallBookings, value: '1' }
   ]);
 
   // Validation Signals
@@ -96,27 +102,40 @@ export class AddDiscountComponent implements OnInit {
     const type = this.formType();
     const val = Number(this.formValue());
     if (isNaN(val)) {
-      return this.isArabic() ? 'يرجى إدخال قيمة صحيحة' : 'Please enter a valid value';
+      return this.t().discPleaseEnterAValidValue;
     }
     if (type === 'percentage') {
       if (val > 100) {
-        return this.isArabic()
-          ? 'نسبة الخصم لا يمكن أن تتجاوز 100%'
-          : 'Percentage discount cannot exceed 100%';
+        return this.t().discPercentageDiscountCannotExceed100;
       }
       if (val < 1) {
-        return this.isArabic()
-          ? 'نسبة الخصم يجب أن تكون 1% على الأقل'
-          : 'Percentage discount must be at least 1%';
+        return this.t().discPercentageDiscountMustBeAt;
       }
     } else {
       if (val < 1) {
-        return this.isArabic()
-          ? 'قيمة الخصم يجب أن تكون أكبر من 0'
-          : 'Discount amount must be greater than 0';
+        return this.t().discDiscountAmountMustBeGreater;
       }
     }
     return null;
+  });
+
+  /** Why the save button is disabled, shown next to it. */
+  formMissing = computed<string[]>(() => {
+    const missing: string[] = [];
+    if (this.selectedDiscountCategory() === 'auto_rule' && this.modalMode() === 'add') {
+      const thresh = Number(this.autoRuleThreshold());
+      const pct = Number(this.autoRulePercentage());
+      if (isNaN(thresh) || thresh < 1) missing.push(this.t().locVisitThreshold1OrMore);
+      if (isNaN(pct) || pct < 1 || pct > 100) missing.push(this.t().locAPercentageBetween1And);
+      return missing;
+    }
+    if (!this.formCode().trim()) missing.push(this.t().locCode);
+    if (!this.formTitle().trim()) missing.push(this.t().locTitle);
+    const expiry = this.formExpiryDate();
+    if (!expiry) missing.push(this.t().locExpiryDate);
+    else if (expiry < this.todayDate) missing.push(this.t().locAFutureExpiryDate);
+    if (this.valueError()) missing.push(this.t().locAValidDiscountValue);
+    return missing;
   });
 
   isFormInvalid = computed<boolean>(() => {
@@ -155,6 +174,9 @@ export class AddDiscountComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadDiscounts();
+    this.discountEngine.loadRules().subscribe({
+      error: (err) => this.notificationService.error((this.t().discCouldNotLoadAutomaticDiscount) + extractApiErrorMessage(err, this.t().resServerError))
+    });
 
     this.route.queryParams.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
       if (params['openAdd'] === 'true' || params['new'] === 'true' || params['add'] === 'true') {
@@ -376,7 +398,7 @@ export class AddDiscountComponent implements OnInit {
         next: () => {
           this.isSaving.set(false);
           this.notificationService.success(
-            this.isArabic() ? 'تم حفظ كود الخصم بنجاح' : 'Promo code saved successfully'
+            this.t().discPromoCodeSavedSuccessfully
           );
           this.loadDiscounts();
           this.activeDiscountTab.set('promos');
@@ -384,7 +406,7 @@ export class AddDiscountComponent implements OnInit {
         },
         error: (err) => {
           this.isSaving.set(false);
-          const msg = err?.error?.message || err?.message || (this.isArabic() ? 'فشل حفظ كود الخصم' : 'Failed to save promo code');
+          const msg = err?.error?.message || err?.message || (this.t().discFailedToSavePromoCode);
           this.formError.set(msg);
           this.notificationService.error(msg);
         }
@@ -404,14 +426,14 @@ export class AddDiscountComponent implements OnInit {
         next: () => {
           this.isSaving.set(false);
           this.notificationService.success(
-            this.isArabic() ? 'تم تحديث كود الخصم بنجاح' : 'Promo code updated successfully'
+            this.t().discPromoCodeUpdatedSuccessfully
           );
           this.loadDiscounts();
           this.closeModal();
         },
         error: (err) => {
           this.isSaving.set(false);
-          const msg = err?.error?.message || err?.message || (this.isArabic() ? 'فشل تحديث كود الخصم' : 'Failed to update promo code');
+          const msg = extractApiErrorMessage(err, this.t().discFailedToUpdatePromoCode);
           this.formError.set(msg);
           this.notificationService.error(msg);
         }
@@ -435,7 +457,11 @@ export class AddDiscountComponent implements OnInit {
           return d;
         });
         this.discounts.set(updated);
-      }
+      },
+      error: (err) => this.notificationService.error(
+        (this.t().discCouldNotChangeThePromo) +
+        extractApiErrorMessage(err, this.t().discNotAllowedOrServerError)
+      )
     });
   }
 
@@ -463,8 +489,12 @@ export class AddDiscountComponent implements OnInit {
             this.currentPage.set(Math.max(1, this.totalPages()));
           }
         },
-        error: () => {
+        error: (err) => {
           this.closeDeleteModal();
+          this.notificationService.error(
+            (this.t().discCouldNotDeleteTheDiscount) +
+            extractApiErrorMessage(err, this.t().resServerError)
+          );
         }
       });
     }
@@ -490,11 +520,11 @@ export class AddDiscountComponent implements OnInit {
 
   getModalTitle(): string {
     if (this.modalMode() === 'edit') {
-      return this.isArabic() ? 'تعديل تفاصيل كود الخصم' : 'Edit Promo Code Details';
+      return this.t().discEditPromoCodeDetails;
     }
     return this.selectedDiscountCategory() === 'promo'
-      ? (this.isArabic() ? 'إنشاء كود خصم ترويجي جديد' : 'Create New Promo Code')
-      : (this.isArabic() ? 'إنشاء وتخصيص قاعدة خصم تلقائي' : 'Create Automatic Discount Rule');
+      ? (this.t().discCreateNewPromoCode)
+      : (this.t().discCreateAutomaticDiscountRule);
   }
 
   // ----------------------------------------------------
@@ -524,6 +554,7 @@ export class AddDiscountComponent implements OnInit {
     const nameAr = this.autoRuleNameAr().trim() || (type === 'VisitCountBased' ? `خصم بعد ${thresh} زيارة (${pct}%)` : `خصم بعد ${thresh} ساعة دراسة (${pct}%)`);
     const nameEn = this.autoRuleNameEn().trim() || (type === 'VisitCountBased' ? `Milestone: ${thresh} Visits (${pct}%)` : `Milestone: ${thresh} Study Hours (${pct}%)`);
 
+    this.isSaving.set(true);
     this.discountEngine.addRule({
       nameAr,
       nameEn,
@@ -534,20 +565,31 @@ export class AddDiscountComponent implements OnInit {
       isRecurringMilestone: true,
       applicableTo: 'All',
       isActive: true
+    }).subscribe({
+      next: () => {
+        this.isSaving.set(false);
+        this.notificationService.success(this.t().discAutomaticDiscountRuleCreatedSuccessfully);
+        this.activeDiscountTab.set('auto_rules');
+        this.closeModal();
+      },
+      error: (err) => {
+        this.isSaving.set(false);
+        ((err) => this.notificationService.error((this.t().discCouldNotSaveTheRule) + extractApiErrorMessage(err, this.t().resServerError)))(err);
+      }
     });
-
-    this.notificationService.success(this.isArabic() ? 'تم إضافة وتفعيل قاعدة الخصم التلقائي بنجاح' : 'Automatic discount rule created successfully');
-    this.activeDiscountTab.set('auto_rules');
-    this.closeModal();
   }
 
   toggleAutoRule(id: string): void {
-    this.discountEngine.toggleRule(id);
-    this.notificationService.success(this.isArabic() ? 'تم تحديث حالة القاعدة' : 'Rule status updated');
+    this.discountEngine.toggleRule(id).subscribe({
+      next: () => this.notificationService.success(this.t().discRuleStatusUpdated),
+      error: (err) => this.notificationService.error((this.t().discCouldNotUpdateTheRule) + extractApiErrorMessage(err, this.t().resServerError))
+    });
   }
 
   deleteAutoRule(id: string): void {
-    this.discountEngine.deleteRule(id);
-    this.notificationService.success(this.isArabic() ? 'تم حذف قاعدة الخصم التلقائي' : 'Rule deleted');
+    this.discountEngine.deleteRule(id).subscribe({
+      next: () => this.notificationService.success(this.t().discRuleDeleted),
+      error: (err) => this.notificationService.error((this.t().discCouldNotDeleteTheRule) + extractApiErrorMessage(err, this.t().resServerError))
+    });
   }
 }

@@ -1,8 +1,8 @@
 import { parseTimeToMinutes } from './date-time.util';
 
-export type SessionStatusType = 'scheduled' | 'active' | 'completed' | 'cancelled';
+type SessionStatusType = 'scheduled' | 'active' | 'completed' | 'cancelled';
 
-export interface SessionLifecycleParams {
+interface SessionLifecycleParams {
   startTime: string; // "14:00" or "02:00 PM"
   endTime: string;   // "16:00" or "04:00 PM"
   bookingDate?: string; // "YYYY-MM-DD"
@@ -13,7 +13,7 @@ export interface SessionLifecycleParams {
   now?: Date;
 }
 
-export interface SessionLifecycleResult {
+interface SessionLifecycleResult {
   agreedDurationHours: number;
   actualElapsedMinutes: number;
   overdueMinutes: number;

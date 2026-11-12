@@ -24,9 +24,3 @@ export interface StaffNotification {
   readAt?: string | null;
   dismissed?: boolean;
 }
-
-export interface NotificationFilterOptions {
-  unreadOnly?: boolean;
-  type?: StaffNotificationType | 'All';
-  severity?: StaffNotificationSeverity | 'All';
-}

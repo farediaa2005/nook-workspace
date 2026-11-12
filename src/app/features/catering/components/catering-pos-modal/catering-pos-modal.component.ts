@@ -7,9 +7,7 @@ import { ShiftService } from '../../../../core/services/shift.service';
 import { CateringProduct, PosCartItem } from '../../../../core/models/catering.model';
 import { resolveImageUrl } from '../../../../core/utils/image-url.util';
 
-export type PosCategoryTab = 'all' | 'Coffee' | 'Snacks' | 'Meals' | 'Beverages' | 'Merchandise' | string;
-
-export interface PosTargetRoomItem {
+interface PosTargetRoomItem {
   id?: string;
   name: string;
   nameAr?: string;
@@ -71,7 +69,7 @@ export class CateringPosModalComponent {
   });
 
   // Outputs
-  close = output<void>();
+  closed = output<void>();
   saleCompleted = output<void>();
   addToRoomSession = output<{ roomId: string; items: PosCartItem[]; total: number }>();
 
@@ -264,7 +262,7 @@ export class CateringPosModalComponent {
 
   completeCashSale(): void {
     if (this.isSuccessState()) return;
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إتمام عملية البيع' : 'Complete Sale')) {
+    if (!this.shiftService.guardActiveShift(this.t().catCompleteSale)) {
       return;
     }
     if (this.cartItems().length === 0) return;
@@ -299,7 +297,7 @@ export class CateringPosModalComponent {
 
   confirmAddToRoomSession(): void {
     if (this.isSuccessState()) return;
-    if (!this.shiftService.guardActiveShift(this.isArabic() ? 'إضافة طلب للقاعة' : 'Add to Room Session')) {
+    if (!this.shiftService.guardActiveShift(this.t().catAddToRoomSession)) {
       return;
     }
     const room = this.targetRoom();
@@ -309,11 +307,12 @@ export class CateringPosModalComponent {
     const items = this.cartItems();
     const itemsSummary = items.map(i => `${i.product.name} (x${i.quantity})`).join(', ');
 
-    // 1. Deduct stock in catering
+    // 1. Catering analytics; stock is deducted by the session catering API (POST …/catering)
     this.cateringService.processPosSale({
       items,
       paymentMethod: 'app',
-      total
+      total,
+      deductStockOnServer: false
     });
 
     // 2. Record under the active shift
@@ -334,7 +333,7 @@ export class CateringPosModalComponent {
         total
       });
       this.clearCart();
-      this.close.emit();
+      this.closed.emit();
     }, 1000);
   }
 }

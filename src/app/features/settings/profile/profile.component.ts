@@ -1,20 +1,22 @@
 import { Component, inject, signal, computed, ChangeDetectorRef, OnInit } from '@angular/core';
+import { ActiveSessionsComponent } from './active-sessions/active-sessions.component';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LanguageService } from '../../../core/services/language.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ProfileApiService } from '../../../core/services/api/profile.service';
-import { UpdateProfileDto, ChangePasswordDto, ProfileDto } from '../../../core/models/profile.model';
+import { ChangePasswordDto, ProfileDto } from '../../../core/models/profile.model';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
+import { PrimaryButtonComponent } from '../../../shared/components/primary-button/primary-button.component';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
   imports: [
+    ActiveSessionsComponent,
     CommonModule,
     FormsModule,
-    PageHeaderComponent
-  ],
+    PageHeaderComponent, PrimaryButtonComponent],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.css'
 })
@@ -46,29 +48,7 @@ export class ProfileComponent implements OnInit {
   securitySuccess = signal<string | null>(null);
   isUpdatingPassword = signal<boolean>(false);
 
-  // Active Session State (BUG-012)
-  private detectDevice(): string {
-    if (typeof window === 'undefined' || !navigator?.userAgent) return 'Web Session';
-    const ua = navigator.userAgent;
-    let os = 'Windows';
-    if (ua.includes('Mac')) os = 'macOS';
-    else if (ua.includes('Linux')) os = 'Linux';
-    else if (ua.includes('Android')) os = 'Android';
-    else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
-
-    let browser = 'Chrome';
-    if (ua.includes('Edg')) browser = 'Edge';
-    else if (ua.includes('Firefox')) browser = 'Firefox';
-    else if (ua.includes('Safari') && !ua.includes('Chrome')) browser = 'Safari';
-
-    return `Current Session (${os} / ${browser})`;
-  }
-
-  sessionDevice = signal<string>(this.detectDevice());
-  sessionIp = signal<string>('SSL / Encrypted Local');
-  sessionActiveSince = signal<string>(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-
-  profileFullName = computed(() => {
+profileFullName = computed(() => {
     const first = this.profileFirstName().trim();
     const last = this.profileLastName().trim();
     if (first || last) {
@@ -87,9 +67,9 @@ export class ProfileComponent implements OnInit {
   userRoleTitle = computed(() => {
     const user = this.currentUser();
     if (user?.role === 'admin') {
-      return this.t().systemAdministratorBadge || (this.isArabic() ? 'مدير النظام' : 'System Administrator');
+      return this.t().systemAdministratorBadge || (this.t().systemAdministratorBadge);
     }
-    return this.isArabic() ? 'موظف استقبال' : 'Staff Member';
+    return this.t().setStaffMember;
   });
 
   ngOnInit(): void {
@@ -215,9 +195,7 @@ export class ProfileComponent implements OnInit {
       },
       error: (err) => {
         const message = err?.error?.message || err?.message || (
-          this.isArabic()
-            ? 'فشل حفظ البيانات الشخصية. يرجى التأكد من البيانات وإعادة المحاولة.'
-            : 'Failed to save profile. Please check inputs and try again.'
+          this.t().setFailedToSaveProfilePlease
         );
         this.profileSaveError.set(message);
       }
@@ -232,33 +210,27 @@ export class ProfileComponent implements OnInit {
     this.securityError.set(null);
     this.securitySuccess.set(null);
 
-    const current = this.currentPassword().trim();
-    const next = this.newPassword().trim();
-    const confirm = this.confirmPassword().trim();
+    const current = this.currentPassword();
+    const next = this.newPassword();
+    const confirm = this.confirmPassword();
 
     if (!current) {
       this.securityError.set(
-        this.isArabic()
-          ? 'يرجى إدخال كلمة المرور الحالية'
-          : 'Current password is required'
+        this.t().setCurrentPasswordIsRequired
       );
       return;
     }
 
     if (!next || next.length < 6) {
       this.securityError.set(
-        this.isArabic()
-          ? 'كلمة المرور الجديدة يجب ألا تقل عن 6 أحرف'
-          : 'New password must be at least 6 characters'
+        this.t().setNewPasswordMustBeAt
       );
       return;
     }
 
     if (next !== confirm) {
       this.securityError.set(
-        this.isArabic()
-          ? 'كلمة المرور الجديدة وتأكيد كلمة المرور غير متطابقين'
-          : 'New password and confirmation do not match'
+        this.t().setNewPasswordAndConfirmationDo
       );
       return;
     }
@@ -278,18 +250,14 @@ export class ProfileComponent implements OnInit {
         this.newPassword.set('');
         this.confirmPassword.set('');
         this.securitySuccess.set(
-          this.isArabic()
-            ? 'تم تحديث كلمة المرور بنجاح'
-            : 'Password updated successfully'
+          this.t().setPasswordUpdatedSuccessfully
         );
         setTimeout(() => this.securitySuccess.set(null), 4000);
       },
       error: (err) => {
         this.isUpdatingPassword.set(false);
         const errMsg = err?.error?.message || err?.message || (
-          this.isArabic()
-            ? 'فشل تحديث كلمة المرور، تأكد من كلمة المرور الحالية'
-            : 'Password update failed. Please check your current password.'
+          this.t().setPasswordUpdateFailedPleaseCheck
         );
         this.securityError.set(errMsg);
       }

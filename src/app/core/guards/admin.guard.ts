@@ -8,7 +8,7 @@ import { LanguageService } from '../services/language.service';
  * Guard that ensures only users with 'admin' role can access the route.
  * Redirects unauthorized users to the dashboard with notification feedback.
  */
-export const adminGuard: CanActivateFn = (route, state) => {
+export const adminGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
   const notificationService = inject(NotificationService);
@@ -24,9 +24,7 @@ export const adminGuard: CanActivateFn = (route, state) => {
   }
 
   // Not authorized as admin — notify and redirect to dashboard
-  const message = langService.isArabic()
-    ? '⚠️ غير مصرح: هذه الصفحة مخصصة للمسؤولين فقط.'
-    : '⚠️ Access Denied: This page is restricted to administrators only.';
+  const message = langService.t().svcAccessDeniedThisPageIs;
   notificationService.warning(message);
 
   return router.createUrlTree(['/dashboard']);

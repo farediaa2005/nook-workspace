@@ -5,7 +5,7 @@ import { API_ENDPOINTS } from '../../constants/api-endpoints';
 import { ApiResponse, extractData } from '../../models/api-response.model';
 import { StaffNotification, StaffNotificationType, StaffNotificationSeverity } from '../../models/notification.model';
 
-export interface StaffNotificationDto {
+interface StaffNotificationDto {
   id: string;
   type: number | string;
   title: string;
@@ -19,7 +19,7 @@ export interface StaffNotificationDto {
   readAt?: string | null;
 }
 
-export interface StaffNotificationsPagedResultDto {
+interface StaffNotificationsPagedResultDto {
   items: StaffNotificationDto[];
   totalCount: number;
   unreadCount: number;
@@ -45,7 +45,7 @@ const SEVERITY_MAP: Record<number, StaffNotificationSeverity> = {
   4: 'success'
 };
 
-export function mapStaffNotificationDto(dto: StaffNotificationDto): StaffNotification {
+function mapStaffNotificationDto(dto: StaffNotificationDto): StaffNotification {
   const typeStr: StaffNotificationType = typeof dto.type === 'number'
     ? (TYPE_MAP[dto.type] || 'Workspace')
     : (dto.type as StaffNotificationType);

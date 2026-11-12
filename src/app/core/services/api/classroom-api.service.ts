@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable, map, catchError, of } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { BaseApiService } from './base-api.service';
 import { API_ENDPOINTS } from '../../constants/api-endpoints';
 import { ApiResponse, extractData } from '../../models/api-response.model';
@@ -55,7 +55,7 @@ export class ClassroomApiService extends BaseApiService {
     const cleanRoomId = dto.roomId && /^[0-9a-fA-F-]{36}$/.test(dto.roomId) ? dto.roomId : null;
     const cleanInstructorId = dto.instructorId && /^[0-9a-fA-F-]{36}$/.test(dto.instructorId) ? dto.instructorId : null;
 
-    const payload: Record<string, any> = {
+    const payload: Record<string, unknown> = {
       date: dto.date || dto.bookingDate || new Date().toISOString(),
       timeFrom: dto.timeFrom || new Date().toISOString(),
       timeTo: dto.timeTo || null,
@@ -70,7 +70,8 @@ export class ClassroomApiService extends BaseApiService {
       payWay: dto.payWay ?? 1,
       discountType: dto.discountType ?? null,
       type: dto.type ?? 1,
-      note: dto.note || dto.instructorName || null,
+      // The instructor name only goes into the note when the instructor is not a registered one.
+      note: dto.note || (cleanInstructorId ? null : dto.instructorName) || null,
       instructorId: cleanInstructorId,
       instructorName: dto.instructorName || dto.note || null,
       instructorPhone: dto.instructorPhone || (dto as any).instructorPhoneNumber || (dto as any).phone || null,
@@ -92,7 +93,7 @@ export class ClassroomApiService extends BaseApiService {
     const cleanRoomId = dto.roomId && /^[0-9a-fA-F-]{36}$/.test(dto.roomId) ? dto.roomId : null;
     const cleanInstructorId = dto.instructorId && /^[0-9a-fA-F-]{36}$/.test(dto.instructorId) ? dto.instructorId : null;
 
-    const payload: Record<string, any> = {
+    const payload: Record<string, unknown> = {
       date: dto.date || null,
       timeFrom: dto.timeFrom || null,
       timeTo: dto.timeTo || null,
@@ -107,7 +108,8 @@ export class ClassroomApiService extends BaseApiService {
       status: dto.status ?? 1,
       discountType: dto.discountType ?? null,
       type: dto.type ?? 1,
-      note: dto.note || dto.instructorName || null,
+      // The instructor name only goes into the note when the instructor is not a registered one.
+      note: dto.note || (cleanInstructorId ? null : dto.instructorName) || null,
       instructorId: cleanInstructorId,
       instructorName: dto.instructorName || dto.note || null,
       instructorPhone: dto.instructorPhone || (dto as any).instructorPhoneNumber || (dto as any).phone || null,
@@ -137,7 +139,7 @@ export class ClassroomApiService extends BaseApiService {
 
     const paidAmt = dto.paidAmount ?? dto.finalAmount ?? dto.reservationCost ?? 0;
 
-    const payload: Record<string, any> = {
+    const payload: Record<string, unknown> = {
       timeTo: dto.timeTo || new Date().toISOString(),
       actualAttendees: dto.actualAttendees ?? null,
       paymentMethod: payMethodStr,
@@ -174,29 +176,16 @@ export class ClassroomApiService extends BaseApiService {
   }
 
   /** Add catering item to classroom session — POST /api/classrooms/{classroomId}/catering */
-  addCateringItem(classroomId: string, item: AddCateringItemDto): Observable<any> {
-    return this.post<ApiResponse<any>>(API_ENDPOINTS.CLASSROOMS.CATERING(classroomId), item).pipe(
+  addCateringItem(classroomId: string, item: AddCateringItemDto): Observable<unknown> {
+    return this.post<ApiResponse<unknown>>(API_ENDPOINTS.CLASSROOMS.CATERING(classroomId), item).pipe(
       map(extractData)
     );
   }
 
   /** Update catering item in a classroom session — PUT /api/classrooms/{classroomId}/catering/{id} */
-  updateCateringItem(classroomId: string, itemId: string, item: UpdateCateringItemDto): Observable<any> {
-    return this.put<ApiResponse<any>>(API_ENDPOINTS.CLASSROOMS.CATERING_ITEM(classroomId, itemId), item).pipe(
+  updateCateringItem(classroomId: string, itemId: string, item: UpdateCateringItemDto): Observable<unknown> {
+    return this.put<ApiResponse<unknown>>(API_ENDPOINTS.CLASSROOMS.CATERING_ITEM(classroomId, itemId), item).pipe(
       map(extractData)
-    );
-  }
-
-  /** Remove catering item from classroom session (Admin only) — DELETE /api/catering/classroom/{id} */
-  removeCateringItem(classroomId: string, itemId: string): Observable<boolean> {
-    const targetId = itemId || classroomId;
-    return this.delete<ApiResponse<boolean>>(`/api/catering/classroom/${targetId}`).pipe(
-      map(extractData),
-      catchError(() => {
-        return this.delete<ApiResponse<boolean>>(API_ENDPOINTS.CLASSROOMS.CATERING_ITEM(classroomId, itemId)).pipe(
-          map(extractData)
-        );
-      })
     );
   }
 

@@ -9,14 +9,16 @@ import { exportToCsv } from '../../../core/utils/csv.util';
 import { CustomSelectComponent, SelectOption } from '../../../shared/components/custom-select/custom-select.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 import { DateFilterDropdownComponent, DateFilterOption } from '../../../shared/components/date-filter-dropdown/date-filter-dropdown.component';
-import { getTodayDateISO, formatTimeRangeArabic } from '../../../core/utils/date-time.util';
+import { getTodayDateISO, formatTimeRangeArabic, localizeMeridiem } from '../../../core/utils/date-time.util';
 
 import { AuthService } from '../../../core/services/auth.service';
+import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
+import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 
 @Component({
   selector: 'app-shift-history',
   standalone: true,
-  imports: [
+  imports: [PageHeaderComponent, EmptyStateComponent, 
     CommonModule, 
     FormsModule, 
     CustomSelectComponent, 
@@ -38,7 +40,7 @@ export class ShiftHistoryComponent implements OnInit {
   isAdmin = computed(() => this.authService.isAdmin());
 
   formatShiftTimeRange(start?: string, end?: string): string {
-    return formatTimeRangeArabic(start, end);
+    return localizeMeridiem(formatTimeRangeArabic(start, end), this.isArabic());
   }
 
   // Edit Shift Time (Admin only)
@@ -180,8 +182,8 @@ export class ShiftHistoryComponent implements OnInit {
 
     const rows = data.map(i => {
       const statusText = i.status === 'balanced'
-        ? (isAr ? 'متطابق' : 'Balanced')
-        : (isAr ? 'عجز / زيادة' : 'Variance');
+        ? (this.t().shiftBalanced)
+        : (this.t().locVariance);
       return [
         i.staffName,
         i.date,
@@ -275,7 +277,7 @@ export class ShiftHistoryComponent implements OnInit {
       actualCash: Number(this.editActualCash()) || 0,
       notes: this.editAdminNotes().trim()
     }).subscribe({
-      next: (updated) => {
+      next: () => {
         this.isSavingAdminShift.set(false);
         this.isAdminEditingFinancials.set(false);
         shift.finalTotal = Number(this.editActualCash()) || 0;

@@ -11,11 +11,11 @@
         <app-search-box
           [placeholder]="t().searchUsersPlaceholder"
           [value]="searchQuery()"
-          (searchChange)="onSearch($event)"
+          (valueChange)="onSearch($event)"
         ></app-search-box>
       </div>
 
-      <div [title]="!shiftService.hasActiveShift() ? (isArabic() ? 'يتطلب فتح وردية لإضافة أو تعديل حسابات' : 'Opening a shift is required to manage users') : ''">
+      <div [title]="!shiftService.hasActiveShift() ? (t().setOpeningAShiftIsRequired) : ''">
         <app-primary-button
           [text]="t().addNewUserBtn"
           (click)="openAddModal()"
@@ -67,7 +67,7 @@
   <!-- Data Table Container Card -->
   <div class="table-container-card">
     <div class="table-responsive">
-      <table class="custom-table">
+      <table class="custom-table sticky-actions">
         <thead>
           <tr>
             <th>{{ t().userAccountTh }}</th>
@@ -99,7 +99,7 @@
                     </div>
                     <div class="user-info-text">
                       <strong class="user-name-title">{{ isArabic() ? (u.nameAr || u.name) : u.name }}</strong>
-                      <div class="user-subtext" dir="ltr" style="display: flex; align-items: center; gap: 4px; font-size: 0.8rem; color: var(--text-dim);">
+                      <div class="user-subtext" dir="ltr" style="display: flex; align-items: center; gap: 4px; font-size: var(--fs-sm); color: var(--text-dim);">
                         @if (u.username && u.username !== u.email && !u.username.includes('@')) {
                           <span>@{{ u.username }}</span>
                           <span>•</span>
@@ -143,7 +143,7 @@
                     <span class="status-dot"></span>
                     <span>{{ u.status === 'active' ? t().statusActiveText : t().statusDisabledText }}</span>
                     @if (isAdminUser(u)) {
-                      <span style="font-size: 0.7rem; margin-inline-start: 4px;">🔒</span>
+                      <span style="font-size: var(--fs-2xs); margin-inline-start: 4px;">🔒</span>
                     }
                   </button>
                 </td>
@@ -188,10 +188,7 @@
             } @empty {
               <tr>
                 <td colspan="6" class="cell-empty-wrap">
-                  <div class="empty-state-box">
-                    <h4 class="empty-title">{{ t().noUsersFoundTitle }}</h4>
-                    <p class="empty-subtitle">{{ t().noUsersFoundSubtitle }}</p>
-                  </div>
+                  <app-empty-state icon="users" [title]="t().noUsersFoundTitle" [message]="t().noUsersFoundSubtitle"></app-empty-state>
                 </td>
               </tr>
             }
@@ -218,7 +215,7 @@
   <app-modal
     [isOpen]="isModalOpen()"
     [title]="modalMode() === 'add' ? t().addNewUserModalTitle : t().editUserModalTitle"
-    (close)="closeModal()"
+    (closed)="closeModal()"
   >
     <form (submit)="saveUser(); $event.preventDefault()" class="user-modal-form">
       @if (formError(); as err) {
@@ -230,8 +227,8 @@
       <div class="form-grid">
         <!-- Full Name -->
         <div class="field-group">
-          <label class="field-label">{{ t().fullName }} *</label>
-          <input
+          <label for="show-user-f6" class="field-label">{{ t().fullName }} *</label>
+          <input id="show-user-f6"
             type="text"
             class="custom-input"
             [placeholder]="t().namePlaceholderExample"
@@ -243,11 +240,11 @@
 
         <!-- Arabic Name (BUG-025) -->
         <div class="field-group">
-          <label class="field-label">{{ isArabic() ? 'الاسم بالعربية' : 'Arabic Name' }}</label>
-          <input
+          <label for="show-user-f5" class="field-label">{{ t().setArabicName }}</label>
+          <input id="show-user-f5"
             type="text"
             class="custom-input"
-            [placeholder]="isArabic() ? 'مثال: أحمد محمد علي' : 'e.g. Ahmed Mohamed Ali'"
+            [placeholder]="t().setEGAhmedMohamedAli"
             [ngModel]="formNameAr()"
             (ngModelChange)="formNameAr.set($event)"
             name="formNameAr"
@@ -256,8 +253,8 @@
 
         <!-- Username -->
         <div class="field-group">
-          <label class="field-label">{{ t().usernameLabel }} *</label>
-          <input
+          <label for="show-user-f4" class="field-label">{{ t().usernameLabel }} *</label>
+          <input id="show-user-f4"
             type="text"
             class="custom-input"
             [placeholder]="t().usernamePlaceholderExample"
@@ -269,8 +266,8 @@
 
         <!-- Phone Number -->
         <div class="field-group">
-          <label class="field-label">{{ t().phone }}</label>
-          <input
+          <label for="show-user-f3" class="field-label">{{ t().phone }}</label>
+          <input id="show-user-f3"
             type="text"
             class="custom-input"
             [placeholder]="isArabic() ? '01012345678' : '01012345678'"
@@ -282,8 +279,8 @@
 
         <!-- Email Address -->
         <div class="field-group">
-          <label class="field-label">{{ t().email }} *</label>
-          <input
+          <label for="show-user-f2" class="field-label">{{ t().email }} *</label>
+          <input id="show-user-f2"
             type="email"
             class="custom-input"
             [placeholder]="'user@nook.io'"
@@ -295,10 +292,10 @@
 
         <!-- Password / Reset Password -->
         <div class="field-group">
-          <label class="field-label">
+          <label for="show-user-f1" class="field-label">
             {{ modalMode() === 'add' ? (t().passwordLabel + ' * (8+ chars)') : t().resetPasswordOptional }}
           </label>
-          <input
+          <input id="show-user-f1"
             type="password"
             class="custom-input"
             placeholder="••••••••"
@@ -310,7 +307,7 @@
 
         <!-- Role Select -->
         <div class="field-group">
-          <label class="field-label">{{ t().rolePermissionLabel }} *</label>
+          <span class="field-label group-label">{{ t().rolePermissionLabel }} *</span>
           <app-custom-select
             [options]="roleOptions()"
             [selectedValue]="formRole()"
@@ -321,7 +318,7 @@
 
         <!-- Status Select -->
         <div class="field-group">
-          <label class="field-label">{{ t().accountStatusTh }} *</label>
+          <span class="field-label group-label">{{ t().accountStatusTh }} *</span>
           <app-custom-select
             [options]="statusOptions()"
             [selectedValue]="formStatus()"
@@ -332,12 +329,8 @@
       </div>
 
       <div class="modal-footer-actions">
-        <button type="button" class="btn-cancel" (click)="closeModal()">
-          {{ t().cancel }}
-        </button>
-        <button type="submit" class="btn-save">
-          {{ t().saveUser }}
-        </button>
+        <app-primary-button variant="secondary" [text]="t().cancel" (clicked)="closeModal()"></app-primary-button>
+        <app-primary-button type="submit" [text]="t().saveUser"></app-primary-button>
       </div>
     </form>
   </app-modal>
@@ -345,9 +338,9 @@
   <!-- In-app Confirm Delete Dialog (BUG-019) -->
   <app-confirm-dialog
     [isOpen]="!!userToDelete()"
-    [title]="isArabic() ? 'تأكيد حذف الحساب' : 'Confirm Delete Account'"
+    [title]="t().setConfirmDeleteAccount"
     [message]="deleteConfirmMessage()"
     (confirm)="confirmDelete()"
-    (cancel)="cancelDelete()"
+    (cancelled)="cancelDelete()"
   ></app-confirm-dialog>
 </div>

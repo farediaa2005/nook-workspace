@@ -1,3 +1,4 @@
+import { LanguageService } from './language.service';
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { catchError, of, forkJoin, finalize, Observable, map, switchMap } from 'rxjs';
 import { RoomApiService } from './api/room-api.service';
@@ -15,8 +16,43 @@ export interface StudentPricingTier {
   fromHours: number;
   toHours: number;
   priceEgp: number;
+  /** Hourly rate charged after the last tier (from the plan's overageHourlyRate). */
+  overageRate?: number;
   labelAr?: string;
   labelEn?: string;
+}
+
+/**
+ * /api/PricingPlans returns both the student hour tiers and the per-room hourly
+ * rates (scope 2, or older room plans whose note is the room name). Only the
+ * student tiers belong in the tier table and in the student price calculation.
+ */
+export function isStudentTierPlan(p: PricingPlanDto): boolean {
+  if (Number(p.scope) === 2) return false;
+  const note = (p.note || '').trim();
+  if (note && (note === (p.roomName || '').trim() || /\|\s*capacity:/i.test(note))) return false;
+  return true;
+}
+
+export function mapPlansToStudentTiers(plans: PricingPlanDto[]): StudentPricingTier[] {
+  const sorted = plans.filter(isStudentTierPlan).sort((a, b) => a.baseHours - b.baseHours);
+  let prevTo = 0;
+  return sorted.map(p => {
+    const from = prevTo;
+    const to = p.baseHours;
+    prevTo = to;
+    return {
+      id: p.id,
+      roomId: p.roomId,
+      roomName: p.roomName,
+      fromHours: from,
+      toHours: to,
+      priceEgp: p.baseCost,
+      overageRate: p.overageHourlyRate,
+      labelAr: `${from} - ${to} ساعة`,
+      labelEn: `${from} - ${to} hrs`
+    };
+  });
 }
 
 export interface RoomEntity {
@@ -40,7 +76,7 @@ export interface QuickPackagePreset {
   nameEn?: string;
 }
 
-export interface SystemSettingsState {
+interface SystemSettingsState {
   pricingTiers: StudentPricingTier[];
   rooms: RoomEntity[];
   packagePresets: QuickPackagePreset[];
@@ -50,6 +86,7 @@ export interface SystemSettingsState {
   providedIn: 'root'
 })
 export class SettingsService {
+  private langService = inject(LanguageService);
   private roomApi = inject(RoomApiService);
   private pricingPlanApi = inject(PricingPlanApiService);
   private packagePricingPlanApi = inject(PackagePricingPlanApiService);
@@ -57,7 +94,6 @@ export class SettingsService {
 
   private roomMetaMem = new Map<string, { capacity?: number; hourlyPrice?: number }>();
   private allBackendPricingPlans = signal<PricingPlanDto[]>([]);
-  readonly allPricingPlans = computed(() => this.allBackendPricingPlans());
 
   getRoomMeta(roomId: string): { capacity?: number; hourlyPrice?: number } {
     return this.roomMetaMem.get(roomId) || {};
@@ -149,23 +185,7 @@ export class SettingsService {
           });
 
           // Map Pricing Plans (Tiers)
-          const sortedPlans = [...(plans || [])].sort((a, b) => a.baseHours - b.baseHours);
-          let prevTo = 0;
-          const mappedTiers: StudentPricingTier[] = sortedPlans.map(p => {
-            const from = prevTo;
-            const to = p.baseHours;
-            prevTo = to;
-            return {
-              id: p.id,
-              roomId: p.roomId,
-              roomName: p.roomName,
-              fromHours: from,
-              toHours: to,
-              priceEgp: p.baseCost,
-              labelAr: `${from} - ${to} ساعة`,
-              labelEn: `${from} - ${to} hrs`
-            };
-          });
+          const mappedTiers = mapPlansToStudentTiers(plans || []);
 
           // Map Package Presets
           const mappedPackages: QuickPackagePreset[] = (packages || []).map(pkg => ({
@@ -185,7 +205,7 @@ export class SettingsService {
           });
         },
         error: () => {
-          this.error.set('فشل في تحميل إعدادات النظام من السيرفر');
+          this.error.set(this.langService.t().setLoadFailed);
         }
       });
   }
@@ -237,23 +257,7 @@ export class SettingsService {
       finalize(() => this.isLoadingPricing.set(false))
     ).subscribe({
       next: (plans) => {
-        const sorted = [...(plans || [])].sort((a, b) => a.baseHours - b.baseHours);
-        let prevTo = 0;
-        const mapped: StudentPricingTier[] = sorted.map(p => {
-          const from = prevTo;
-          const to = p.baseHours;
-          prevTo = to;
-          return {
-            id: p.id,
-            roomId: p.roomId,
-            roomName: p.roomName,
-            fromHours: from,
-            toHours: to,
-            priceEgp: p.baseCost,
-            labelAr: `${from} - ${to} ساعة`,
-            labelEn: `${from} - ${to} hrs`
-          };
-        });
+        const mapped = mapPlansToStudentTiers(plans || []);
         this.settingsState.update(s => ({ ...s, pricingTiers: mapped }));
       }
     });
@@ -296,7 +300,7 @@ export class SettingsService {
       const highest = tiers[tiers.length - 1];
       if (durationHours > highest.toHours) {
         const extraHours = Math.ceil(durationHours - highest.toHours);
-        const overageRate = 15; // standard rate for extra hours
+        const overageRate = highest.overageRate ?? 15;
         return highest.priceEgp + (extraHours * overageRate);
       }
       return highest.priceEgp;
@@ -350,7 +354,7 @@ export class SettingsService {
   private executeCreatePricingPlan(roomId: string, tier: Omit<StudentPricingTier, 'id'>): void {
     this.pricingPlanApi.createPricingPlan({
       roomId,
-      scope: 0,
+      scope: 1, // PricingScope.Workspace — student hour tiers
       baseHours: tier.toHours,
       baseCost: tier.priceEgp,
       overageHourlyRate: 15,
@@ -378,9 +382,11 @@ export class SettingsService {
 
   updatePricingTier(tier: StudentPricingTier): void {
     this.pricingPlanApi.updatePricingPlan(tier.id, {
+      roomId: tier.roomId,
+      scope: 1,
       baseHours: tier.toHours,
       baseCost: tier.priceEgp,
-      overageHourlyRate: 15,
+      overageHourlyRate: tier.overageRate ?? 15,
       isActive: true,
       note: tier.labelAr || tier.labelEn
     }).subscribe({

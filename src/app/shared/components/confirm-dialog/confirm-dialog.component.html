@@ -1,12 +1,37 @@
 @if (isOpen()) {
-      <div class="dialog-backdrop">
-        <div class="dialog-content">
-          <h4>{{ title() }}</h4>
-          <p>{{ message() }}</p>
-          <div class="actions">
-            <button (click)="cancel.emit()">Cancel</button>
-            <button class="confirm-btn" (click)="confirm.emit()">Confirm</button>
-          </div>
-        </div>
+  <div class="modal-overlay confirm-backdrop" (click)="$event.target === $event.currentTarget && onBackdrop()" role="presentation">
+    <div class="confirm-card" role="alertdialog" aria-modal="true" [attr.aria-label]="title()">
+      <div class="confirm-icon" [class.confirm-icon--danger]="tone() === 'danger'" aria-hidden="true">
+        @if (tone() === 'danger') {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="15" y1="9" x2="9" y2="15" />
+            <line x1="9" y1="9" x2="15" y2="15" />
+          </svg>
+        } @else {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+        }
       </div>
-    }
+
+      @if (title()) {
+        <h3 class="confirm-title" [class.confirm-title--danger]="tone() === 'danger'">{{ title() }}</h3>
+      }
+      @if (message()) {
+        <p class="confirm-message">{{ message() }}</p>
+      }
+
+      <div class="confirm-details">
+        <ng-content></ng-content>
+      </div>
+
+      <div class="confirm-actions">
+        <app-primary-button variant="secondary" [text]="cancelText()" [disabled]="loading()" (clicked)="cancelled.emit()"></app-primary-button>
+        <app-primary-button [variant]="tone() === 'danger' ? 'danger' : 'primary'" [text]="confirmText()" [loading]="loading()" (clicked)="confirm.emit()"></app-primary-button>
+      </div>
+    </div>
+  </div>
+}

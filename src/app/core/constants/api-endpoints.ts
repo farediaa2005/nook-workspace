@@ -28,6 +28,9 @@ export const API_ENDPOINTS = {
     RESET_PASSWORD: '/api/Auth/reset-password',
     CHANGE_PASSWORD: '/api/Auth/change-password',
     GOOGLE: '/api/Auth/google',
+    SESSIONS: '/api/Auth/sessions',
+    SESSION_BY_ID: (sessionId: string) => `/api/Auth/sessions/${sessionId}`,
+    REVOKE_ALL: '/api/Auth/revoke-all',
   },
 
   ACCOUNTS: {
@@ -79,12 +82,16 @@ export const API_ENDPOINTS = {
     LIST: '/api/WorkspacePackages',
     BY_ID: (id: string) => `/api/WorkspacePackages/${id}`,
     BY_STUDENT: (studentId: string) => `/api/WorkspacePackages/student/${studentId}`,
+    USE_HOURS: (id: string) => `/api/WorkspacePackages/${id}/use-hours`,
+    USAGE_HISTORY: (id: string) => `/api/WorkspacePackages/${id}/usage-history`,
   },
 
   CLASSROOM_PACKAGES: {
     LIST: '/api/ClassroomPackages',
     BY_ID: (id: string) => `/api/ClassroomPackages/${id}`,
     BY_INSTRUCTOR: (instructorId: string) => `/api/ClassroomPackages/instructor/${instructorId}`,
+    USE_HOURS: (id: string) => `/api/ClassroomPackages/${id}/use-hours`,
+    USAGE_HISTORY: (id: string) => `/api/ClassroomPackages/${id}/usage-history`,
   },
 
   DISCOUNTS: {
@@ -169,7 +176,6 @@ export const API_ENDPOINTS = {
     CLOSE: (id: string) => `/api/shifts/${id}/close`,
     ITEMS: (id: string) => `/api/shifts/${id}/items`,
     ITEM_BY_ID: (shiftId: string, itemId: string) => `/api/shifts/${shiftId}/items/${itemId}`,
-    DELETE_ITEM: (shiftItemId: string) => `/api/shifts/items/${shiftItemId}`,
     VERIFY_PASSWORD: (shiftId?: string) => (shiftId ? `/api/shifts/${shiftId}/verify-password` : '/api/shifts/verify-password'),
   },
 

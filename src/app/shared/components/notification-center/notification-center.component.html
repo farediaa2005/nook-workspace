@@ -1,4 +1,4 @@
-<div class="notification-panel" (click)="$event.stopPropagation()">
+<div class="notification-panel" (click)="$event.stopPropagation()" role="presentation">
   <!-- Top Ambient Glow Line -->
   <div class="panel-glow-bar"></div>
 
@@ -12,9 +12,9 @@
         </svg>
       </div>
       <div class="title-with-badge">
-        <h3 class="panel-title">{{ isArabic() ? 'مركز الإشعارات' : 'Notifications' }}</h3>
+        <h3 class="panel-title">{{ t().notificationsTitle }}</h3>
         @if (unreadCount() > 0) {
-          <span class="unread-chip">{{ unreadCount() }} {{ isArabic() ? 'جديد' : 'new' }}</span>
+          <span class="unread-chip">{{ unreadCount() }} {{ t().uiNew }}</span>
         }
       </div>
     </div>
@@ -25,10 +25,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="20 6 9 17 4 12" />
           </svg>
-          <span>{{ isArabic() ? 'تحديد الكل كمقروء' : 'Mark all read' }}</span>
+          <span>{{ t().uiMarkAllRead }}</span>
         </button>
       }
-      <button type="button" class="icon-close-circle" (click)="close.emit()" [title]="t().closeBtn">
+      <button type="button" class="icon-close-circle" (click)="closed.emit()" [title]="t().closeBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M18 6 6 18M6 6l12 12" />
         </svg>
@@ -45,7 +45,7 @@
         [class.active]="activeFilter() === 'all'"
         (click)="setFilter('all')"
       >
-        <span>{{ isArabic() ? 'الكل' : 'All' }}</span>
+        <span>{{ t().all }}</span>
         <span class="tab-count">{{ notifications().length }}</span>
       </button>
 
@@ -55,7 +55,7 @@
         [class.active]="activeFilter() === 'unread'"
         (click)="setFilter('unread')"
       >
-        <span>{{ isArabic() ? 'غير مقروء' : 'Unread' }}</span>
+        <span>{{ t().unread }}</span>
         @if (unreadCount() > 0) {
           <span class="tab-count tab-count--alert">{{ unreadCount() }}</span>
         }
@@ -67,7 +67,7 @@
         [class.active]="activeFilter() === 'critical'"
         (click)="setFilter('critical')"
       >
-        <span>{{ isArabic() ? 'تنبيهات هامة' : 'Alerts' }}</span>
+        <span>{{ t().uiAlerts }}</span>
       </button>
     </div>
   </div>
@@ -82,11 +82,11 @@
             [class.notif-card--unread]="!item.isRead"
             [class.notif-card--warning]="item.severity === 'warning'"
             [class.notif-card--critical]="item.severity === 'critical'"
-            (click)="onItemClick(item)"
+            (click)="onItemClick(item)" role="button" tabindex="0" (keydown.enter)="onItemClick(item)"
           >
             <!-- Unread Pulse Dot -->
             @if (!item.isRead) {
-              <div class="unread-dot" title="غير مقروء"></div>
+              <div class="unread-dot" [title]="t().ncUnread"></div>
             }
 
             <!-- Icon Box -->
@@ -132,11 +132,11 @@
               <div class="card-meta-top">
                 <span class="card-badge card-badge--{{ item.type | lowercase }}">
                   @switch (item.type) {
-                    @case ('Catering') { {{ isArabic() ? 'الكاترينج والمخزون' : 'Catering' }} }
-                    @case ('Classroom') { {{ isArabic() ? 'حجوزات القاعات' : 'Classroom' }} }
-                    @case ('Workspace') { {{ isArabic() ? 'مساحة العمل' : 'Workspace' }} }
-                    @case ('LongStay') { {{ isArabic() ? 'إقامة طويلة' : 'Long Stay' }} }
-                    @default { {{ isArabic() ? 'تنبيه عام' : 'System' }} }
+                    @case ('Catering') { {{ t().uiCatering }} }
+                    @case ('Classroom') { {{ t().uiClassroom }} }
+                    @case ('Workspace') { {{ t().workspace }} }
+                    @case ('LongStay') { {{ t().uiLongStay }} }
+                    @default { {{ t().uiSystem }} }
                   }
                 </span>
 
@@ -155,7 +155,7 @@
               @if (item.actionUrl) {
                 <div class="card-action-bar">
                   <span class="card-action-link">
-                    <span>{{ isArabic() ? 'الانتقال إلى التفاصيل' : 'View details' }}</span>
+                    <span>{{ t().uiViewDetails }}</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="arrow-icon">
                       <path [attr.d]="isArabic() ? 'M19 12H5M12 19l-7-7 7-7' : 'M5 12h14M12 5l7 7-7 7'" />
                     </svg>
@@ -169,7 +169,7 @@
               type="button"
               class="card-dismiss-btn"
               (click)="dismiss($event, item.id)"
-              [title]="isArabic() ? 'حذف الإشعار' : 'Dismiss'"
+              [title]="t().uiDismiss"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M18 6 6 18M6 6l12 12" />
@@ -180,17 +180,7 @@
       </div>
     } @else {
       <!-- Clean Empty State -->
-      <div class="empty-state-box">
-        <div class="empty-illustration">
-          <div class="empty-glow"></div>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-          </svg>
-        </div>
-        <p class="empty-heading">{{ isArabic() ? 'لا توجد إشعارات جديدة' : 'All caught up!' }}</p>
-        <span class="empty-sub">{{ isArabic() ? 'ستظهر هنا التنبيهات التشغيلية فور حدوثها' : 'Operational alerts and reminders will appear here' }}</span>
-      </div>
+      <app-empty-state icon="bell" [title]="t().uiAllCaughtUp" [message]="t().uiOperationalAlertsAndRemindersWill"></app-empty-state>
     }
   </div>
 
@@ -202,7 +192,7 @@
           <polyline points="3 6 5 6 21 6" />
           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
         </svg>
-        <span>{{ isArabic() ? 'مسح كافة الإشعارات' : 'Clear all notifications' }}</span>
+        <span>{{ t().uiClearAllNotifications }}</span>
       </button>
     </div>
   }

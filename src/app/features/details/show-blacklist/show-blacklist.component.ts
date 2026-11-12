@@ -12,11 +12,14 @@ import { ModalComponent } from '../../../shared/components/modal/modal.component
 import { CustomSelectComponent, SelectOption } from '../../../shared/components/custom-select/custom-select.component';
 
 import { DetailsService } from '../../../core/services/details.service';
+import { StudentApiService, BackendStudentDto } from '../../../core/services/api/student-api.service';
 import { BlacklistRecord } from '../../../core/models/details.model';
 import { getTodayDateISO } from '../../../core/utils/date-time.util';
+import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
+import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 export type { BlacklistRecord };
 
-export interface UnifiedMemberOption {
+interface UnifiedMemberOption {
   id: string;
   name: string;
   phone: string;
@@ -29,7 +32,7 @@ export interface UnifiedMemberOption {
 @Component({
   selector: 'app-show-blacklist',
   standalone: true,
-  imports: [
+  imports: [StatusBadgeComponent, EmptyStateComponent, 
     CommonModule,
     FormsModule,
     PageHeaderComponent,
@@ -47,7 +50,11 @@ export class ShowBlacklistComponent implements OnInit {
   private langService = inject(LanguageService);
   private detailsService = inject(DetailsService);
   protected workspaceService = inject(WorkspaceService);
+  private studentApi = inject(StudentApiService);
   private cdr = inject(ChangeDetectorRef);
+
+  /** All registered students (loaded when the add modal opens); before that, only checked-in ones were searchable. */
+  private registeredStudents = signal<BackendStudentDto[]>([]);
 
   t = this.langService.t;
   isArabic = this.langService.isArabic;
@@ -62,20 +69,24 @@ export class ShowBlacklistComponent implements OnInit {
 
   // Unified List of Students & Instructors
   allRegisteredMembers = computed<UnifiedMemberOption[]>(() => {
-    const students = this.workspaceService.activeStudents();
-    const list: UnifiedMemberOption[] = students.map((s: any) => {
-      const name = s.name || '';
-      return {
-        id: s.id,
-        name,
-        phone: s.phone || '',
-        faculty: s.faculty || s.college || '',
-        type: 'student',
-        typeAr: this.isArabic() ? 'طالب' : 'Student',
-        avatarInitial: name.trim().charAt(0) || 'S'
-      };
+    const toOption = (id: string, name: string, phone: string, faculty: string): UnifiedMemberOption => ({
+      id,
+      name,
+      phone,
+      faculty,
+      type: 'student',
+      typeAr: this.t().wsStudent,
+      avatarInitial: name.trim().charAt(0) || 'S'
     });
-
+    const list = this.registeredStudents().map(s =>
+      toOption(s.id, s.name || '', s.phoneNumber || s.phone || '', s.college || s.university || ''));
+    // Checked-in students (their id there is the session's) only when they are not in the registered list
+    const known = new Set(list.map(m => m.phone).filter(Boolean));
+    for (const s of this.workspaceService.activeStudents() as any[]) {
+      const phone = s.phone || '';
+      if (phone && known.has(phone)) continue;
+      list.push(toOption(s.studentId || s.id, s.name || '', phone, s.faculty || s.college || ''));
+    }
     return list;
   });
 
@@ -168,8 +179,6 @@ export class ShowBlacklistComponent implements OnInit {
     });
   }
 
-  private saveToStorage(list: BlacklistRecord[]): void {
-  }
 
   // Filtered List Computation
   filteredBlacklist = computed(() => {
@@ -227,6 +236,10 @@ export class ShowBlacklistComponent implements OnInit {
 
   // Add Block Modal Handlers
   openBlockModal(): void {
+    this.studentApi.getStudents().subscribe({
+      next: (students) => this.registeredStudents.set(students || []),
+      error: () => { /* best effort: a failure here is ignored on purpose */ } // keep the checked-in students as the fallback list
+    });
     this.selectedStudentId.set('');
     this.memberSearchQuery.set('');
     this.isSuggestionsOpen.set(false);
@@ -277,7 +290,7 @@ export class ShowBlacklistComponent implements OnInit {
     );
 
     if (isAlreadyBlocked) {
-      this.formError.set(this.isArabic() ? 'هذا الطالب مضاف بالفعل في القائمة السوداء (Blacklist)!' : 'This student is already in the blacklist!');
+      this.formError.set(this.t().detThisStudentIsAlreadyIn);
       return;
     }
 
@@ -292,15 +305,16 @@ export class ShowBlacklistComponent implements OnInit {
       reason,
       reasonEn: reason,
       severity,
-      notes
+      notes,
+      studentId
     }).subscribe({
       next: (created) => {
         this.blacklist.set([created, ...this.blacklist()]);
 
-        // Sync with WorkspaceService if student is registered
+        // Update the workspace state for a registered student (the record is already saved — no second POST)
         const matched = (this.allRegisteredMembers() as any[]).find((s: any) => s.id === studentId || s.phone === phone);
         if (matched && matched.type === 'student') {
-          this.workspaceService.blockStudent({ id: matched.id, name: matched.name, phone: matched.phone } as any, reason);
+          this.workspaceService.blockStudent({ id: matched.id, studentId: matched.id, name: matched.name, phone: matched.phone } as any, reason, created.id);
         }
 
         this.closeBlockModal();
@@ -326,7 +340,12 @@ export class ShowBlacklistComponent implements OnInit {
     const target = this.recordToUnblock();
     if (target) {
       this.detailsService.resolveBlacklist(target.id).subscribe({
-        next: () => {
+        next: (ok) => {
+          // resolveBlacklist() maps a failed DELETE to `false` — don't mark the record resolved in that case
+          if (!ok) {
+            this.closeUnblockModal();
+            return;
+          }
           const updated = this.blacklist().map(r => {
             if (r.id === target.id) {
               return { ...r, status: 'resolved' as const };
@@ -335,8 +354,8 @@ export class ShowBlacklistComponent implements OnInit {
           });
           this.blacklist.set(updated);
 
-          // Sync unblock with WorkspaceService
-          this.workspaceService.unblockStudent(target.id);
+          // Sync local state only — the backend record was already removed by resolveBlacklist()
+          this.workspaceService.unblockStudent(target.id, true);
           this.closeUnblockModal();
         },
         error: () => {

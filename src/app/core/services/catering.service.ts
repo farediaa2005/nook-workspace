@@ -1,15 +1,7 @@
+import { LanguageService } from './language.service';
 import { Injectable, signal, computed, inject, Injector } from '@angular/core';
 import { Observable, catchError, of, map, tap, switchMap } from 'rxjs';
-import {
-  ProductDto,
-  CreateProductDto,
-  UpdateProductDto,
-  CateringProduct,
-  TopSellingProduct,
-  CategoryRevenue,
-  PaymentBreakdown,
-  ProductStatus
-} from '../models/catering.model';
+import { ProductDto, CateringProduct, TopSellingProduct, CategoryRevenue, PaymentBreakdown, ProductStatus } from '../models/catering.model';
 import { ProductApiService } from './api/product-api.service';
 import { AuthService } from './auth.service';
 import { WorkspaceService } from './workspace.service';
@@ -17,9 +9,10 @@ import { ClassroomService } from './classroom.service';
 import { ShiftService } from './shift.service';
 import { parseIsoToLocalDate, parseIsoToLocalDateObj } from '../utils/date-time.util';
 import { resolveImageUrl } from '../utils/image-url.util';
+import { extractApiErrorMessage } from '../utils/api-error.util';
 import { NotificationService } from './notification.service';
 
-export const DEFAULT_CATEGORIES: { value: string; labelEn: string; labelAr: string }[] = [
+const DEFAULT_CATEGORIES: { value: string; labelEn: string; labelAr: string }[] = [
   { value: 'Snacks', labelEn: 'Snacks', labelAr: 'سناكس ومخبوزات' },
   { value: 'Beverages', labelEn: 'Beverages', labelAr: 'مشروبات وعصائر' },
   { value: 'Coffee', labelEn: 'Coffee', labelAr: 'قهوة وهوت درينكس' },
@@ -27,7 +20,7 @@ export const DEFAULT_CATEGORIES: { value: string; labelEn: string; labelAr: stri
   { value: 'Merchandise', labelEn: 'Merchandise', labelAr: 'ميرش ومنتجات NOOK' }
 ];
 
-export function inferCategoryFromName(name: string): { category: string; categoryAr: string } {
+function inferCategoryFromName(name: string): { category: string; categoryAr: string } {
   if (!name) return { category: 'Snacks', categoryAr: 'سناكس ومخبوزات' };
   const lower = name.toLowerCase().trim();
 
@@ -94,7 +87,7 @@ function base64ToFile(dataUrl: string, filename: string): File | null {
   }
 }
 
-export interface CreateProductInput {
+interface CreateProductInput {
   name: string;
   nameAr?: string;
   category?: string;
@@ -121,6 +114,7 @@ export interface CreateProductInput {
   providedIn: 'root'
 })
 export class CateringService {
+  private langService = inject(LanguageService);
   private productApi = inject(ProductApiService);
   private authService = inject(AuthService);
   private injector = inject(Injector);
@@ -611,9 +605,15 @@ export class CateringService {
     const rawCat = (dto as any).category || existingProd?.category;
     const rawCatAr = (dto as any).categoryAr || existingProd?.categoryAr;
 
+    // The backend stores the category code (e.g. "Coffee") or a custom name; show what is stored
+    // and only guess from the product name when nothing was saved.
+    const knownLabels: Record<string, string> = {
+      Snacks: 'سناكس ومخبوزات', Beverages: 'مشروبات وعصائر', Coffee: 'قهوة وهوت درينكس',
+      Meals: 'وجبات وسندوتشات', Merchandise: 'ميرش ومنتجات NOOK'
+    };
     let category = rawCat;
-    let categoryAr = rawCatAr;
-    if (!category || category === 'Snacks' || !categoryAr || categoryAr === 'سناكس ومخبوزات') {
+    let categoryAr = rawCatAr || (rawCat ? (knownLabels[rawCat] || rawCat) : undefined);
+    if (!category) {
       const inferred = inferCategoryFromName(dto.name);
       category = inferred.category;
       categoryAr = inferred.categoryAr;
@@ -628,7 +628,8 @@ export class CateringService {
       sellingPrice: dto.piecePrice,
       costPrice: dto.cost,
       stock: dto.quantity,
-      reorderLevel: 10,
+      // No per-product reorder level in the API; the global low-stock threshold applies.
+      reorderLevel: undefined,
       soldCount: soldCount,
       totalRevenue: totalRevenue,
       status: status,
@@ -845,9 +846,11 @@ export class CateringService {
     items: { product: CateringProduct; quantity: number; unitPrice: number; totalPrice: number }[];
     paymentMethod: 'cash' | 'card' | 'app';
     total: number;
+    /** false when the items are added to a session: the session catering API already deducts stock */
+    deductStockOnServer?: boolean;
   }): void {
-    // 1. Sync quantity reduction with backend for each item
-    for (const item of sale.items) {
+    // 1. Sync quantity reduction with backend for each item (standalone sales only)
+    for (const item of (sale.deductStockOnServer === false ? [] : sale.items)) {
       const current = this.productsState().find(p => p.id === item.product.id);
       if (current) {
         const newStock = Math.max(0, current.stock - item.quantity);
@@ -860,7 +863,10 @@ export class CateringService {
           ImageUrl: current.image || undefined,
           ExpireDate: current.expirationDate && current.expirationDate !== 'N/A' ? current.expirationDate : undefined
         }).subscribe({
-          error: (err) => console.warn('[CateringService] Stock deduction update notice:', err?.message || err)
+          error: (err) => {
+            this.injector.get<any>(NotificationService as any, null)?.error?.(this.langService.tf('catStockSyncFailed', { name: current.name, error: extractApiErrorMessage(err, this.langService.t().connectionErrorFallback) }));
+            this.syncWithBackend().subscribe({ error: () => { /* best effort: a failure here is ignored on purpose */ } });
+          }
         });
       }
     }

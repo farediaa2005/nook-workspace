@@ -2,7 +2,7 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { LanguageService } from '../../core/services/language.service';
-import { ThemeService } from '../../core/services/theme.service';
+import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-not-found',
@@ -23,21 +23,23 @@ import { ThemeService } from '../../core/services/theme.service';
         </div>
 
         <h1 class="nf-title">
-          {{ isArabic() ? 'الصفحة غير موجودة' : 'Page Not Found' }}
+          {{ t().ui2PageNotFound }}
         </h1>
 
         <p class="nf-desc">
-          {{ isArabic()
-            ? 'عذراً، الصفحة التي تبحث عنها غير موجودة أو تم نقلها أو حذفها.'
-            : 'Sorry, the page you are looking for does not exist or has been moved.' }}
+          {{ t().ui2SorryThePageYouAre }}
         </p>
 
-        <button type="button" class="nf-btn" (click)="goToDashboard()">
+        <button type="button" class="nf-btn" (click)="goHome()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
             <polyline points="9 22 9 12 15 12 15 22"/>
           </svg>
-          <span>{{ isArabic() ? 'العودة إلى لوحة التحكم' : 'Return to Dashboard' }}</span>
+          @if (signedIn) {
+            <span>{{ t().ui2ReturnToDashboard }}</span>
+          } @else {
+            <span>{{ t().ui2SignIn }}</span>
+          }
         </button>
       </div>
     </div>
@@ -48,9 +50,9 @@ import { ThemeService } from '../../core/services/theme.service';
       display: flex;
       align-items: center;
       justify-content: center;
-      background: radial-gradient(circle at 50% 20%, rgba(245, 185, 33, 0.08) 0%, transparent 60%),
-                  var(--bg, #0f0f11);
-      color: var(--text, #f4f4f5);
+      background: radial-gradient(circle at 50% 20%, var(--primary-soft) 0%, transparent 60%),
+                  var(--page);
+      color: var(--text);
       padding: 24px;
       font-family: inherit;
     }
@@ -61,11 +63,11 @@ import { ThemeService } from '../../core/services/theme.service';
       width: 100%;
       text-align: center;
       padding: 48px 32px;
-      background: var(--surface, rgba(24, 24, 28, 0.85));
-      border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
-      border-radius: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
       backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+      box-shadow: var(--shadow-lg);
       animation: nfFadeIn 0.35s ease-out;
     }
 
@@ -85,7 +87,7 @@ import { ThemeService } from '../../core/services/theme.service';
       font-weight: 900;
       line-height: 1;
       letter-spacing: 4px;
-      background: linear-gradient(135deg, #f5b921 20%, #ff8800 100%);
+      background: linear-gradient(135deg, var(--yellow) 20%, #ff8800 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       margin-bottom: 12px;
@@ -99,8 +101,8 @@ import { ThemeService } from '../../core/services/theme.service';
       width: 56px;
       height: 56px;
       border-radius: 50%;
-      background: rgba(245, 185, 33, 0.12);
-      color: #f5b921;
+      background: var(--primary-soft);
+      color: var(--yellow);
       margin-bottom: 20px;
     }
 
@@ -110,15 +112,15 @@ import { ThemeService } from '../../core/services/theme.service';
     }
 
     .nf-title {
-      font-size: 1.6rem;
+      font-size: var(--fs-2xl);
       font-weight: 700;
       margin: 0 0 10px 0;
-      color: var(--text, #f4f4f5);
+      color: var(--text);
     }
 
     .nf-desc {
-      font-size: 0.96rem;
-      color: var(--text-muted, #a1a1aa);
+      font-size: var(--fs-md);
+      color: var(--text-dim);
       line-height: 1.6;
       margin: 0 0 28px 0;
     }
@@ -129,14 +131,14 @@ import { ThemeService } from '../../core/services/theme.service';
       justify-content: center;
       gap: 10px;
       padding: 12px 28px;
-      background: linear-gradient(135deg, #f5b921 0%, #e5a510 100%);
-      color: #111;
+      background: linear-gradient(135deg, var(--yellow) 0%, #e5a510 100%);
+      color: var(--on-primary);
       font-weight: 700;
-      font-size: 0.95rem;
+      font-size: var(--fs-md);
       border: none;
-      border-radius: 12px;
+      border-radius: var(--radius-md);
       cursor: pointer;
-      box-shadow: 0 4px 14px rgba(245, 185, 33, 0.35);
+      box-shadow: var(--shadow-primary);
       transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
 
@@ -158,10 +160,14 @@ import { ThemeService } from '../../core/services/theme.service';
 export class NotFoundComponent {
   private readonly router = inject(Router);
   private readonly langService = inject(LanguageService);
+  private readonly authService = inject(AuthService);
 
   readonly isArabic = this.langService.isArabic;
+  readonly t = this.langService.t;
+  /** A signed-out visitor is sent to sign in instead of a dashboard they can't open */
+  readonly signedIn = this.authService.isAuthenticated();
 
-  goToDashboard(): void {
-    this.router.navigate(['/dashboard']);
+  goHome(): void {
+    this.router.navigate([this.signedIn ? '/dashboard' : '/auth/login']);
   }
 }

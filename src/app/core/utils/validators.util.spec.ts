@@ -138,7 +138,9 @@ describe('Validators Util (O-6)', () => {
   describe('Validation Error Formatters', () => {
     it('should format localized name error', () => {
       expect(validateNameError('', true, true)).toContain('يرجى إدخال الاسم');
-      expect(validateNameError('1234', true, true)).toContain('الاسم غير صالح');
+      expect(validateNameError('1234', true, true)).toContain('من غير أرقام');
+      expect(validateNameError('Audit Test (temp)', false, true)).toContain('no digits, brackets');
+      expect(validateNameError('a', false, true)).toBe('Name must contain at least 2 letters');
       expect(validateNameError('أحمد محمود', true, true)).toBeNull();
     });
 

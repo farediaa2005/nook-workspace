@@ -5,7 +5,7 @@
  */
 
 /** Appends 'Z' to ISO strings if timezone is omitted so JS parses it as UTC */
-export function normalizeIsoString(isoStr?: string | null): string {
+function normalizeIsoString(isoStr?: string | null): string {
   if (!isoStr) return '';
   const trimmed = String(isoStr).trim();
   if (!trimmed || trimmed === '-') return '';
@@ -29,7 +29,7 @@ export function parseIsoToLocalDateObj(isoStr?: string | null): Date {
  * Convert ISO UTC timestamp or raw time to local 12-hour format "02:30 PM".
  * If an Arabic marker or period is already present, normalizes it.
  */
-export function parseIsoToLocal12h(isoStr?: string | null, isArabic: boolean = false): string {
+export function parseIsoToLocal12h(isoStr?: string | null, isArabic = false): string {
   if (!isoStr) return '';
   const trimmed = String(isoStr).trim();
   if (!trimmed || trimmed === '-') return '';
@@ -94,7 +94,7 @@ export function parseIsoToLocal24h(isoStr?: string | null): string {
   if (match) {
     let h = parseInt(match[1], 10);
     const m = match[2];
-    let marker = (match[3] || '').toUpperCase();
+    const marker = (match[3] || '').toUpperCase();
     if (marker === 'PM' || marker === 'م') {
       if (h < 12) h += 12;
     } else if (marker === 'AM' || marker === 'ص') {
@@ -131,7 +131,7 @@ export function getTodayDateISO(): string {
 }
 
 /** Convert minutes from midnight to 12h string "02:30 PM" */
-export function convertMinutesTo12h(totalMinutes: number, isArabic: boolean = false): string {
+export function convertMinutesTo12h(totalMinutes: number, isArabic = false): string {
   const mins = ((totalMinutes % (24 * 60)) + (24 * 60)) % (24 * 60);
   let h = Math.floor(mins / 60);
   const m = String(mins % 60).padStart(2, '0');
@@ -192,3 +192,32 @@ export function formatTimeRangeArabic(start?: string | null, end?: string | null
   return `${startFmt} – ${endFmt}`;
 }
 
+
+/**
+ * Display only: a time stored with Arabic markers ("08:03 م") shown in the UI language.
+ * English gets AM/PM; Arabic is returned unchanged. The stored value is never changed.
+ */
+export function localizeMeridiem(text: string | null | undefined, isArabic: boolean): string {
+  if (!text || isArabic) return text || '';
+  return text.replace(/(\d)\s*ص/g, '$1 AM').replace(/(\d)\s*م/g, '$1 PM');
+}
+
+/** Minutes in a duration text such as "2h 15m", "1d 3h", "2 س 15 د" or "02:15". Used by the workspace, dashboard,
+ * analytics and colleges pages (one copy; it was duplicated in dashboard.service and workspace.service). */
+export function parseDurationMinutes(durStr?: string): number {
+  if (!durStr) return 0;
+  let total = 0;
+  const dMatch = durStr.match(/(\d+)\s*(?:d|days?|day|يوم|أيام|ي)(?!\w)/i);
+  const hMatch = durStr.match(/(\d+)\s*(?:h|hours?|hour|hrs?|ساعات|ساعة|س)(?!\w)/i);
+  const mMatch = durStr.match(/(\d+)\s*(?:m|mins?|min|دقائق|دقيقة|د)(?!\w)/i);
+  if (dMatch) total += parseInt(dMatch[1], 10) * 1440;
+  if (hMatch) total += parseInt(hMatch[1], 10) * 60;
+  if (mMatch) total += parseInt(mMatch[1], 10);
+  if (!dMatch && !hMatch && !mMatch) {
+    const colonMatch = durStr.match(/^(\d{1,3}):(\d{1,2})$/);
+    if (colonMatch) {
+      total = parseInt(colonMatch[1], 10) * 60 + parseInt(colonMatch[2], 10);
+    }
+  }
+  return total;
+}

@@ -1,7 +1,7 @@
 import '@angular/compiler';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PackageService } from './package.service';
-import { PackageItem, CreatePackageDto } from '../models/package.model';
+import { PackageItem } from '../models/package.model';
 
 describe('PackageService Business Rules and Operations', () => {
   let service: PackageService;
@@ -38,6 +38,7 @@ describe('PackageService Business Rules and Operations', () => {
     (service as any).instructorApi = mockInstructorApi;
     (service as any).shiftService = mockShiftService;
     (service as any).authService = mockAuthService;
+    (service as any).langService = { t: () => new Proxy({}, { get: (_target, key) => String(key) }), tf: (key: string) => key };
     (service as any).toast = { set: vi.fn() };
     (service as any).packagesState = (service as any).packagesState || (function() {
       let val: any = [];

@@ -19,7 +19,7 @@ import { ClassroomService } from '../../../core/services/classroom.service';
 import { CateringService } from '../../../core/services/catering.service';
 import { getUserInitials, getSafeAvatar } from '../../../core/utils/avatar.util';
 
-export interface QuickSearchItem {
+interface QuickSearchItem {
   id: string;
   category: 'students' | 'rooms' | 'products' | 'pages';
   title: string;
@@ -31,7 +31,7 @@ export interface QuickSearchItem {
   queryParams?: Record<string, string>;
 }
 
-export interface QuickSearchGroup {
+interface QuickSearchGroup {
   key: string;
   label: string;
   items: QuickSearchItem[];
@@ -76,7 +76,7 @@ export class NavbarComponent {
   t = this.langService.t;
   isArabic = this.langService.isArabic;
 
-  userName = computed(() => this.currentUser()?.name || (this.isArabic() ? 'مستخدم' : 'User'));
+  userName = computed(() => this.currentUser()?.name || (this.t().uiUser));
 
   userRoleTitle = computed(() => {
     const user = this.currentUser();
@@ -255,8 +255,8 @@ export class NavbarComponent {
             id: 'st_act_' + s.id,
             category: 'students',
             title: s.name,
-            subtitle: `${s.phone ? s.phone + ' • ' : ''}${s.roomName || (ar ? 'مساحة العمل' : 'Workspace')} • ${s.duration || ''}`,
-            badge: ar ? 'نشط الآن' : 'Active',
+            subtitle: `${s.phone ? s.phone + ' • ' : ''}${s.roomName || (this.t().workspace)} • ${s.duration || ''}`,
+            badge: this.t().wsActive,
             badgeType: 'active',
             icon: 'student',
             route: '/workspace/show-student',
@@ -276,8 +276,8 @@ export class NavbarComponent {
               id: 'st_dir_' + (s.id || s.phone),
               category: 'students',
               title: s.name,
-              subtitle: `${s.phone ? s.phone + ' • ' : ''}${s.college || s.faculty || (ar ? 'طالب مسجل' : 'Registered')}`,
-              badge: ar ? 'دليل الطلاب' : 'Directory',
+              subtitle: `${s.phone ? s.phone + ' • ' : ''}${s.college || s.faculty || (this.t().locRegistered)}`,
+              badge: this.t().locDirectory,
               badgeType: 'neutral',
               icon: 'student',
               route: '/workspace/show-student',
@@ -291,7 +291,7 @@ export class NavbarComponent {
       if (studentItems.length > 0) {
         groups.push({
           key: 'students',
-          label: ar ? 'الطلاب والجلسات' : 'Students & Sessions',
+          label: this.t().locStudentsSessions,
           items: studentItems
         });
       }
@@ -312,8 +312,8 @@ export class NavbarComponent {
             id: 'room_' + r.id,
             category: 'rooms',
             title: ar ? (r.nameAr || r.name) : r.name,
-            subtitle: `${r.capacity ? (ar ? `سعة ${r.capacity} فرد • ` : `Cap. ${r.capacity} • `) : ''}${card?.instructor ? card.instructor : (ar ? 'متاح للحجز' : 'Available')}`,
-            badge: isActive ? (ar ? 'مشغول' : 'Occupied') : (ar ? 'متاح' : 'Available'),
+            subtitle: `${r.capacity ? (this.langService.tf('loctCap', { capacity: r.capacity })) : ''}${card?.instructor ? card.instructor : (this.t().locAvailable)}`,
+            badge: isActive ? (this.t().locOccupied) : (this.t().locAvailable2),
             badgeType: isActive ? 'warning' : 'success',
             icon: 'room',
             route: '/classroom/show-classroom'
@@ -325,7 +325,7 @@ export class NavbarComponent {
       if (roomItems.length > 0) {
         groups.push({
           key: 'rooms',
-          label: ar ? 'القاعات والمساحات' : 'Rooms & Classrooms',
+          label: this.t().locRoomsClassrooms,
           items: roomItems
         });
       }
@@ -341,8 +341,8 @@ export class NavbarComponent {
             id: 'prod_' + p.id,
             category: 'products',
             title: ar ? (p.nameAr || p.name) : p.name,
-            subtitle: `${p.sellingPrice} ${ar ? 'ج.م' : 'EGP'} • ${ar ? `المخزون: ${p.stock}` : `Stock: ${p.stock}`}`,
-            badge: p.stock > 0 ? (ar ? 'متوفر' : 'In Stock') : (ar ? 'نفد' : 'Out of Stock'),
+            subtitle: `${p.sellingPrice} ${this.t().egp} • ${this.langService.tf('loctStock', { stock: p.stock })}`,
+            badge: p.stock > 0 ? (this.t().locInStock) : (this.t().locOutOfStock),
             badgeType: p.stock > 0 ? 'success' : 'warning',
             icon: 'product',
             route: '/catering/show-products',
@@ -355,7 +355,7 @@ export class NavbarComponent {
       if (productItems.length > 0) {
         groups.push({
           key: 'products',
-          label: ar ? 'الكانتين والمنتجات' : 'Catering & Products',
+          label: this.t().locCateringProducts,
           items: productItems
         });
       }
@@ -399,7 +399,7 @@ export class NavbarComponent {
     if (pageItems.length > 0) {
       groups.push({
         key: 'pages',
-        label: q ? (ar ? 'الصفحات والإجراءات' : 'Pages & Actions') : (ar ? 'الوصول السريع' : 'Quick Navigation'),
+        label: q ? (this.t().locPagesActions) : (this.t().locQuickNavigation),
         items: pageItems
       });
     }

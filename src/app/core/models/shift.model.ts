@@ -62,6 +62,10 @@ export interface ShiftRecord {
   workspaceRevenue: number;
   packageRevenue: number;
   otherIncome?: number;
+  /** Wallet top-ups taken in during the shift (backend `walletTopUps`). */
+  walletTopUps?: number;
+  /** Revenue paid from wallets (backend `walletPaidRevenue`). */
+  walletPaidRevenue?: number;
   adminExpenses?: number;
 
   // 4 Payment Channels Flows

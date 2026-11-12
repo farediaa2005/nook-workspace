@@ -1,0 +1,37 @@
+.pw-profile*/
+scripts/node_modules/
+
+# Evidence (screenshots, measurement logs) and one-off scripts stay on the machine that made them, not in the
+# repo (owner decision, 2026-11-11). The reports (*.md) and the re-runnable checks below are kept.
+screenshots/
+logs/
+scripts/*
+!scripts/package.json
+!scripts/package-lock.json
+!scripts/knip.json
+!scripts/e2e-lib.mjs
+!scripts/signin-role.mjs
+!scripts/relogin.mjs
+!scripts/whoami.mjs
+!scripts/keep-eol.mjs
+!scripts/lint-summary.mjs
+!scripts/cleanup-check.mjs
+!scripts/crawl.mjs
+!scripts/capture-pages.mjs
+!scripts/nav-probe.mjs
+!scripts/explore-role.mjs
+!scripts/cross-role.mjs
+!scripts/probe-lang.mjs
+!scripts/probe-login-lang.mjs
+!scripts/probe-rtl.mjs
+!scripts/probe-computed.mjs
+!scripts/probe-consistency.mjs
+!scripts/probe-row-actions.mjs
+!scripts/find-duplicates.mjs
+!scripts/css-rules.mjs
+!scripts/i18n-audit.mjs
+!scripts/i18n-remaining.mjs
+!scripts/i18n-arabic-literals.mjs
+!scripts/i18n-msa-scan.mjs
+!scripts/i18n-add-keys.mjs
+!scripts/lang-src.mjs

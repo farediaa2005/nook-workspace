@@ -9,5 +9,5 @@ import { Component, input, output } from '@angular/core';
 export class ModalComponent {
   isOpen = input<boolean>(false);
   title = input<string>('');
-  close = output<void>();
+  closed = output<void>();
 }

@@ -3,15 +3,7 @@ import { Observable, map } from 'rxjs';
 import { BaseApiService } from './base-api.service';
 import { API_ENDPOINTS } from '../../constants/api-endpoints';
 import { ApiResponse, extractData } from '../../models/api-response.model';
-import {
-  WalletBalanceDto,
-  WalletTransactionDto,
-  CreateDirectTopUpDto,
-  CreateWalletDeductionDto,
-  CreateWalletTopUpRequestDto,
-  WalletTopUpRequestDto,
-  ReviewWalletTopUpRequestDto
-} from '../../models/wallet.model';
+import { WalletBalanceDto, WalletTransactionDto, CreateDirectTopUpDto, CreateWalletDeductionDto } from '../../models/wallet.model';
 
 @Injectable({
   providedIn: 'root'
@@ -52,44 +44,5 @@ export class WalletApiService extends BaseApiService {
       API_ENDPOINTS.WALLET.DEDUCT,
       dto
     ).pipe(map(extractData));
-  }
-
-  /** Submit student top-up request — POST /api/Wallet/topup/request */
-  submitTopUpRequest(dto: CreateWalletTopUpRequestDto): Observable<WalletTopUpRequestDto> {
-    return this.post<ApiResponse<WalletTopUpRequestDto>>(
-      API_ENDPOINTS.WALLET.TOPUP_REQUEST,
-      dto
-    ).pipe(map(extractData));
-  }
-
-  /** List top-up requests — GET /api/Wallet/topup/requests */
-  getTopUpRequests(status?: number): Observable<WalletTopUpRequestDto[]> {
-    const params = status != null ? { status } : undefined;
-    return this.get<ApiResponse<WalletTopUpRequestDto[] | { items: WalletTopUpRequestDto[] }>>(
-      API_ENDPOINTS.WALLET.TOPUP_REQUESTS,
-      params
-    ).pipe(
-      map(res => {
-        if (Array.isArray(res.data)) {
-          return res.data;
-        }
-        return (res.data as { items: WalletTopUpRequestDto[] })?.items ?? [];
-      })
-    );
-  }
-
-  /** Get single top-up request by ID — GET /api/Wallet/topup/requests/{id} */
-  getTopUpRequestById(id: string): Observable<WalletTopUpRequestDto> {
-    return this.get<ApiResponse<WalletTopUpRequestDto>>(
-      API_ENDPOINTS.WALLET.TOPUP_REQUEST_BY_ID(id)
-    ).pipe(map(extractData));
-  }
-
-  /** Review (approve or reject) top-up request — PUT /api/Wallet/topup/requests/{id}/review */
-  reviewTopUpRequest(id: string, dto: ReviewWalletTopUpRequestDto): Observable<WalletTopUpRequestDto> {
-    return this.put<ApiResponse<WalletTopUpRequestDto>>(
-      API_ENDPOINTS.WALLET.REVIEW_TOPUP_REQUEST(id),
-      dto
-    ).pipe(map(extractData));
-  }
+  }
 }

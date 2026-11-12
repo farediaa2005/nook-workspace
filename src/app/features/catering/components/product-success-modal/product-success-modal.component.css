@@ -36,9 +36,9 @@
 
 /* Modal Card */
 .modal-card {
-  background: var(--surface, #ffffff);
-  border: 1px solid var(--border, #e5e7eb);
-  border-radius: 20px;
+  background: var(--surface, var(--on-color));
+  border: 1px solid var(--border, var(--gray-200));
+  border-radius: var(--radius-lg);
   width: 100%;
   max-width: 440px;
   padding: 32px 24px 24px;
@@ -64,7 +64,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--success, #10b981);
+  color: var(--success, var(--emerald-500));
 }
 
 .success-icon-circle svg {
@@ -84,32 +84,32 @@
   margin: 0;
   font-size: 1.35rem;
   font-weight: 800;
-  color: var(--text, #111827);
+  color: var(--text, var(--gray-900));
   letter-spacing: -0.02em;
 }
 
 .modal-subtitle {
   margin: 0;
-  font-size: 0.88rem;
-  color: var(--text-dim, #6b7280);
+  font-size: var(--fs-base);
+  color: var(--text-dim, var(--gray-500));
   line-height: 1.45;
 }
 
 .modal-subtitle strong {
-  color: var(--text, #111827);
+  color: var(--text, var(--gray-900));
 }
 
 /* Product Summary Card */
 .product-summary-card {
   width: 100%;
-  background: var(--surface-2, #f9fafb);
-  border: 1px solid var(--border, #e5e7eb);
-  border-radius: 12px;
+  background: var(--surface-2, var(--gray-50));
+  border: 1px solid var(--border, var(--gray-200));
+  border-radius: var(--radius-md);
   padding: 16px;
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  text-align: left;
+  text-align: start;
   box-sizing: border-box;
   margin-bottom: 24px;
 }
@@ -121,9 +121,9 @@
 .product-icon-box {
   width: 48px;
   height: 48px;
-  background: var(--surface, #ffffff);
-  border: 1px solid var(--border, #e5e7eb);
-  border-radius: 8px;
+  background: var(--surface, var(--on-color));
+  border: 1px solid var(--border, var(--gray-200));
+  border-radius: var(--radius-xs);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -140,7 +140,7 @@
 .product-fallback-svg {
   width: 24px;
   height: 24px;
-  color: var(--text-dim, #9ca3af);
+  color: var(--text-dim, var(--gray-400));
 }
 
 .product-summary-info {
@@ -151,26 +151,26 @@
 }
 
 .product-name {
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
   font-weight: 700;
-  color: var(--text, #111827);
+  color: var(--text, var(--gray-900));
 }
 
 .product-cat-barcode {
-  font-size: 0.78rem;
-  color: var(--text-dim, #6b7280);
+  font-size: var(--fs-sm);
+  color: var(--text-dim, var(--gray-500));
 }
 
 .product-price {
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
   font-weight: 800;
-  color: var(--text, #111827);
+  color: var(--text, var(--gray-900));
   margin-top: 2px;
 }
 
 .product-stock {
-  font-size: 0.78rem;
-  color: var(--text-dim, #9ca3af);
+  font-size: var(--fs-sm);
+  color: var(--text-dim, var(--gray-400));
 }
 
 /* Actions */
@@ -181,42 +181,42 @@
   align-items: center;
   gap: 12px;
   padding-top: 16px;
-  border-top: 1px solid var(--border, #e5e7eb);
+  border-top: 1px solid var(--border, var(--gray-200));
 }
 
 .btn-text-link {
   background: transparent;
   border: none;
-  color: var(--text-dim, #6b7280);
-  font-size: 0.88rem;
+  color: var(--text-dim, var(--gray-500));
+  font-size: var(--fs-base);
   font-weight: 600;
   cursor: pointer;
   padding: 6px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-2xs);
   transition: all 0.15s ease;
 }
 
 .btn-text-link:hover {
-  color: var(--text, #111827);
-  background: var(--surface-2, #f3f4f6);
+  color: var(--text, var(--gray-900));
+  background: var(--surface-2, var(--gray-100));
 }
 
 .btn-view-inventory {
   width: 100%;
   height: 44px;
-  background: var(--yellow, #f5b921);
-  color: #1a1509;
+  background: var(--yellow, var(--yellow));
+  color: var(--tone-1a1509);
   border: none;
-  font-size: 0.92rem;
+  font-size: var(--fs-md);
   font-weight: 700;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(245, 185, 33, 0.25);
   transition: all 0.15s ease;
 }
 
 .btn-view-inventory:hover {
-  background: var(--yellow-hover, #ffca3a);
+  background: var(--yellow-hover, var(--yellow-hover));
   box-shadow: 0 4px 12px rgba(245, 185, 33, 0.35);
 }
 

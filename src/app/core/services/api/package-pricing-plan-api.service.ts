@@ -32,13 +32,6 @@ export class PackagePricingPlanApiService extends BaseApiService {
     );
   }
 
-  /** Get package pricing plan by ID */
-  getPackagePricingPlanById(id: string): Observable<PackagePricingPlanDto> {
-    return this.get<ApiResponse<PackagePricingPlanDto>>(
-      API_ENDPOINTS.PACKAGE_PRICING_PLANS.BY_ID(id)
-    ).pipe(map(extractData));
-  }
-
   /** Create package pricing plan */
   createPackagePricingPlan(dto: CreatePackagePricingPlanDto): Observable<PackagePricingPlanDto> {
     return this.post<ApiResponse<PackagePricingPlanDto>>(

@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { MainLayoutComponent } from './layouts/main-layout/main-layout.component';
 import { AuthLayoutComponent } from './layouts/auth-layout/auth-layout.component';
-import { authGuard } from './core/guards/auth.guard';
+import { authGuard, guestGuard } from './core/guards/auth.guard';
 import { adminGuard } from './core/guards/admin.guard';
 
 export const routes: Routes = [
@@ -9,6 +9,7 @@ export const routes: Routes = [
   {
     path: 'auth',
     component: AuthLayoutComponent,
+    canActivate: [guestGuard],
     children: [
       {
         path: 'login',
@@ -80,20 +81,6 @@ export const routes: Routes = [
             redirectTo: 'instructor',
             pathMatch: 'full',
           },
-          {
-            path: 'add-student-package',
-            loadComponent: () =>
-              import(
-                './features/package/add-student-package/add-student-package.component'
-              ).then((m) => m.AddStudentPackageComponent),
-          },
-          {
-            path: 'add-instructor-package',
-            loadComponent: () =>
-              import(
-                './features/package/add-instructor-package/add-instructor-package.component'
-              ).then((m) => m.AddInstructorPackageComponent),
-          },
         ],
       },
 
@@ -102,24 +89,10 @@ export const routes: Routes = [
         path: 'workspace',
         children: [
           {
-            path: 'add-student',
-            loadComponent: () =>
-              import('./features/workspace/add-student/add-student.component').then(
-                (m) => m.AddStudentComponent
-              ),
-          },
-          {
             path: 'show-student',
             loadComponent: () =>
               import('./features/workspace/show-student/show-student.component').then(
                 (m) => m.ShowStudentComponent
-              ),
-          },
-          {
-            path: 'checkout',
-            loadComponent: () =>
-              import('./features/workspace/checkout/checkout.component').then(
-                (m) => m.WorkspaceCheckoutComponent
               ),
           },
         ],
@@ -130,43 +103,10 @@ export const routes: Routes = [
         path: 'classroom',
         children: [
           {
-            path: 'add-classroom',
-            loadComponent: () =>
-              import('./features/classroom/add-classroom/add-classroom.component').then(
-                (m) => m.AddClassroomComponent
-              ),
-          },
-          {
             path: 'show-classroom',
             loadComponent: () =>
               import('./features/classroom/show-classroom/show-classroom.component').then(
                 (m) => m.ShowClassroomComponent
-              ),
-          },
-          {
-            path: 'checkout',
-            loadComponent: () =>
-              import('./features/classroom/checkout/checkout.component').then(
-                (m) => m.ClassroomCheckoutComponent
-              ),
-          },
-          {
-            path: 'add-reservation',
-            redirectTo: 'add-classroom',
-            pathMatch: 'full',
-          },
-          {
-            path: 'show-reservation/:id',
-            loadComponent: () =>
-              import('./features/classroom/show-reservation/show-reservation.component').then(
-                (m) => m.ShowReservationComponent
-              ),
-          },
-          {
-            path: 'show-reservation',
-            loadComponent: () =>
-              import('./features/classroom/show-reservation/show-reservation.component').then(
-                (m) => m.ShowReservationComponent
               ),
           },
           {
@@ -218,38 +158,10 @@ export const routes: Routes = [
             pathMatch: 'full',
           },
           {
-            path: 'end-of-shift-balance',
-            loadComponent: () =>
-              import('./features/shift/end-of-shift-balance/end-of-shift-balance.component').then(
-                (m) => m.EndOfShiftBalanceComponent
-              ),
-          },
-          {
             path: 'add-shift',
             loadComponent: () =>
               import('./features/shift/add-shift/add-shift.component').then(
                 (m) => m.AddShiftComponent
-              ),
-          },
-          {
-            path: 'show-shift',
-            loadComponent: () =>
-              import('./features/shift/show-shift/show-shift.component').then(
-                (m) => m.ShowShiftComponent
-              ),
-          },
-          {
-            path: 'show-shift/:id',
-            loadComponent: () =>
-              import('./features/shift/show-shift/show-shift.component').then(
-                (m) => m.ShowShiftComponent
-              ),
-          },
-          {
-            path: 'search-shift',
-            loadComponent: () =>
-              import('./features/shift/search-shift/search-shift.component').then(
-                (m) => m.SearchShiftComponent
               ),
           },
         ],
@@ -324,13 +236,6 @@ export const routes: Routes = [
       {
         path: 'catering',
         children: [
-          {
-            path: 'add-products',
-            loadComponent: () =>
-              import('./features/catering/add-products/add-products.component').then(
-                (m) => m.AddProductsComponent
-              ),
-          },
           {
             path: 'show-products',
             loadComponent: () =>

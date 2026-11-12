@@ -11,14 +11,16 @@ import { ClassroomPackageApiService } from './api/classroom-package-api.service'
 import { LanguageService } from './language.service';
 import { NotificationService } from './notification.service';
 import { AuditService } from './audit.service';
-import { ShiftDto, CreateShiftItemDto, ShiftItemCategory, AdminUpdateShiftDto } from '../models/shift-api.model';
+import { ShiftDto, CreateShiftItemDto, AdminUpdateShiftDto } from '../models/shift-api.model';
 import { getSafeAvatar } from '../utils/avatar.util';
 import { parseIsoToLocal12h, parseIsoToLocalDate, getTodayDateISO } from '../utils/date-time.util';
+import { extractApiErrorMessage } from '../utils/api-error.util';
 import {
   saveShiftFloats,
   getSavedShiftFloats,
   calculateShiftBalances,
-  sanitizeMoney
+  sanitizeMoney,
+  ChannelBalanceReport
 } from '../utils/shift-balance.util';
 
 @Injectable({
@@ -61,9 +63,8 @@ export class ShiftService implements OnDestroy {
     if (this.hasActiveShift()) {
       return true;
     }
-    const msg = this.langService.isArabic()
-      ? `لا يمكن تنفيذ ${actionName ? '"' + actionName + '"' : 'هذه العملية'}: يجب فتح شيفت أولاً! النظام حالياً في وضع المشاهدة فقط (View-Only).`
-      : `Cannot perform ${actionName ? '"' + actionName + '"' : 'action'}: An active shift is required! You are in View-Only mode.`;
+    const action = actionName ? '"' + actionName + '"' : this.langService.t().shiftThisAction;
+    const msg = this.langService.tf('shiftCannotPerformAction', { action });
     this.notification.show(msg, 'error');
     return false;
   }
@@ -90,9 +91,7 @@ export class ShiftService implements OnDestroy {
   public updateShiftTime(shiftId: string, newStartTime: string, newEndTime?: string): Observable<boolean> {
     const shift = this.currentShift()?.id === shiftId ? this.currentShift() : this.shiftHistory().find(s => s.id === shiftId);
     if (!this.canEditShift(shift)) {
-      const msg = this.langService.isArabic()
-        ? 'غير مصرح: لا يمكن تعديل توقيت الشيفت المغلق إلا بواسطة مسؤول النظام (Admin)'
-        : 'Unauthorized: Closed shift time can only be edited by an Admin';
+      const msg = this.langService.t().svcUnauthorizedClosedShiftTimeCan;
       this.notification.show(msg, 'error');
       return throwError(() => new Error(msg));
     }
@@ -122,7 +121,7 @@ export class ShiftService implements OnDestroy {
     }
     this.shiftHistory.update(list => list.map(s => s.id === shiftId ? { ...s, startTime: newStartTime, endTime: newEndTime || s.endTime } : s));
 
-    this.notification.show(this.langService.isArabic() ? 'تم تعديل توقيت الشيفت بنجاح!' : 'Shift time updated successfully!', 'success');
+    this.notification.show(this.langService.t().svcShiftTimeUpdatedSuccessfully, 'success');
     return of(true);
   }
 
@@ -131,7 +130,7 @@ export class ShiftService implements OnDestroy {
     if (shift && shift.staffName) return shift.staffName;
     const user = this.authService.getUser();
     if (user && user.name) return user.name;
-    return this.langService.isArabic() ? 'موظف الاستقبال' : 'Receptionist';
+    return this.langService.t().uiReceptionist;
   });
 
   readonly activeStaffAvatar = computed(() => {
@@ -255,6 +254,10 @@ export class ShiftService implements OnDestroy {
   readonly packageCash = computed(() => this.currentShift()?.packageRevenue ?? 0);
   readonly cateringCash = computed(() => this.currentShift()?.canteenRevenue ?? 0);
   readonly otherIncome = computed(() => this.currentShift()?.otherIncome ?? 0);
+  /** Money put into student wallets during the shift (cash in the drawer, not revenue). */
+  readonly walletTopUps = computed(() => this.currentShift()?.walletTopUps ?? 0);
+  /** The part of this shift's revenue that was paid from wallets (no cash came in for it). */
+  readonly walletPaidRevenue = computed(() => this.currentShift()?.walletPaidRevenue ?? 0);
   readonly adminExpenses = computed(() => this.currentShift()?.adminExpenses ?? 0);
 
   readonly posReceipts = computed(() =>
@@ -276,7 +279,7 @@ export class ShiftService implements OnDestroy {
     const digitalIn = this.digitalReceipts();
 
     const txs = shift.transactions || [];
-    let cashOut = 0;
+    let cashOut: number;
     if (txs.length > 0) {
       cashOut = txs
         .filter(t => (t.paymentMethod === 'cash' || t.paymentMethod === 'petty_cash' || !t.paymentMethod || t.paymentMethod === '-') && (t.type === 'expense' || t.amount < 0))
@@ -580,7 +583,6 @@ export class ShiftService implements OnDestroy {
         let adminExpenses = 0;
 
         (mergedDto.items || []).forEach((it: any) => {
-          const cat = Number(it.category);
           const t = String(it.type || '').toLowerCase();
           const rawDesc = String(it.item || it.description || '').trim();
           const desc = rawDesc.toLowerCase();
@@ -639,8 +641,8 @@ export class ShiftService implements OnDestroy {
             });
           } else if (!isExpense && amt > 0) {
             // Manual Revenue Item / Shift Item classification
-            let itemType: ShiftTransactionType = 'other';
-            let itemCategoryAmt = amt;
+            let itemType: ShiftTransactionType;
+            let itemCategoryAmt: number;
 
             if (desc.includes('[كافيه]') || t === 'canteen' || desc.includes('كافيه') || desc.includes('مشروب') || desc.includes('بوفيه') || desc.includes('سناكس') || desc.includes('canteen') || desc.includes('catering') || desc.includes('coffee') || desc.includes('tea')) {
               itemType = 'canteen';
@@ -697,22 +699,39 @@ export class ShiftService implements OnDestroy {
           }
         });
 
-        const totalRev = +(liveWorkspaceRev + liveClassroomRev + livePackageRev + liveCanteenRev + liveOtherRev).toFixed(2);
+        // The server's shift totals are built from the shift items and are authoritative. The values
+        // rebuilt above from sessions/classrooms are only a fallback for fields the server leaves out —
+        // using them overwrote correct channel totals (and the close request then saved wrong counts).
+        const fromServer = (key: string): boolean => {
+          const v = (mergedDto as any)[key];
+          return v !== undefined && v !== null && !isNaN(Number(v));
+        };
+        const pick = (key: string, serverValue: number | undefined, liveValue: number): number =>
+          fromServer(key) ? (serverValue ?? 0) : liveValue;
+
+        const workspaceRevenue = pick('workspaceRevenue', record.workspaceRevenue, liveWorkspaceRev);
+        const classroomRevenue = pick('classroomRevenue', record.classroomRevenue, liveClassroomRev);
+        const packageRevenue = pick('packageRevenue', record.packageRevenue, livePackageRev);
+        const canteenRevenue = pick('canteenRevenue', record.canteenRevenue, liveCanteenRev);
+        const otherIncome = pick('otherIncome', record.otherIncome, liveOtherRev);
+        const totalRev = fromServer('totalRevenue')
+          ? Number((mergedDto as any).totalRevenue)
+          : +(workspaceRevenue + classroomRevenue + packageRevenue + canteenRevenue + otherIncome).toFixed(2);
 
         const updatedRecord: ShiftRecord = {
           ...record,
-          workspaceRevenue: liveWorkspaceRev,
-          classroomRevenue: liveClassroomRev,
-          packageRevenue: livePackageRev,
-          canteenRevenue: liveCanteenRev,
-          otherIncome: liveOtherRev,
-          adminExpenses: adminExpenses,
-          vodafoneCashInside: vfIn,
-          vodafoneCashOutside: vfOut,
-          instapayCashInside: ipIn,
-          instapayCashOutside: ipOut,
-          fawryCashInside: fwIn,
-          fawryCashOutside: fwOut,
+          workspaceRevenue,
+          classroomRevenue,
+          packageRevenue,
+          canteenRevenue,
+          otherIncome,
+          adminExpenses: pick('administrative', record.adminExpenses, adminExpenses),
+          vodafoneCashInside: pick('vfCashInside', record.vodafoneCashInside, vfIn),
+          vodafoneCashOutside: pick('vfCashOutside', record.vodafoneCashOutside, vfOut),
+          instapayCashInside: pick('instapayInside', record.instapayCashInside, ipIn),
+          instapayCashOutside: pick('instapayOutside', record.instapayCashOutside, ipOut),
+          fawryCashInside: pick('fawryInside', record.fawryCashInside, fwIn),
+          fawryCashOutside: pick('fawryOutside', record.fawryCashOutside, fwOut),
           totalRevenue: totalRev,
           transactionsCount: combinedLedger.length,
           transactions: combinedLedger
@@ -730,9 +749,10 @@ export class ShiftService implements OnDestroy {
    * 2. GET /api/Shifts/open/{userId}
    * 3. GET /api/Shifts (find any active shift in system)
    */
-  fetchCurrentShiftFromApi(): void {
+  /** @param silent background refresh (LiveRefreshService): no loading spinner */
+  fetchCurrentShiftFromApi(silent = false): void {
     if (!this.authService.isAuthenticated()) return;
-    this.isLoading.set(true);
+    if (!silent) this.isLoading.set(true);
     this.error.set(null);
 
     // Call dedicated GET /api/Shifts/current
@@ -741,10 +761,9 @@ export class ShiftService implements OnDestroy {
         if (currentDto && this.isShiftActiveDto(currentDto)) {
           this.loadAndSetActiveShift(currentDto);
         } else {
-          // Fallback 1: check getOpenShift(userId)
-          const user = this.authService.getUser();
-          const userId = user?.id || (user as any)?.userId || (user as any)?.sub;
-          const checkOpenShift$ = userId ? this.shiftApi.getOpenShift(userId) : of(null);
+          // GET /api/shifts/open/{id} expects a staff profile id, not the account id, and
+          // /api/shifts/current already answers system-wide — so no per-user lookup here.
+          const checkOpenShift$ = of(null);
 
           checkOpenShift$.subscribe({
             next: (openDto) => {
@@ -835,9 +854,9 @@ export class ShiftService implements OnDestroy {
    */
   startShift(
     initialCash: number,
-    startVodafone: number = 0,
-    startInstaPay: number = 0,
-    startFawry: number = 0,
+    startVodafone = 0,
+    startInstaPay = 0,
+    startFawry = 0,
     notes?: string,
     onComplete?: (success: boolean, error?: string) => void,
     chosenStaffName?: string,
@@ -847,7 +866,7 @@ export class ShiftService implements OnDestroy {
     const nowIso = new Date().toISOString();
     const formattedStart = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const targetUserId = chosenUserId || user?.id || (user as any)?.userId || (user as any)?.sub || undefined;
-    const targetStaffName = chosenStaffName || user?.name || (this.langService.isArabic() ? 'موظف الاستقبال' : 'Receptionist');
+    const targetStaffName = chosenStaffName || user?.name || (this.langService.t().uiReceptionist);
 
     this.isLoading.set(true);
 
@@ -945,9 +964,7 @@ export class ShiftService implements OnDestroy {
             {
               id: `TX-${Date.now().toString().slice(-4)}`,
               timestamp: formattedStart,
-              details: this.langService.isArabic()
-                ? 'رصيد افتتاح الوردية (الخزينة النقدية)'
-                : 'Shift Opening Balance (Cash Drawer)',
+              details: this.langService.t().svcShiftOpeningBalanceCashDrawer,
               type: 'system',
               paymentMethod: '-',
               amount: initialCash,
@@ -963,14 +980,17 @@ export class ShiftService implements OnDestroy {
       if (onComplete) onComplete(true);
     };
 
-    const attemptStart = (userIdToSend?: string, hasRetried: boolean = false) => {
+    const attemptStart = (userIdToSend?: string, hasRetried = false) => {
       this.shiftApi.startShift({
         userId: userIdToSend,
         openingBalance: initialCash,
         notes: notes,
         date: nowIso,
         timeFrom: nowIso,
-        previousTotal: initialCash
+        previousTotal: initialCash,
+        startVodafoneCash: startVodafone,
+        startInstapay: startInstaPay,
+        startFawry: startFawry
       }).subscribe({
         next: (apiShift) => {
           createSuccessShift(apiShift);
@@ -1000,7 +1020,7 @@ export class ShiftService implements OnDestroy {
               },
               error: () => {
                 this.isLoading.set(false);
-                const finalMsg = errorMsg || (this.langService.isArabic() ? 'فشل فتح الشفت' : 'Failed to start shift');
+                const finalMsg = errorMsg || (this.langService.t().shiftFailedToStartShift);
                 if (onComplete) onComplete(false, finalMsg);
               }
             });
@@ -1008,7 +1028,7 @@ export class ShiftService implements OnDestroy {
           }
 
           this.isLoading.set(false);
-          const finalMsg = errorMsg || (this.langService.isArabic() ? 'فشل فتح الشفت' : 'Failed to start shift');
+          const finalMsg = errorMsg || (this.langService.t().shiftFailedToStartShift);
 
           // If backend indicates an active shift already exists across the system, sync it immediately
           if (errorMsg.includes('وردية نشطة') || errorMsg.includes('already') || errorMsg.includes('active') || err?.status === 400) {
@@ -1064,7 +1084,7 @@ export class ShiftService implements OnDestroy {
    */
   recordTransaction(
     tx: Omit<ShiftTransaction, 'id' | 'timestamp' | 'staffName'> & { staffName?: string; timestamp?: string },
-    skipApi: boolean = false
+    skipApi = false
   ): void {
     const staff = tx.staffName || this.activeStaffName();
     const formattedTime = tx.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -1162,7 +1182,10 @@ export class ShiftService implements OnDestroy {
       };
 
       this.shiftApi.addShiftItem(current.id, itemDto).subscribe({
-        error: (err) => console.warn('[ShiftService] Could not persist shift expense to API:', err)
+        error: (err) => {
+          this.notification.error(this.langService.tf('shiftExpenseSyncFailed', { error: extractApiErrorMessage(err, this.langService.t().connectionErrorFallback) }));
+          this.fetchCurrentShiftFromApi();
+        }
       });
     }
   }
@@ -1177,16 +1200,18 @@ export class ShiftService implements OnDestroy {
     paymentMethod: 'cash' | 'vodafone' | 'instapay' | 'fawry';
     description: string;
     category?: string;
+    /** Revenue that the backend already records itself (checkout / booking): keep it in the local ledger only */
+    localOnly?: boolean;
   }): Observable<any> {
     const current = this.currentShift();
     if (!current) {
-      return throwError(() => new Error('لا توجد وردية نشطة حالياً'));
+      return throwError(() => new Error(this.langService.t().shiftNoActiveNow));
     }
 
     const payWayCode = params.paymentMethod === 'vodafone' ? 2 : (params.paymentMethod === 'instapay' ? 3 : (params.paymentMethod === 'fawry' ? 4 : 1));
 
-    let resolvedType: ShiftTransactionType = 'other';
-    let tagPrefix = '';
+    let resolvedType: ShiftTransactionType;
+    let tagPrefix: string;
 
     if (params.type === 'expense') {
       resolvedType = 'expense';
@@ -1195,7 +1220,14 @@ export class ShiftService implements OnDestroy {
       const cat = (params.category || '').toLowerCase();
       const desc = (params.description || '').toLowerCase();
 
-      if (cat === 'canteen' || desc.includes('كافيه') || desc.includes('مشروب') || desc.includes('بوفيه') || desc.includes('سناكس') || desc.includes('canteen') || desc.includes('catering')) {
+      // An explicit category wins; the description is only a fallback guess.
+      const explicit: Record<string, [ShiftTransactionType, string]> = {
+        canteen: ['canteen', '[كافيه]'], workspace: ['workspace', '[جلسة]'],
+        classroom: ['classroom', '[قاعة]'], package: ['package', '[باقة]']
+      };
+      if (explicit[cat]) {
+        [resolvedType, tagPrefix] = explicit[cat];
+      } else       if (cat === 'canteen' || desc.includes('كافيه') || desc.includes('مشروب') || desc.includes('بوفيه') || desc.includes('سناكس') || desc.includes('canteen') || desc.includes('catering')) {
         resolvedType = 'canteen';
         tagPrefix = '[كافيه]';
       } else if (cat === 'workspace' || desc.includes('طالب') || desc.includes('جلسة') || desc.includes('ساعات')) {
@@ -1221,7 +1253,7 @@ export class ShiftService implements OnDestroy {
     const itemDto: CreateShiftItemDto = {
       description: taggedDescription,
       amount: params.amount,
-      category: params.type === 'expense' ? 'Expense' : 'Income',
+      category: params.type === 'expense' ? 'expense' : (resolvedType === 'canteen' || resolvedType === 'classroom' || resolvedType === 'workspace' || resolvedType === 'package' ? resolvedType : 'workspace'),
       cost: params.amount,
       type: params.type === 'expense' ? 'Expense' : 'Revenue',
       payWay: payWayCode,
@@ -1236,8 +1268,9 @@ export class ShiftService implements OnDestroy {
       details: params.description
     }, true);
 
-    // 2. Call backend API if real ID
-    if (current.id && !current.id.startsWith('SHIFT-')) {
+    // 2. Post to the backend, except revenue the checkout / booking endpoints already recorded
+    //    (localOnly) — posting it again would count it twice.
+    if (!params.localOnly && current.id && !current.id.startsWith('SHIFT-')) {
       return this.shiftApi.addShiftItem(current.id, itemDto).pipe(
         tap(() => {
           this.fetchCurrentShiftFromApi();
@@ -1249,54 +1282,13 @@ export class ShiftService implements OnDestroy {
   }
 
   /**
-   * Adjust and reallocate shift revenues across operational categories.
-   * Maintains total receipts and expected physical cash balance.
-   */
-  adjustShiftRevenues(adjustments: {
-    canteenRevenue?: number;
-    otherIncome?: number;
-    workspaceRevenue?: number;
-    classroomRevenue?: number;
-  }): void {
-    const current = this.currentShift();
-    if (!current) return;
-
-    const newCanteen = adjustments.canteenRevenue !== undefined ? Math.max(0, +adjustments.canteenRevenue.toFixed(2)) : (current.canteenRevenue || 0);
-    const newOther = adjustments.otherIncome !== undefined ? Math.max(0, +adjustments.otherIncome.toFixed(2)) : (current.otherIncome || 0);
-    const newClassroom = adjustments.classroomRevenue !== undefined ? Math.max(0, +adjustments.classroomRevenue.toFixed(2)) : (current.classroomRevenue || 0);
-
-    let newWorkspace = current.workspaceRevenue || 0;
-    if (adjustments.workspaceRevenue !== undefined) {
-      newWorkspace = Math.max(0, +adjustments.workspaceRevenue.toFixed(2));
-    } else {
-      // Rebalance from workspace if canteen or other increased
-      const pool = (current.workspaceRevenue || 0) + (current.canteenRevenue || 0) + (current.otherIncome || 0);
-      const allocatedOthers = newCanteen + newOther;
-      if (pool >= allocatedOthers) {
-        newWorkspace = +(pool - allocatedOthers).toFixed(2);
-      }
-    }
-
-    const total = +(newWorkspace + newClassroom + (current.packageRevenue || 0) + newCanteen + newOther).toFixed(2);
-
-    this.currentShift.set({
-      ...current,
-      canteenRevenue: newCanteen,
-      otherIncome: newOther,
-      classroomRevenue: newClassroom,
-      workspaceRevenue: newWorkspace,
-      totalRevenue: total
-    });
-  }
-
-  /**
    * Delete a shift transaction item from both the backend and local state.
    * DELETE /api/Shifts/{shiftId}/items/{itemId}
    */
   deleteShiftItem(itemId: string): Observable<boolean> {
     const current = this.currentShift();
     if (!current) {
-      return throwError(() => new Error('لا توجد وردية نشطة'));
+      return throwError(() => new Error(this.langService.t().shiftNoActive));
     }
 
     const updatedTxs = (current.transactions || []).filter(tx => tx.id !== itemId);
@@ -1395,9 +1387,9 @@ export class ShiftService implements OnDestroy {
    */
   closeShiftWithReconciliation(
     actualCash: number,
-    actualVodafone: number = 0,
-    actualInstaPay: number = 0,
-    actualFawry: number = 0,
+    actualVodafone = 0,
+    actualInstaPay = 0,
+    actualFawry = 0,
     notes?: string,
     onComplete?: (success: boolean, error?: string) => void
   ): void {
@@ -1455,7 +1447,6 @@ export class ShiftService implements OnDestroy {
     const variance = report.totalDifference;
     const isBalanced = report.isBalanced;
     const endTimeStr = parseIsoToLocal12h(new Date().toISOString(), true);
-    const locale = this.langService.isArabic() ? 'ar-EG' : 'en-US';
 
     const historyItem: ShiftHistoryItem = {
       id: active.id,
@@ -1488,8 +1479,16 @@ export class ShiftService implements OnDestroy {
         notes: notes || '',
         timeTo: new Date().toISOString(),
         administrative: active.adminExpenses || 0,
-        vfCashInside: actualVodafone || active.vodafoneCashInside || 0,
+        // Channel flows during the shift, and what was actually counted at closing
+        vfCashInside: active.vodafoneCashInside || 0,
         vfCashOutside: active.vodafoneCashOutside || 0,
+        instapayInside: active.instapayCashInside || 0,
+        instapayOutside: active.instapayCashOutside || 0,
+        fawryInside: active.fawryCashInside || 0,
+        fawryOutside: active.fawryCashOutside || 0,
+        actualVodafone,
+        actualInstapay: actualInstaPay,
+        actualFawry,
         increase: variance > 0 ? variance : 0,
         loss: variance < 0 ? Math.abs(variance) : 0,
         totalCost: actualCash,
@@ -1518,16 +1517,14 @@ export class ShiftService implements OnDestroy {
             }
           );
           this.notification.success(
-            this.langService.isArabic() ? 'تم إغلاق الوردية بنجاح!' : 'Shift closed successfully!'
+            this.langService.t().svcShiftClosedSuccessfully
           );
           if (onComplete) onComplete(true);
         },
         error: (err) => {
           console.error('[ShiftService] Failed to close shift on API:', err);
           const errorMsg = err?.error?.message || err?.message || (
-            this.langService.isArabic()
-              ? 'تعذر إغلاق الوردية على الخادم. يرجى إعادة المحاولة.'
-              : 'Failed to close shift on server. Please try again.'
+            this.langService.t().svcFailedToCloseShiftOn
           );
           this.notification.error(errorMsg);
           // BUG-014 fix: do NOT clear active shift locally on backend failure!
@@ -1573,10 +1570,6 @@ export class ShiftService implements OnDestroy {
       }),
       finalize(() => this.isLoading.set(false))
     );
-  }
-
-  clearActiveShift(): void {
-    this.currentShift.set(null);
   }
 
   resetShiftDataForTesting(): void {
@@ -1725,7 +1718,7 @@ export class ShiftService implements OnDestroy {
             descLower.includes('printing') ||
             descLower.includes('خدمات');
 
-          let resolvedType: ShiftTransactionType = 'workspace';
+          let resolvedType: ShiftTransactionType;
           let isExpenseItem = false;
 
           if (isCanteenRevenue) {
@@ -1800,7 +1793,7 @@ export class ShiftService implements OnDestroy {
     let workspaceRev = dto.workspaceRevenue !== undefined ? Number(dto.workspaceRevenue) : 0;
     let packageRev = dto.packageRevenue !== undefined ? Number(dto.packageRevenue) : 0;
     let otherRev = dto.otherIncome !== undefined ? Number(dto.otherIncome) : 0;
-    let expenses = 0;
+    let expenses: number;
 
     if (Array.isArray(dto.items) && dto.items.length > 0) {
       const expenseItems = dto.items.filter((it: any) => {
@@ -1869,7 +1862,13 @@ export class ShiftService implements OnDestroy {
     let fwIn = dto.fawryInside ?? 0;
     let fwOut = dto.fawryOutside ?? 0;
 
-    if (Array.isArray(mappedTransactions) && mappedTransactions.length > 0) {
+    // The server computes the channel totals from the shift items. Only when it does not send them are
+    // they estimated from the ledger (that estimate counted wallet-paid expenses as income).
+    const serverSentChannels = dto.vfCashInside != null || dto.instapayInside != null || dto.fawryInside != null;
+    // Likewise the per-category revenue: re-splitting it by description keywords changed the server's numbers.
+    const serverSentRevenue = dto.workspaceRevenue != null || dto.canteenRevenue != null || dto.otherIncome != null;
+
+    if (!serverSentChannels && Array.isArray(mappedTransactions) && mappedTransactions.length > 0) {
       const vfSum = mappedTransactions.filter(t => t.paymentMethod === 'vodafone' && t.amount > 0).reduce((s, t) => s + t.amount, 0);
       const ipSum = mappedTransactions.filter(t => t.paymentMethod === 'instapay' && t.amount > 0).reduce((s, t) => s + t.amount, 0);
       const fwSum = mappedTransactions.filter(t => t.paymentMethod === 'fawry' && t.amount > 0).reduce((s, t) => s + t.amount, 0);
@@ -1888,7 +1887,7 @@ export class ShiftService implements OnDestroy {
       .filter(t => t.type === 'other' || (t.type as string) === 'printing')
       .reduce((s, t) => s + Math.max(0, t.amount), 0);
 
-    if (ledgerCanteen > 0 && (canteenRev === 0 || canteenRev < ledgerCanteen)) {
+    if (!serverSentRevenue && ledgerCanteen > 0 && (canteenRev === 0 || canteenRev < ledgerCanteen)) {
       const diff = +(ledgerCanteen - canteenRev).toFixed(2);
       canteenRev = ledgerCanteen;
       if (workspaceRev >= diff) {
@@ -1896,7 +1895,7 @@ export class ShiftService implements OnDestroy {
       }
     }
 
-    if (ledgerOther > 0 && (otherRev === 0 || otherRev < ledgerOther)) {
+    if (!serverSentRevenue && ledgerOther > 0 && (otherRev === 0 || otherRev < ledgerOther)) {
       const diff = +(ledgerOther - otherRev).toFixed(2);
       otherRev = ledgerOther;
       if (workspaceRev >= diff) {
@@ -1969,6 +1968,8 @@ export class ShiftService implements OnDestroy {
       instapayCashOutside: ipOut,
       fawryCashInside: fwIn,
       fawryCashOutside: fwOut,
+      walletTopUps: Number(dto.walletTopUps ?? 0),
+      walletPaidRevenue: Number(dto.walletPaidRevenue ?? 0),
       totalRevenue: totalRev || (dto.totalCost ?? dto.systemCash ?? 0),
       transactionsCount: dto.transactionsCount ?? mappedTransactions.length,
       transactions: mappedTransactions
@@ -1992,7 +1993,7 @@ export class ShiftService implements OnDestroy {
       ? saved.closing.status === 'balanced'
       : (Math.abs(variance) < 0.01);
 
-    const fallbackStaff = this.langService.isArabic() ? 'موظف الاستقبال' : 'Receptionist';
+    const fallbackStaff = this.langService.t().uiReceptionist;
     const staffName = dto.userName || fallbackStaff;
 
     return {
@@ -2008,8 +2009,32 @@ export class ShiftService implements OnDestroy {
       variance: variance,
       status: isBalanced ? 'balanced' : 'disputed',
       notes: dto.notes || dto.note || undefined,
-      channelBreakdown: saved?.closing?.channelReports
+      channelBreakdown: this.channelBreakdownFromDto(dto) ?? saved?.closing?.channelReports
     };
+  }
+
+  /**
+   * Per-channel reconciliation of a closed shift, built from the shift returned by the API
+   * (opening balance, in/out flows, counted balance). Returns undefined for open shifts.
+   */
+  private channelBreakdownFromDto(dto: ShiftDto | any): ChannelBalanceReport[] | undefined {
+    if (this.isShiftActiveDto(dto)) return undefined;
+    const n = (v: unknown) => sanitizeMoney(Number(v) || 0);
+    const row = (
+      channelKey: ChannelBalanceReport['channelKey'], channelNameAr: string, channelNameEn: string,
+      opening: number, inflows: number, outflows: number, countedClosing: number, expectedOverride?: number
+    ): ChannelBalanceReport => {
+      const expected = expectedOverride ?? +(opening + inflows - outflows).toFixed(2);
+      const difference = +(countedClosing - expected).toFixed(2);
+      return { channelKey, channelNameAr, channelNameEn, opening, inflows, outflows, expected, countedClosing, difference, isBalanced: Math.abs(difference) < 0.01 };
+    };
+    const expectedCash = n(dto.expectedCash);
+    return [
+      row('cash', 'الدرج والكاش', 'Cash drawer', n(dto.previousTotal), 0, n(dto.administrative), +(expectedCash + n(dto.cashDifference)).toFixed(2), expectedCash),
+      row('vodafone', 'فودافون كاش', 'Vodafone Cash', n(dto.startVodafoneCash), n(dto.vfCashInside), n(dto.vfCashOutside), n(dto.actualVodafone)),
+      row('instapay', 'إنستاباي', 'InstaPay', n(dto.startInstapay), n(dto.instapayInside), n(dto.instapayOutside), n(dto.actualInstapay)),
+      row('fawry', 'فوري', 'Fawry', n(dto.startFawry), n(dto.fawryInside), n(dto.fawryOutside), n(dto.actualFawry))
+    ];
   }
 
   /**
@@ -2036,25 +2061,6 @@ export class ShiftService implements OnDestroy {
           catchError(() => of(true))
         );
       })
-    );
-  }
-
-  /**
-   * Verify the shift opener's password before performing critical actions (e.g. deleting student sessions)
-   * Calls POST /api/Shifts/{shiftId}/verify-password or POST /api/Shifts/verify-password
-   */
-  verifyShiftOpenerPassword(password: string, shiftId?: string, staffIdentifier?: string): Observable<boolean> {
-    const shift = this.currentShift();
-    const effectiveShiftId = shiftId || (shift?.id && /^[0-9a-fA-F-]{36}$/.test(shift.id) ? shift.id : undefined);
-    const effectiveStaff = staffIdentifier || shift?.staffName || this.authService.getUser()?.name || this.authService.getUser()?.email;
-
-    return this.shiftApi.verifyShiftPassword({
-      password,
-      shiftId: effectiveShiftId,
-      staffIdentifier: effectiveStaff
-    }).pipe(
-      map(res => !!(res && (res.verified || res.success))),
-      catchError(() => of(false))
     );
   }
 }
